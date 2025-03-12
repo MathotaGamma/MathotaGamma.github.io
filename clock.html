@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>とけい</title>
+  <style type="text/css">
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0;
+        /* 時計全体の大きさ */
+        /* ウインドーのスクロール幅に対する割合で指定 */
+        --clocksize: 80vw;
+        background: #fff;
+    }
+
+    /* 時計の枠 */
+    .clock {
+        position: absolute;
+        top: 5%; /* これは画面上から下方向にずらす距離 */
+        border: 1px solid;
+        /*正方形を指定*/
+        width: var(--clocksize);
+        height: var(--clocksize);
+        /* 正方形を円に変換 */
+        border-radius: 50%;  /* border-radius: 半径;  半径50%で円*/
+    }
+
+    /* 文字盤 */
+    .clockFace {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    /* 時計の目盛り（時刻） */
+    .mark_hour {
+        position: absolute;
+        width: 2px; /* 目盛りの太さ */
+        --mark_minute_long : calc(var(--clocksize) * 0.05); 
+        height: var(--mark_minute_long); /* 目盛りの長さ */
+        background: #000;
+        transform-origin: right;
+        /* clockFaceで盤面の中心に設置 */
+        /* 時計盤幅の半分ずらして、目盛りの長さの半分ずらす */
+        transform: rotate(calc(30deg * var(--j))) translate(0, calc(var(--clocksize) * -0.5 + var(--mark_minute_long)/2));
+    }
+    
+    /* 時計の目盛り（分） */
+    .mark_minute {
+        position: absolute;
+        width: 1px; /* 目盛りの太さ */
+        --mark_hour_long : calc(var(--clocksize) * 0.03); 
+        height: var(--mark_hour_long); /* 目盛りの長さ */
+        background: #000;
+        transform-origin: right;
+        /* clockFaceで盤面の中心に設置 */
+        /* 時計盤幅の半分ずらして、目盛りの長さの半分ずらす */
+        transform: rotate(calc(6deg * var(--j))) translate(0, calc(var(--clocksize) * -0.5 + var(--mark_hour_long)/2));
+    }
+
+    /* 数字を置く領域 */
+    .number_area {
+        position: absolute;
+        font-size: calc(var(--clocksize)* 0.08);
+        width: calc(var(--clocksize)* 0.08);
+        height: calc(var(--clocksize)* 0.08);
+        text-align: center;
+        /*
+         数字を置く領域を盤面（clockFace）の中心に設置 
+         そして、translate(x軸方向の移動距離, y軸方向の移動距離) で
+         盤面幅の半分ずらす。　calc(var(--clocksize) * -0.5 
+         図面を見ながら微調整。今回は0.78倍
+         角度によって位置が変わるので、フォントサイズを元に微調整(var(--i) * calc(var(--clocksize)* 0.08) * 0.01) 
+         */
+        transform: rotate(calc(30deg * var(--i))) translate(0, calc(var(--clocksize) * -0.5 * 0.78 - var(--i) * (var(--clocksize)* 0.08) * 0.01) );
+        transform-origin: center;
+    }
+
+    /* 文字 */
+    .number {
+      font-size: calc(var(--clocksize)* 0.08);
+      width: calc(var(--clocksize)* 0.08);
+      height: calc(var(--clocksize)* 0.08);
+      /* 親のdivが傾いているので、文字の角度を戻す */
+      transform: rotate(calc(-30deg * var(--i)));
+    }
+
+    /* 日付表示 */
+    .dateArea {
+        position: absolute;
+        top: 30%; /* これは画面上から下方向にずらす距離 */
+        width: var(--clocksize);
+        font-size: calc(var(--clocksize)* 0.04);
+        text-align: center;
+    }
+    /* 午前午後表示 */
+    .branchAmPm {
+        position: absolute;
+        top: 35%; /* これは画面上から下方向にずらす距離 */
+        width: var(--clocksize);
+        font-size: calc(var(--clocksize)* 0.04);
+        text-align: center;
+    }
+
+    /* 時計の針共通 */
+    .hand {
+        position: absolute;
+        top: 50%; /* これは親要素 .clock の高さの50%下から描画 */
+        /* 針の右端を画面の中心に置く */
+        right: 50%;
+        /* 変形させる要素の中心点 右端を回転の中心にする */
+        transform-origin: right;
+        /* transform:変形後の表示効果 */
+        /*
+        ease-in     開始時は緩やかに、終了時は早く変化
+        ease-out    ease-inとは逆に開始時は早く終了時は緩やかに
+        ease-in-out 開始時と終了時の変化をeaseより緩やかに
+        */
+        transition: transform 0.0s;
+    }
+    /* 短針 */
+    .hour {
+      height: 2%;  /* 針の太さ */
+      width: 35%;  /* 針の長さ */
+      background: #000;
+    }
+    /* 長針 */
+    .minute {
+      height: 1%;  /* 針の太さ */
+      width: 40%;  /* 針の長さ */
+        background: #000;
+    }
+    /* 秒針 */
+    .second {
+        height: 1px;  /* 針の太さ */
+        width: 45%;  /* 針の長さ */
+        background: #000;
+    }
+
+    /* デジタル時計 */
+    .digital_clock {
+        position: absolute;
+        top: calc(var(--clocksize) * 1.1); /* これは画面上から下方向にずらす距離 */
+        width: var(--clocksize);
+        font-size: calc(var(--clocksize)* 0.15);
+        text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="clock">
+    <div class="clockFace"></div> 
+    <div class="branchAmPm"></div>
+    <div class="dateArea"></div>
+    <div class="hand hour" id="hour"></div>
+    <div class="hand minute" id="minute"></div>
+    <div class="hand second" id="second"></div>
+  </div>
+  <div class="digital_clock"></div>
+
+  <script>
+    //文字盤作成
+    function drawClockFace() {
+      const clockFace = document.querySelector(".clockFace");
+
+      //目盛り作成
+      let mark_hour;
+      let mark_minute;
+      for(let n = 0; n <= 59; n++) {
+        if ( n % 5 == 0) {
+          //時刻の目盛り作成
+          mark_hour = document.createElement('div');
+          mark_hour.className = 'mark_hour';
+          mark_hour.textContent = '';
+          mark_hour.style.cssText = '--j:' + n + ';'; //cssの変数定義
+          // 親要素の末尾に追加する
+          clockFace.appendChild(mark_hour);
+        } else {
+          //分の目盛り作成
+          mark_minute = document.createElement('div');
+          mark_minute.className = 'mark_minute';
+          mark_minute.textContent = '';
+          mark_minute.style.cssText = '--j:' + n + ';'; //cssの変数定義
+          // 親要素の末尾に追加する
+          clockFace.appendChild(mark_minute);
+        }
+      }
+
+      //数字作成
+      let number;
+      for(let m = 1; m <= 12; m++) {
+        //数字設置領域作成
+        number_area = document.createElement('div');
+        number_area.className = 'number_area';
+        number_area.style.cssText = '--i:' + m + ';'; //cssの変数定義
+        // 親要素の末尾に追加する
+        clockFace.appendChild(number_area);
+
+        //数字設置
+        number = document.createElement('div');
+        number.className = 'number';
+        number.textContent = m;
+        number.style.cssText = '--i:' + m + ';'; //cssの変数定義
+        //数字設置領域に数字を置
+        number_area.appendChild(number);
+      }
+    }
+
+    // 日時の更新
+    function updateClock() {
+      const dayArr = ["日", "月", "火", "水", "木", "金", "土"];
+
+      // 日時取得
+      const now = new Date();
+
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const date = now.getDate();
+      const day = now.getDay();
+
+      const seconds = now.getSeconds();
+      const minutes = now.getMinutes();
+      const hours = now.getHours();
+
+      // 日付表示
+      const dateArea = document.querySelector(".dateArea");
+      let dateText = `${year}年${("0" + month).slice(-2)}月${("0" + date).slice(-2)}日（${dayArr[day]}）`;
+      dateArea.textContent = dateText;
+
+      // 午前午後表示
+      const branchAmPm = document.querySelector(".branchAmPm");
+      if(hours >= 12) {
+        branchAmPm.textContent = "午後";
+      } else {
+        branchAmPm.textContent = "午前";
+      }
+
+      const secondHand = document.querySelector('#second');
+      const minuteHand = document.querySelector('#minute');
+      const hourHand = document.querySelector('#hour');
+
+      const secondDegree = ((seconds / 60) * 360) + 90;
+      const minuteDegree = ((minutes / 60) * 360) + ((seconds/60)*6) + 90;
+      const hourDegree = ((hours / 12) * 360) + ((minutes/60)*30) + 90;
+
+      // 時計の針を回す
+      secondHand.style.transform = `rotate(${secondDegree}deg)`;
+      minuteHand.style.transform = `rotate(${minuteDegree}deg)`;
+      hourHand.style.transform = `rotate(${hourDegree}deg)`;
+
+      // デジタル時計
+      const digital_clock = document.querySelector(".digital_clock");
+      const hours_digital = hours;
+      const minutes_digital = minutes;
+      const seconds_digital = seconds;
+      digital_clock.textContent = ( '0' + hours_digital ).slice( -2 ) + ":" + ( '0' + minutes ).slice( -2 ) + ":" + ( '0' + seconds ).slice( -2 );
+    }
+
+    drawClockFace();
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+</body>
+</html>
