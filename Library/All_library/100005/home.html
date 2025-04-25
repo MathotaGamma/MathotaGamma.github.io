@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Makeplay:Codraith</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+      overflow: hidden;
+    }
+    
+    #textPanel {
+      position: absolute;
+      top: 25px;
+      left: 25px;
+    }
+    
+    #canvas {
+      position: absolute;
+      left: 0px;
+      top: 0px;
+    }
+    
+    #codearea {
+      position: absolute;
+      width: 100%;
+      overflow: hidden;
+      top: 0px;
+      left: calc(100% - 400px);
+      height: 100%;
+      background: blue;
+    }
+    
+    #bar {
+      width: 15px;
+      height: 100%;
+      background: grey;
+      display: inline-block;
+    }
+
+    .container {
+      position: absolute;
+      display: flex;
+      gap: 20px;
+      top: 20px;
+      left: 20px;
+    }
+
+    .palette {
+      background: white;
+      padding: 10px;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      left: 50px;
+      /*width: 250px;*/
+      min-height: 300px;
+      min-width: 100px;
+    }
+    
+    .workspace {
+      background: white;
+      padding: 0px;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      /*width: 500px;*/
+      min-width: 200px;
+      width: auto;
+      min-height: 300px;
+      max-height: 80vh;
+      overflow: scroll;
+    }
+
+    .block {
+      position: relative;
+      background: #4caf50;
+      color: white;
+      padding: 8px;
+      margin: 5px 0px;
+      border-radius: 6px;
+      cursor: move;
+      font-size: 14px;
+    }
+
+    .workspace .block {
+      background: #81c784;
+      margin: 5px 5px;
+    }
+
+    .nest {
+      margin-top: 6px;
+      margin-left: 10px;
+      padding-left: 10px;
+      border-left: 3px solid #66bb6a;
+    }
+
+    .nest.empty {
+      padding: 10px;
+      min-height: 30px;
+      background: #e8f5e9;
+    }
+
+    input {
+      margin-top: 5px;
+      width: 90%;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      background: rgba(255, 0, 0, 0.7);
+      color: white;
+      border: none;
+      border-radius: 3px;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0 5px;
+      z-index: 500;
+    }
+
+    .drag-over {
+      /*border: 2px dashed #1976d2;*/
+    }
+    
+    .runBtn {
+      position: absolute;
+      left: 20px;
+      bottom: 10px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0d47a1;
+    }
+    
+    .insert-line-top::before, .insert-line-bottom::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #2196f3;
+    }
+
+    .insert-line-top::before {
+      top: -2px;
+    }
+
+    .insert-line-bottom::after {
+      bottom: -2px;
+    }
+    
+    .insert-nest {
+      outline: 2px dashed #2196f3;
+      outline-offset: -2px;
+      border-radius: 6px;
+    }
+
+    #ui-locker {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.0); /* 透明 */
+      z-index: 999;
+    }
+    
+    .highlight-target {
+      outline: 3px dashed orange;
+      animation: blink 1s infinite;
+      border-radius: 6px;
+    }
+    @keyframes blink {
+      0% { outline-color: orange; }
+      50% { outline-color: transparent; }
+      100% { outline-color: orange; }
+    }
+
+
+  </style>
+</head>
+<body>
+  <div id="textPanel"></div>
+  <canvas id="canvas"></canvas>
+  <div id="codearea">
+    <div id="bar"></div>
+    <div class="container">
+      <div class="palette">
+        <div class="block" draggable="true" ondragstart="drag(event)" data-type="left">⬅️ 左</div>
+        <div class="block" draggable="true" ondragstart="drag(event)" data-type="right">➡️ 右</div>
+        <div class="block" draggable="true" ondragstart="drag(event)" data-type="jump">⬆️ ジャンプ</div>
+        <div class="block" draggable="true" ondragstart="drag(event)" data-type="repeat">🔁 繰り返し</div>
+        <div class="block" draggable="true" ondragstart="drag(event)" data-type="wait">⏱️ 待つ</div>
+      </div>
+      <div class="workspace" id="workspace" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
+    </div>
+    <button class="runBtn" onclick="runCode()">実行</button>
+  </div>
+  <script>
+    let draggedElement = null;
+    let isNew = false;
+    let w = innerWidth;
+    let h = innerHeight;
+    let W = w-15;
+    let H = h;
+    
+    const textPanel = document.getElementById('textPanel');
+    
+    const canvas = document.getElementById('canvas');
+    canvas.width = w-15;
+    canvas.height = h;
+    let ctx = canvas.getContext('2d');
+    
+    ctx.fillStyle = 'red';
+    ctx.fillRect(0,0,W,H);
+
+    const status = {
+      left: false,
+      right: false,
+      jump: false
+    };
+    
+    const origin = {x:100,y:300}
+    
+    const player = {
+      x: origin.x,
+      y: origin.y,
+      width: 40,
+      height: 40,
+      dx: 0,
+      dy: 0,
+      speed: 3,
+      jumpPower: -10,
+      onGround: false
+    };
+    
+    function playerMove(left = 0, right = 0, jump = 0) {
+      if (left != 0) status.left = true;
+      if (right != 0) status.right = true;
+      if (jump != 0) status.jump = true;
+    }
+
+    const gravity = 0.5;
+    const friction = 0.8;
+
+    const platforms = [
+      { x: 0, y: 350, width: 800, height: 50 },
+      { x: 200, y: 280, width: 100, height: 20 },
+      { x: 400, y: 240, width: 120, height: 20 }
+    ];
+    
+    let goal = null;
+
+
+
+    function update() {
+      // 横移動
+      if (status.left) player.dx = -player.speed;
+      else if (status.right) player.dx = player.speed;
+      else player.dx *= friction;
+
+      // ジャンプ
+      if (status.jump && player.onGround) {
+        player.dy = player.jumpPower;
+        player.onGround = false;
+      }
+
+      // 重力
+      player.dy += gravity;
+      
+      // --- 縦移動 ---
+      player.y += player.dy;
+      player.onGround = false;
+
+      for (let plat of platforms) {
+        // 足で接地
+        if (
+          player.x < plat.x + plat.width &&
+          player.x + player.width > plat.x &&
+          player.y + player.height <= plat.y + 10 &&
+          player.y + player.height + player.dy >= plat.y
+        ) {
+          player.y = plat.y - player.height;
+          player.dy = 0;
+          player.onGround = true;
+        }
+
+        // 頭でぶつかる
+        if (
+          player.x < plat.x + plat.width &&
+          player.x + player.width > plat.x &&
+          player.y < plat.y + plat.height &&
+          player.y + player.height > plat.y + plat.height &&
+          player.dy < 0
+        ) {
+          player.y = plat.y + plat.height;
+          player.dy = 0;
+        }
+      }
+
+      // --- 横移動と左右衝突 ---
+      player.x += player.dx;
+
+      for (let plat of platforms) {
+        if (
+          player.y + player.height > plat.y &&
+          player.y < plat.y + plat.height &&
+          player.x < plat.x + plat.width &&
+          player.x + player.width > plat.x
+        ) {
+          if (player.dx > 0) {
+            player.x = plat.x - player.width;
+          } else if (player.dx < 0) {
+            player.x = plat.x + plat.width;
+          }
+          player.dx = 0;
+        }
+      }
+      
+      if (goal &&
+        player.x < goal.x + goal.width &&
+        player.x + player.width > goal.x &&
+        player.y < goal.y + goal.height &&
+        player.y + player.height > goal.y) {
+        goalReached();
+      }
+
+      // 画面外制限
+      if (player.x < 0) player.x = 0;
+      if (player.x + player.width > W) player.x = W - player.width;
+      if (player.y + player.height > H) {
+        player.y = H - player.height;
+        player.dy = 0;
+        player.onGround = true;
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // プレイヤー
+      ctx.fillStyle = 'red';
+      ctx.fillRect(origin.x, origin.y, player.width, player.height);
+      
+      if (goal) {
+        ctx.fillStyle = 'gold';
+        ctx.fillRect(goal.x-player.x+origin.x, goal.y-player.y+origin.y, goal.width, goal.height);
+      }
+
+      // プラットフォーム
+      ctx.fillStyle = 'green';
+      for (let plat of platforms) {
+        ctx.fillRect(plat.x-player.x+origin.x, plat.y-player.y+origin.y, plat.width, plat.height);
+      }
+    }
+    
+    function resetting() {
+      status.left = false;
+      status.right = false;
+      status.jump = false;
+    }
+
+    function loop() {
+      update();
+      draw();
+      resetting();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+    
+    
+    
+    function allowDrop(ev) {
+      ev.preventDefault();
+
+      // 全部リセット
+      document.querySelectorAll('.block').forEach(b => {
+        b.classList.remove('insert-line-top', 'insert-line-bottom');
+      });
+      document.querySelectorAll('.nest').forEach(n => {
+        n.classList.remove('insert-nest');
+      });
+
+      const targetNest = ev.target.closest('.nest');
+      if (targetNest) {
+        const blocksInNest = targetNest.querySelectorAll('.block');
+
+        if (blocksInNest.length === 0) {
+          // 中身がなければ枠表示
+          targetNest.classList.add('insert-nest');
+          return;
+        } else {
+          // 中身がある場合、対象のブロックを取得して上下判定
+          const targetBlock = ev.target.closest('.block');
+          
+          if (targetBlock && targetNest.contains(targetBlock)) {
+            const rect = targetBlock.getBoundingClientRect();
+            const middleY = rect.top + rect.height / 2;
+            if (ev.clientY < middleY) {
+              targetBlock.classList.add('insert-line-top');
+            } else {
+              targetBlock.classList.add('insert-line-bottom');
+            }
+            return;
+          }
+        }
+      }
+
+      // 通常の workspace の場合
+      const targetBlock = ev.target.closest('.block');
+      if (targetBlock && targetBlock.parentNode.classList.contains("workspace")) {
+        const rect = targetBlock.getBoundingClientRect();
+        const middleY = rect.top + rect.height / 2;
+        if (ev.clientY < middleY) {
+      targetBlock.classList.add('insert-line-top');
+    } else {
+          targetBlock.classList.add('insert-line-bottom');
+        }
+      }
+    }
+
+    
+
+    function drag(ev) {
+      const block = ev.target.closest(".block");
+      if (!block) return;
+
+      draggedElement = block;
+      isNew = block.parentNode.classList.contains("palette");
+      ev.dataTransfer.setData("blockType", block.getAttribute("data-type"));
+    }
+
+
+
+    function drop(ev) {
+  ev.preventDefault();
+  ev.stopPropagation();
+
+  // どこに挿入するか決定
+  let insertIntoNest = ev.target.closest(".nest.insert-nest");
+  let afterBlock = ev.target.closest(".block");
+
+  if (afterBlock && afterBlock.classList.contains("insert-line-top")) {
+    // 挿入位置 = このブロックの前
+  } else if (afterBlock && afterBlock.classList.contains("insert-line-bottom")) {
+    afterBlock = afterBlock.nextElementSibling;
+  }
+
+  let dropTarget = insertIntoNest || ev.target.closest(".nest, #workspace");
+
+  let newBlock = draggedElement;
+  if (isNew) {
+    const blockType = ev.dataTransfer.getData("blockType");
+    newBlock = createBlock(blockType);
+  } else if (draggedElement.parentNode !== dropTarget) {
+    draggedElement.remove();
+  }
+
+  if (afterBlock && dropTarget === afterBlock.parentNode) {
+    dropTarget.insertBefore(newBlock, afterBlock);
+  } else {
+    dropTarget.appendChild(newBlock);
+  }
+
+  // リセット
+  document.querySelectorAll('.insert-line-top, .insert-line-bottom, .insert-nest')
+    .forEach(el => el.classList.remove('insert-line-top', 'insert-line-bottom', 'insert-nest'));
+
+  updateNestClass(dropTarget);
+}
+
+
+    
+    function miniCreateBlock(type,Text,Input=false,Nest = false) {
+      const block = document.createElement("div");
+      block.className = "block";
+      block.setAttribute("draggable", "true");
+      block.setAttribute("data-type", type);
+      block.ondragstart = drag;
+      block.innerHTML = Text;
+      if (Input != false) {
+        const input = document.createElement("input");
+        input.placeholder = Input;
+        block.appendChild(input);
+      }
+      if (Nest) {
+        const nest = document.createElement("div");
+        nest.className = "nest empty";
+        nest.ondragover = allowDrop;
+        nest.ondrop = drop;
+        block.appendChild(nest);
+      }
+      return block;
+    }
+    
+    function updateNestClass(nest) {
+      if (nest && nest.classList && nest.classList.contains("nest")) {
+        const isEmpty = Array.from(nest.children).filter(c => c.classList.contains("block")).length === 0;
+        nest.classList.toggle("empty", isEmpty);
+      }
+    }
+
+
+    let execInterval = null;
+
+    function runCode() {
+      player.x = origin.x;
+      player.y = origin.y;
+      player.dx = 0;
+      player.dy = 0;
+      resetting();
+
+      if (execInterval) clearInterval(execInterval);
+      const workspace = document.getElementById("workspace");
+      const blocks = Array.from(workspace.children);
+
+      let index = 0;
+
+      function next() {
+        if (index >= blocks.length) return;
+
+        const block = blocks[index];
+        const type = block.getAttribute("data-type");
+        let duration = 0;
+
+        if (type === "left" || type === "right") {
+          const input = block.querySelector("input");
+          duration = parseFloat(input?.value || "1");
+          const frames = duration * 30;
+          let count = 0;
+
+          execInterval = setInterval(() => {
+            if (type === "left") playerMove(1, 0, 0);
+            else if (type === "right") playerMove(0, 1, 0);
+            count++;
+            if (count >= frames) {
+              clearInterval(execInterval);
+              index++;
+              next();
+            }
+          }, 1000 / 30);
+
+        } else if (type === "jump") {
+          playerMove(0, 0, 1);
+          index++;
+          next();
+
+        } else if (type === "repeat") {
+          const input = block.querySelector("input");
+          const times = parseInt(input.value) || 0;
+          const nest = block.querySelector(".nest");
+          const nestedBlocks = Array.from(nest.children);
+          let repeatCount = 0;
+
+          function repeatNext() {
+            if (repeatCount >= times) {
+              index++;
+              next();
+              return;
+            }
+            executeBlocks(nestedBlocks, () => {
+              repeatCount++;
+              repeatNext();
+            });
+          }
+          repeatNext();
+
+        } else if (type === "wait") {
+          const input = block.querySelector("input");
+          const duration = parseFloat(input?.value || "1"); // 秒数、デフォルト1秒
+          setTimeout(() => {
+            index++;
+            next();
+          }, duration * 1000);
+        } else {
+          index++;
+          next();
+        }
+      }
+
+      next();
+    }
+
+    function executeBlocks(blocks, done) {
+      let i = 0;
+
+      function step() {
+        
+        if (i >= blocks.length) {
+          done?.();
+          return;
+        }
+        const b = blocks[i];
+        const type = b.getAttribute("data-type");
+        
+
+        if (type === "left" || type === "right") {
+          const input = b.querySelector("input");
+          const duration = parseFloat(input?.value || "1");
+          const frames = duration * 30;
+          let count = 0;
+
+          const interval = setInterval(() => {
+            if (type === "left") playerMove(1, 0, 0);
+            else if (type === "right") playerMove(0, 1, 0);
+            count++;
+            if (count >= frames) {
+              clearInterval(interval);
+              i++;
+              step();
+            }
+          }, 1000 / 30);
+        } else if (type === "jump") {
+          playerMove(0, 0, 1);
+          i++;
+          step();
+        } else if (type === "repeat") {
+          const input = b.querySelector("input");
+          const times = parseInt(input.value) || 0;
+          const nest = b.querySelector(".nest");
+          const nestedBlocks = Array.from(nest.children);
+          let repeatCount = 0;
+
+          function repeatStep() {
+            if (repeatCount >= times) {
+              i++;
+              step();
+              return;
+            }
+            executeBlocks(nestedBlocks, () => {
+              repeatCount++;
+              repeatStep();
+            });
+          }
+          repeatStep();
+        } else if (type === "wait") {
+          const input = b.querySelector("input");
+          const duration = parseFloat(input?.value || "1"); // 秒数、デフォルト1秒
+          setTimeout(() => {
+            i++;
+            step(); // 待ち終わったら次へ
+          }, duration * 1000);
+          
+        } else {
+          i++;
+          step();
+        }
+      }
+
+      step();
+    }
+
+    function createBlock(type) {
+      let block;
+      if (type === "left") {
+        block = miniCreateBlock(type,"⬅️ 左（秒数）<br>","秒数");
+      } else if (type === "right") {
+        block = miniCreateBlock(type,"➡️ 右（秒数）<br>","秒数");
+      } else if (type === "jump") {
+        block = miniCreateBlock(type,"⬆️ ジャンプ");
+      } else if (type === "repeat") {
+        block = miniCreateBlock(type,"🔁 繰り返し（回数）<br>","回数",true);
+      } else if (type === "wait") {
+        block = miniCreateBlock(type, "⏱️ 待つ（秒）<br>", "秒数");
+      }
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-btn";
+      deleteBtn.zIndex = "500";
+      deleteBtn.textContent = "×";
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        const parent = block.parentNode;
+        block.remove();
+        updateNestClass(parent);
+      };
+      
+      block.appendChild(deleteBtn);
+      return block;
+    }
+    
+    
+    
+    function showGoal() {
+      goal = { x: 600, y: 100, width: 40, height: 40 };
+    }
+
+    
+    let goalCleared = false;
+
+    function goalReached() {
+      if (goalCleared) return;
+      goalCleared = true;
+      showMessage("🎉 ゴール到達！次のステージへ進もう！", "nextStage();unlockUI();");
+    }
+
+    function nextStage() {
+      // 仮：キャラリセット＆ゴール移動
+      player.x = 50;
+      player.y = 300;
+      goal = { x: 400, y: 150, width: 40, height: 40 };
+
+      // or 実際の別マップ、難易度、ステージ配列など
+      textPanel.innerHTML = "🧩 新しいステージに挑戦しよう！";
+    }
+
+    
+    
+    
+    showConfirm('チュートリアルを行いますか？',null,'unlockUI();showGoal();','step1()');
+    
+    function step1() {
+      allowOnlyBlockTypes(["right"]);
+      highlightBlocks(".palette .block[data-type='right']");
+
+      showMessage("➡️『右』ブロックを置いて、秒数に 2 を入力してみよう！", "unlockUI()");
+  
+      waitUntil(() => {
+        // ワークスペース内に「right」ブロックがあり、inputの値が「1」
+        return Array.from(document.querySelectorAll("#workspace .block"))
+          .some(b => {
+            if (b.getAttribute("data-type") === "right") {
+              allowOnlyBlockTypes([], ".palette .block");
+              clearHighlights();
+              const input = b.querySelector("input");
+              return input && input.value.trim() === "2";
+            }
+            return false;
+          });
+      }, () => {
+        clearHighlights();
+        step2(); // 次のステップへ
+      });
+    }
+    
+    function step2() {
+      allowOnlyBlockTypes([]);
+      highlightBlocks(".runBtn");
+      showMessage("▶️『実行』ボタンを押して、キャラが右に2秒間進むか確認しよう！", 'unlockUI()');
+
+      allowOnlyBlockTypes(['run'])
+
+      // 実行後チェック（イベントリスナーを一度だけ）
+      const btn = document.querySelector(".runBtn");
+      btn.addEventListener("click", () => {step3();clearHighlights();}, { once: true });
+    }
+
+    function step3() {
+      showConfirm(
+        "キャラは動いたかな？次に進む？",
+        ["もう一回みる", "次へ"],
+        "unlockUI();step2();",
+        "unlockUI();step4();"
+      );
+    }
+    
+    function step4() {
+      allowOnlyBlockTypes(["jump"]);
+      highlightBlocks(".palette .block[data-type='jump']");
+      showMessage("次に、⬆️『ジャンプ』ブロックをドラッグして、右のエリアに追加してみよう！",'unlockUI()');
+      
+
+      waitUntil(() => {
+        return Array.from(document.querySelectorAll("#workspace .block"))
+        .some(b => b.getAttribute("data-type") === "jump");
+      }, () => {
+        clearHighlights();
+        step5();
+      });
+    }
+    
+    function step5() {
+      allowOnlyBlockTypes([]);
+      highlightBlocks(".runBtn");
+      showMessage("▶️『実行』ボタンを押して、キャラが右に2秒進んでジャンプするか確認しよう！", 'unlockUI()');
+
+      allowOnlyBlockTypes(['run'])
+
+      // 実行後チェック（イベントリスナーを一度だけ）
+      const btn = document.querySelector(".runBtn");
+      btn.addEventListener("click", () => {step6();clearHighlights();}, { once: true });
+    }
+    
+    function step6() {
+      allowOnlyBlockTypes(["right", "jump"], ".workspace .block"); // 再編集OK
+      showMessage("🧠 今の順番は『右→ジャンプ』だったね！<br>順番を『ジャンプ→右』に並べ替えてみよう！", "unlockUI()");
+      highlightBlocks(".workspace .block");
+
+      waitUntil(() => {
+        const blocks = Array.from(document.querySelectorAll(".workspace .block"));
+        return (
+          blocks.length >= 2 &&
+          blocks[0].getAttribute("data-type") === "jump" &&
+          blocks[1].getAttribute("data-type") === "right"
+        );
+      }, () => {
+        clearHighlights();
+        step7();
+      });
+    }
+    
+    function step7() {
+      showMessage("🎯 完璧！順番を変えたら動きも変わるね！<br>▶️『実行』を押して、キャラがジャンプしてから右に進むか見てみよう！", "unlockUI()");
+
+      const btn = document.querySelector(".runBtn");
+      btn.disabled = false;
+
+      btn.addEventListener("click", () => {
+        allowOnlyBlockTypes(['all']);
+        showMessage("🎉 ナイス！これでチュートリアルは終わりだよ！好きに遊んでみてね！", "unlockUI();showGoal();");
+      }, { once: true });
+    }
+
+
+
+
+    
+    
+    function showConfirm(message, select = ['いいえ', 'はい'], falseCallback = () => {}, trueCallback = () => {}) {
+      if(select == null) select = ['いいえ', 'はい'];
+      if(falseCallback == null) falseCallback = () => {};
+      if(trueCallback == null) trueCallback = () => {};
+      lockUI();
+      const msgBox = document.createElement("div");
+      msgBox.style.position = "absolute";
+      msgBox.style.top = "80px";
+      msgBox.style.left = "50px";
+      msgBox.style.background = "white";
+      msgBox.style.border = "2px solid #2196f3";
+      msgBox.style.borderRadius = "10px";
+      msgBox.style.padding = "15px 20px";
+      msgBox.style.fontSize = "16px";
+      msgBox.style.zIndex = "1000";
+      msgBox.style.maxWidth = "300px";
+      msgBox.style.boxShadow = "0px 4px 10px rgba(0,0,0,0.2)";
+      msgBox.innerHTML = `
+        ${message}<br><br>
+        <button style="margin-top: 10px; margin: 5px;" onclick="this.parentElement.remove(); ${falseCallback || ''}">${select[0]}</button><button style="margin-top: 10px; margin: 5px;" onclick="this.parentElement.remove(); ${trueCallback || ''}">${select[1]}</button>
+      `;
+      document.body.appendChild(msgBox);
+    }
+    
+    function showMessage(message, nextStepCallback) {
+      lockUI();
+      textPanel.innerHTML = message;
+      const msgBox = document.createElement("div");
+      msgBox.style.position = "absolute";
+      msgBox.style.top = "80px";
+      msgBox.style.left = "50px";
+      msgBox.style.background = "white";
+      msgBox.style.border = "2px solid #2196f3";
+      msgBox.style.borderRadius = "10px";
+      msgBox.style.padding = "15px 20px";
+      msgBox.style.fontSize = "16px";
+      msgBox.style.zIndex = "1000";
+      msgBox.style.maxWidth = "300px";
+      msgBox.style.boxShadow = "0px 4px 10px rgba(0,0,0,0.2)";
+      msgBox.innerHTML = `
+        ${message}<br><br>
+        <button style="margin-top: 10px;" onclick="this.parentElement.remove(); ${nextStepCallback || ''}">次へ</button>
+      `;
+      document.body.appendChild(msgBox);
+    }
+    
+    
+
+
+    
+    function lockUI() {
+      if (!document.getElementById("ui-locker")) {
+        const lock = document.createElement("div");
+        lock.id = "ui-locker";
+        lock.style.background = 'rgba(0,0,0,0.2)';
+        document.body.appendChild(lock);
+      }
+    }
+    
+    function unlockUI() {
+      const lock = document.getElementById("ui-locker");
+      if (lock) lock.remove();
+    }
+
+    function unlockUI() {
+      const lock = document.getElementById("ui-locker");
+      if (lock) lock.remove();
+    }
+    
+    function highlightBlocks(selector) {
+      document.querySelectorAll(selector).forEach(el => el.classList.add("highlight-target"));
+    }
+    function clearHighlights() {
+      document.querySelectorAll(".highlight-target").forEach(el => el.classList.remove("highlight-target"));
+    }
+
+    function waitUntil(conditionFn, callback) {
+  const interval = setInterval(() => {
+    if (conditionFn()) {
+      clearInterval(interval);
+      callback();
+    }
+  }, 300);
+}
+
+    
+    function allowOnlyBlockTypes(types = [], query = null) {
+      if(types.includes('run') || types.includes('all')) document.querySelector(".runBtn").disabled = false;
+      else document.querySelector(".runBtn").disabled = true;
+      
+      if(query == null) query = ".block";
+      const allBlocks = document.querySelectorAll(query);
+      allBlocks.forEach(block => {
+        const type = block.getAttribute("data-type");
+        
+        const isAllowed = types.includes(type) || types.includes('all');
+        block.setAttribute("draggable", isAllowed ? "true" : "false");
+
+        // 視覚的に半透明＋無効化
+        block.style.opacity = isAllowed ? "1" : "0.4";
+        block.style.pointerEvents = isAllowed ? "auto" : "none";
+      });
+    }
+
+
+    
+    const codearea = document.getElementById('codearea');
+    document.getElementById('bar').addEventListener('touchmove', (e) => {
+      codearea.style.left = String(Math.max(Math.min(e.touches[0].clientX-10,w-15),0))+'px';
+    })
+  </script>
+</body>
+</html>
