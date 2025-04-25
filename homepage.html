@@ -1,175 +1,217 @@
 <!DOCTYPE html>
 <html lang="ja">
   <head>
-    <!-- Google Adsense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2431365242443921"
-     crossorigin="anonymous"></script>
-    <!-- End Google Adsense -->
-    <!-- Google Tag Manager -->
-    <script>
-      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MLJ4DHX7');
-    </script>
-    <!-- End Google Tag Manager -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Make&PlayGame</title>
+    <meta name="keywords" content="make game,mathotagamma,ゲーム,ゲーム作成,ウェブゲーム,webゲーム" />
+    <link rel="icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
     
-    <!-- Google tag (gtag.js) -->
+    <!-- Google Services -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2431365242443921" crossorigin="anonymous"></script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-1Y8VQ2E2XK"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
+      function gtag(){ dataLayer.push(arguments); }
       gtag('js', new Date());
-
       gtag('config', 'G-1Y8VQ2E2XK');
     </script>
-    <!-- End Google tag -->
-    <meta name="keywords" content="make game,mathotagamma,ゲーム,ゲーム作成,ウェブゲーム,webゲーム" />
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
     <script>
-      localStorage.setItem('Now','./Library/library-play')
-      if(localStorage.getItem('name') == null){
-        window.location.href = "./login";
-      }
+      (function(w,d,s,l,i){
+        w[l]=w[l]||[]; w[l].push({'gtm.start': new Date().getTime(), event:'gtm.js'});
+        var f=d.getElementsByTagName(s)[0], j=d.createElement(s), dl=l!='dataLayer'?'&l='+l:'';
+        j.async=true; j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
+        f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer','GTM-MLJ4DHX7');
     </script>
-    <!--<link rel="icon" href="/make-playgame/favicon.ico">
-    <link rel="shortcut icon" href="/make-playgame/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="/make-playgame/apple-touch-icon.png">-->
-    <link rel="icon" href="favicon.ico">
-    <!--<link rel="shortcut icon" href="favicon.ico">-->
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <title>Make&PlayGame</title>
+
     <style>
       * {
         margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
+
       body {
-        background-image: url("/background_image.png");
-        background-size: cover;
+        font-family: sans-serif;
+        background: linear-gradient(to bottom right, #e0f7fa, #ffffff);
+        color: #333;
+        padding-top: 60px;
       }
-      h1 {
-        background-color: #7fffd4;
-      }
-      h2 {
-        background-color: #f5f5f5;
-        color: red;
-      }
-      div.cont {
-        background-color: #e6e6fa;
-      }
-      #Main{
-        display: grid;
-        /*grid-template-rows: 1fr;*/
-        grid-template-rows: 50px 1fr 1fr 3fr;
-      }
-      
+
       header {
-        width: 100%;
-        height: 50px;
-        padding: 5px;
-        margin: 0;
-        background: #3cb371;
-        text-align: center;
         position: fixed;
-        display: grid;
-        grid-template-columns: 100px 1fr 1fr;
-        /*grid-template-columns: 1fr;*/
-      }
-      header > div {
+        top: 0;
+        left: 0;
         width: 100%;
-        height: 100%;
-        margin: 0;
+        background: #3cb371;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 60px;
+        padding: 0 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        z-index: 1000;
       }
-      header input {
-        width: 75%;
-        height: 100%;
+
+      header button {
+        background: #ffffff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        margin-left: 10px;
+        color: #3cb371;
+        transition: all 0.2s;
+      }
+
+      header button:hover {
+        background: #f0f0f0;
+      }
+
+      main {
+        max-width: 800px;
         margin: auto;
+        padding: 20px;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #00796b;
+      }
+
+      h2 {
+        font-size: 1.25rem;
+        margin: 1rem 0;
+        color: #d32f2f;
+      }
+
+      .card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px;
+        margin: 20px auto;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        text-align: left;
+      }
+
+      .card p {
+        margin-bottom: 1rem;
+      }
+
+      .card a {
+        color: #00796b;
+        text-decoration: underline;
+        font-weight: bold;
+      }
+
+      .card a:hover {
+        color: #004d40;
+      }
+
+      .link-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .link-buttons a {
+        background: #4caf50;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: background 0.2s;
+      }
+
+      .link-buttons a:hover {
+        background: #388e3c;
+      }
+
+      .ads {
+        margin: 50px auto;
+        text-align: center;
       }
     </style>
   </head>
   <body>
-    <!-- Google Tag Manager (noscript) -->
     <noscript>
       <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MLJ4DHX7" height="0" width="0" style="display:none;visibility:hidden"></iframe>
     </noscript>
-    <!-- End Google Tag Manager (noscript) -->
+
+    <header>
+      <div>
+        <button onclick="LogOut()">Logout</button>
+      </div>
+      <div class="link-buttons">
+        <button onclick="make_click()">Make</button>
+        <button onclick="library_click()">Library</button>
+      </div>
+    </header>
+
+    <main>
+      <h1>Make & Play Game</h1>
+      <h2 id="h2_title">こんにちは</h2>
+
+      <div class="card">
+        <p><a href="https://makeplayonline.onrender.com">オンライン版はこちら</a></p>
+        <p>ゲームを作りたい場合は <strong>MakeGame</strong> を、遊びたい場合は <strong>Library</strong> を選んでください。</p>
+        <p>
+          <a href="./Makegame/make">MakeGame</a> ではコースを自作して遊べます。URLを共有することで他の人も遊べます。
+        </p>
+        <p>
+          <a href="./Library/library-play">Library</a> では他の人が作ったゲームで遊べます。
+        </p>
+
+        <div class="link-buttons">
+          <a href="./Makegame/make">MakeGame</a>
+          <a href="./Library/library-play">Library</a>
+        </div>
+      </div>
+
+      <div class="ads">
+        <!-- Ad -->
+        <ins class="adsbygoogle"
+          style="display:block"
+          data-ad-client="ca-pub-2431365242443921"
+          data-ad-slot="3542042532"
+          data-ad-format="auto"
+          data-full-width-responsive="true"></ins>
+        <script>
+          (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+      </div>
+    </main>
+
     <script>
-      function LogOut(){
-        alert('Page遷移します。');
+      localStorage.setItem('Now','./Library/library-play');
+      if(localStorage.getItem('name') == null){
+        window.location.href = "./login";
+      }
+
+      document.getElementById('h2_title').innerText = localStorage.getItem('name') + " さん、こんにちは！";
+
+      function LogOut() {
+        alert('ログアウトしてログイン画面に移動します。');
         localStorage.setItem('Now','./Library/library-play');
         localStorage.removeItem('name');
         window.location.href = "./login";
       }
-    </script>
-    <div id="Main">
-      <div>
-        <header>
-          <div onclick="LogOut();"><b style="color: #000000; background: #dddddd;">Logout</b></div>
-          <div><input type="submit" id="make" value="Make" /></div>
-          <div><input type="submit" id="library" value="Library" /></div>
-        </header>
-      </div>
-      <div>
-        <h1>
-          [Make&PlayGame]
-        </h1>
-      </div>
-      <div>
-        <h2 id="h2_title">
-          こんにちは
-        </h2>
-      </div>
-      <a href="https://makeplayonline.onrender.com">Online版はこちら</a>
-      <div class="cont">
-        <p>
-          <a href="https://makeplayonline.onrender.com">オンライン版はこちら</a>
-        </p>
-        <p>
-          ゲームを作る場合は<b>MakeGame</b>を
-          <br>ゲームを遊ぶ場合は<b>Library</b>を押してください。
-        </p>
-        <p>
-          <a href="./Makegame/make">MakeGame</a>では自分でコースを作り、自分で遊ぶことができます。
-          <br>更に、URLを共有することで他の人も遊ぶことができます。
-        </p>
-        <p>
-          <a href="./Library/library-play">Library</a>では他の人が作ったゲームで遊ぶことが出来ます。
-        </p>
-    
-        <a href="./Makegame/make">
-          MakeGame
-        </a>
-        <br><a href="./Library/library-play">
-          Library
-        </a>
-      </div>
-    </div>
 
-    <div style="margin: 100px;">
-      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2431365242443921"
-        crossorigin="anonymous"></script>
-      <!-- Ad1 -->
-      <ins class="adsbygoogle"
-        style="display:block"
-        data-ad-client="ca-pub-2431365242443921"
-        data-ad-slot="3542042532"
-        data-ad-format="auto"
-        data-full-width-responsive="true"></ins>
-      <script>
-        (adsbygoogle = window.adsbygoogle || []).push({});
-      </script>
-    </div>
-    <script>
-      document.getElementById('h2_title').innerText = localStorage.getItem('name')+"さんこんにちは！";
-      function make_click(){
+      function make_click() {
         window.location.href = "./Makegame/make";
       }
-      function library_click(){
+
+      function library_click() {
         window.location.href = "./Library/library-play";
       }
-
-      let make = document.getElementById('make');
-      make.onclick = make_click;
-      let library = document.getElementById('library');
-      library.onclick = library_click;
     </script>
   </body>
 </html>
