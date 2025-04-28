@@ -232,17 +232,19 @@
       jump: false
     };
     
-    const origin = {x:100,y:300}
+    const center = {x:100,y:H-200}
+    
+    const origin = {x:0,y:40}
     
     const player = {
-      x: origin.x,
-      y: origin.y,
+      x: 0,
+      y: 40,
       width: 40,
       height: 40,
       dx: 0,
       dy: 0,
       speed: 3,
-      jumpPower: -10,
+      jumpPower: 10,
       onGround: false
     };
     
@@ -252,14 +254,18 @@
       if (jump != 0) status.jump = true;
     }
 
-    const gravity = 0.5;
+    const gravity = -0.5;
     const friction = 0.8;
 
-    const platforms = [
-      { x: 0, y: 350, width: 800, height: 50 },
-      { x: 200, y: 280, width: 100, height: 20 },
-      { x: 400, y: 240, width: 120, height: 20 }
-    ];
+    const obj = {
+      platforms:[
+        { color: 'green', x: 0, y: 0, width: 800, height: 50 },
+        { color: 'green', x: 220, y: 90, width: 100, height: 20 },
+        { color: 'green', x: 420, y: 180, width: 120, height: 20 }
+      ],
+      goal:{view: false, x: 420, y: 220, width: 40, height: 40}
+    };
+    
     
     let goal = null;
 
@@ -284,15 +290,15 @@
       player.y += player.dy;
       player.onGround = false;
 
-      for (let plat of platforms) {
+      for (let plat of obj.platforms) {
         // 足で接地
         if (
           player.x < plat.x + plat.width &&
           player.x + player.width > plat.x &&
-          player.y + player.height <= plat.y + 10 &&
-          player.y + player.height + player.dy >= plat.y
+          player.y - player.height >= plat.y - 10 &&
+          player.y - player.height + player.dy <= plat.y
         ) {
-          player.y = plat.y - player.height;
+          player.y = plat.y + player.height;
           player.dy = 0;
           player.onGround = true;
         }
@@ -301,11 +307,11 @@
         if (
           player.x < plat.x + plat.width &&
           player.x + player.width > plat.x &&
-          player.y < plat.y + plat.height &&
-          player.y + player.height > plat.y + plat.height &&
-          player.dy < 0
+          player.y > plat.y - plat.height &&
+          player.y - player.height < plat.y - plat.height &&
+          player.dy > 0
         ) {
-          player.y = plat.y + plat.height;
+          player.y = plat.y - plat.height;
           player.dy = 0;
         }
       }
@@ -313,10 +319,10 @@
       // --- 横移動と左右衝突 ---
       player.x += player.dx;
 
-      for (let plat of platforms) {
+      for (let plat of obj.platforms) {
         if (
-          player.y + player.height > plat.y &&
-          player.y < plat.y + plat.height &&
+          player.y - player.height < plat.y &&
+          player.y > plat.y - plat.height &&
           player.x < plat.x + plat.width &&
           player.x + player.width > plat.x
         ) {
@@ -329,21 +335,12 @@
         }
       }
       
-      if (goal &&
-        player.x < goal.x + goal.width &&
-        player.x + player.width > goal.x &&
-        player.y < goal.y + goal.height &&
-        player.y + player.height > goal.y) {
+      if (obj.goal.view &&
+        player.y - player.height < obj.goal.y &&
+        player.y > obj.goal.y - obj.goal.height &&
+        player.x < obj.goal.x + obj.goal.width &&
+        player.x + player.width > obj.goal.x) {
         goalReached();
-      }
-
-      // 画面外制限
-      if (player.x < 0) player.x = 0;
-      if (player.x + player.width > W) player.x = W - player.width;
-      if (player.y + player.height > H) {
-        player.y = H - player.height;
-        player.dy = 0;
-        player.onGround = true;
       }
     }
 
@@ -352,18 +349,21 @@
 
       // プレイヤー
       ctx.fillStyle = 'red';
-      ctx.fillRect(origin.x, origin.y, player.width, player.height);
+      ctx.fillRect(center.x, center.y, player.width, player.height);
       
-      if (goal) {
+      if (obj.goal.view) {
         ctx.fillStyle = 'gold';
-        ctx.fillRect(goal.x-player.x+origin.x, goal.y-player.y+origin.y, goal.width, goal.height);
+        ctx.fillRect(obj.goal.x-player.x+center.x, -obj.goal.y+player.y+center.y, obj.goal.width, obj.goal.height);
       }
-
-      // プラットフォーム
-      ctx.fillStyle = 'green';
-      for (let plat of platforms) {
-        ctx.fillRect(plat.x-player.x+origin.x, plat.y-player.y+origin.y, plat.width, plat.height);
+      
+      for(let plat of obj.platforms){
+        // プラットフォーム
+        ctx.fillStyle = plat.color || 'green';
+        ctx.fillRect(plat.x-player.x+center.x, -plat.y+player.y+center.y, plat.width, plat.height);
+      
       }
+      
+      
     }
     
     function resetting() {
@@ -695,7 +695,7 @@
     
     
     function showGoal() {
-      goal = { x: 600, y: 100, width: 40, height: 40 };
+      obj.goal.view = true;
     }
 
     
@@ -709,12 +709,12 @@
 
     function nextStage() {
       // 仮：キャラリセット＆ゴール移動
-      player.x = 50;
-      player.y = 300;
-      goal = { x: 400, y: 150, width: 40, height: 40 };
+      player.x = 0;
+      player.y = player.height;
+      obj.goal.view = true;
 
-      // or 実際の別マップ、難易度、ステージ配列など
       textPanel.innerHTML = "🧩 新しいステージに挑戦しよう！";
+      goalCleared = false;
     }
 
     
