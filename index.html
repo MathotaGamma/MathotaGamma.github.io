@@ -2,32 +2,30 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>知のPalette</title>
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      background: #000; /* ←背景黒はここだけ */
-      height: 100%;
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      background: #000;
       overflow: hidden;
     }
     canvas {
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      display: block;
       z-index: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none; /* ←クリック貫通するなら */
     }
   </style>
 </head>
 <body>
-  <canvas id="lightning"></canvas>
+  <canvas id="canvas"></canvas>
 
   <script>
-    const canvas = document.getElementById('lightning');
+    const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     let width, height;
 
@@ -35,12 +33,35 @@
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
     }
-
     window.addEventListener('resize', resize);
     resize();
 
+    // 雷の線を描く関数
+    function drawLightning(x, y, angle = null) {
+      let cx = x;
+      let cy = y;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      const segments = Math.floor(Math.random() * 8) + 5; // 5〜12本
+      const baseAngle = angle !== null ? angle : Math.random() * Math.PI * 2;
+      for (let i = 0; i < segments; i++) {
+        const len = Math.random() * 15 + 5;
+        const dx = Math.cos(baseAngle + (Math.random() - 0.5)) * len;
+        const dy = Math.sin(baseAngle + (Math.random() - 0.5)) * len;
+        cx += dx;
+        cy += dy;
+        ctx.lineTo(cx, cy);
+      }
+      ctx.strokeStyle = 'rgba(255,255,100,0.9)';
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'yellow';
+      ctx.stroke();
+    }
+
+    // 静電気パチパチを描く関数
     function drawStaticSpark(x, y) {
-      const sparks = 8 + Math.floor(Math.random() * 4); // 8～12本
+      const sparks = 8 + Math.floor(Math.random() * 5); // 8〜12本
       for (let i = 0; i < sparks; i++) {
         const angle = Math.random() * Math.PI * 2;
         const len = Math.random() * 15 + 5;
@@ -58,46 +79,20 @@
       }
     }
 
-
-    function random(min, max) {
-      return Math.random() * (max - min) + min;
-    }
-
-    function drawLightningFrom(x, y, angle = null) {
-      let cx = x;
-      let cy = y;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      const segments = random(5, 12);
-      const angleOffset = angle !== null ? angle : random(0, Math.PI * 2);
-      for (let i = 0; i < segments; i++) {
-        const len = random(5, 20);
-        const dx = Math.cos(angleOffset + random(-0.5, 0.5)) * len;
-        const dy = Math.sin(angleOffset + random(-0.5, 0.5)) * len;
-        cx += dx;
-        cy += dy;
-        ctx.lineTo(cx, cy);
-      }
-      ctx.strokeStyle = 'rgba(255, 255, 100, 0.9)';
-      ctx.lineWidth = 2;
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = 'yellow';
-      ctx.stroke();
-    }
-
     let touchPoints = [];
 
+    // タッチ開始時
     canvas.addEventListener('touchstart', e => {
       e.preventDefault();
       for (const t of e.touches) {
         const x = t.clientX;
         const y = t.clientY;
         touchPoints.push({ id: t.identifier, x, y });
-        drawStaticSpark(x, y); // ←ここでパチパチ描く
+        drawStaticSpark(x, y);
       }
     }, { passive: false });
 
-
+    // タッチ移動時
     canvas.addEventListener('touchmove', e => {
       e.preventDefault();
       touchPoints = [];
@@ -106,36 +101,40 @@
       }
     }, { passive: false });
 
+    // タッチ終了時
     canvas.addEventListener('touchend', e => {
       e.preventDefault();
       touchPoints = [];
     }, { passive: false });
 
+    // マウスダウン
     canvas.addEventListener('mousedown', e => {
       const x = e.clientX;
       const y = e.clientY;
       touchPoints.push({ id: 'mouse', x, y });
-      drawStaticSpark(x, y); // ←ここでパチパチ描く
+      drawStaticSpark(x, y);
     });
 
+    // マウスアップ
     canvas.addEventListener('mouseup', () => {
       touchPoints = [];
     });
 
     function animate() {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      // 徐々に消える黒を透明で塗りつぶし残像感
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ctx.fillRect(0, 0, width, height);
 
-      for (const point of touchPoints) {
+      // 現在の指位置に雷3本描画
+      for (const p of touchPoints) {
         for (let i = 0; i < 3; i++) {
-          const angle = random(0, Math.PI * 2);
-          drawLightningFrom(point.x, point.y, angle);
+          const angle = Math.random() * Math.PI * 2;
+          drawLightning(p.x, p.y, angle);
         }
       }
 
       requestAnimationFrame(animate);
     }
-
     animate();
   </script>
 </body>
