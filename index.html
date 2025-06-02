@@ -90,7 +90,7 @@
       top: 0; left: 0;
       width: 100%; height: 100%;
       pointer-events: none;
-      z-index: -1;
+      z-index: 1;
     }
 
     main {
@@ -225,14 +225,33 @@
       }
     }
 
-    window.addEventListener('touchstart', e => { e.preventDefault(); updateTouches(e); }, { passive:false });
-    window.addEventListener('touchmove', e => { e.preventDefault(); updateTouches(e); }, { passive:false });
-    window.addEventListener('touchend', e => { e.preventDefault(); removeTouches(e); }, { passive:false });
-    window.addEventListener('touchcancel', e => { e.preventDefault(); removeTouches(e); }, { passive:false });
+    window.addEventListener('touchstart', e => {
+      //e.preventDefault();
+      updateTouches(e);
+    }, { passive:false });
+    window.addEventListener('touchmove', e => {
+      //e.preventDefault();
+      updateTouches(e);
+    }, { passive:false });
+    window.addEventListener('touchend', e => {
+      //e.preventDefault();
+      removeTouches(e);
+    }, { passive:false });
+    window.addEventListener('touchcancel', e => {
+      //e.preventDefault();
+      removeTouches(e);
+    }, { passive:false });
 
-    window.addEventListener('mousedown', e => { e.preventDefault(); updateTouches(e); });
-    window.addEventListener('mousemove', e => { if(activeTouches.has('mouse')) updateTouches(e); });
-    window.addEventListener('mouseup', e => { removeTouches({}); });
+    window.addEventListener('mousedown', e => {
+      //e.preventDefault();
+      updateTouches(e);
+    });
+    window.addEventListener('mousemove', e => {
+      if(activeTouches.has('mouse')) updateTouches(e);
+    });
+    window.addEventListener('mouseup', e => {
+      removeTouches({});
+    });
 
     const titleText = '知のPalette';
     const titleElem = document.getElementById('title');
