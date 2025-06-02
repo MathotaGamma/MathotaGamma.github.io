@@ -105,17 +105,20 @@
       return Math.random() * (max - min) + min;
     }
 
-    function drawLightning() {
-      const startX = random(0, width);
-      let x = startX;
-      let y = 0;
+    function drawLightningFrom(x, y, angle = null) {
+      let cx = x;
+      let cy = y;
       ctx.beginPath();
-      ctx.moveTo(x, y);
-      const segments = random(10, 20);
+      ctx.moveTo(cx, cy);
+      const segments = random(5, 12);
+      const angleOffset = angle !== null ? angle : random(0, Math.PI * 2);
       for (let i = 0; i < segments; i++) {
-        x += random(-20, 20);
-        y += height / segments;
-        ctx.lineTo(x, y);
+        const len = random(5, 20);
+        const dx = Math.cos(angleOffset + random(-0.5, 0.5)) * len;
+        const dy = Math.sin(angleOffset + random(-0.5, 0.5)) * len;
+        cx += dx;
+        cy += dy;
+        ctx.lineTo(cx, cy);
       }
       ctx.strokeStyle = 'rgba(255, 255, 100, 0.9)';
       ctx.lineWidth = 2;
@@ -124,14 +127,62 @@
       ctx.stroke();
     }
 
+    // 背景雷
+    function drawRandomLightning() {
+      const x = random(0, width);
+      drawLightningFrom(x, 0, Math.PI / 2);
+    }
+
+    // タッチ情報格納
+    let touchPoints = [];
+
+    // イベント
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const t of e.touches) {
+        touchPoints.push({ id: t.identifier, x: t.clientX, y: t.clientY });
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      touchPoints = [];
+      for (const t of e.touches) {
+        touchPoints.push({ id: t.identifier, x: t.clientX, y: t.clientY });
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', e => {
+      e.preventDefault();
+      touchPoints = [];
+    }, { passive: false });
+
+    // PC用マウスイベントも対応
+    canvas.addEventListener('mousedown', e => {
+      touchPoints.push({ id: 'mouse', x: e.clientX, y: e.clientY });
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      touchPoints = [];
+    });
+
     function animate() {
-      // 残像を柔らかく消す
       ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
       ctx.fillRect(0, 0, width, height);
 
+      // 背景雷
       if (Math.random() < 0.05) {
-        drawLightning();
+        drawRandomLightning();
       }
+
+      // タッチ雷（1本指につき複数）
+      for (const point of touchPoints) {
+        for (let i = 0; i < 4; i++) {
+          const angle = random(0, Math.PI * 2);
+          drawLightningFrom(point.x, point.y, angle);
+        }
+      }
+
       requestAnimationFrame(animate);
     }
 
