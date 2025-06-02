@@ -103,13 +103,22 @@
       z-index: 1;
       position: relative;
     }
+
+    .link a {
+      text-decoration-color: white;
+      text-decoration: underline;
+    }
+
+    .link a:hover {
+      text-decoration-color: red;
+    }
   </style>
 </head>
 <body>
   <header>
     <div>Icon</div>
-    <div style="z-index: 49;"><a href="./Blog/home" style="color: blue;pointer-events: auto;">Blog</a></div>
-    <div>Help</div>
+    <div style="z-index: 49;"><a href="./Blog/home" class="link">Blog</a></div>
+    <div><a class="link">Help</a></div>
   </header>
   <div id="title"></div>
   <canvas id="canvas"></canvas>
