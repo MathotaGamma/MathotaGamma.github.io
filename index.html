@@ -3,81 +3,83 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>知のPalette</title>
+  <title>雷と静電気</title>
   <style>
-    * {
-      margin: 0; padding: 0;
-      box-sizing: border-box;
-    }
     html, body {
+      margin: 0; padding: 0;
       width: 100%; height: 100%;
-      background: #000000;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: black;
       overflow: hidden;
-      color: #fff;
-    }
-    header {
-      position: fixed;
-      top: 0; right: 0;
-      height: 50px;
-      display: flex;
-      align-items: center;
-      gap: 25px;
-      padding: 0 20px;
-      z-index: 10;
       user-select: none;
-    }
-    header > div {
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 18px;
-      color: #ffd633;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    header > div:hover {
-      color: #fff;
-    }
-    .icon-circle {
-      width: 20px; height: 20px;
-      border-radius: 50%;
-      background: #ffd633;
-      box-shadow: 0 0 6px #ffd633aa;
-    }
-    canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-      display: block;
-      z-index: 0;
     }
     #title {
       position: fixed;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       font-size: 48px;
-      font-weight: 700;
-      color: #ffd633;
-      text-shadow: 0 0 10px #ffd633aa;
-      user-select: none;
+      font-weight: bold;
+      color: #ffb933;
+      font-family: sans-serif;
       pointer-events: none;
-      z-index: 11;
+      display: flex;
+      gap: 5px;
+      z-index: 10;
+    }
+    .title-char {
+      opacity: 1;
+      animation-name: flameFlicker;
+      animation-duration: 1.5s;
+      animation-iteration-count: infinite;
+      animation-timing-function: ease-in-out;
+      animation-direction: alternate;
+      filter: drop-shadow(0 0 12px #ffb933) drop-shadow(0 0 20px #ff6b00);
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+      transform: translateY(-2px); /* 必要に応じて微調整 */
+    }
+
+    /* 燃える炎のゆらぎ */
+    @keyframes flameFlicker {
+      0% {
+        filter: drop-shadow(0 0 15px #ffd633) drop-shadow(0 0 30px #ff7f00);
+        transform: translateY(0) scale(1);
+        color: #ffcc33;
+        text-shadow:
+          0 0 10px #ffcc33,
+          0 0 20px #ff6600;
+      }
+      50% {
+        filter: drop-shadow(0 0 25px #fff85c) drop-shadow(0 0 40px #ff8000);
+        transform: translateY(-3px) scale(1.05);
+        color: #fff85c;
+        text-shadow:
+          0 0 15px #fff85c,
+          0 0 30px #ff9900;
+      }
+      100% {
+        filter: drop-shadow(0 0 15px #ffd633) drop-shadow(0 0 30px #ff7f00);
+        transform: translateY(0) scale(1);
+        color: #ffcc33;
+        text-shadow:
+          0 0 10px #ffcc33,
+          0 0 20px #ff6600;
+      }
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 0;
     }
   </style>
 </head>
 <body>
-  <header>
-    <div><div class="icon-circle"></div>Icon</div>
-    <div>Blog</div>
-    <div>Help</div>
-  </header>
-
-  <div id="title">知のPalette</div>
-
+  <div id="title"></div>
   <canvas id="canvas"></canvas>
-
   <script>
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -90,58 +92,74 @@
     window.addEventListener('resize', resize);
     resize();
 
-    class LightningParticle {
+    // 乱数関数（min〜maxの間の整数）
+    function random(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // 雷クラス（固定表示、消えたら新規発生）
+    class Lightning {
       constructor() {
         this.reset();
       }
       reset() {
-        this.x = Math.random() * w;
-        this.y = Math.random() * h;
-        this.length = 5 + Math.random() * 8;
-        this.angle = (Math.random() - 0.5) * Math.PI / 3;
-        this.speed = 2 + Math.random() * 3;
-        this.life = 15 + Math.random() * 20;
+        this.startX = random(0, w);
+        this.segments = random(10, 20);
+        this.life = 30 + random(0, 30);
         this.alpha = 1;
-      }
-      update() {
-        this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed;
-        this.life--;
-        this.alpha = this.life / 35;
-        if (
-          this.x < 0 || this.x > w ||
-          this.y < 0 || this.y > h ||
-          this.life <= 0
-        ) {
-          this.reset();
+        this.isActive = true;
+
+        // 各セグメントのx座標を決定（ランダムに左右に揺れる）
+        this.points = [];
+        let x = this.startX;
+        for(let i = 0; i <= this.segments; i++) {
+          let y = (i / this.segments) * h;
+          // 最初の点はそのまま、以降は±20pxランダム
+          if(i > 0) {
+            x += random(-20, 20);
+            // 画面外は内側に戻す
+            if(x < 0) x = 0;
+            if(x > w) x = w;
+          }
+          this.points.push({ x, y });
         }
       }
+      update() {
+        if(!this.isActive) return;
+        this.life--;
+        this.alpha = this.life / 60;
+        if(this.life <= 0) this.isActive = false;
+      }
       draw(ctx) {
-        ctx.strokeStyle = `rgba(255,255,100,${this.alpha})`;
+        if(!this.isActive) return;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 255, 0, ${0.7 * this.alpha})`;
         ctx.lineWidth = 2;
-        ctx.shadowColor = '#ffd633';
+        ctx.shadowColor = 'yellow';
         ctx.shadowBlur = 10;
         ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(
-          this.x + Math.cos(this.angle) * this.length,
-          this.y + Math.sin(this.angle) * this.length
-        );
+        ctx.moveTo(this.points[0].x, this.points[0].y);
+        for(let i = 1; i < this.points.length; i++) {
+          ctx.lineTo(this.points[i].x, this.points[i].y);
+        }
         ctx.stroke();
+        ctx.restore();
       }
     }
 
+    // 静電気パチパチ（小さい線を放射状に出す）
     function drawStatic(x, y) {
-      const sparks = 10;
-      for (let i = 0; i < sparks; i++) {
+      const sparks = 30;
+      const sparks_r = 20;
+      for(let i=0; i<sparks; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = 8 + Math.random() * 7;
+        const dist = 8 + Math.random() * sparks_r;
         const ex = x + Math.cos(angle) * dist;
         const ey = y + Math.sin(angle) * dist;
-        ctx.strokeStyle = `rgba(255,255,150,${1 - i / sparks})`;
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = `rgba(255, 255, 150, ${1 - i / sparks})`;
+        ctx.lineWidth = 2;
         ctx.shadowColor = '#ffd633';
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 20;
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(ex, ey);
@@ -149,64 +167,72 @@
       }
     }
 
-    const particles = [];
-    for (let i = 0; i < 60; i++) {
-      particles.push(new LightningParticle());
+    const bolts = [];
+    for(let i=0; i<10; i++) bolts.push(new Lightning());
+
+    // 指の位置管理
+    let activeTouches = new Map();
+
+    function updateTouches(e) {
+      activeTouches.clear();
+      const touches = e.touches ?? [e];
+      for(const t of touches) {
+        const rect = canvas.getBoundingClientRect();
+        const x = t.clientX - rect.left;
+        const y = t.clientY - rect.top;
+        activeTouches.set(t.identifier ?? 'mouse', {x, y});
+      }
     }
-
-    // 継続的に描画するためタッチ・マウス位置を保持
-    let activePositions = [];
-
-    function updatePositions(touches) {
-      activePositions = [];
-      for (let i = 0; i < touches.length; i++) {
-        activePositions.push({ x: touches[i].clientX, y: touches[i].clientY });
+    function removeTouches(e) {
+      if(e.changedTouches) {
+        for(const t of e.changedTouches) {
+          activeTouches.delete(t.identifier);
+        }
+      } else {
+        activeTouches.delete('mouse');
       }
     }
 
-    canvas.addEventListener('touchstart', e => {
-      e.preventDefault();
-      updatePositions(e.touches);
-    }, { passive: false });
+    window.addEventListener('touchstart', e => { e.preventDefault(); updateTouches(e); }, { passive:false });
+    window.addEventListener('touchmove', e => { e.preventDefault(); updateTouches(e); }, { passive:false });
+    window.addEventListener('touchend', e => { e.preventDefault(); removeTouches(e); }, { passive:false });
+    window.addEventListener('touchcancel', e => { e.preventDefault(); removeTouches(e); }, { passive:false });
 
-    canvas.addEventListener('touchmove', e => {
-      e.preventDefault();
-      updatePositions(e.touches);
-    }, { passive: false });
+    window.addEventListener('mousedown', e => { e.preventDefault(); updateTouches(e); });
+    window.addEventListener('mousemove', e => { if(activeTouches.has('mouse')) updateTouches(e); });
+    window.addEventListener('mouseup', e => { removeTouches({}); });
 
-    canvas.addEventListener('touchend', e => {
-      e.preventDefault();
-      updatePositions(e.touches);
-    }, { passive: false });
-
-    let mouseDown = false;
-    canvas.addEventListener('mousedown', e => {
-      mouseDown = true;
-      activePositions = [{ x: e.clientX, y: e.clientY }];
-    });
-    canvas.addEventListener('mousemove', e => {
-      if (mouseDown) {
-        activePositions = [{ x: e.clientX, y: e.clientY }];
+    // タイトルアニメーション
+    const titleText = '知のPalette';
+    const titleElem = document.getElementById('title');
+    function animateTitle() {
+      titleElem.innerHTML = '';
+      for (let i = 0; i < titleText.length; i++) {
+        const span = document.createElement('span');
+        span.textContent = titleText[i];
+        span.className = 'title-char';
+        // 各文字ごとにアニメーション開始時間を少しずらす（自然な揺らぎのため）
+        span.style.animationDelay = (i * 0.15) + 's';
+        titleElem.appendChild(span);
       }
-    });
-    canvas.addEventListener('mouseup', e => {
-      mouseDown = false;
-      activePositions = [];
-    });
+    }
+    animateTitle();
 
+    // メインアニメーション
     function animate() {
-      // 真っ黒に背景クリア（残像なし）
-      ctx.fillStyle = '#000000';
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = 'black';
       ctx.fillRect(0, 0, w, h);
 
-      particles.forEach(p => {
-        p.update();
-        p.draw(ctx);
+      // 雷の描画・更新
+      bolts.forEach((b, i) => {
+        b.draw(ctx);
+        b.update();
+        if(!b.isActive) bolts[i] = new Lightning();
       });
 
-      activePositions.forEach(pos => {
-        drawStatic(pos.x, pos.y);
-      });
+      // 静電気描画
+      activeTouches.forEach(pos => drawStatic(pos.x, pos.y));
 
       requestAnimationFrame(animate);
     }
