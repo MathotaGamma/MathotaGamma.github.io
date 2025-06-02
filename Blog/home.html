@@ -1,11 +1,110 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8">
-    <title>知のPalette : Blog</title>
-  </head>
-  <body>
-    Blog
-    Hey
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ようこそ - 数学と物理の世界 ｜ 知のPalette</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0b0b0b;
+      color: #fff;
+      font-family: sans-serif;
+    }
+
+    header {
+      padding: 20px;
+      text-align: center;
+      font-size: 28px;
+      color: #ffb933;
+      border-bottom: 1px solid #333;
+    }
+
+    main {
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
+    }
+
+    .intro {
+      max-width: 600px;
+      text-align: center;
+      font-size: 18px;
+      color: #ddd;
+      line-height: 1.6;
+    }
+
+    .link-box {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .link-card {
+      background-color: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 20px 30px;
+      text-align: center;
+      width: 200px;
+      transition: 0.3s;
+    }
+
+    .link-card:hover {
+      background-color: #222;
+      transform: translateY(-5px);
+      box-shadow: 0 0 10px #ffb93366;
+    }
+
+    .link-card a {
+      color: #66ccff;
+      text-decoration: none;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>数学と物理の世界へようこそ</div>
+    <div><a href="/" class="list">Topページ</a></div>
+  </header>
+
+  <main>
+    <div class="intro">
+      このサイトでは、数学・物理といった難しそうな話題を<br>
+      前提知識なしでも「感じられる」「楽しめる」形で届けていきます。
+    </div>
+
+    <div class="link-box">
+      <div class="link-card">
+        <a href="./Blog/home.html">Blogへ</a>
+        <p style="font-size: 14px; color: #aaa;">直感で学ぶ数学・物理の読み物</p>
+      </div>
+      <div class="link-card">
+        <a href="./About.html">About</a>
+        <p style="font-size: 14px; color: #aaa;">このサイトについて</p>
+      </div>
+      <div class="link-card">
+        <a href="./Projects.html">Projects</a>
+        <p style="font-size: 14px; color: #aaa;">制作中のデモや実験</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    &copy; 2025 数学と物理の世界
+  </footer>
+</body>
 </html>
