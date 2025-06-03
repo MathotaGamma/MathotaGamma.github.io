@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>NeoTopazm</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000010 100%);
+      color: #e0e6ff;
+      font-family: 'Segoe UI', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    .content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 5vh 10vw;
+    }
+    h1 {
+      font-size: 3em;
+      background: linear-gradient(90deg, #6de0f0, #a686ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: pulse 4s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% {
+        text-shadow: 0 0 10px #6de0f0, 0 0 20px #a686ff;
+      }
+      50% {
+        text-shadow: 0 0 20px #a686ff, 0 0 40px #6de0f0;
+      }
+    }
+    .section {
+      margin-top: 4em;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .section h2 {
+      font-size: 1.5em;
+      margin-bottom: 0.5em;
+      color: #aeb8ff;
+    }
+    .section p {
+      font-size: 1.1em;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="stars"></canvas>
+  <div class="content">
+    <h1>NeoTopazm</h1>
+    <div class="section">
+      <h2>The Word</h2>
+      <p>
+        「Neo」は新しさ。<br>
+        「Topaz」は輝き、美、精神性。<br>
+        「-zm」はエネルギー。<br>
+        NeoTopazmとは、新しい輝きのエネルギーの総称である。
+      </p>
+    </div>
+    <div class="section">
+      <h2>The Energy Within</h2>
+      <p>
+        NeoTopazmは、思想、感性、静寂、美、創造、未来、全ての境界を越えたエネルギー。<br>
+        この一語に、人間の中に眠る宇宙的な衝動が宿る。
+      </p>
+    </div>
+    <div class="section">
+      <h2>The Manifestation</h2>
+      <p>
+        このサイトの背景、輝き、静かな動き…<br>
+        それらすべてがNeoTopazmの具現。<br>
+        言葉そのものが世界を創る。NeoTopazm、それがすべて。
+      </p>
+    </div>
+  </div>
+  <script>
+    const canvas = document.getElementById('stars');
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      stars = [];
+      for (let i = 0; i < 300; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 1.5,
+          d: Math.random() * 0.5 + 0.2
+        });
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      stars.forEach(star => {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+      moveStars();
+      requestAnimationFrame(draw);
+    }
+
+    function moveStars() {
+      stars.forEach(star => {
+        star.y += star.d;
+        if (star.y > canvas.height) {
+          star.y = 0;
+          star.x = Math.random() * canvas.width;
+        }
+      });
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    draw();
+  </script>
+</body>
+</html>
