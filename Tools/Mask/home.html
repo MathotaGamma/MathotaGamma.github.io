@@ -181,36 +181,53 @@
       lastY = y;
     }
 
-    function draw(e) {
-      if (!isDrawing) return;
-      e.preventDefault();
-      const { x, y } = getMousePos(e);
+   function draw(e) {
+  if (!isDrawing) return;
+  e.preventDefault();
+  const { x, y } = getMousePos(e);
 
-      drawCtx.strokeStyle = mode === 'pen' ? 'black' : 'white';
-      drawCtx.lineWidth = penSize;
-      drawCtx.lineCap = 'round';
+  // --- 通常サイズのキャンバス描画 ---
+  if (mode === 'pen') {
+    drawCtx.globalCompositeOperation = 'source-over';
+    drawCtx.strokeStyle = 'black';
+  } else {
+    drawCtx.globalCompositeOperation = 'destination-out';
+    drawCtx.strokeStyle = 'rgba(0,0,0,1)'; // 色は意味を持たないが一応指定
+  }
 
-      drawCtx.beginPath();
-      drawCtx.moveTo(lastX, lastY);
-      drawCtx.lineTo(x, y);
-      drawCtx.stroke();
+  drawCtx.lineWidth = penSize;
+  drawCtx.lineCap = 'round';
 
-      lastX = x;
-      lastY = y;
+  drawCtx.beginPath();
+  drawCtx.moveTo(lastX, lastY);
+  drawCtx.lineTo(x, y);
+  drawCtx.stroke();
 
-      // 元画像サイズの保存用キャンバスにも描く
-      const scaleX = fullSizeDrawCanvas.width / drawCanvas.width;
-      const scaleY = fullSizeDrawCanvas.height / drawCanvas.height;
+  // --- 拡大版キャンバス描画 ---
+  const scaleX = fullSizeDrawCanvas.width / drawCanvas.width;
+  const scaleY = fullSizeDrawCanvas.height / drawCanvas.height;
 
-      fullSizeCtx.strokeStyle = mode === 'pen' ? 'black' : 'white';
-      fullSizeCtx.lineWidth = penSize * scaleX;
-      fullSizeCtx.lineCap = 'round';
+  if (mode === 'pen') {
+    fullSizeCtx.globalCompositeOperation = 'source-over';
+    fullSizeCtx.strokeStyle = 'black';
+  } else if (mode === 'eraser') {
+    fullSizeCtx.globalCompositeOperation = 'destination-out';
+    fullSizeCtx.strokeStyle = 'rgba(0,0,0,1)';
+  }
 
-      fullSizeCtx.beginPath();
-      fullSizeCtx.moveTo(lastX * scaleX, lastY * scaleY);
-      fullSizeCtx.lineTo(x * scaleX, y * scaleY);
-      fullSizeCtx.stroke();
-    }
+  fullSizeCtx.lineWidth = penSize * scaleX;
+  fullSizeCtx.lineCap = 'round';
+
+  fullSizeCtx.beginPath();
+  fullSizeCtx.moveTo(lastX * scaleX, lastY * scaleY);
+  fullSizeCtx.lineTo(x * scaleX, y * scaleY);
+  fullSizeCtx.stroke();
+
+  // --- 最後の位置の更新 ---
+  lastX = x;
+  lastY = y;
+}
+
 
     function stopDraw(e) {
       e.preventDefault();
