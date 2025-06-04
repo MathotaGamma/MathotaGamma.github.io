@@ -359,16 +359,17 @@
       
       <div class="block">
         <h3>FSE</h3>
+        <p>周期をTとする。</p>
         <h4>実数表記</h4>
-          $$x(t) = a_0 + \sum_{n=1}^{\infty} \left[ a_n \cos(n \omega_0 t) + b_n \sin(n \omega_0 t) \right]$$
+          $$f(t) = a_0 + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2 \pi nt}{T}) + b_n \sin(\frac{2 \pi nt}{T}) \right\}$$
         <p>ただし、</p>
-          $$a_0 = \frac{1}{T} \int_{0}^{T} x(t) \, dt$$
-          $$a_n = \frac{2}{T} \int_{0}^{T} x(t) \cos(n \omega_0 t) \, dt$$
-          $$b_n = \frac{2}{T} \int_{0}^{T} x(t) \sin(n \omega_0 t) \, dt$$
+          $$a_0 = \frac{1}{T} \int_{0}^{T} f(t) \, dt$$
+          $$a_n = \frac{2}{T} \int_{0}^{T} f(t) \cos(\frac{2 \pi nt}{T}) \, dt$$
+          $$b_n = \frac{2}{T} \int_{0}^{T} f(t) \sin(\frac{2 \pi nt}{T}) \, dt$$
         <h4>複素数表記</h4>
-          $$x(t) = \sum_{n=-\infty}^{\infty} c_n e^{j n \omega_0 t}, \quad$$
+          $$f(t) = \sum_{n=-\infty}^{\infty} c_n e^{\frac{2 \pi nt}{T} i}, \quad$$
         <p>ただし、</p>
-          $$c_n = \frac{1}{T} \int_{T} x(t) e^{-j n \omega_0 t} \, dt$$
+          $$c_n = \frac{1}{T} \int_{0}^{T} f(t) e^{- \frac{2 \pi nt}{T} i} \, dt$$
       </div>
       <p>
         見ても分からないですね、、、
