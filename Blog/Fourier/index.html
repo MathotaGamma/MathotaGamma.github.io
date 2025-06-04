@@ -382,7 +382,7 @@
       <h2>体験してみる</h2>
       <p>実際フーリエ変換って何に使えるん？となってしまわないように、</p>
       <p>フーリエ変換を使ったものを用意しました。</p>
-      <canvas id="Draw"></canvas>
+      <canvas id="Draw" style="border: 1px solid black;"></canvas>
     </section>
   </article>
 
@@ -415,6 +415,8 @@
   document.querySelector('.toc-toggle').addEventListener('click', () => {
     document.querySelector('.toc-wrapper').classList.toggle('active');
   });
+
+  const Draw = document.getElementById("Draw");
 </script>
 
 </body>
