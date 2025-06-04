@@ -230,11 +230,85 @@
       <p>
         このsectionは、
         あまり数学が得意じゃないという方は
-        <a href="#section4">
-        ここまで読み飛ばしてもらって</a>構いません！
+        <a href="#section4">ここまで読み飛ばしてもらって</a>
+        構いません！
       </p>
-
-
+      <p>
+        フーリエ変換は4種類あります。
+        下の表をみてください。
+      </p>
+      <table>
+        <caption>
+          Fourier変換の種類
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">\</th>
+            <th scope="col">周期</th>
+            <th scope="col">非周期</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">連続</th>
+            <td>フーリエ級数展開(FSE)</td>
+            <td>フーリエ変換(FT)</td>
+          </tr>
+          <tr>
+            <th scope="row">不連続(離散的)</th>
+            <td>離散フーリエ変換(DFT)</td>
+            <td>離散時間フーリエ変換(DTFT)</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        このように、4種類はその使う場面、関数によって
+        分けられます。
+      </p>
+      <ul>
+        <li>
+          <h3>
+            フーリエ級数展開(Fourier Series Expansion)
+          </h3>
+          <p>
+            これだけ名前の傾向が違う。可哀想。
+            その名の通り、ある関数f(x)をsin,cosの級数(足し算)で表す方法。
+          </p>
+          <p>
+            実数verと複素数verがある。
+          </p>
+        </li>
+        <li>
+          <h3>
+            フーリエ変換(Fourier Transform)
+          </h3>
+          <p>
+            連続、非周期の関数に用いる。
+            後述する式を見るとわかるが、
+            フーリエ級数展開を積分表記にして
+            範囲を無限にしただけ。
+          </p>
+        </li>
+        <li>
+          <h3>
+            離散フーリエ変換(Discrete Fourier Transform)
+          </h3>
+          <p>
+            皆大好き離散フーリエ変換。
+            今や私達の生活に欠かせないものとなっている。
+            名の通り離散的なデータをフーリエ変換する。
+            派生したものとして高速フーリエ変換(FFT)がある。
+          </p>
+        </li>
+        <li>
+          <h3>
+            離散時間フーリエ変換
+          </h3>
+          <p>
+            フーリエ変換を離散的にしたもの。
+          </p>
+        </li>
+      </ul>
     </section>
     <section id="section3">
       <h2>実際の計算方法</h2>
