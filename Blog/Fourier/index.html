@@ -364,23 +364,25 @@
           $$f(t) = a_0 + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2 \pi nt}{T}) + b_n \sin(\frac{2 \pi nt}{T}) \right\}$$
         <p>ただし、</p>
           $$a_0 = \frac{1}{T} \int_{0}^{T} f(t) \, dt$$
-          $$a_n = \frac{2}{T} \int_{0}^{T} f(t) \cos(\frac{2 \pi nt}{T}) \, dt$$
-          $$b_n = \frac{2}{T} \int_{0}^{T} f(t) \sin(\frac{2 \pi nt}{T}) \, dt$$
+          $$a_n = \frac{2}{T} \int_{0}^{T} f(t) \cos\left(\frac{2 \pi nt}{T}\right) \, dt$$
+          $$b_n = \frac{2}{T} \int_{0}^{T} f(t) \sin\left(\frac{2 \pi nt}{T}\right) \, dt$$
         <h4>複素数表記</h4>
           $$f(t) = \sum_{n=-\infty}^{\infty} c_n e^{\frac{2 \pi nt}{T} i}, \quad$$
         <p>ただし、</p>
           $$c_n = \frac{1}{T} \int_{0}^{T} f(t) e^{- \frac{2 \pi nt}{T} i} \, dt$$
       </div>
       <p>
-        見ても分からないですね、、、
+        これ見てわかる人はフーリエ変換マニアですね。
       </p>
       <p>
         導出などは追々作る<span style="color: red;">予定</span>です。
       </p>
     </section>
     <section id="section4">
-      <h2>基本的な性質</h2>
-      <p>Fourier変換には線形性や時間シフトの性質などがあり、信号処理で重要な役割を果たします。</p>
+      <h2>体験してみる</h2>
+      <p>実際フーリエ変換って何に使えるん？となってしまわないように、</p>
+      <p>フーリエ変換を使ったものを用意しました。</p>
+      <canvas id="Draw"></canvas>
     </section>
   </article>
 
