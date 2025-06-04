@@ -2,128 +2,191 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ようこそ - 数学と物理の世界 ｜ 知のPalette</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>テーマ一覧 : NeoTopazm > Blog</title>
   <style>
-    body {
+    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap');
+
+    /* リセット */
+    * {
       margin: 0;
       padding: 0;
-      background-color: #0b0b0b;
-      color: #fff;
-      font-family: sans-serif;
+      box-sizing: border-box;
     }
 
-    header {
-      position: sticky;
-      padding: 20px;
-      text-align: center;
-      font-size: 28px;
-      color: #ffb933;
-      border-bottom: 1px solid #333;
-    }
-
-    main {
-      padding: 40px 20px;
+    body {
+      background: linear-gradient(135deg, #0b0b0b, #1a1a2e);
+      color: #eee;
+      font-family: 'Rubik', sans-serif;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
+      padding: 40px 20px;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      font-weight: 700;
+      font-size: 3rem;
+      color: #ffb933;
+      text-shadow: 0 0 10px #ffb93388;
+      margin-bottom: 50px;
+      letter-spacing: 0.05em;
+      user-select: none;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 40px;
+      width: 100%;
+      max-width: 1000px;
     }
 
-    .intro {
-      max-width: 600px;
-      text-align: center;
-      font-size: 18px;
+    .card {
+      background: linear-gradient(145deg, #1f2937, #111827);
+      border-radius: 20px;
+      box-shadow:
+        0 0 10px #ffb93355,
+        inset 0 0 10px #ffb93333;
+      padding: 30px 25px;
+      cursor: pointer;
+      transition:
+        transform 0.3s ease,
+        box-shadow 0.3s ease;
+      position: relative;
+      overflow: hidden;
       color: #ddd;
-      line-height: 1.6;
-    }
-
-    .link-box {
       display: flex;
-      gap: 30px;
-      flex-wrap: wrap;
+      flex-direction: column;
       justify-content: center;
     }
 
-    .link-card {
-      background-color: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 10px;
-      padding: 20px 30px;
-      text-align: center;
-      width: 200px;
-      transition: 0.3s;
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at center, #ffb93355 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+      filter: blur(30px);
+      z-index: 0;
     }
 
-    .link-card:hover {
-      background-color: #222;
-      transform: translateY(-5px);
-      box-shadow: 0 0 10px #ffb93366;
+    .card:hover::before {
+      opacity: 1;
     }
 
-    .link-card a {
-      color: #66ccff;
+    .card:hover {
+      transform: translateY(-10px) scale(1.05);
+      box-shadow:
+        0 0 20px #ffb933cc,
+        inset 0 0 20px #ffb933aa;
+      color: #fff;
+    }
+
+    .card a {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: inherit;
       text-decoration: none;
-      font-size: 20px;
-      font-weight: bold;
+      z-index: 1;
+      user-select: none;
+      letter-spacing: 0.02em;
+    }
+
+    .card p {
+      margin-top: 12px;
+      font-size: 0.9rem;
+      color: #bbb;
+      z-index: 1;
+      user-select: none;
+      line-height: 1.4;
     }
 
     footer {
       margin-top: 60px;
-      text-align: center;
-      color: #666;
-      font-size: 12px;
+      font-size: 0.85rem;
+      color: #555;
+      user-select: none;
     }
 
-    .link {
-      position: absolute;
-      right: 0px;
+    /* 浮遊する光の粒子エフェクト */
+    .particle {
+      position: fixed;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ffb933cc 0%, transparent 70%);
+      pointer-events: none;
+      animation: floatUp linear infinite;
+      opacity: 0.7;
+      filter: drop-shadow(0 0 2px #ffb933aa);
     }
 
-    .link {
-      color: white;
-      text-decoration: underline;
-      text-decoration-style: wavy;
-      text-decoration-color: white;
-    }
-
-    .link:hover {
-      /*color: white;*/
-      text-decoration-style: double;
-      text-decoration-color: red;
+    @keyframes floatUp {
+      0% {
+        transform: translateY(100vh) scale(1);
+        opacity: 0.7;
+      }
+      100% {
+        transform: translateY(-10vh) scale(0.7);
+        opacity: 0;
+      }
     }
   </style>
 </head>
 <body>
-  <header>
-    <div>数学と物理の世界へようこそ</div>
-    <div><a href="../" class="link">Topページ</a></div>
-  </header>
+  <h1>Blog - テーマ一覧</h1>
 
-  <main>
-    <div class="intro">
-      このサイトでは、数学・物理といった難しそうな話題を<br>
-      前提知識なしでも「感じられる」「楽しめる」形で届けていきます。
-    </div>
+  <div class="card-grid" id="theme-list">
 
-    <div class="link-box">
-      <div class="link-card">
-        <a href="./Blog/home.html">Blogへ</a>
-        <p style="font-size: 14px; color: #aaa;">直感で学ぶ数学・物理の読み物</p>
-      </div>
-      <div class="link-card">
-        <a href="./About.html">About</a>
-        <p style="font-size: 14px; color: #aaa;">このサイトについて</p>
-      </div>
-      <div class="link-card">
-        <a href="./Projects.html">Projects</a>
-        <p style="font-size: 14px; color: #aaa;">制作中のデモや実験</p>
-      </div>
-    </div>
-  </main>
+  </div>
 
-  <footer>
-    &copy; 2025 数学と物理の世界
-  </footer>
+  <footer>&copy; 2025 知のPalette</footer>
+
+  <script>
+    // テーマ配列
+    const themes = [
+      { name: "Fourier解析", dir: "Fourier", desc: "波の世界を分解する" },
+      { name: "ゼータ関数", dir: "Zeta", desc: "無限の彼方と素数の謎" },
+      { name: "トポロジー", dir: "Topology", desc: "形を保つ数学" },
+      { name: "相対性理論", dir: "Relativity", desc: "時空の不思議に迫る" },
+      { name: "量子力学", dir: "Quantum", desc: "ミクロの世界の法則" }
+    ];
+
+    const container = document.getElementById("theme-list");
+
+    for (const theme of themes) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <a href="./${theme.dir}/home.html" aria-label="${theme.name} のページへ">${theme.name}</a>
+        <p>${theme.desc}</p>
+      `;
+      container.appendChild(card);
+    }
+
+    // 浮遊する光の粒子を生成
+    function createParticle() {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 6 + 4; // 4px〜10px
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.left = Math.random() * window.innerWidth + 'px';
+      p.style.animationDuration = (Math.random() * 10 + 10) + 's';
+      document.body.appendChild(p);
+
+      // 画面外に行ったら削除
+      p.addEventListener('animationend', () => p.remove());
+    }
+
+    // 定期的に粒子を作る
+    setInterval(createParticle, 400);
+  </script>
 </body>
 </html>
