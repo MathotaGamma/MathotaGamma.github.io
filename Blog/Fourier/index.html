@@ -259,7 +259,7 @@
       <p>
         このsectionは、
         あまり数学が得意じゃないという方は
-        <a href="#section4">ここまで読み飛ばしてもらって</a>
+        <a href="#section4" class="toc">ここまで読み飛ばしてもらって</a>
         構いません！
       </p>
       <p>
@@ -301,6 +301,8 @@
           </h3>
           <p>
             これだけ名前の傾向が違う。可哀想。
+          </p>
+          <p>
             その名の通り、ある関数f(x)をsin,cosの級数(足し算)で表す方法。
           </p>
           <p>
@@ -355,20 +357,19 @@
   <aside class="sidebar">
     <section>
       <h3>おすすめ記事</h3>
-      <ul>
+      <!--<ul>
         <li><a href="../Zeta/home.html">ゼータ関数の世界</a></li>
         <li><a href="../Fourier/home.html">Fourierの他の記事</a></li>
-      </ul>
+      </ul>-->
     </section>
     <section class="ads">
       <p>広告スペース</p>
-      <p>ここに広告やプロモーションを掲載できます。</p>
     </section>
   </aside>
 </main>
 
 <script>
-  document.querySelectorAll('nav.toc a').forEach(anchor => {
+  document.querySelectorAll('.toc a').forEach(anchor => {
     anchor.addEventListener('click', e => {
       e.preventDefault();
       const targetId = anchor.getAttribute('href').slice(1);
