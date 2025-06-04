@@ -3,190 +3,283 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>テーマ一覧 : NeoTopazm > Blog</title>
+  <title>Title</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap');
-
-    /* リセット */
+    /* Reset */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
 
-    body {
-      background: linear-gradient(135deg, #0b0b0b, #1a1a2e);
+    html, body {
+      height: 100%;
+      overflow: hidden; /* 全体はスクロールなし */
+      -webkit-touch-callout: none; /* iOSでの長押しメニュー禁止 */
+      -webkit-user-select: none; /* iOS Safariでの選択禁止 */
+      user-select: none;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #0b0b0b;
       color: #eee;
-      font-family: 'Rubik', sans-serif;
-      min-height: 100vh;
+      position: relative;
+    }
+
+    body {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 40px 20px;
-      overflow-x: hidden;
+      min-height: 100vh;
     }
 
-    h1 {
+    header {
+      padding: 24px 20px;
+      text-align: center;
+      font-size: 32px;
       font-weight: 700;
-      font-size: 3rem;
-      color: #ffb933;
-      text-shadow: 0 0 10px #ffb93388;
-      margin-bottom: 50px;
-      letter-spacing: 0.05em;
-      user-select: none;
+      letter-spacing: 1.2px;
+      color: #f9c74f;
+      text-shadow: 0 0 10px #f9c74f88;
+      flex-shrink: 0;
     }
 
-    .card-grid {
+    main {
+      flex-grow: 1;
+      max-width: 960px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 40px;
-      width: 100%;
-      max-width: 1000px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 36px;
+      position: relative;
+      z-index: 1; /* 波紋より前面 */
+      overflow-y: auto; /* main内は縦スクロール可能 */
+      scrollbar-width: thin;
+      scrollbar-color: #f9c74f33 transparent;
+    }
+
+    main::-webkit-scrollbar {
+      width: 8px;
+    }
+    main::-webkit-scrollbar-thumb {
+      background-color: #f9c74f33;
+      border-radius: 4px;
     }
 
     .card {
-      background: linear-gradient(145deg, #1f2937, #111827);
-      border-radius: 20px;
-      box-shadow:
-        0 0 10px #ffb93355,
-        inset 0 0 10px #ffb93333;
-      padding: 30px 25px;
+      background: #1a1a1add;
+      border-radius: 14px;
+      box-shadow: 0 0 12px #f9c74f33;
+      padding: 28px 24px;
       cursor: pointer;
+      color: #aaddff;
+      font-weight: 600;
+      font-size: 22px;
+      text-align: center;
       transition:
-        transform 0.3s ease,
-        box-shadow 0.3s ease;
+        transform 0.3s cubic-bezier(0.4,0,0.2,1),
+        box-shadow 0.3s ease,
+        background-color 0.3s ease;
       position: relative;
       overflow: hidden;
-      color: #ddd;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+      user-select: none;
     }
 
     .card::before {
-      content: '';
+      content: "";
       position: absolute;
       top: -50%;
       left: -50%;
       width: 200%;
       height: 200%;
-      background: radial-gradient(circle at center, #ffb93355 0%, transparent 60%);
+      background: radial-gradient(circle at center, #f9c74f44, transparent 80%);
       opacity: 0;
       transition: opacity 0.5s ease;
-      pointer-events: none;
-      filter: blur(30px);
       z-index: 0;
+      pointer-events: none;
     }
 
     .card:hover::before {
       opacity: 1;
+      animation: pulseGlow 1.5s infinite alternate ease-in-out;
+    }
+
+    @keyframes pulseGlow {
+      0% {
+        transform: scale(1);
+        opacity: 0.3;
+      }
+      100% {
+        transform: scale(1.1);
+        opacity: 0.6;
+      }
     }
 
     .card:hover {
+      background-color: #f9c74f22;
+      box-shadow: 0 0 24px #f9c74faa;
       transform: translateY(-10px) scale(1.05);
-      box-shadow:
-        0 0 20px #ffb933cc,
-        inset 0 0 20px #ffb933aa;
       color: #fff;
+      z-index: 1;
     }
 
-    .card a {
-      font-size: 1.6rem;
-      font-weight: 700;
+    a.card-link {
+      display: block;
       color: inherit;
       text-decoration: none;
+      position: relative;
       z-index: 1;
-      user-select: none;
-      letter-spacing: 0.02em;
-    }
-
-    .card p {
-      margin-top: 12px;
-      font-size: 0.9rem;
-      color: #bbb;
-      z-index: 1;
-      user-select: none;
-      line-height: 1.4;
     }
 
     footer {
-      margin-top: 60px;
-      font-size: 0.85rem;
-      color: #555;
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      padding: 20px 0 40px;
       user-select: none;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
     }
 
-    /* 浮遊する光の粒子エフェクト */
-    .particle {
+    /* 波紋用キャンバス */
+    #ripple-canvas {
       position: fixed;
-      border-radius: 50%;
-      background: radial-gradient(circle, #ffb933cc 0%, transparent 70%);
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
       pointer-events: none;
-      animation: floatUp linear infinite;
-      opacity: 0.7;
-      filter: drop-shadow(0 0 2px #ffb933aa);
+      z-index: 0;
     }
 
-    @keyframes floatUp {
-      0% {
-        transform: translateY(100vh) scale(1);
-        opacity: 0.7;
+    @media (max-width: 480px) {
+      header {
+        font-size: 24px;
       }
-      100% {
-        transform: translateY(-10vh) scale(0.7);
-        opacity: 0;
+
+      .card {
+        font-size: 18px;
+        padding: 20px 18px;
       }
     }
   </style>
 </head>
 <body>
-  <h1>Blog - テーマ一覧</h1>
+  <header>Title</header>
 
-  <div class="card-grid" id="theme-list">
+  <main id="main-container">
+    <!-- JavaScriptでここにリンクカードを生成 -->
+  </main>
 
-  </div>
+  <footer>&copy; 2025 Title</footer>
 
-  <footer>&copy; 2025 知のPalette</footer>
+  <canvas id="ripple-canvas"></canvas>
 
   <script>
-    // テーマ配列
-    const themes = [
-      { name: "Fourier解析", dir: "Fourier", desc: "波の世界を分解する" },
-      { name: "ゼータ関数", dir: "Zeta", desc: "無限の彼方と素数の謎" },
-      { name: "トポロジー", dir: "Topology", desc: "形を保つ数学" },
-      { name: "相対性理論", dir: "Relativity", desc: "時空の不思議に迫る" },
-      { name: "量子力学", dir: "Quantum", desc: "ミクロの世界の法則" }
+    // サイトリンクデータ
+    const sitelist = [
+      {name: "Fourier", href: "./Fourier/home"},
+      {name: "Zeta", href: "./Zeta/home"},
+      {name: "Quantum", href: "./Quantum/home"},
+      {name: "Relativity", href: "./Relativity/home"},
     ];
 
-    const container = document.getElementById("theme-list");
+    const main = document.getElementById("main-container");
 
-    for (const theme of themes) {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `
-        <a href="./${theme.dir}/home.html" aria-label="${theme.name} のページへ">${theme.name}</a>
-        <p>${theme.desc}</p>
-      `;
-      container.appendChild(card);
+    // リンクカード生成
+    sitelist.forEach(site => {
+      const a = document.createElement("a");
+      a.href = site.href;
+      a.className = "card-link";
+      a.setAttribute("aria-label", site.name);
+
+      const div = document.createElement("div");
+      div.className = "card";
+      div.textContent = site.name;
+
+      a.appendChild(div);
+      main.appendChild(a);
+    });
+
+
+    // 波紋アニメーション処理
+    const canvas = document.getElementById("ripple-canvas");
+    const ctx = canvas.getContext("2d");
+    let width, height;
+    let ripples = [];
+
+    // リサイズ対応
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width * devicePixelRatio;
+      canvas.height = height * devicePixelRatio;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    // 波紋クラス
+    class Ripple {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 0;
+        this.maxRadius = 150;
+        this.opacity = 0.6;
+        this.growthRate = 3 + Math.random() * 1.5;
+      }
+      update() {
+        this.radius += this.growthRate;
+        this.opacity -= 0.008;
+      }
+      draw(ctx) {
+        if (this.opacity <= 0) return;
+        ctx.beginPath();
+        const gradient = ctx.createRadialGradient(
+          this.x, this.y, this.radius * 0.6,
+          this.x, this.y, this.radius
+        );
+        gradient.addColorStop(0, `rgba(249, 199, 79, ${this.opacity})`);
+        gradient.addColorStop(1, `rgba(249, 199, 79, 0)`);
+        ctx.fillStyle = gradient;
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      isDead() {
+        return this.opacity <= 0;
+      }
     }
 
-    // 浮遊する光の粒子を生成
-    function createParticle() {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      const size = Math.random() * 6 + 4; // 4px〜10px
-      p.style.width = size + 'px';
-      p.style.height = size + 'px';
-      p.style.left = Math.random() * window.innerWidth + 'px';
-      p.style.animationDuration = (Math.random() * 10 + 10) + 's';
-      document.body.appendChild(p);
-
-      // 画面外に行ったら削除
-      p.addEventListener('animationend', () => p.remove());
+    // クリック・タッチ時に波紋追加
+    function addRipple(x, y) {
+      ripples.push(new Ripple(x, y));
     }
 
-    // 定期的に粒子を作る
-    setInterval(createParticle, 400);
+    // アニメーションループ
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+      ripples.forEach((ripple, i) => {
+        ripple.update();
+        ripple.draw(ctx);
+        if (ripple.isDead()) ripples.splice(i, 1);
+      });
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // イベントリスナー（クリック＆タッチ）
+    window.addEventListener("click", e => {
+      addRipple(e.clientX, e.clientY);
+    });
+
+    window.addEventListener("touchstart", e => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        addRipple(touch.clientX, touch.clientY);
+      }
+    });
   </script>
 </body>
 </html>
