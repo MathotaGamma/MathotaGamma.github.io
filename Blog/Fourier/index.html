@@ -161,7 +161,7 @@
 
    
     .cursive {
-      font-family: "Brush Script MT", cursive;
+      font-family: "Snell Roundhand", cursive;
     }
   </style>
 </head>
@@ -237,10 +237,22 @@
 </main>
 
 <script>
-  // スムーズスクロールはCSSで設定済み
-
-  // 目次クリック時にメイン記事だけスクロールさせる
   document.querySelectorAll('nav.toc a').forEach(anchor => {
+    anchor.addEventListener('click', e => {
+      e.preventDefault();
+      const targetId = anchor.getAttribute('href').slice(1);
+      const target = document.getElementById(targetId);
+      const container = document.querySelector('article.article');
+
+      if (target && container) {
+        const offsetTop = target.offsetTop;
+        container.scrollTo({ top: offsetTop, behavior: 'smooth' });
+      }
+    });
+  });
+
+  
+  /*document.querySelectorAll('nav.toc a').forEach(anchor => {
     anchor.addEventListener('click', e => {
       e.preventDefault();
       const targetId = anchor.getAttribute('href').slice(1);
@@ -249,7 +261,7 @@
         target.scrollIntoView({behavior: 'smooth', block: 'start'});
       }
     });
-  });
+  });*/
 </script>
 
 </body>
