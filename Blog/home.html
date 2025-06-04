@@ -12,22 +12,34 @@
       box-sizing: border-box;
     }
 
-    html, body {
+    body, html {
       height: 100%;
-      overflow: hidden; /* 全体はスクロールなし */
-      -webkit-touch-callout: none; /* iOSでの長押しメニュー禁止 */
-      -webkit-user-select: none; /* iOS Safariでの選択禁止 */
-      user-select: none;
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       background: #0b0b0b;
       color: #eee;
+      overflow-x: hidden;
       position: relative;
     }
 
-    body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
+    /* 動的背景 */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle at 20% 30%, #222933, transparent 40%), 
+                  radial-gradient(circle at 70% 80%, #334466, transparent 50%);
+      animation: backgroundShift 20s ease-in-out infinite alternate;
+      z-index: -1;
+      filter: brightness(0.8);
+    }
+
+    @keyframes backgroundShift {
+      0% {
+        background-position: 20% 30%, 70% 80%;
+      }
+      100% {
+        background-position: 25% 35%, 65% 75%;
+      }
     }
 
     header {
@@ -38,30 +50,16 @@
       letter-spacing: 1.2px;
       color: #f9c74f;
       text-shadow: 0 0 10px #f9c74f88;
-      flex-shrink: 0;
+      user-select: none;
     }
 
     main {
-      flex-grow: 1;
       max-width: 960px;
-      margin: 0 auto 60px;
+      margin: 40px auto 60px;
       padding: 0 20px;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 36px;
-      position: relative;
-      z-index: 1; /* 波紋より前面 */
-      overflow-y: auto; /* main内は縦スクロール可能 */
-      scrollbar-width: thin;
-      scrollbar-color: #f9c74f33 transparent;
-    }
-
-    main::-webkit-scrollbar {
-      width: 8px;
-    }
-    main::-webkit-scrollbar-thumb {
-      background-color: #f9c74f33;
-      border-radius: 4px;
     }
 
     .card {
@@ -78,9 +76,9 @@
         transform 0.3s cubic-bezier(0.4,0,0.2,1),
         box-shadow 0.3s ease,
         background-color 0.3s ease;
+      user-select: none;
       position: relative;
       overflow: hidden;
-      user-select: none;
     }
 
     .card::before {
@@ -135,21 +133,9 @@
       font-size: 14px;
       padding: 20px 0 40px;
       user-select: none;
-      position: relative;
-      z-index: 1;
-      flex-shrink: 0;
     }
 
-    /* 波紋用キャンバス */
-    #ripple-canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
-      pointer-events: none;
-      z-index: 0;
-    }
-
+    /* 小さい画面でも見やすいように */
     @media (max-width: 480px) {
       header {
         font-size: 24px;
@@ -160,126 +146,112 @@
         padding: 20px 18px;
       }
     }
+
+    .ripple {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      animation: rippleEffect 1.2s ease-out;
+      z-index: 1000;
+      mix-blend-mode: screen;
+    }
+
+    @keyframes rippleEffect {
+      from {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(0.5);
+      }
+      to {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(15);
+      }
+    }
+
+    .card-link {
+      text-decoration: none;
+    }
+
+    .card {
+      background-color: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 20px 30px;
+      text-align: center;
+      width: 200px;
+      color: #66ccff;
+      font-size: 20px;
+      font-weight: bold;
+      transition: 0.3s;
+      margin: 20px auto;
+    }
+
+    .card:hover {
+      background-color: #222;
+      transform: translateY(-5px);
+      box-shadow: 0 0 10px #ffb93366;
+    }
   </style>
 </head>
 <body>
   <header>Title</header>
 
-  <main id="main-container">
-    <!-- JavaScriptでここにリンクカードを生成 -->
+  <main>
+    <a href="./Fourier/home" class="card-link" aria-label="Fourier">
+      <div class="card">Fourier</div>
+    </a>
+    <a href="./Zeta/home" class="card-link" aria-label="Zeta">
+      <div class="card">Zeta</div>
+    </a>
+    <a href="./Quantum/home" class="card-link" aria-label="Quantum">
+      <div class="card">Quantum</div>
+    </a>
+    <a href="./Relativity/home" class="card-link" aria-label="Relativity">
+      <div class="card">Relativity</div>
+    </a>
   </main>
 
   <footer>&copy; 2025 Title</footer>
-
-  <canvas id="ripple-canvas"></canvas>
-
-  <script>
-    // サイトリンクデータ
+    <script>
+    // サイトリスト
     const sitelist = [
-      {name: "Fourier", href: "./Fourier/home"},
-      {name: "Zeta", href: "./Zeta/home"},
-      {name: "Quantum", href: "./Quantum/home"},
-      {name: "Relativity", href: "./Relativity/home"},
+      { title: "Fourier", path: "./Fourier/home" },
+      { title: "Zeta", path: "./Zeta/home" },
+      { title: "Quantum", path: "./Quantum/home" },
+      { title: "Relativity", path: "./Relativity/home" }
     ];
 
-    const main = document.getElementById("main-container");
+    const main = document.querySelector("main");
+    main.innerHTML = ""; // 初期化
 
-    // リンクカード生成
     sitelist.forEach(site => {
-      const a = document.createElement("a");
-      a.href = site.href;
-      a.className = "card-link";
-      a.setAttribute("aria-label", site.name);
+      const link = document.createElement("a");
+      link.href = site.path;
+      link.className = "card-link";
+      link.setAttribute("aria-label", site.title);
 
-      const div = document.createElement("div");
-      div.className = "card";
-      div.textContent = site.name;
+      const card = document.createElement("div");
+      card.className = "card";
+      card.textContent = site.title;
 
-      a.appendChild(div);
-      main.appendChild(a);
+      link.appendChild(card);
+      main.appendChild(link);
     });
+      
+    // 波紋エフェクト
+    document.body.addEventListener("pointerdown", (e) => {
+      const ripple = document.createElement("span");
+      ripple.className = "ripple";
+      ripple.style.left = `${e.clientX}px`;
+      ripple.style.top = `${e.clientY}px`;
+      document.body.appendChild(ripple);
 
-
-    // 波紋アニメーション処理
-    const canvas = document.getElementById("ripple-canvas");
-    const ctx = canvas.getContext("2d");
-    let width, height;
-    let ripples = [];
-
-    // リサイズ対応
-    function resize() {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width * devicePixelRatio;
-      canvas.height = height * devicePixelRatio;
-      canvas.style.width = width + "px";
-      canvas.style.height = height + "px";
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(devicePixelRatio, devicePixelRatio);
-    }
-    resize();
-    window.addEventListener("resize", resize);
-
-    // 波紋クラス
-    class Ripple {
-      constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.radius = 0;
-        this.maxRadius = 150;
-        this.opacity = 0.6;
-        this.growthRate = 3 + Math.random() * 1.5;
-      }
-      update() {
-        this.radius += this.growthRate;
-        this.opacity -= 0.008;
-      }
-      draw(ctx) {
-        if (this.opacity <= 0) return;
-        ctx.beginPath();
-        const gradient = ctx.createRadialGradient(
-          this.x, this.y, this.radius * 0.6,
-          this.x, this.y, this.radius
-        );
-        gradient.addColorStop(0, `rgba(249, 199, 79, ${this.opacity})`);
-        gradient.addColorStop(1, `rgba(249, 199, 79, 0)`);
-        ctx.fillStyle = gradient;
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      isDead() {
-        return this.opacity <= 0;
-      }
-    }
-
-    // クリック・タッチ時に波紋追加
-    function addRipple(x, y) {
-      ripples.push(new Ripple(x, y));
-    }
-
-    // アニメーションループ
-    function animate() {
-      ctx.clearRect(0, 0, width, height);
-      ripples.forEach((ripple, i) => {
-        ripple.update();
-        ripple.draw(ctx);
-        if (ripple.isDead()) ripples.splice(i, 1);
-      });
-      requestAnimationFrame(animate);
-    }
-    animate();
-
-    // イベントリスナー（クリック＆タッチ）
-    window.addEventListener("click", e => {
-      addRipple(e.clientX, e.clientY);
-    });
-
-    window.addEventListener("touchstart", e => {
-      if (e.touches.length > 0) {
-        const touch = e.touches[0];
-        addRipple(touch.clientX, touch.clientY);
-      }
+      ripple.addEventListener("animationend", () => ripple.remove());
     });
   </script>
+
 </body>
 </html>
