@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Fourier - 数学と物理の世界</title>
   <style>
-    /* 全体リセットと基本 */
     * {
       margin: 0;
       padding: 0;
@@ -18,15 +17,13 @@
       color: #222;
       -webkit-touch-callout: none;
       -webkit-user-select: none;
-      overflow: hidden;
     }
     body {
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      min-height: 100vh;
     }
 
-    /* header */
     header {
       position: sticky;
       top: 0;
@@ -53,48 +50,54 @@
       color: #f7931e;
     }
 
-    /* mainはheader下でフレックス 横並び */
     main {
-      flex: 1;
       display: flex;
+      flex: 1;
+      flex-direction: row;
       overflow: hidden;
-      height: calc(100vh - 60px);
     }
 
-    /* 左目次 */
-    nav.toc {
+    .toc-wrapper {
       width: 220px;
       background: #f3f4f6;
       border-right: 1px solid #ddd;
       padding: 1rem 1.5rem;
       overflow-y: auto;
-      user-select: text;
       font-size: 0.9rem;
       line-height: 1.4;
+      transition: all 0.3s ease;
     }
-    nav.toc h2 {
+    .toc-wrapper h2 {
       margin-bottom: 0.8rem;
       font-size: 1.2rem;
       color: #f7931e;
     }
-    nav.toc ul {
+    .toc-wrapper ul {
       list-style: none;
     }
-    nav.toc ul li {
+    .toc-wrapper ul li {
       margin-bottom: 0.5rem;
     }
-    nav.toc ul li a {
+    .toc-wrapper ul li a {
       color: #1f2951;
       text-decoration: none;
       cursor: pointer;
       transition: color 0.3s ease;
     }
-    nav.toc ul li a:hover {
+    .toc-wrapper ul li a:hover {
       color: #ffb933;
       text-decoration: underline;
     }
 
-    /* 記事部分 */
+    .toc-toggle {
+      display: none;
+      background: #f3f4f6;
+      border-bottom: 1px solid #ddd;
+      padding: 1rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
     article.article {
       flex: 1;
       background: #fff;
@@ -122,14 +125,12 @@
       margin-bottom: 1.2rem;
     }
 
-    /* 右サイドバー */
     aside.sidebar {
       width: 280px;
       background: #f3f4f6;
       border-left: 1px solid #ddd;
       padding: 1rem 1.5rem;
       overflow-y: auto;
-      user-select: text;
       font-size: 0.9rem;
       color: #222;
       display: flex;
@@ -159,38 +160,50 @@
       color: #777;
     }
 
-   
     .cursive {
       font-family: "Snell Roundhand", cursive;
       color: #333;
     }
-
-
-
-    /*table*/
 
     table {
       border-collapse: collapse;
       border: 2px solid rgb(140 140 140);
       letter-spacing: 1px;
     }
-
     caption {
       caption-side: bottom;
       padding: 10px;
     }
-
     thead {
       background-color: rgb(228 240 245);
     }
-
     th, td {
       border: 1px solid rgb(160 160 160);
       padding: 8px 10px;
     }
-
     tbody > tr:nth-of-type(even) {
       background-color: rgb(237 238 242);
+    }
+
+    @media (max-width: 768px) {
+      main {
+        flex-direction: column;
+      }
+      .toc-wrapper {
+        width: 100%;
+        display: none;
+      }
+      .toc-wrapper.active {
+        display: block;
+      }
+      .toc-toggle {
+        display: block;
+      }
+      aside.sidebar {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #ddd;
+      }
     }
   </style>
 </head>
@@ -205,8 +218,9 @@
   </nav>
 </header>
 
+<div class="toc-toggle">📑 目次を表示</div>
 <main>
-  <nav class="toc" aria-label="目次">
+  <nav class="toc-wrapper toc" aria-label="目次">
     <h2>目次</h2>
     <ul>
       <li><a href="#section1">Fourier変換とは？</a></li>
@@ -219,23 +233,11 @@
   <article class="article">
     <h1>Fourier変換大好き❤️</h1>
     <section id="intro">
-      <p>
-        皆さんこんにちは！Fourier変換楽しんでますか？
-      </p>
-      <p>
-        もちろん、皆さんは毎日音をフーリエ変換して
-        「うわ、この周波数の振幅デカいな」
-        と感動していると思います。
-      </p>
-      <p>
-        冗談は置いといて、この記事では
-      </p>
-      <p class="cursive">
-        <b>Fourier Transform</b>
-      </p>
-      <p>
-        について、予備知識無しで理解できるよう解説します。
-      </p>
+      <p>皆さんこんにちは！Fourier変換楽しんでますか？</p>
+      <p>もちろん、皆さんは毎日音をフーリエ変換して「うわ、この周波数の振幅デカいな」と感動していると思います。</p>
+      <p>冗談は置いといて、この記事では</p>
+      <p class="cursive"><b>Fourier Transform</b></p>
+      <p>について、予備知識無しで理解できるよう解説します。</p>
     </section>
     <section id="section1">
       <h2>Fourier変換とは？</h2>
@@ -357,10 +359,6 @@
   <aside class="sidebar">
     <section>
       <h3>おすすめ記事</h3>
-      <!--<ul>
-        <li><a href="../Zeta/home.html">ゼータ関数の世界</a></li>
-        <li><a href="../Fourier/home.html">Fourierの他の記事</a></li>
-      </ul>-->
     </section>
     <section class="ads">
       <p>広告スペース</p>
@@ -369,13 +367,13 @@
 </main>
 
 <script>
+  // 目次スクロール
   document.querySelectorAll('.toc a').forEach(anchor => {
     anchor.addEventListener('click', e => {
       e.preventDefault();
       const targetId = anchor.getAttribute('href').slice(1);
       const target = document.getElementById(targetId);
       const container = document.querySelector('article.article');
-
       if (target && container) {
         const offsetTop = target.offsetTop;
         container.scrollTo({ top: offsetTop, behavior: 'smooth' });
@@ -383,21 +381,11 @@
     });
   });
 
-  
-  /*document.querySelectorAll('nav.toc a').forEach(anchor => {
-    anchor.addEventListener('click', e => {
-      e.preventDefault();
-      const targetId = anchor.getAttribute('href').slice(1);
-      const target = document.getElementById(targetId);
-      if(target){
-        target.scrollIntoView({behavior: 'smooth', block: 'start'});
-      }
-    });
-  });*/
+  // スマホ用目次トグル
+  document.querySelector('.toc-toggle').addEventListener('click', () => {
+    document.querySelector('.toc-wrapper').classList.toggle('active');
+  });
 </script>
 
 </body>
 </html>
-
-
-
