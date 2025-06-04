@@ -5,33 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Fourier - 数学と物理の世界</title>
   <style>
-    /* 全体リセットと基本 */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
     html, body {
       height: 100%;
       font-family: 'American Typewriter','Meiryo UI','ヒラギノ丸ゴ ProN','Hiragino Maru Gothic ProN',sans-serif;
-      background: white;
-      color: black;
+      background: #ffffff;
+      color: #222222;
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       overflow: hidden;
     }
-    body {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
 
-    /* header */
     header {
       position: sticky;
       top: 0;
-      background: #efefef;
-      color: #0033d4;
+      background: #f8f9fa;
+      color: #1f2951;
       padding: 1rem 2rem;
       font-size: 1.5rem;
       font-weight: bold;
@@ -42,128 +30,111 @@
       justify-content: space-between;
       align-items: center;
     }
+
     header nav a {
-      color: #0033d4;
+      color: #1f2951;
       text-decoration: none;
       font-weight: 600;
       margin-left: 1rem;
       transition: color 0.3s ease;
     }
     header nav a:hover {
-      color: #ffb933;
+      color: #f7931e;
     }
 
-    /* mainはheader下でフレックス 横並び */
-    main {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-      height: calc(100vh - 60px);
-    }
-
-    /* 左目次 */
     nav.toc {
       width: 220px;
-      background: #e0e0e0;
-      border-right: 1px solid #ccc;
+      background: #f3f4f6;
+      border-right: 1px solid #dddddd;
       padding: 1rem 1.5rem;
       overflow-y: auto;
       user-select: text;
       font-size: 0.9rem;
       line-height: 1.4;
     }
+
     nav.toc h2 {
       margin-bottom: 0.8rem;
       font-size: 1.2rem;
-      color: #ffb933;
+      color: #f7931e;
     }
-    nav.toc ul {
-      list-style: none;
-    }
-    nav.toc ul li {
-      margin-bottom: 0.5rem;
-    }
+
     nav.toc ul li a {
-      color: #0033d4;
+      color: #1f2951;
       text-decoration: none;
       cursor: pointer;
       transition: color 0.3s ease;
     }
     nav.toc ul li a:hover {
-      color: #ffb933;
+      color: #f7931e;
       text-decoration: underline;
     }
 
-    /* 記事部分 */
     article.article {
       flex: 1;
-      background: #ededed;
+      background: #ffffff;
       padding: 2rem 3rem;
       overflow-y: auto;
       line-height: 1.7;
       font-size: 1.1rem;
-      color: #111;
+      color: #222222;
       user-select: text;
       scroll-behavior: smooth;
     }
-    article.article h1 {
-      font-size: 2.2rem;
-      margin-bottom: 1rem;
-      color: #ffb933;
-    }
+
+    article.article h1,
     article.article h2 {
-      margin-top: 2rem;
-      margin-bottom: 1rem;
-      border-bottom: 2px solid #bbb;
-      padding-bottom: 0.3rem;
-      color: #ffb933;
-    }
-    article.article p {
-      margin-bottom: 1.2rem;
+      color: #f7931e;
     }
 
-    /* 右サイドバー */
+    article.article h2 {
+      border-bottom: 2px solid #cccccc;
+    }
+
     aside.sidebar {
       width: 280px;
-      background: #e0e0e0;
-      border-left: 1px solid #ccc;
+      background: #f3f4f6;
+      border-left: 1px solid #dddddd;
       padding: 1rem 1.5rem;
       overflow-y: auto;
       user-select: text;
       font-size: 0.9rem;
-      color: #ccc;
+      color: #222222;
       display: flex;
       flex-direction: column;
       gap: 2rem;
     }
+
     aside.sidebar h3 {
-      color: #ffb933;
+      color: #f7931e;
       margin-bottom: 1rem;
       font-size: 1.2rem;
     }
+
     aside.sidebar a {
-      color: #0033d4;
+      color: #1f2951;
       text-decoration: none;
       font-weight: 600;
     }
     aside.sidebar a:hover {
-      color: #ffb933;
+      color: #f7931e;
       text-decoration: underline;
     }
+
     aside.sidebar .ads {
-      background: #d6d6d6;
+      background: #eaeaea;
       padding: 1rem;
       border-radius: 8px;
       text-align: center;
       font-size: 0.9rem;
-      color: #777;
+      color: #777777;
     }
 
-   
     .cursive {
       font-family: "Snell Roundhand", cursive;
-      color: #111;
+      color: #333333;
     }
+
   </style>
 </head>
 <body>
