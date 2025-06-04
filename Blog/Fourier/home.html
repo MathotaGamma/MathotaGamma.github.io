@@ -1,37 +1,243 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8">
-    <title>Fourier : NeoTopazm</title>
-    <style>
-      body {
-        font-family: 'American Typewriter','Meiryo UI','ヒラギノ丸ゴ ProN','Hiragino Maru Gothic ProN',sans-serif;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fourier - 数学と物理の世界</title>
+  <style>
+    /* 全体リセットと基本 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      font-family: 'American Typewriter','Meiryo UI','ヒラギノ丸ゴ ProN','Hiragino Maru Gothic ProN',sans-serif;
+      background: #0b0b0b;
+      color: #eee;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      overflow: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
 
-      .cursive {
-        font-family: "Brush Script MT", cursive;
+    /* header */
+    header {
+      position: sticky;
+      top: 0;
+      background: #1a1a1a;
+      color: #ffb933;
+      padding: 1rem 2rem;
+      font-size: 1.5rem;
+      font-weight: bold;
+      z-index: 10;
+      user-select: none;
+      box-shadow: 0 2px 5px #0008;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header nav a {
+      color: #66ccff;
+      text-decoration: none;
+      font-weight: 600;
+      margin-left: 1rem;
+      transition: color 0.3s ease;
+    }
+    header nav a:hover {
+      color: #ffb933;
+    }
+
+    /* mainはheader下でフレックス 横並び */
+    main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      height: calc(100vh - 60px);
+    }
+
+    /* 左目次 */
+    nav.toc {
+      width: 220px;
+      background: #1f1f1f;
+      border-right: 1px solid #333;
+      padding: 1rem 1.5rem;
+      overflow-y: auto;
+      user-select: text;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    nav.toc h2 {
+      margin-bottom: 0.8rem;
+      font-size: 1.2rem;
+      color: #ffb933;
+    }
+    nav.toc ul {
+      list-style: none;
+    }
+    nav.toc ul li {
+      margin-bottom: 0.5rem;
+    }
+    nav.toc ul li a {
+      color: #66ccff;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+    nav.toc ul li a:hover {
+      color: #ffb933;
+      text-decoration: underline;
+    }
+
+    /* 記事部分 */
+    article.article {
+      flex: 1;
+      background: #121212;
+      padding: 2rem 3rem;
+      overflow-y: auto;
+      line-height: 1.7;
+      font-size: 1.1rem;
+      color: #ddd;
+      user-select: text;
+      scroll-behavior: smooth;
+    }
+    article.article h1 {
+      font-size: 2.2rem;
+      margin-bottom: 1rem;
+      color: #ffb933;
+    }
+    article.article h2 {
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      border-bottom: 2px solid #444;
+      padding-bottom: 0.3rem;
+      color: #ffb933;
+    }
+    article.article p {
+      margin-bottom: 1.2rem;
+    }
+
+    /* 右サイドバー */
+    aside.sidebar {
+      width: 280px;
+      background: #1f1f1f;
+      border-left: 1px solid #333;
+      padding: 1rem 1.5rem;
+      overflow-y: auto;
+      user-select: text;
+      font-size: 0.9rem;
+      color: #ccc;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+    aside.sidebar h3 {
+      color: #ffb933;
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+    }
+    aside.sidebar a {
+      color: #66ccff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    aside.sidebar a:hover {
+      color: #ffb933;
+      text-decoration: underline;
+    }
+    aside.sidebar .ads {
+      background: #2a2a2a;
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #999;
+    }
+
+   
+    .cursive {
+      font-family: "Brush Script MT", cursive;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>Fourier - 数学と物理の世界</div>
+  <nav>
+    <a href="../">ホーム</a>
+    <a href="../Zeta/home.html">Zeta</a>
+    <a href="../Fourier/home.html">Fourier</a>
+  </nav>
+</header>
+
+<main>
+  <article>
+    <h1>Fourier変換大好き❤️</h1>
+    
+  </article>
+  <nav class="toc" aria-label="目次">
+    <h2>目次</h2>
+    <ul>
+      <li><a href="#section1">Fourier変換とは？</a></li>
+      <li><a href="#section2">基本的な性質</a></li>
+      <li><a href="#section3">応用例</a></li>
+    </ul>
+  </nav>
+
+  <article class="article">
+    <section id="section1">
+      <h2>Fourier変換とは？</h2>
+      <p>Fourier変換は、信号や関数を周波数成分に分解する数学的手法です。...</p>
+    </section>
+    <section id="section2">
+      <h2>基本的な性質</h2>
+      <p>Fourier変換には線形性や時間シフトの性質などがあり、信号処理で重要な役割を果たします。...</p>
+    </section>
+    <section id="section3">
+      <h2>応用例</h2>
+      <p>音声認識、画像処理、通信など様々な分野でFourier変換は使われています。...</p>
+    </section>
+  </article>
+
+  <aside class="sidebar">
+    <section>
+      <h3>おすすめ記事</h3>
+      <ul>
+        <li><a href="../Zeta/home.html">ゼータ関数の世界</a></li>
+        <li><a href="../Fourier/home.html">Fourierの他の記事</a></li>
+      </ul>
+    </section>
+    <section class="ads">
+      <p>広告スペース</p>
+      <p>ここに広告やプロモーションを掲載できます。</p>
+    </section>
+  </aside>
+</main>
+
+<script>
+  // スムーズスクロールはCSSで設定済み
+
+  // 目次クリック時にメイン記事だけスクロールさせる
+  document.querySelectorAll('nav.toc a').forEach(anchor => {
+    anchor.addEventListener('click', e => {
+      e.preventDefault();
+      const targetId = anchor.getAttribute('href').slice(1);
+      const target = document.getElementById(targetId);
+      if(target){
+        target.scrollIntoView({behavior: 'smooth', block: 'start'});
       }
-    </style>
-  </head>
-  <body>
-    <h1>Fourier大好き❤️</h1>
-    <article>
-      <p>
-        どうも皆さんこんにちは。
-        Fourier変換楽しんでますか？
-        もちろん、毎日音をフーリエ変換して
-        「うわ、この周波数デカ！」
-        と感じていると思います。
-      </p>
-      <p>
-        冗談はさておき、この記事では
-      </p>
-      <p class="cursive">
-        Fourier Transform
-      </p>
-      <p>
-        について解説しています。
-      </p>
-    </article>
-  </body>
+    });
+  });
+</script>
+
+</body>
 </html>
+
+
+
