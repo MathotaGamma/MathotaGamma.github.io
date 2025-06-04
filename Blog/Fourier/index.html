@@ -212,6 +212,10 @@
       border: 1px solid black;
       border-radius: 2px;
     }
+
+    #Epi {
+      background: black;
+    }
   </style>
 </head>
 <body>
@@ -430,11 +434,18 @@
   let ready = false;
 
   function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
     if (e.touches) {
       const touch = e.touches[0];
-      return { x: touch.clientX, y: touch.clientY };
+      return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
     } else {
-      return { x: e.clientX, y: e.clientY };
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
     }
   }
 
