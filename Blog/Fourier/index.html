@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Fourier - 数学と物理の世界</title>
+  <script type="text/javascript" async src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML"></script>
   <style>
     * {
       margin: 0;
@@ -213,8 +214,6 @@
   <div>Fourier - 数学と物理の世界</div>
   <nav>
     <a href="../">ホーム</a>
-    <a href="../Zeta/">Zeta</a>
-    <a href="../Fourier/">Fourier</a>
   </nav>
 </header>
 
@@ -225,7 +224,7 @@
     <ul>
       <li><a href="#section1">Fourier変換とは？</a></li>
       <li><a href="#section2">Fourier変換の種類</a></li>
-      <li><a href="#section3">実際の計算方法</a></li>
+      <li><a href="#section3">実際の式</a></li>
       <li><a href="#section4">基本的な性質</a></li>
     </ul>
   </nav>
@@ -335,19 +334,42 @@
         </li>
         <li>
           <h3>
-            離散時間フーリエ変換
+            離散時間フーリエ変換(Discrete Time Fourier Transform)
           </h3>
           <p>
-            フーリエ変換を離散的にしたもの。
+            フーリエ変換を離散的にする操作を施すと
+            導ける。
           </p>
         </li>
       </ul>
     </section>
     <section id="section3">
-      <h2>実際の計算方法</h2>
+      <h2>実際の式</h2>
       <p>
-        先程、フーリエ変換は波をsin,cosで分解すると書きましたが、
-        具体的には
+        フーリエ変換は波をsin,cosで分解する変換です。
+        導出などを書くと専門的になりすぎるので、
+        「式を眺めて」みましょう。
+      </p>
+      <ul>
+        <li>
+          <h3>FSE</h3>
+          <p>実数表記</p>
+          $$x(t) = a_0 + \sum_{n=1}^{\infty} \left[ a_n \cos(n \omega_0 t) + b_n \sin(n \omega_0 t) \right]$$
+          <p>ただし、</p>
+          $$a_0 = \frac{1}{T} \int_{0}^{T} x(t) \, dt$$
+          $$a_n = \frac{2}{T} \int_{0}^{T} x(t) \cos(n \omega_0 t) \, dt$$
+          $$b_n = \frac{2}{T} \int_{0}^{T} x(t) \sin(n \omega_0 t) \, dt$$
+          <p>複素数表記</p>
+          $$x(t) = \sum_{n=-\infty}^{\infty} c_n e^{j n \omega_0 t}, \quad$$
+          <p>ただし、</p>
+          $$c_n = \frac{1}{T} \int_{T} x(t) e^{-j n \omega_0 t} \, dt$$
+        </li>
+      </ul>
+      <p>
+        見ても分からないですね、、、
+      </p>
+      <p>
+        導出などは追々作る<span style="color: red;">予定</span>です。
       </p>
     </section>
     <section id="section4">
