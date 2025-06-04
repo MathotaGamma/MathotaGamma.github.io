@@ -194,34 +194,34 @@
       transform: translateY(-5px);
       box-shadow: 0 0 10px #ffb93366;
     }
+
+    .cancellation {
+      text-decoration: line-through; 
+    }
   </style>
 </head>
 <body>
   <header>NeoTopazm</header>
 
   <main>
-    <a href="./Fourier/" class="card-link" aria-label="Fourier">
+    <a class="card-link" aria-label="Fourier">
       <div class="card">Fourier</div>
     </a>
-    <a href="./Zeta/" class="card-link" aria-label="Zeta">
-      <div class="card">Zeta</div>
+    <a class="card-link" aria-label="Zeta">
+      <div class="card" class="cancellation">Zeta</div>
     </a>
-    <a href="./Quantum/" class="card-link" aria-label="Quantum">
-      <div class="card">Quantum</div>
-    </a>
-    <a href="./Relativity/" class="card-link" aria-label="Relativity">
-      <div class="card">Relativity</div>
+    <a class="card-link" aria-label="Quantum">
+      <div class="card" class="cancellation">Quantum</div>
     </a>
   </main>
 
-  <footer>&copy; 2025 Title</footer>
+  <footer>&copy; 2025 NeoTopazm</footer>
     <script>
     // サイトリスト
     const sitelist = [
       { title: "Fourier", path: "./Fourier/" },
       { title: "Zeta", path: "./Zeta/" },
       { title: "Quantum", path: "./Quantum/" },
-      { title: "Relativity", path: "./Relativity/" }
     ];
 
     const main = document.querySelector("main");
