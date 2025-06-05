@@ -426,7 +426,17 @@
   /*canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;*/
   canvas.width = 300;
-  canvas.height = 300;
+  canvas.height = 300
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const info = document.getElementById("info");
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
 
   let drawing = false;
   let userPoints = [];
@@ -434,6 +444,8 @@
   let time = 0;
   let fourier = [];
   let ready = false;
+
+  const speed = 1;
 
   function getPos(e) {
     const rect = canvas.getBoundingClientRect();
@@ -454,110 +466,130 @@
   canvas.addEventListener("mousedown", startDraw);
   canvas.addEventListener("touchstart", startDraw);
   canvas.addEventListener("mousemove", draw);
-  canvas.addEventListener("touchmove", draw);
+  canvas.addEventListener("touchmove", draw, { passive: false });
   canvas.addEventListener("mouseup", endDraw);
   canvas.addEventListener("touchend", endDraw);
 
-  function startDraw(e) {
-    drawing = true;
-    userPoints = [];
-    path = [];
-    time = 0;
-  }
-
-  function draw(e) {
-    if (!drawing) return;
-    e.preventDefault();
-    const { x, y } = getPos(e);
-    userPoints.push({ x: x - canvas.width / 2, y: y - canvas.height / 2 });
-
-    // 線を描く
-    ctx.fillStyle = "#fff";
-    ctx.beginPath();
-    ctx.arc(x, y, 1.5, 0, 2 * Math.PI);
-    ctx.fill();
-  }
-
-  function endDraw(e) {
-    drawing = false;
-    if (userPoints.length > 0) {
-      fourier = dft(userPoints);
-      ready = true;
-    }
-  }
-
-  function dft(points) {
-    const N = points.length;
-    const X = [];
-    for (let k = 0; k < N; k++) {
-      let re = 0, im = 0;
-      for (let n = 0; n < N; n++) {
-        const phi = (2 * Math.PI * k * n) / N;
-        const px = points[n].x;
-        const py = points[n].y;
-        re += px * Math.cos(phi) + py * Math.sin(phi);
-        im += py * Math.cos(phi) - px * Math.sin(phi);
-      }
-      re /= N;
-      im /= N;
-      const freq = k;
-      const amp = Math.sqrt(re * re + im * im);
-      const phase = Math.atan2(im, re);
-      X.push({ re, im, freq, amp, phase });
-    }
-    return X.sort((a, b) => b.amp - a.amp);
-  }
-
-  function drawEpicycles(x, y, rotation, fourier) {
-    for (let i = 0; i < fourier.length; i++) {
-      const { freq, amp, phase } = fourier[i];
-      const prevX = x;
-      const prevY = y;
-      const angle = 2 * Math.PI * freq * time + phase + rotation;
-      x += amp * Math.cos(angle);
-      y += amp * Math.sin(angle);
-
-      ctx.strokeStyle = "rgba(255,255,255,0.3)";
-      ctx.beginPath();
-      ctx.arc(prevX, prevY, amp, 0, 2 * Math.PI);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(prevX, prevY);
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    }
-    return { x, y };
-  }
-
-  function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (ready && fourier.length > 0) {
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const v = drawEpicycles(centerX, centerY, 0, fourier);
-      path.unshift(v);
-
-      ctx.beginPath();
-      ctx.moveTo(path[0].x, path[0].y);
-      for (let i = 1; i < path.length; i++) {
-        ctx.lineTo(path[i].x, path[i].y);
-      }
-      ctx.strokeStyle = "#0ff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      const dt = 1 / fourier.length;
-      time += dt;
-      if (time > 1) {
+      function startDraw(e) {
+        drawing = true;
+        userPoints = [];
+        path = [];
         time = 0;
-        path.length = 0;
+        ready = false;
+        info.textContent = '';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
-    }
 
-    requestAnimationFrame(animate);
-  }
+      function draw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const { x, y } = getPos(e);
+        userPoints.push({ x: x - canvas.width / 2, y: y - canvas.height / 2 });
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff";
+        for (const p of userPoints) {
+          ctx.beginPath();
+          ctx.arc(p.x + canvas.width / 2, p.y + canvas.height / 2, 2, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      }
+
+      function endDraw(e) {
+        drawing = false;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (userPoints.length > 0) {
+          fourier = dft(userPoints);
+          showFourierInfo(fourier);
+          path = [];
+          time = 0;
+          ready = true;
+        }
+      }
+
+      function dft(points) {
+        const N = points.length;
+        const X = [];
+        for (let k = 0; k < N; k++) {
+          let re = 0, im = 0;
+          for (let n = 0; n < N; n++) {
+            const phi = (2 * Math.PI * k * n) / N;
+            const px = points[n].x;
+            const py = points[n].y;
+            re += px * Math.cos(phi) + py * Math.sin(phi);
+            im += py * Math.cos(phi) - px * Math.sin(phi);
+          }
+          re /= N;
+          im /= N;
+          const freq = k;
+          const amp = Math.sqrt(re * re + im * im);
+          const phase = Math.atan2(im, re);
+          X.push({ re, im, freq, amp, phase });
+        }
+        return X.sort((a, b) => b.amp - a.amp);
+      }
+
+      function showFourierInfo(fourier) {
+        let lines = ['index freq amp     phase'];
+        for (let i = 0; i < fourier.length; i++) {
+          const { freq, amp, phase } = fourier[i];
+          lines.push(
+            `${String(i).padStart(5)} ${String(freq < fourier.length/2 ? freq : freq-fourier.length).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
+          );
+        }
+        info.textContent = lines.join('\n');
+      }
+
+      function drawEpicycles(x, y, rotation, fourier) {
+        for (let i = 0; i < fourier.length; i++) {
+          const { freq, amp, phase } = fourier[i];
+          const prevX = x;
+          const prevY = y;
+          const angle = 2 * Math.PI * freq * time + phase + rotation;
+          x += amp * Math.cos(angle);
+          y += amp * Math.sin(angle);
+
+          ctx.strokeStyle = "rgba(255,255,255,0.3)";
+          ctx.beginPath();
+          ctx.arc(prevX, prevY, amp, 0, 2 * Math.PI);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        }
+        return { x, y };
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (ready && fourier.length > 0) {
+          const centerX = canvas.width / 2;
+          const centerY = canvas.height / 2;
+          const v = drawEpicycles(centerX, centerY, 0, fourier);
+          path.unshift(v);
+
+          ctx.beginPath();
+          ctx.moveTo(path[0].x, path[0].y);
+          for (let i = 1; i < path.length; i++) {
+            ctx.lineTo(path[i].x, path[i].y);
+          }
+          ctx.strokeStyle = "#0ff";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          const dt = speed / fourier.length;
+          time += dt;
+          if (time > 1) {
+            time = 0;
+            path.length = 0;
+          }
+        }
+
+        requestAnimationFrame(animate);
+      }
 
   animate();
 </script>
