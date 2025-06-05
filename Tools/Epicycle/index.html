@@ -132,8 +132,7 @@
           }
           re /= N;
           im /= N;
-          //const freq = k;
-          const freq = k <= N / 2 ? k : k - N;
+          const freq = k;
           const amp = Math.sqrt(re * re + im * im);
           const phase = Math.atan2(im, re);
           X.push({ re, im, freq, amp, phase });
@@ -146,7 +145,7 @@
         for (let i = 0; i < fourier.length; i++) {
           const { freq, amp, phase } = fourier[i];
           lines.push(
-            `${String(i).padStart(5)} ${String(freq).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
+            `${String(i).padStart(5)} ${String(freq <= N / 2 ? freq : freq - N;).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
           );
         }
         info.textContent = lines.join('\n');
