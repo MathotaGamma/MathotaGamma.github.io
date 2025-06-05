@@ -1,12 +1,142 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8">
-    <title>404 : NeoTopazm</title>
-  </head>
-  <body>
-    <h1>404 Not Found</h1>
-    サイトが存在しません。
-    <a href="/">Homeに戻る</a>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <title>迷路レイキャストUI</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+    #controls {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: 60px 60px 60px;
+      grid-template-rows: 60px 60px 60px;
+      gap: 5px;
+    }
+    .btn {
+      width: 60px;
+      height: 60px;
+      font-size: 20px;
+      text-align: center;
+      line-height: 60px;
+      background: #ccc;
+      border: none;
+      border-radius: 10px;
+      user-select: none;
+    }
+
+    #header {
+      position: absolute;
+      z-index: 999;
+      left: 0;
+      top: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h2>404NotFound</h2>
+    <a href="../">Homeへ</a>
+  </div>
+  <div id="controls">
+    <div></div>
+    <button class="btn" onclick="move('up')">↑</button>
+    <div></div>
+    <button class="btn" onclick="move('left')">←</button>
+    <div></div>
+    <button class="btn" onclick="move('right')">→</button>
+    <div></div>
+    <button class="btn" onclick="move('down')">↓</button>
+    <div></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+  <script>
+    let maze;
+    let player = { x: 100, y: 100, angle: 0 };
+    let fov = 96;
+    let rays = [];
+
+    function preload() {
+      maze = loadImage('maze.png'); // 同じフォルダに maze.png を用意してください
+    }
+
+    function setup() {
+      createCanvas(maze.width, maze.height);
+      noSmooth();
+    }
+
+    function draw() {
+      background(255);
+      image(maze, 0, 0);
+      drawRays();
+      drawPlayer();
+      console.clear();
+      console.log(rays);
+    }
+
+    function drawPlayer() {
+      fill(0);
+      noStroke();
+      circle(player.x, player.y, 5);
+    }
+
+    function drawRays() {
+      stroke(255, 0, 0, 120);
+      strokeWeight(1);
+      rays = [];
+      for (let a = -fov / 2; a <= fov / 2; a++) {
+        let angle = radians(player.angle + a);
+        let dist = castRay(player.x, player.y, angle);
+        rays.push(dist);
+        let dx = cos(angle) * dist;
+        let dy = sin(angle) * dist;
+        line(player.x, player.y, player.x + dx, player.y + dy);
+      }
+    }
+
+    function castRay(x, y, angle) {
+      let step = 0.2;
+      for (let d = 0; d < 500; d += step) {
+        let nx = x + cos(angle) * d;
+        let ny = y + sin(angle) * d;
+        if (isBlack(round(nx), round(ny))) {
+          return d;
+        }
+      }
+      return 500;
+    }
+
+    function isBlack(x, y) {
+      if (x < 0 || x >= maze.width || y < 0 || y >= maze.height) return true;
+      let c = maze.get(x, y);
+      return (c[0] < 128 && c[1] < 128 && c[2] < 128);
+    }
+
+    function move(dir) {
+      const step = 2;
+      if (dir === 'left') {
+        player.x -= step;
+        player.angle = 180;
+      } else if (dir === 'right') {
+        player.x += step;
+        player.angle = 0;
+      } else if (dir === 'up') {
+        player.y -= step;
+        player.angle = 270;
+      } else if (dir === 'down') {
+        player.y += step;
+        player.angle = 90;
+      }
+    }
+  </script>
+</body>
 </html>
