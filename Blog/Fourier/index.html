@@ -526,7 +526,7 @@
         for (let i = 0; i < fourier.length; i++) {
           const { freq, amp, phase } = fourier[i];
           lines.push(
-            `${String(i).padStart(5)} ${String(freq).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
+            `${String(i).padStart(5)} ${String(String(freq < fourier.length/2 ? freq : freq - fourier.length).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
           );
         }
         info.textContent = lines.join('\n');*/
