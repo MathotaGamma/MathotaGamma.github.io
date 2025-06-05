@@ -1,0 +1,491 @@
+//変更点:viewを作成、いままでのグラフ描画機能削除
+//For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
+class CompVis {
+  constructor(k_real, k_imag) {
+    this._real = k_real;
+    this._imag = k_imag;
+  }
+  
+  static ver = '1.03.02';
+  static time = '2025/1/28/21:34:00';
+  
+  //Methods that throw errors about functions whose arguments must be real numbers
+  #Error_Argument_real(k){
+    if(isNaN(k)){
+      throw new Error('CompVisJS-Argument error->The argument of this method must be a real number.')
+    }
+  }
+  
+  
+  get value(){
+    return [this._real,this._imag];
+  }
+  static _value(k){
+    if(Array.isArray(k)){
+      let list_k = [];
+      for(let k_k = 0; k_k < k.length; k_k++){
+        list_k.push(k[k_k].value);
+      }
+      return list_k;
+    } else{
+      return k.value;
+    }
+  }
+  
+  get #mini_str(){
+    let k;
+    if(this._real == 0){
+      if(this._imag == 0){
+        k = "0";
+      } else {
+        k = String(this._imag)+"i";
+      }
+    } else {
+      k = String(this._real);
+      if(this._imag > 0){
+        k += "+"+String(this._imag)+"i";
+      } else if(this._imag < 0){
+        k += String(this._imag)+"i";
+      }
+    }
+    return k;
+  }
+  get str(){
+    return CompVis._str(this);
+  }
+  static _str(k){
+    if(Array.isArray(k)){
+      let list_k = [];
+      for(let k_k = 0; k_k < k.length; k_k++){
+        list_k.push(k[k_k].#mini_str);
+      }
+      return list_k;
+    } else {
+      return k.#mini_str;
+    }
+  }
+  
+  round(k=0){
+    let k_k;
+    if(k >= 0){
+      k_k = new CompVis(this._real.toFixed(k),this._imag.toFixed(k));
+    } else {
+      k_k = new CompVis(Math.round(this._real*10**k)/10**k,Math.round(this._imag*10**k)/10**k)
+    }
+    return k_k;
+  }
+  static _round(value_k,k=0){
+    if(Array.isArray(value_k)){
+      let list_k = [];
+      for(let ind_k = 0; ind_k < value_k.length; ind_k++){
+        list_k.push(value_k[ind_k].round(k));
+      }
+      return list_k;
+    } else {
+      return value_k.round(k);
+    }
+  }
+  
+  #RtoI(k){
+    if(!isNaN(k)){
+      k = new CompVis(k,0);
+    }
+    return k;
+  }
+  
+  static _toComp(k){
+    if(Array.isArray(k[0])){
+      return k.map((j) => {
+        return new CompVis(j[0],j[1]);
+      })
+    } else {
+      return new CompVis(k[0],k[1]);
+    }
+  }
+  
+  get real(){
+    return this._real;
+  }
+  get imag(){
+    return this._imag;
+  }
+  get conj(){
+    return new CompVis(this._real,-this._imag);
+  }
+  get abs(){
+    return Math.sqrt(this._real*this._real+this._imag*this._imag);
+  }
+  get arg(){
+    return Math.atan2(this._imag,this._real);
+  }
+  get log(){
+    return new CompVis(Math.log(this.abs),this.arg);
+  }
+  get exp(){
+    return new CompVis(Math.cos(this._imag),Math.sin(this._imag)).pro(Math.exp(this._real));
+  }
+  
+  static _create_canvas(canvas,width=0,height=0){
+    if(width > 0){
+      canvas.width = width;
+    }
+    if(height > 0){
+      canvas.height = height;
+    }
+    return {canvas:canvas,ctx:canvas.getContext("2d"),width:canvas.width,height:canvas.height};
+  }
+  
+  static _clear_canvas(canvas_ctx){
+    const ctx = canvas_ctx.ctx;
+    const canvas = canvas_ctx.canvas;
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // キャンバスをクリア
+  }
+  
+  static _graph(canvas_ctx, func, start, end, step, params={}) {
+    let color = 'black';
+    let line_width = 2;
+    let size = 1;
+    for(let k of Object.keys(params)){
+      let value_k = params[k];
+      switch(k){
+        case 'color':
+          color = value_k;
+          break;
+        case 'line_width':
+          line_width = value_k;
+          break;
+        case 'size':
+          size = value_k;
+          break;
+      }
+    } 
+    const ctx = canvas_ctx.ctx;
+    const canvas = canvas_ctx.canvas;
+    ctx.beginPath();
+
+    // グラフの描画を開始
+    for (let t = start; t < end; t += step) {
+      if(t+step > end) t = end;
+      const [x, y] = func(t).value;
+      
+      const canvasX = canvas.width / 2 + x * size; // スケールとオフセット
+      const canvasY = canvas.height / 2 - y * size; // Y 軸の方向を反転
+      if (t === start) {
+        ctx.moveTo(canvasX, canvasY);
+      } else {
+        ctx.lineTo(canvasX, canvasY);
+      }
+    }
+
+    ctx.strokeStyle = color; // 線の色
+    ctx.lineWidth = line_width; // 線の太さ
+    ctx.stroke();
+    return {canvas_ctx:canvas_ctx, func:func, start:start, end:end, step:step, params:params};
+  }
+
+  static _re_graph(data){
+    if(Array.isArray(data)){
+      for(let k = 0; k < data.length; k++){
+        let data_k = data[k];
+        CompVis._graph(data_k.canvas_ctx,data_k.func,data_k.start,data_k.end,data_k.step,data_k.params);
+      }
+    } else {
+      CompVis._graph(data.canvas_ctx,data.func,data.start,data.end,data.step,data.params);
+    }
+  }
+  
+  static _draw_text(canvas_ctx,text,c,params={}){
+    let px = 18;
+    let max_width = -1;
+    let color = 'black';
+    let ctx = canvas_ctx.ctx;
+    let canvas = canvas_ctx.canvas;
+    let align = 'start';
+    for(let k of Object.keys(params)){
+      let value_k = params[k];
+      switch(k){
+        case 'px':
+          px = value_k;
+          break;
+        case 'max_width':
+          max_width = value_k;
+          break;
+        case 'color':
+          color = value_k;
+          break;
+        case 'align':
+          align = value_k;
+          break;
+      }
+    }
+    
+    //canvasと同じサイズのdivを作成する
+    let div;
+    if(document.getElementById("text_div") == null){
+      div = document.createElement('div');
+      div.setAttribute('id', 'text_div');
+      let body = document.getElementsByTagName('body')[0];
+      body.appendChild(div);
+    } else {
+      div = document.getElementById('text_div');
+    }
+    const canvasRect = canvas.getBoundingClientRect(); // canvas の位置とサイズを取得
+
+    //text_spanを削除
+    while (div.firstChild) {
+      div.removeChild(div.firstChild);
+    }
+    // div を canvas に一致させる
+    div.style.position = 'absolute';
+    div.style.top = `${canvasRect.top}px`;
+    div.style.left = `${canvasRect.left}px`;
+    div.style.width = `${canvasRect.width}px`;
+    div.style.height = `${canvasRect.height}px`;
+    let text_span = document.createElement('span');
+    text_span.textContent = text;
+    text_span.style.position = 'absolute';
+    text_span.style.left = String(c.real) + 'px';
+    text_span.style.top = String(c.imag) + 'px';
+    text_span.style.textAlign = 'center';  // 文字をセンタリング
+    text_span.style.background = 'red'
+    
+    let translateX = '0';
+    let translateY = '0';
+
+    // alignによる位置調整
+    switch (align) {
+      case 'bottom-left':
+        translateY = '-100%';
+        break;
+      case 'center':
+        translateX = '-50%';
+        translateY = '-50%';
+        break;
+      case 'top-right':
+        translateX = '-100%';
+        break;
+      case 'bottom-right':
+        translateX = '-100%';
+        translateY = '-100%';
+        break;
+    }
+    text_span.style.transform = `translate(${translateX}, ${translateY})`;
+    
+    div.appendChild(text_span);
+  }
+  
+  static _DFT(l,return_type='normal'){
+    if(return_type != 'normal' && return_type != 'text_list') throw new Error("CompVisJS-Argument error->The second argument of the DFT method must be either 'normal' or 'text_list'.");
+    let N = l.length;
+    let abs = [];
+    let arg = [];
+    let return_value = [];
+    let F = [];
+    for(let k = 0; k < N; k++){
+      F.push(new CompVis(0,0));
+    
+      for(let j = 0; j < N; j++){
+        F[k] = F[k].add(new CompVis(0,1).pro(-2*Math.PI*j*k/N).exp.pro(l[j]));
+      }
+      F[k] = F[k].div(N);
+      if(return_type == 'normal') {
+        return_value.push({value:F[k],abs:F[k].abs,arg:F[k].arg});
+      } else {
+        return_value.push(`value:${F[k].str},abs:${F[k].abs},arg:${F[k].arg}`);
+      }
+    }
+    return return_value;
+  }
+  static _Real(k){
+    if(!Array.isArray(k)){
+      return k.real;
+    } else {
+      return k.map((j) => {
+        return j.real;
+      });
+    }
+  }
+  static _Imag(k){
+    if(!Array.isArray(k)){
+      return k.imag;
+    } else {
+      return k.map((j) => {
+        return j.imag;
+      });
+    }
+  }
+  
+  
+  add(k){
+    k = this.#RtoI(k);
+    return new CompVis(this._real+k.real,this._imag+k.imag);
+  }
+  dif(k){
+    k = this.#RtoI(k);
+    return new CompVis(this._real-k.real,this._imag-k.imag);
+  }
+  pro(k){
+    k = this.#RtoI(k);
+    return new CompVis(this._real*k.real-this._imag*k.imag,this._real*k.imag+this._imag*k.real);
+  }
+  div(k){
+    k = this.#RtoI(k);
+    let k_k = this.pro(k.conj);
+    let k_abs2 = k.abs*k.abs;
+    return new CompVis(k_k.real/k_abs2,k_k.imag/k_abs2);
+  }
+  log_n(k){
+    this.#Error_Argument_real(k);
+    return new CompVis(Math.log(this.abs)/Math.log(k),this.arg/Math.log(k));
+  }
+  pow_by(k){
+    k = this.#RtoI(k);
+    let k_k = k.pro(this.log);
+    return k_k.exp;
+  }
+  pow_of(k){
+    k = this.#RtoI(k);
+    let k_k = this.pro(k.log);
+    return k_k.exp;
+  }
+  rotate(k){
+    this.#Error_Argument_real(k);
+    k = new CompVis(0,1).pro(k).exp;
+    return this.pro(k);
+  }
+}
+
+CompVis.Matrix = class {
+  constructor (A = [[0]]){
+    if (A === undefined || A === null) {
+      A = [[0]];  // 手動でデフォルト値を設定
+    }
+    if (!Array.isArray(A) || A.length == 0 || !Array.isArray(A[0]) || A[0].length == 0) {
+      throw new Error("CompVisJS_Matrix-Argument error->Invalid matrix format.");
+    } else {
+      let columnLength = A[0].length;
+      for (let i = 1; i < A.length; i++) {
+        if (!Array.isArray(A[i]) || A[i].length !== columnLength) {
+          throw new Error('CompVisJS_Matrix-Shape error->Invalid matrix format.');
+        }
+      }
+      this._matrix = A;
+      this._size = [A.length,columnLength];
+      
+    }
+  }
+  
+  
+  get matrix(){
+    return this._matrix
+  }
+  get size(){
+    return this._size;
+  }
+  get toString() {
+    return JSON.stringify(this._matrix);
+  }
+  
+  pro(B) {
+    if (!(B instanceof CompVis.Matrix)) {
+      throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
+    }
+    let A = this._matrix;
+    console.log(B.matrix)
+    let [m, n] = this.size;
+    let [p, q] = B.size;
+    
+    if (n !== p) {
+      throw new Error("CompVisJS_Matrix-Shape error->Matrix multiplication dimension mismatch.");
+    }
+
+    let result = Array.from({ length: m }, () => Array(q).fill(0));
+    for (let i = 0; i < m; i++) {
+      for (let j = 0; j < q; j++) {
+        for (let k = 0; k < n; k++) {
+          result[i][j] += A[i][k] * B.matrix[k][j];
+        }
+      }
+    }
+
+    return new CompVis.Matrix(result);
+  }
+  
+  get _det() {
+    let n = this._matrix.length;
+    let A = this._matrix.map(row => [...row]); // 行列をコピー
+    let det_k = 1;
+    
+    for (let i = 0; i < n; i++) {
+      let maxRow = i;
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) {
+          maxRow = k;
+        }
+      }
+        
+      if (A[maxRow][i] === 0) return 0;
+
+      if (i !== maxRow) {
+        [A[i], A[maxRow]] = [A[maxRow], A[i]];
+        det_k *= -1;
+      }
+
+      det_k *= A[i][i];
+
+      let pivot = A[i][i];
+      for (let k = i + 1; k < n; k++) {
+        let factor = A[k][i] / pivot;
+        for (let j = i; j < n; j++) {
+          A[k][j] -= factor * A[i][j];
+        }
+      }
+    }
+
+    return det_k;
+  }
+  
+  get _inverse() {
+    if(this.size[0] != this.size[1]) throw new Error("CompVisJS_Matrix-Shape error->Must be a square matrix.");
+    let A = this._matrix;
+    let n = A.length;
+    let I = Array.from({ length: n }, (_, i) =>
+      Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
+    );
+
+    for (let i = 0; i < n; i++) {
+      let pivot = A[i][i];
+      if (pivot === 0) {
+        for (let k = i + 1; k < n; k++) {
+          if (A[k][i] !== 0) {
+            [A[i], A[k]] = [A[k], A[i]];
+            [I[i], I[k]] = [I[k], I[i]];
+            pivot = A[i][i];
+            break;
+          }
+        }
+      }
+      if (pivot === 0) throw new Error("CompVisJS_Matrix-Shape error->Singular matrix (non-invertible).");
+      for (let j = 0; j < n; j++) {
+        A[i][j] /= pivot;
+        I[i][j] /= pivot;
+      }
+
+      for (let k = 0; k < n; k++) {
+        if (k !== i) {
+          let factor = A[k][i];
+          for (let j = 0; j < n; j++) {
+            A[k][j] -= factor * A[i][j];
+            I[k][j] -= factor * I[i][j];
+          }
+        }
+      }
+    }
+    return new CompVis.Matrix(I);
+  }
+}
+
+CompVis._list = [
+  Object.getOwnPropertyNames(CompVis),
+  Object.getOwnPropertyNames(Object.getPrototypeOf(new CompVis()))
+];
