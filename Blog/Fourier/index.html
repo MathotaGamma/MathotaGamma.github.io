@@ -267,7 +267,7 @@
             円上を動く点が一秒間で何周回るかが周波数である。
           </p>
           <p>
-            青い点の周波数は0.5Hz(2秒で1回転=1/2=0.5Hz)
+            赤い点の周波数は0.5Hz(2秒で1回転=1/2=0.5Hz)
           </p>
           <canvas id="circle"></canvas>
           <p><b>三角関数に対して用いる場合</b></p>
@@ -290,9 +290,19 @@
         というやつです。
       </p>
       <p>
-        「sin?cos?なにそれ美味しいの？」状態の方でも
-        この記事は知識なしで読めるようになっています。
+        例えば、下のような「矩形波」と呼ばれる波を
+        フーリエ変換してみましょう。
+        後程書きますが、今回使うのはフーリエ変換の一種である
+        フーリエ級数展開です。
       </p>
+      <canvas id="square"></canvas>
+      <p>
+        スライダーを動かしてみてください。
+        右側にスライドするほど矩形波に近づきますよね？
+        これは、矩形波をフーリエ級数展開すると周波数が∞まで
+        出てくるため、足し合わせる数を多くするほど正確になるからです。
+      </p>
+      <canvas id=squareSum"></canvas>
     </section>
     <section id="section2">
       <h2>フーリエ変換の種類</h2>
@@ -439,7 +449,7 @@
       <canvas id="Epi" style="border: 1px solid black;"></canvas>
       <p>
         うまく動きましたか？
-        少しでもフーリエ変換を理解できる助けになったら幸いです。
+        フーリエ変換の雰囲気を理解できたでしょうか。
       </p>
       <p>
         
@@ -487,7 +497,7 @@
   setInterval(() => {
     ctxCircle.clearRect(0,0,300,300);
     ctxCircle.strokeStyle = '#fff';
-    ctxCircle.fillStyle = '#00f';
+    ctxCircle.fillStyle = '#f00';
     ctxCircle.lineWidth = 2;
     ctxCircle.beginPath();
     ctxCircle.arc(150, 150, 100, 0, 2 * Math.PI);
