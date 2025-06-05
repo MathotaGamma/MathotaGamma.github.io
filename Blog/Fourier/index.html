@@ -427,48 +427,39 @@
   canvas.height = window.innerHeight;*/
   canvas.width = 300;
   canvas.height = 300;
-  /*const canvas = document.getElementById("canvas");
-  const ctx = canvas.getContext("2d");*/
-  //const info = document.getElementById("info");
+  
 
-  /*function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  window.addEventListener("resize", resizeCanvas);
-  resizeCanvas();*/
+      let drawing = false;
+      let userPoints = [];
+      let path = [];
+      let time = 0;
+      let fourier = [];
+      let ready = false;
 
-  let drawing = false;
-  let userPoints = [];
-  let path = [];
-  let time = 0;
-  let fourier = [];
-  let ready = false;
+      const speed = 1;
 
-  const speed = 1;
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        if (e.touches) {
+          const touch = e.touches[0];
+          return {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+          };
+        } else {
+          return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+          };
+        }
+      }
 
-  function getPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    if (e.touches) {
-      const touch = e.touches[0];
-      return {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top
-      };
-    } else {
-      return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
-    }
-  }
-
-  canvas.addEventListener("mousedown", startDraw);
-  canvas.addEventListener("touchstart", startDraw);
-  canvas.addEventListener("mousemove", draw);
-  canvas.addEventListener("touchmove", draw, { passive: false });
-  canvas.addEventListener("mouseup", endDraw);
-  canvas.addEventListener("touchend", endDraw);
+      canvas.addEventListener("mousedown", startDraw);
+      canvas.addEventListener("touchstart", startDraw);
+      canvas.addEventListener("mousemove", draw);
+      canvas.addEventListener("touchmove", draw, { passive: false });
+      canvas.addEventListener("mouseup", endDraw);
+      canvas.addEventListener("touchend", endDraw);
 
       function startDraw(e) {
         drawing = true;
@@ -476,7 +467,7 @@
         path = [];
         time = 0;
         ready = false;
-        info.textContent = '';
+        //info.textContent = '';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
 
@@ -493,6 +484,7 @@
           ctx.arc(p.x + canvas.width / 2, p.y + canvas.height / 2, 2, 0, 2 * Math.PI);
           ctx.fill();
         }
+        
       }
 
       function endDraw(e) {
@@ -534,10 +526,10 @@
         for (let i = 0; i < fourier.length; i++) {
           const { freq, amp, phase } = fourier[i];
           lines.push(
-            `${String(i).padStart(5)} ${String(freq < fourier.length/2 ? freq : freq-fourier.length).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
+            `${String(i).padStart(5)} ${String(freq).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
           );
-        }*/
-        //info.textContent = lines.join('\n');
+        }
+        info.textContent = lines.join('\n');*/
       }
 
       function drawEpicycles(x, y, rotation, fourier) {
@@ -563,9 +555,8 @@
       }
 
       function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         if (ready && fourier.length > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
           const centerX = canvas.width / 2;
           const centerY = canvas.height / 2;
           const v = drawEpicycles(centerX, centerY, 0, fourier);
@@ -591,8 +582,8 @@
         requestAnimationFrame(animate);
       }
 
-  animate();
-</script>
+      animate();
+    </script>
 
 </body>
 </html>
