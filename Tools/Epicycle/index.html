@@ -132,7 +132,8 @@
           }
           re /= N;
           im /= N;
-          const freq = k;
+          //const freq = k;
+          const freq = k <= N / 2 ? k : k - N;
           const amp = Math.sqrt(re * re + im * im);
           const phase = Math.atan2(im, re);
           X.push({ re, im, freq, amp, phase });
