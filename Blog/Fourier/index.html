@@ -266,10 +266,13 @@
           <p>
             円上を動く点が一秒間で何周回るかが周波数である。
           </p>
+          <p>
+            青い点の周波数は0.5Hz(2秒で1回転=1/2=0.5Hz)
+          </p>
           <canvas id="circle"></canvas>
           <p><b>三角関数に対して用いる場合</b></p>
           <p>
-            \(\sin(\omega x)\)の周波数は\(\omega\)である。
+            \(\sin (\omega x)\)の周波数は\(\omega\)である。
           </p>
         </li>
       </ul>
@@ -487,12 +490,16 @@
     ctxCircle.fillStyle = '#00f';
     ctxCircle.lineWidth = 2;
     ctxCircle.arc(150, 150, 100, 0, 2 * Math.PI);
-    ctxCircle.stroke()
+    ctxCircle.stroke();
+    ctxCircle.closePath();
+
+    ctxCircle.lineWidth = 0;
     const theta = Math.PI*(Date.now()-startTime)/1000;
     ctxCircle.beginPath();
-    ctxCircle.arc(150+Math.cos(150+100*Math.cos(theta), 150-100*Math.sin(theta), 5, 0, 2 * Math.PI);
+    ctxCircle.arc(150+100*Math.cos(theta), 150-100*Math.sin(theta), 5, 0, 2 * Math.PI);
     ctxCircle.fill();
-  },100);
+    ctxCircle.closePath();
+  },10);
 
   
   const canvas = document.getElementById("Epi");
