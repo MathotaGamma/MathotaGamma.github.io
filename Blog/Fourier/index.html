@@ -213,6 +213,10 @@
       border-radius: 2px;
     }
 
+    #circle {
+      background: black;
+    }
+
     #Epi {
       background: black;
     }
@@ -232,6 +236,7 @@
   <nav class="toc-wrapper toc" aria-label="目次">
     <h2>目次</h2>
     <ul>
+      <li><a href="#section0">必要な知識について</a></li>
       <li><a href="#section1">Fourier変換とは？</a></li>
       <li><a href="#section2">Fourier変換の種類</a></li>
       <li><a href="#section3">実際の式</a></li>
@@ -240,13 +245,34 @@
   </nav>
 
   <article class="article">
+    <p>難易度☆☆(低~中程度:三角関数についての基礎知識)</p>
     <h1>Fourier変換大好き❤️</h1>
     <section id="intro">
       <p>皆さんこんにちは！Fourier変換楽しんでますか？</p>
       <p>もちろん、皆さんは毎日音をフーリエ変換して「うわ、この周波数の振幅デカいな」と感動していると思います。</p>
       <p>冗談は置いといて、この記事では</p>
       <p class="cursive"><b>Fourier Transform</b></p>
-      <p>について、予備知識無しで理解できるよう解説します。</p>
+      <p>について、難しい知識を使わずに解説します。</p>
+    </section>
+    <section id="section0">
+      <h1>必要な知識について</h1>
+      <ul>
+        <li>
+          <h2>周波数</h2>
+          <p>
+            振動、波が単位時間あたりに何回繰り返すか(単位はHz ヘルツ(=/T 毎秒))
+          </p>
+          <p><b>円に対して用いる場合</b></p>
+          <p>
+            円上を動く点が一秒間で何周回るかが周波数である。
+          </p>
+          <canvas id="circle"></canvas>
+          <p><b>三角関数に対して用いる場合</b></p>
+          <p>
+            \(\sin(\omega x)\)の周波数は\(\omega\)である。
+          </p>
+        </li>
+      </ul>
     </section>
     <section id="section1">
       <h2>Fourier変換とは？</h2>
@@ -384,9 +410,37 @@
     </section>
     <section id="section4">
       <h2>体験してみる</h2>
-      <p>実際フーリエ変換って何に使えるん？となってしまわないように、</p>
-      <p>フーリエ変換を使ったものを用意しました。</p>
+      <p>
+        フーリエ変換は、元の関数を分解して、ある周波数での大きさを知ることが出来ます。
+      　この性質から元の関数をこの周波数、大きさで表現できないか考えてみましょう。
+      </p>
+      <p>
+        すると周波数、大きさを表現するためには円が適しているのではないか
+        という考えに至ります。
+        なぜなら、円上に動く点を周期F[Hz]で動かし、その円の大きさをrにすれば
+        その点の動きは周波数、大きさの情報を持つからです。
+      </p>
+      <p>
+        元の関数を表すためには全ての周波数を集める必要があるため、
+        ある周波数で動く円上の点に、そこを中心とした円を重ねて、その円上に動く点を、、、
+      </p>
+      <p>
+        という感じに全ての周波数での円を重ね合わせていきます。
+      </p>
+      <p>
+        この考えに基づいて、デモを作ってみました。
+      </p>
+      <p>
+        下の黒いエリア上で何か一筆書きで書いてみてください。
+      </p>
       <canvas id="Epi" style="border: 1px solid black;"></canvas>
+      <p>
+        うまく動きましたか？
+        少しでもフーリエ変換を理解できる助けになったら幸いです。
+      </p>
+      <p>
+        
+      </p>
     </section>
   </article>
 
@@ -419,6 +473,26 @@
   document.querySelector('.toc-toggle').addEventListener('click', () => {
     document.querySelector('.toc-wrapper').classList.toggle('active');
   });
+
+
+  const canvasCircle = document.getElementById("circle");
+  canvasCircle.width = 300;
+  canvasCircle.height = 300;
+  const ctxCircle = canvasCircle.getContext("2d")
+
+  const startTime = Date.now();
+  setInterval(() => {
+    ctxCircle.clearRect(0,0,300,300);
+    ctxCircle.strokeStyle = '#fff';
+    ctxCircle.fillStyle = '#00f';
+    ctxCircle.lineWidth = 2;
+    ctxCircle.arc(150, 150, 100, 0, 2 * Math.PI);
+    ctxCircle.stroke()
+    const theta = Math.PI(Date.now()-startTime)/1000;
+    ctxCircle.beginPath();
+    ctxCircle.arc(150+Math.cos(150+100*Math.cos(theta), 150-100*Math.sin(theta), 5, 0, 2 * Math.PI);
+    ctxCircle.fill();
+  },100);
 
   
   const canvas = document.getElementById("Epi");
