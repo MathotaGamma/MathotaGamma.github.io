@@ -125,154 +125,6 @@ class CompVis {
     return new CompVis(Math.cos(this._imag),Math.sin(this._imag)).pro(Math.exp(this._real));
   }
   
-  static _create_canvas(canvas,width=0,height=0){
-    if(width > 0){
-      canvas.width = width;
-    }
-    if(height > 0){
-      canvas.height = height;
-    }
-    return {canvas:canvas,ctx:canvas.getContext("2d"),width:canvas.width,height:canvas.height};
-  }
-  
-  static _clear_canvas(canvas_ctx){
-    const ctx = canvas_ctx.ctx;
-    const canvas = canvas_ctx.canvas;
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // キャンバスをクリア
-  }
-  
-  static _graph(canvas_ctx, func, start, end, step, params={}) {
-    let color = 'black';
-    let line_width = 2;
-    let size = 1;
-    for(let k of Object.keys(params)){
-      let value_k = params[k];
-      switch(k){
-        case 'color':
-          color = value_k;
-          break;
-        case 'line_width':
-          line_width = value_k;
-          break;
-        case 'size':
-          size = value_k;
-          break;
-      }
-    } 
-    const ctx = canvas_ctx.ctx;
-    const canvas = canvas_ctx.canvas;
-    ctx.beginPath();
-
-    // グラフの描画を開始
-    for (let t = start; t < end; t += step) {
-      if(t+step > end) t = end;
-      const [x, y] = func(t).value;
-      
-      const canvasX = canvas.width / 2 + x * size; // スケールとオフセット
-      const canvasY = canvas.height / 2 - y * size; // Y 軸の方向を反転
-      if (t === start) {
-        ctx.moveTo(canvasX, canvasY);
-      } else {
-        ctx.lineTo(canvasX, canvasY);
-      }
-    }
-
-    ctx.strokeStyle = color; // 線の色
-    ctx.lineWidth = line_width; // 線の太さ
-    ctx.stroke();
-    return {canvas_ctx:canvas_ctx, func:func, start:start, end:end, step:step, params:params};
-  }
-
-  static _re_graph(data){
-    if(Array.isArray(data)){
-      for(let k = 0; k < data.length; k++){
-        let data_k = data[k];
-        CompVis._graph(data_k.canvas_ctx,data_k.func,data_k.start,data_k.end,data_k.step,data_k.params);
-      }
-    } else {
-      CompVis._graph(data.canvas_ctx,data.func,data.start,data.end,data.step,data.params);
-    }
-  }
-  
-  static _draw_text(canvas_ctx,text,c,params={}){
-    let px = 18;
-    let max_width = -1;
-    let color = 'black';
-    let ctx = canvas_ctx.ctx;
-    let canvas = canvas_ctx.canvas;
-    let align = 'start';
-    for(let k of Object.keys(params)){
-      let value_k = params[k];
-      switch(k){
-        case 'px':
-          px = value_k;
-          break;
-        case 'max_width':
-          max_width = value_k;
-          break;
-        case 'color':
-          color = value_k;
-          break;
-        case 'align':
-          align = value_k;
-          break;
-      }
-    }
-    
-    //canvasと同じサイズのdivを作成する
-    let div;
-    if(document.getElementById("text_div") == null){
-      div = document.createElement('div');
-      div.setAttribute('id', 'text_div');
-      let body = document.getElementsByTagName('body')[0];
-      body.appendChild(div);
-    } else {
-      div = document.getElementById('text_div');
-    }
-    const canvasRect = canvas.getBoundingClientRect(); // canvas の位置とサイズを取得
-
-    //text_spanを削除
-    while (div.firstChild) {
-      div.removeChild(div.firstChild);
-    }
-    // div を canvas に一致させる
-    div.style.position = 'absolute';
-    div.style.top = `${canvasRect.top}px`;
-    div.style.left = `${canvasRect.left}px`;
-    div.style.width = `${canvasRect.width}px`;
-    div.style.height = `${canvasRect.height}px`;
-    let text_span = document.createElement('span');
-    text_span.textContent = text;
-    text_span.style.position = 'absolute';
-    text_span.style.left = String(c.real) + 'px';
-    text_span.style.top = String(c.imag) + 'px';
-    text_span.style.textAlign = 'center';  // 文字をセンタリング
-    text_span.style.background = 'red'
-    
-    let translateX = '0';
-    let translateY = '0';
-
-    // alignによる位置調整
-    switch (align) {
-      case 'bottom-left':
-        translateY = '-100%';
-        break;
-      case 'center':
-        translateX = '-50%';
-        translateY = '-50%';
-        break;
-      case 'top-right':
-        translateX = '-100%';
-        break;
-      case 'bottom-right':
-        translateX = '-100%';
-        translateY = '-100%';
-        break;
-    }
-    text_span.style.transform = `translate(${translateX}, ${translateY})`;
-    
-    div.appendChild(text_span);
-  }
   
   static _DFT(l,return_type='normal'){
     if(return_type != 'normal' && return_type != 'text_list') throw new Error("CompVisJS-Argument error->The second argument of the DFT method must be either 'normal' or 'text_list'.");
@@ -352,6 +204,102 @@ class CompVis {
     this.#Error_Argument_real(k);
     k = new CompVis(0,1).pro(k).exp;
     return this.pro(k);
+  }
+}
+
+CompVis.View = class {
+  constructor(canvasId) {
+    this.canvas = document.getElementById(canvasId);
+    this.ctx = this.canvas.getContext("2d");
+    this.dpi = window.devicePixelRatio || 1;
+    this.graphs = [];
+    this.resize();
+  }
+
+  resize() {
+    this.canvas.width = this.canvas.clientWidth * this.dpi;
+    this.canvas.height = this.canvas.clientHeight * this.dpi;
+    this.W = this.canvas.width;
+    this.H = this.canvas.height;
+  }
+
+  addGraph(f, α, β, span, color = "#0ff") {
+    const graph = { f, α, β, span, color };
+    this.graphs.push(graph);
+    this.renderGraph(graph);
+    return graph; // graph object を返す
+  }
+
+  renderAll() {
+    this.ctx.clearRect(0, 0, this.W, this.H);
+    for (const graph of this.graphs) {
+      this.renderGraph(graph);
+    }
+  }
+
+  update(graph) {
+    this.renderAll(); // 背景も一緒に更新（重ね順保証）
+  }
+
+  renderGraph(graph) {
+    const { f, α, β, span, color } = graph;
+    const points = [];
+
+    for (let i = 0; i <= span; i++) {
+      const t = α + (β - α) * i / span;
+      let res;
+      try {
+        res = f(t);
+      } catch {
+        continue;
+      }
+
+      if (Array.isArray(res) && res.length >= 2) {
+        points.push({ x: res[0], y: res[1] });
+      } else if (typeof res === "number") {
+        points.push({ x: t, y: res });
+      }
+    }
+
+    if (points.length < 2) return;
+
+    const xs = points.map(p => p.x);
+    const ys = points.map(p => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    const xScale = this.W / ((maxX - minX) || 1);
+    const yScale = this.H / ((maxY - minY) || 1);
+    const offsetX = -minX;
+    const offsetY = -minY;
+
+    const ctx = this.ctx;
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+
+    for (let i = 0; i < points.length; i++) {
+      const px = (points[i].x + offsetX) * xScale;
+      const py = this.H - (points[i].y + offsetY) * yScale;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+
+    ctx.stroke();
+  }
+  drawText(text, x, y, options = {}) {
+    const ctx = this.ctx;
+    ctx.save();
+
+    ctx.fillStyle = options.color || "#fff";
+    ctx.font = `${options.size || 16}px sans-serif`;
+    ctx.textAlign = options.align || "left";
+    ctx.textBaseline = options.baseline || "top";
+
+    ctx.fillText(text, x, y);
+    ctx.restore();
   }
 }
 
