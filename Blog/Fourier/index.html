@@ -426,17 +426,17 @@
   /*canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;*/
   canvas.width = 300;
-  canvas.height = 300
-  const canvas = document.getElementById("canvas");
-  const ctx = canvas.getContext("2d");
-  const info = document.getElementById("info");
+  canvas.height = 300;
+  /*const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");*/
+  //const info = document.getElementById("info");
 
-  function resizeCanvas() {
+  /*function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   }
   window.addEventListener("resize", resizeCanvas);
-  resizeCanvas();
+  resizeCanvas();*/
 
   let drawing = false;
   let userPoints = [];
@@ -530,14 +530,14 @@
       }
 
       function showFourierInfo(fourier) {
-        let lines = ['index freq amp     phase'];
+        /*let lines = ['index freq amp     phase'];
         for (let i = 0; i < fourier.length; i++) {
           const { freq, amp, phase } = fourier[i];
           lines.push(
             `${String(i).padStart(5)} ${String(freq < fourier.length/2 ? freq : freq-fourier.length).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
           );
-        }
-        info.textContent = lines.join('\n');
+        }*/
+        //info.textContent = lines.join('\n');
       }
 
       function drawEpicycles(x, y, rotation, fourier) {
