@@ -489,11 +489,12 @@
     ctxCircle.strokeStyle = '#fff';
     ctxCircle.fillStyle = '#00f';
     ctxCircle.lineWidth = 2;
+    ctxCircle.beginPath();
     ctxCircle.arc(150, 150, 100, 0, 2 * Math.PI);
     ctxCircle.stroke();
     ctxCircle.closePath();
 
-    ctxCircle.lineWidth = 0;
+    //ctxCircle.lineWidth = 0;
     const theta = Math.PI*(Date.now()-startTime)/1000;
     ctxCircle.beginPath();
     ctxCircle.arc(150+100*Math.cos(theta), 150-100*Math.sin(theta), 5, 0, 2 * Math.PI);
