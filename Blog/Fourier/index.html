@@ -235,14 +235,14 @@
 
 <div class="toc-toggle">📑 目次を表示</div>
 <main>
-  <nav class="toc-wrapper toc" aria-label="目次">
+  <nav class="toc-wrapper" aria-label="目次">
     <h2>目次</h2>
     <ul>
-      <li><a href="#section0">必要な知識について</a></li>
-      <li><a href="#section1">Fourier変換とは？</a></li>
-      <li><a href="#section2">Fourier変換の種類</a></li>
-      <li><a href="#section3">実際の式</a></li>
-      <li><a href="#section4">体感する</a></li>
+      <li><a href="#section0" class="anchor">必要な知識について</a></li>
+      <li><a href="#section1" class="anchor">Fourier変換とは？</a></li>
+      <li><a href="#section2" class="anchor">Fourier変換の種類</a></li>
+      <li><a href="#section3" class="anchor">実際の式</a></li>
+      <li><a href="#section4" class="anchor">体感する</a></li>
     </ul>
   </nav>
 
@@ -352,12 +352,12 @@
         </thead>
         <tbody>
           <tr>
-            <th scope="row">連続<sup><a href="#annotation1" class="toc">【1】</a></sup></th>
+            <th scope="row">連続<sup><a href="#annotation1" class="anchor">【1】</a></sup></th>
             <td>フーリエ級数展開(FSE)</td>
             <td>フーリエ変換(FT)</td>
           </tr>
           <tr>
-            <th scope="row">不連続(離散的)<sup><a href="#annotation1" class="toc">【1】</a></sup></th>
+            <th scope="row">不連続(離散的)<sup><a href="#annotation1" class="anchor">【1】</a></sup></th>
             <td>離散フーリエ変換(DFT)</td>
             <td>離散時間フーリエ変換(DTFT)</td>
           </tr>
@@ -387,7 +387,7 @@
             フーリエ変換(Fourier Transform)
           </h3>
           <p>
-            連続、非周期の関数に用いる。<sup><a href="#annotation1" class="toc">【1】</a></sup>
+            連続、非周期の関数に用いる。<sup><a href="#annotation1" class="anchor">【1】</a></sup>
             後述する式を見るとわかるが、
             フーリエ級数展開を積分表記にして
             範囲を無限にしただけ。
@@ -546,7 +546,7 @@
 
 <script>
   // 目次スクロール
-  document.querySelectorAll('.toc a').forEach(anchor => {
+  document.querySelectorAll('.anchor').forEach(anchor => {
     anchor.addEventListener('click', e => {
       e.preventDefault();
       const targetId = anchor.getAttribute('href').slice(1);
