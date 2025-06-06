@@ -333,20 +333,20 @@
         </thead>
         <tbody>
           <tr>
-            <th scope="row">連続</th>
+            <th scope="row">連続<sup><a href="#annotation1">【1】</a></sup></th>
             <td>フーリエ級数展開(FSE)</td>
             <td>フーリエ変換(FT)</td>
           </tr>
           <tr>
-            <th scope="row">不連続(離散的)</th>
+            <th scope="row">不連続(離散的)<sup><a href="#annotation1">【1】</a></sup></th>
             <td>離散フーリエ変換(DFT)</td>
             <td>離散時間フーリエ変換(DTFT)</td>
           </tr>
         </tbody>
       </table>
       <p>
-        このように、4種類はその使う場面、関数によって
-        分けられます。
+        これは、フーリエ変換するデータの種類を示しています。
+        4種類はその使う場面、関数の性質が異なります。
       </p>
       <ul>
         <li>
@@ -368,7 +368,7 @@
             フーリエ変換(Fourier Transform)
           </h3>
           <p>
-            連続、非周期の関数に用いる。
+            連続、非周期の関数に用いる。<sup><a href="#annotation1">【1】</a></sup>
             後述する式を見るとわかるが、
             フーリエ級数展開を積分表記にして
             範囲を無限にしただけ。
@@ -390,11 +390,22 @@
             離散時間フーリエ変換(Discrete Time Fourier Transform)
           </h3>
           <p>
-            フーリエ変換を離散的にする操作を施すと
-            導ける。
+            フーリエ変換を離散的にする操作を施すと導ける。
           </p>
         </li>
       </ul>
+      <p>
+        矩形波について考えてみましょう。
+      </p>
+      <canvas id="square2"></canvas>
+      <p>
+        この曲線はxについて不連続点以外では確定値が存在し、周期性を保つため
+        フーリエ級数展開が適しているとわかります。
+      </p>
+      <small id="annotation1">
+        正確には、「不連続な点を除く任意のxにおいてf(x)に確定値が存在する(=不連続点以外で各点収束)」場合に
+        フーリエ級数展開またはフーリエ変換が使えます。
+      </small>
     </section>
     <section id="section3">
       <h2>実際の式</h2>
@@ -432,8 +443,7 @@
       　この性質から元の関数をこの周波数、大きさで表現できないか考えてみましょう。
       </p>
       <p>
-        すると周波数、大きさを表現するためには円が適しているのではないか
-        という考えに至ります。
+        すると円を用いれば周波数、大きさを表現できるのではないかという考えに至ります。
         なぜなら、円上に動く点を周期F[Hz]で動かし、その円の大きさをrにすれば
         その点の動きは周波数、大きさの情報を持つからです。
       </p>
@@ -452,8 +462,7 @@
       </p>
       <canvas id="Epi" style="border: 1px solid black;"></canvas>
       <p>
-        うまく動きましたか？
-        フーリエ変換の雰囲気を理解できたでしょうか。
+        どうでしょうか。フーリエ変換の雰囲気を理解できましたか？
       </p>
       <p>
         
@@ -502,28 +511,22 @@
       return 40;
     },-150,150, 1200,{autoScale: false});
     viewer.renderAll
-    // 上にテキスト表示（px座標）
-    /*viewer.showText("矩形波", 100, 30, {
-      color: "#0f0",
-      size: 24,
-    });*/
-    
-    /*const square = document.getElementById("square");
-    square.width = 300;
-    square.height = 100;
-    const viewer = new CompVis.View(square);
+
+    const square2 = document.getElementById("square");
+    square2.width = 300;
+    square2.height = 100;
+    const viewer2 = new CompVis.View(square2);
     // Canvasにグラフを描く
-    viewer.addGraph((t) => {
+    viewer2.addGraph((t) => {
       if((t+150) % 30 <= 15) return -40;
       return 40;
-    },-150,150, 1200,"0ff",{autoScale: true});
-    viewer.renderAll()*/
+    },-150,150, 1200,{autoScale: false});
+    viewer2.renderAll
+    
     
     const squareSum = document.getElementById("squareSum");
     const numSlider = document.getElementById("numSlider");
     let sumCount = parseInt(numSlider.value);
-    
-    
     
     squareSum.width = 300;
     squareSum.height = 300;
@@ -547,36 +550,6 @@
       viewerSum.update(fseGraph)
     })
   });
-
-  /*const square = document.getElementById("square");
-  square.width = 300;
-  square.height = 300;
-  console.log(new CompVis.View(square))
-  console.log("a")
-  const viewer = new CompVis.View(square);*/
-
-  // Canvasにグラフを描く
-  /*viewer.addGraph((t) => {
-    if(t % 4*Math.PI < 2*Math.PI) return -100;
-    return 100;
-  }, 300);
-
-  // 上にテキスト表示（px座標）
-  viewer.showText("矩形波", 100, 30, {
-    color: "#0f0",
-    size: 24,
-  });*/
-
-  // 外部変数で動く例
-  /*let x = 1;
-  const graph = viewer.addGraph(t => Math.sin(x * t), 0, 2 * Math.PI, 300);
-  viewer.showText("x = " + x, 30, 70, { id: "label-x" });
-
-  setTimeout(() => {
-    x = 2;
-    viewer.update(graph);
-    viewer.showText("x = " + x, 30, 70, { id: "label-x" }); // 上書き更新
-  }, 1000);*/
 
 
 
