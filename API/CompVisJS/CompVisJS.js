@@ -208,17 +208,17 @@ class CompVis {
 }
 
 CompVis.View = class {
-  constructor(canvasElem,width=300,height=300) {
+  constructor(canvasElem) {
     this.canvas = canvasElem;
     this.ctx = this.canvas.getContext("2d");
     this.dpi = window.devicePixelRatio || 1;
     this.graphs = [];
-    this.resize(width,height);
+    this.resize();
   }
 
-  resize(width,height) {
-    this.canvas.width = width * this.dpi;
-    this.canvas.height = height * this.dpi;
+  resize() {
+    this.canvas.width = this.canvas.clientWidth * this.dpi;
+    this.canvas.height = this.canvas.clientHeight * this.dpi;
     this.W = this.canvas.width;
     this.H = this.canvas.height;
   }
