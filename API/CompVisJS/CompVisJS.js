@@ -207,22 +207,14 @@ class CompVis {
   }
 }
 
-
 CompVis.View = class {
   constructor(canvasElem) {
     this.canvas = canvasElem;
     this.ctx = this.canvas.getContext("2d");
     this.dpi = window.devicePixelRatio || 1;
     this.graphs = [];
-    this.autoScale = true;
-    this.showAxis = false;
     this.resize();
     window.addEventListener("resize", () => this.resize());
-  }
-
-  setOptions(options = {}) {
-    if ("autoScale" in options) this.autoScale = options.autoScale;
-    if ("showAxis" in options) this.showAxis = options.showAxis;
   }
 
   resize() {
@@ -237,8 +229,17 @@ CompVis.View = class {
     this.renderAll();
   }
 
-  addGraph(f, α, β, span, color = "#0ff") {
-    const graph = { f, α, β, span, color };
+  addGraph(f, α, β, span, color = "#0ff", options = {}) {
+    // optionsにautoScale, showAxisを含める
+    const graph = {
+      f,
+      α,
+      β,
+      span,
+      color,
+      autoScale: options.autoScale !== undefined ? options.autoScale : true,
+      showAxis: options.showAxis !== undefined ? options.showAxis : false,
+    };
     this.graphs.push(graph);
     this.renderGraph(graph);
     return graph;
@@ -256,7 +257,7 @@ CompVis.View = class {
   }
 
   renderGraph(graph) {
-    const { f, α, β, span, color } = graph;
+    const { f, α, β, span, color, autoScale, showAxis } = graph;
     const points = [];
 
     for (let i = 0; i <= span; i++) {
@@ -284,7 +285,7 @@ CompVis.View = class {
     const maxY = Math.max(...ys);
 
     let xScale, yScale, offsetX, offsetY;
-    if (this.autoScale) {
+    if (autoScale) {
       xScale = this.W / ((maxX - minX) || 1);
       yScale = this.H / ((maxY - minY) || 1);
       offsetX = -minX;
@@ -308,7 +309,7 @@ CompVis.View = class {
 
     ctx.stroke();
 
-    if (this.showAxis && this.autoScale) {
+    if (showAxis && autoScale) {
       this.drawAxis(minX, maxX, minY, maxY, xScale, yScale, offsetX, offsetY);
     }
   }
