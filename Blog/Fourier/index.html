@@ -379,6 +379,7 @@
       <div class="dropdown-content" style="display:none;">
         $$f(t)=\begin{cases}-1 &(-1\le t \lt0)\\1 &(0 \le t \lt 1)\end{cases}$$
         <p>とする。周期は2。不連続な点で積分を分ける。</p>
+        <p>\(a_n\)を求める。
         $$
         \begin{eqnarray*}
           a_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
@@ -392,7 +393,7 @@
         <p>次に\(b_n\)を求める。</p>
         $$
         \begin{eqnarray*}
-          a_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
+          b_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
               &=& -\int_{-1}^0\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt
         \end{eqnarray*}
         $$
@@ -401,17 +402,25 @@
         <p>よって</p>
         $$
         \begin{eqnarray*}
-          a_n &=& \int_0^1\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt\\
+          b_n &=& \int_0^1\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt\\
               &=& 2\int_0^1\sin (n\pi t)\,dt\\
               &=& 2\left[-\frac{1}{n\pi}\cos (n\pi t)\right]_0^1\\
-              &=& -\frac{2}{n\pi }(\cos (n\pi ) - \cos 0)
+              &=& -\frac{2}{n\pi }(\cos (n\pi ) - \cos 0)\\
               &=& \frac{2}{n\pi }(1-\cos (n\pi ))
         \end{eqnarray*}
         $$
         <p>である。</p>
         $$\cos (n\pi ) = \begin{cases}1 &(nが偶数) \\ -1 &(nが奇数)\end{cases}\\ = (-1)^n$$
         <p>より</p>
-        $$a_n = \frac{2}{n\pi } (1-(-1)^n)$$
+        $$b_n = \frac{2}{n\pi } (1-(-1)^n)$$
+        <p>以上より、</p>
+        $$
+        \begin{eqnarray*}
+          f(t) &=& a_0 + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2n\pi}{2}t) + b_n \sin(\frac{2n\pi}{2}t) \right\}\\
+               &=& 0 + \sum_{n=1}^{\infty} \left(0\cdot \cos(n\pi t) + \frac{2}{n\pi } (1-(-1)^n)\cdot \cos(n\pi t)\right)\\
+               &=& \sum_{n=1}^{\infty} \frac{2}{n\pi } (1-(-1)^n)\cos(n\pi t)
+        \end{eqnarray*}
+        $$
       </div>
     </section>
     <section id="section2">
