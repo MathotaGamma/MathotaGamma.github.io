@@ -219,6 +219,7 @@ CompVis.View = class {
   resize() {
     this.canvas.width = this.canvas.clientWidth * this.dpi;
     this.canvas.height = this.canvas.clientHeight * this.dpi;
+    this.ctx.setTransform(this.dpi, 0, 0, this.dpi, 0, 0);
     this.W = this.canvas.width;
     this.H = this.canvas.height;
   }
