@@ -208,8 +208,8 @@ class CompVis {
 }
 
 CompVis.View = class {
-  constructor(canvasId) {
-    this.canvas = document.getElementById(canvasId);
+  constructor(canvasElem) {
+    this.canvas = document.getElementById(canvasElem);
     this.ctx = this.canvas.getContext("2d");
     this.dpi = window.devicePixelRatio || 1;
     this.graphs = [];
