@@ -32,11 +32,21 @@
         overflow: auto;
         white-space: pre;
       }
+
+      #anchor {
+        position: absolute;
+        top: 0;
+        right: 0;
+      }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
     <div id="info"></div>
+    <div id="anchor">
+      <a href="/">Homeへ</a><br>
+      <a href="/Blog/Fourier/">Fourier変換の説明へ</a>
+    </div>
     <script>
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
