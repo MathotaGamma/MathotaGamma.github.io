@@ -247,6 +247,7 @@
 
     .dropdown-content {
       border: 1px solid black;
+      padding: 2px;
     }
   </style>
 </head>
@@ -421,7 +422,8 @@
                &=& \sum_{n=1}^{\infty} \frac{2}{n\pi } (1-(-1)^n)\cos(n\pi t)
         \end{eqnarray*}
         $$
-        <p>この式から周波数が偶数のとき\((1-(-1)^n)=0\)なので、\(n=2m-1\)とすると</p>
+        <p>これが答えで十分だが、この式を見ると周波数が偶数のとき\((1-(-1)^n)=0\)なので奇数項だけを集める。</p>
+        <p>\(n=2m-1\)とすると</p>
         $$
         \begin{eqnarray*}
           f(t) &=& \sum_{m=1}^{\infty} \frac{2}{(2m-1)\pi}(1-(-1)^{2m-1})\cos\left((2m-1)\pi t\right)\\
