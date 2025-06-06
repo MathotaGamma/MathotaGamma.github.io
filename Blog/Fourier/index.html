@@ -248,7 +248,7 @@
 
   <article class="article">
     <p>難易度☆☆(低~中程度:三角関数についての基礎知識)</p>
-    <h1>Fourier変換大好き❤️</h1>
+    <h1>Fourier変換大好き❤</h1>
     <section id="intro">
       <p>皆さんこんにちは！Fourier変換楽しんでますか？</p>
       <p>もちろん、皆さんは毎日音をフーリエ変換して「うわ、この周波数の振幅デカいな」と感動していると思います。</p>
@@ -304,7 +304,9 @@
         これは、矩形波をフーリエ級数展開すると周波数が∞まで
         出てくるため、足し合わせる数を多くするほど正確になるからです。
       </p>
+      <tt><label id="showSliderNum" for="numSlider">015:</label></tt><input type="range" id="numSlider" min="0" max="100" step="1" value="20"><br>
       <canvas id="squareSum"></canvas>
+      
     </section>
     <section id="section2">
       <h2>フーリエ変換の種類</h2>
@@ -406,14 +408,15 @@
         <h3>FSE</h3>
         <p>周期をTとする。</p>
         <h4>実数表記</h4>
-          $$f(t) = \frac{a_0}{2} + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2n\pi t}{T}) + b_n \sin(\frac{2n\pi t}{T}) \right\}$$
+          $$f(t) = a_0 + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2 \pi nt}{T}) + b_n \sin(\frac{2 \pi nt}{T}) \right\}$$
         <p>ただし、</p>
-          $$a_n = \frac{2}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) \cos\left(\frac{2n\pi t}{T}\right) \, dt$$
-          $$b_n = \frac{2}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) \sin\left(\frac{2n\pi t}{T}\right) \, dt$$
+          $$a_0 = \frac{1}{T} \int_{0}^{T} f(t) \, dt$$
+          $$a_n = \frac{2}{T} \int_{0}^{T} f(t) \cos\left(\frac{2 \pi nt}{T}\right) \, dt$$
+          $$b_n = \frac{2}{T} \int_{0}^{T} f(t) \sin\left(\frac{2 \pi nt}{T}\right) \, dt$$
         <h4>複素数表記</h4>
           $$f(t) = \sum_{n=-\infty}^{\infty} c_n e^{\frac{2 \pi nt}{T} i}, \quad$$
         <p>ただし、</p>
-          $$c_n = \frac{1}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) e^{- \frac{2n\pi t}{T} i} \, dt$$
+          $$c_n = \frac{1}{T} \int_{0}^{T} f(t) e^{- \frac{2 \pi nt}{T} i} \, dt$$
       </div>
       <p>
         これ見てわかる人はフーリエ変換マニアですね。
@@ -489,50 +492,61 @@
   });
 
   window.addEventListener("DOMContentLoaded", () => {
-
-  const square = document.getElementById("square");
-
-  square.width = 300;
-
-  square.height = 300;
-
- 
-
-  try {
-    //console.log(CompVis.View)
+    const square = document.getElementById("square");
+    square.width = 300;
+    square.height = 100;
     const viewer = new CompVis.View(square);
-
-  // Canvasにグラフを描く
+    // Canvasにグラフを描く
+    viewer.addGraph((t) => {
+      if((t+150) % 30 <= 15) return -40;
+      return 40;
+    },-150,150, 1200,{autoScale: false});
+    viewer.renderAll
+    // 上にテキスト表示（px座標）
+    /*viewer.showText("矩形波", 100, 30, {
+      color: "#0f0",
+      size: 24,
+    });*/
     
-  viewer.addGraph((t) => {
-
-    if(t % 4*Math.PI < 2*Math.PI) return -100;
-
-    return 100;
-
-  },0,2*Math.PI, 300);
+    /*const square = document.getElementById("square");
+    square.width = 300;
+    square.height = 100;
+    const viewer = new CompVis.View(square);
+    // Canvasにグラフを描く
+    viewer.addGraph((t) => {
+      if((t+150) % 30 <= 15) return -40;
+      return 40;
+    },-150,150, 1200,"0ff",{autoScale: true});
+    viewer.renderAll()*/
     
-  CompVis.View.renderAll
-
-  // 上にテキスト表示（px座標）
-
-  /*viewer.showText("矩形波", 100, 30, {
-
-    color: "#0f0",
-
-    size: 24,
-
-  });*/
-
-  } catch (e) {
-
-    console.error("エラー:", e);
-
-  }
-
-  
-
-});
+    const squareSum = document.getElementById("squareSum");
+    const numSlider = document.getElementById("numSlider");
+    let sumCount = parseInt(numSlider.value);
+    
+    
+    
+    squareSum.width = 300;
+    squareSum.height = 300;
+    const viewerSum = new CompVis.View(squareSum);
+    // Canvasにグラフを描く
+    viewerSum.addGraph((t) => {
+      if((t+150) % 150 <= 75) return -100;
+      return 100;
+    },-150,150, 1200,{autoScale: false,color:"#000"});
+    const fseGraph = viewerSum.addGraph((t) => {
+      let returnNum = 0;
+      for(let k = 1; k < sumCount; k++){
+        returnNum += 200/(k*Math.PI)*((-1)**k-1)*Math.sin(k*Math.PI*t/75);
+      }
+      return returnNum;
+    },-150,150, 1200,{autoScale: false,color:"#f00"});
+    
+    numSlider.addEventListener('input',()=>{
+      sumCount = parseInt(numSlider.value);
+      document.getElementById("showSliderNum").innerText = numSlider.value.padStart(3,"0")+":";
+      viewerSum.update(fseGraph)
+    })
+  });
 
   /*const square = document.getElementById("square");
   square.width = 300;
