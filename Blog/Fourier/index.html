@@ -443,29 +443,29 @@
         <p>周期をTとする。</p>
         <h3>フーリエ級数展開（FSE）</h3>
         <h4>実数表記</h4>
-          $$f(t) = \frac{a_0}{2} + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2n\pi t}{T}) + b_n \sin(\frac{2n\pi t}{T}) \right\}$$
+          $$f(t) = \frac{a_0}{2} + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2n\pi}{T}t) + b_n \sin(\frac{2n\pi}{T}t) \right\}$$
         <p>ただし、</p>
-          $$a_n = \frac{2}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) \cos\left(\frac{2n\pi t}{T}\right) \, dt$$
-          $$b_n = \frac{2}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) \sin\left(\frac{2n\pi t}{T}\right) \, dt$$
+          $$a_n = \frac{2}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) \cos\left(\frac{2n\pi}{T}t\right) \, dt$$
+          $$b_n = \frac{2}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) \sin\left(\frac{2n\pi}{T}t\right) \, dt$$
         <h4>複素数表記</h4>
-          $$f(t) = \sum_{n=-\infty}^{\infty} c_n e^{\frac{2n\pi t}{T} i}, \quad$$
+          $$f(t) = \sum_{n=-\infty}^{\infty} c_n e^{i\frac{2n\pi}{T}t}, \quad$$
         <p>ただし、</p>
-          $$c_n = \frac{1}{T} \int_{-\frav{T}{2}}^{\frac{T}{2}} f(t) e^{- \frac{2n\pi t}{T} i} \, dt$$
-        
+          $$c_n = \frac{1}{T} \int_{-\frar{T}{2}}^{\frac{T}{2}} f(t) e^{-i\frac{2n\pi}{T} t} \, dt$$
+
         <h3>フーリエ変換（FT）</h3>
-          $$F(\omega) = \int_{-\infty}^{\infty} f(t)\, e^{-i\omega t} \, dt$$
+          $$F(\omega) = \int_{-\infty}^{\infty} f(t)\,e^{-i\omega t}\,dt$$
         <p>逆変換</p>
-          $$f(t) = \frac{1}{2\pi} \int_{-\infty}^{\infty} F(\omega)\, e^{i\omega t} \, d\omega$$
+          $$f(t) = \frac{1}{2\pi} \int_{-\infty}^{\infty} F(\omega)\,e^{i\omega t}\,d\omega$$
 
         <h3>離散フーリエ変換（DFT）</h3>
-          $$X[k] = \sum_{n=0}^{N-1} x[n]\, e^{-i\frac{2n\pi k}{N}}$$
+          $$X[k] = \sum_{n=0}^{N-1} x[n]\,e^{-i \frac{2\pi}{N}kn}$$
         <p>逆変換</p>
-          $$x[n] = \frac{1}{N} \sum_{k=0}^{N-1} X[k]\, e^{i\frac{2n\pi k}{N}}$$
+          $$x[n] = \frac{1}{N} \sum_{k=0}^{N-1} X[k]\,e^{i \frac{2\pi}{N}kn}$$
 
         <h3>離散時間フーリエ変換（DTFT）</h3>
-          $$X(\omega) = \sum_{n=-\infty}^{\infty} x[n]\, e^{-i\omega n}$$
+          $$X(\omega) = \sum_{n=-\infty}^{\infty} x[n]\,e^{-i\omega n}$$
         <p>逆変換</p>
-          $$x[n] = \frac{1}{2\pi} \int_{-\pi}^{\pi} X(\omega)\, e^{i\omega n} \, d\omega$$
+          $$x[n] = \frac{1}{2\pi} \int_{-\pi}^{\pi} X(\omega)\,e^{i\omega n}\,d\omega$$
       </div>
       <p>
         これ見て理解できる方はフーリエ変換マニアですね。
