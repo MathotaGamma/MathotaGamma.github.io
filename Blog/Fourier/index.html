@@ -579,24 +579,17 @@
     square2.width = 300;
     square2.height = 100;
     const ctx2 = square2.getContext("2d");
-    let value_ctx2 = 0;
     ctx2.beginPath();
     ctx2.strokeStyle = "black";
     ctx2.lineWidth = 2;
-
-    
-    let y2 = 90;  // 最初は下
-
-    ctx2.moveTo(value_ctx2, y2);
-
-    while (value_ctx2 < 300) {
-      ctx2.lineTo(value_ctx2 + 15, y2);
-      let nextY = (y2 === 90) ? 10 : 90;
-      ctx2.moveTo(value_ctx2 + 15, nextY);
-      y2 = nextY;
-      value_ctx2 += 15;
-    }
-
+    ctx2.moveTo(0, 90);
+    ctx2.lienTo(50,90);
+    ctx2.moveTo(50,10);
+    ctx2.lienTo(150,10);
+    ctx2.moveTo(150,90);
+    ctx2.lienTo(250,90);
+    ctx2.moveTo(250,10);
+    ctx2.lienTo(300,10);
     ctx2.stroke();
 
     /*const viewer2 = new CompVis.View(square2);
