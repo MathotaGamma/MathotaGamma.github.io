@@ -292,7 +292,8 @@ CompVis.View = class {
       offsetY = -minY;
     } else {
       xScale = yScale = 1;
-      offsetX = offsetY = 0;
+      offsetX = this.W/2;
+      offsetY = this.H/2;
     }
 
     const ctx = this.ctx;
@@ -309,7 +310,7 @@ CompVis.View = class {
 
     ctx.stroke();
 
-    if (showAxis && autoScale) {
+    if (showAxis) {
       this.drawAxis(minX, maxX, minY, maxY, xScale, yScale, offsetX, offsetY);
     }
   }
