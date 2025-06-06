@@ -4,9 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Fourier - 数学と物理の世界 : NeoTopazm</title>
-  <script type="text/javascript" async src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML"></script>
-  <script type="text/javascript" async src="https://mathotagamma.github.io/API/CompVisJS/CompVisJS.js"></script>
+  <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+  <script type="text/javascript" src="https://mathotagamma.github.io/API/CompVisJS/CompVisJS.js"></script>
   <style>
+    
     * {
       margin: 0;
       padding: 0;
@@ -303,7 +304,7 @@
         これは、矩形波をフーリエ級数展開すると周波数が∞まで
         出てくるため、足し合わせる数を多くするほど正確になるからです。
       </p>
-      <canvas id=squareSum"></canvas>
+      <canvas id="squareSum"></canvas>
     </section>
     <section id="section2">
       <h2>フーリエ変換の種類</h2>
@@ -488,14 +489,61 @@
     document.querySelector('.toc-wrapper').classList.toggle('active');
   });
 
+  window.addEventListener("DOMContentLoaded", () => {
 
   const square = document.getElementById("square");
+
   square.width = 300;
+
   square.height = 300;
-  const viewer = new CompVis.view(square);
+
+ 
+
+  try {
+    //console.log(CompVis.View)
+    const viewer = new CompVis.View(square);
 
   // Canvasにグラフを描く
+    
   viewer.addGraph((t) => {
+
+    if(t % 4*Math.PI < 2*Math.PI) return -100;
+
+    return 100;
+
+  },0,2*Math.PI, 300);
+    
+  CompVis.View.renderAll
+
+  // 上にテキスト表示（px座標）
+
+  /*viewer.showText("矩形波", 100, 30, {
+
+    color: "#0f0",
+
+    size: 24,
+
+  });*/
+
+  } catch (e) {
+
+    console.error("エラー:", e);
+
+  }
+
+  
+
+});
+
+  /*const square = document.getElementById("square");
+  square.width = 300;
+  square.height = 300;
+  console.log(new CompVis.View(square))
+  console.log("a")
+  const viewer = new CompVis.View(square);*/
+
+  // Canvasにグラフを描く
+  /*viewer.addGraph((t) => {
     if(t % 4*Math.PI < 2*Math.PI) return -100;
     return 100;
   }, 300);
@@ -504,7 +552,7 @@
   viewer.showText("矩形波", 100, 30, {
     color: "#0f0",
     size: 24,
-  });
+  });*/
 
   // 外部変数で動く例
   /*let x = 1;
