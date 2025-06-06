@@ -581,20 +581,31 @@
     const ctx2 = square2.getContext("2d");
     let value_ctx2 = 0;
     ctx2.beginPath();
-    ctx2.moveTo(0,260);
-    while(value_ctx2 < 300){
-      if(value_ctx2 % 30 <= 15){
-        ctx2.lineTo(value_ctx2+15,260);
-        ctx2.moveTo(value_ctx2+15,40);
-      } else {
-        ctx2.lineTo(value_ctx2+15,40);
-        ctx2.moveTo(value_ctx2+15,260);
-      }
-      value_ctx2 += 15;
-    }
     ctx2.strokeStyle = "black";
     ctx2.lineWidth = 2;
+
+    let value_ctx2 = 0;
+    let y = 260;  // 最初は下
+
+    ctx2.moveTo(value_ctx2, y);
+
+    while (value_ctx2 < 300) {
+      // 横方向の線を引く
+      ctx2.lineTo(value_ctx2 + 15, y);
+
+      // 次の状態（上下切り替え）
+      let nextY = (y === 260) ? 40 : 260;
+
+      // ペンを上げて上下の高さに移動（線は引かない）
+      ctx2.moveTo(value_ctx2 + 15, nextY);
+
+      // 次のループでこの高さから水平線を引くので y を更新
+      y = nextY;
+      value_ctx2 += 15;
+    }
+
     ctx2.stroke();
+
     /*const viewer2 = new CompVis.View(square2);
     // Canvasにグラフを描く
     viewer2.addGraph((t) => {
