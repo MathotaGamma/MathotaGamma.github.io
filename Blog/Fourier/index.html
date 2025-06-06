@@ -430,7 +430,7 @@
       <h2>実際の式</h2>
       <p>
         あまり数学が得意じゃないという方は
-        <a href="#section4" class="toc">ここまで読み飛ばしてもらって</a>
+        <a href="#section4" class="anchor">ここまで読み飛ばしてもらって</a>
         構いません！
       </p>
       <p>
@@ -575,16 +575,30 @@
     },-150,150, 1200,{autoScale: false});
     viewer.renderAll
 
-    const square2 = document.getElementById("square");
+    const square2 = document.getElementById("square2");
     square2.width = 300;
     square2.height = 100;
-    const viewer2 = new CompVis.View(square2);
+    const ctx2 = square2.getContext("2d");
+    let value_ctx2 = 0;
+    ctx2.beginPath();
+    ctx2.moveTo(0,260);
+    while(value_ctx2 < 300){
+      if(value_ctx2 % 30 <= 15){
+        ctx2.lineTo(value_ctx2+15,260);
+        ctx2.moveTo(value_ctx2+15,40);
+      } else {
+        ctx2.lineTo(value_ctx2+15,40);
+        ctx2.moveTo(value_ctx2+15,260);
+      }
+      value_ctx2 += 15;
+    }
+    /*const viewer2 = new CompVis.View(square2);
     // Canvasにグラフを描く
     viewer2.addGraph((t) => {
       if((t+150) % 30 <= 15) return -40;
       return 40;
     },-150,150, 1200,{autoScale: false});
-    viewer2.renderAll
+    viewer2.renderAll*/
     
     
     const squareSum = document.getElementById("squareSum");
