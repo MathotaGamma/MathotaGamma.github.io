@@ -341,11 +341,31 @@
         このギブス現象が起こるのは不連続となる部分です。
       </p>
       <p>
-        そしてもう一つ、0と1,2と3,4と5のように偶数とそれに+1したところが同じになっているのに気づきましたか？
+        そしてもう一つ、スライドの値を0と1、2と3、4と5のように偶数とそれに+1したグラフが同じになっているのに気づきましたか？
       </p>
       <p>
-        これは矩形波をフーリエ級数展開すると奇数の周波数(1Hz,3Hz,...)の大きさが0となっているためです。他にも似たようなものがあるので探してみてください。
+        これは矩形波をフーリエ級数展開すると奇数の周波数(1Hz,3Hz,...)の大きさが0となっているためです。
       </p>
+      <p>
+        そして、このグラフはsinθのみで表されています。これは下側の線と上側の線が同じ長さで、原点(今回は不連続な部分の中間とする)に対して点対称(=奇関数)であることからこのような結果になります。
+      </p>
+      <button class="dropdown-toggle">フーリエ級数展開の計算</button>
+      <div class="dropdown-content" style="display:none;">
+        $$f(t)=\begin{cases}-1 &(-1\le t \lt0)\\1 &(0 \le t \lt 1)\end{cases}$$
+        <p>とする。周期2より</p>
+        $$
+        \begin{eqnarray*}
+          a_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
+              &=& -\int_{-1}^0\cos (n\pi t)\,dt+\int_0^1\cos (n\pi t)\,dt\\
+        \end{eqnarray*}
+        §§
+        <p>ここで、\(\cos(n\pi \cdot(-t)) = \cos(-n\pi t) = \cos(n\pi t)\)より(偶関数なので)</p>
+        $$\int_{-1}^0\cos (n\pi t)\,dt=\int_0^1\cos (n\pi t)\,dt$$
+        <p>よって</p>
+        $$a_n = -\int_0^1\cos (n\pi t)\,dt+\int_0^1\cos (n\pi t)\,dt = 0$$
+
+
+      </div>
     </section>
     <section id="section2">
       <h2>Fourier変換の種類</h2>
@@ -577,6 +597,19 @@
   // スマホ用目次トグル
   document.querySelector('.toc-toggle').addEventListener('click', () => {
     document.querySelector('.toc-wrapper').classList.toggle('active');
+  });
+
+  
+  //ドロップダウン
+  const toggleBtn = document.querySelector('.dropdown-toggle');
+  const content = document.querySelector('.dropdown-content');
+
+  toggleBtn.addEventListener('click', () => {
+    if (content.style.display === 'none' || content.style.display === '') {
+      content.style.display = 'block';
+    } else {
+      content.style.display = 'none';
+    }
   });
 
   window.addEventListener("DOMContentLoaded", () => {
