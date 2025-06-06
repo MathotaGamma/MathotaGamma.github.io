@@ -237,7 +237,7 @@ CompVis.View = class {
       β,
       span,
       color,
-      autoScale: options.autoScale !== undefined ? options.autoScale : true,
+      autoScale: options.autoScale !== undefined ? options.autoScale : false,
       showAxis: options.showAxis !== undefined ? options.showAxis : false,
     };
     this.graphs.push(graph);
