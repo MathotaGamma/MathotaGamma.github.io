@@ -207,28 +207,41 @@ class CompVis {
   }
 }
 
+
 CompVis.View = class {
   constructor(canvasElem) {
     this.canvas = canvasElem;
     this.ctx = this.canvas.getContext("2d");
     this.dpi = window.devicePixelRatio || 1;
     this.graphs = [];
+    this.autoScale = true;
+    this.showAxis = false;
     this.resize();
+    window.addEventListener("resize", () => this.resize());
+  }
+
+  setOptions(options = {}) {
+    if ("autoScale" in options) this.autoScale = options.autoScale;
+    if ("showAxis" in options) this.showAxis = options.showAxis;
   }
 
   resize() {
-    this.canvas.width = this.canvas.clientWidth * this.dpi;
-    this.canvas.height = this.canvas.clientHeight * this.dpi;
+    const rect = this.canvas.getBoundingClientRect();
+    this.canvas.width = rect.width * this.dpi;
+    this.canvas.height = rect.height * this.dpi;
+    this.canvas.style.width = rect.width + "px";
+    this.canvas.style.height = rect.height + "px";
     this.ctx.setTransform(this.dpi, 0, 0, this.dpi, 0, 0);
-    this.W = this.canvas.width;
-    this.H = this.canvas.height;
+    this.W = this.canvas.width / this.dpi;
+    this.H = this.canvas.height / this.dpi;
+    this.renderAll();
   }
 
   addGraph(f, α, β, span, color = "#0ff") {
     const graph = { f, α, β, span, color };
     this.graphs.push(graph);
     this.renderGraph(graph);
-    return graph; // graph object を返す
+    return graph;
   }
 
   renderAll() {
@@ -239,7 +252,7 @@ CompVis.View = class {
   }
 
   update(graph) {
-    this.renderAll(); // 背景も一緒に更新（重ね順保証）
+    this.renderAll();
   }
 
   renderGraph(graph) {
@@ -254,7 +267,6 @@ CompVis.View = class {
       } catch {
         continue;
       }
-
       if (Array.isArray(res) && res.length >= 2) {
         points.push({ x: res[0], y: res[1] });
       } else if (typeof res === "number") {
@@ -271,10 +283,16 @@ CompVis.View = class {
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
 
-    const xScale = this.W / ((maxX - minX) || 1);
-    const yScale = this.H / ((maxY - minY) || 1);
-    const offsetX = -minX;
-    const offsetY = -minY;
+    let xScale, yScale, offsetX, offsetY;
+    if (this.autoScale) {
+      xScale = this.W / ((maxX - minX) || 1);
+      yScale = this.H / ((maxY - minY) || 1);
+      offsetX = -minX;
+      offsetY = -minY;
+    } else {
+      xScale = yScale = 1;
+      offsetX = offsetY = 0;
+    }
 
     const ctx = this.ctx;
     ctx.beginPath();
@@ -289,20 +307,47 @@ CompVis.View = class {
     }
 
     ctx.stroke();
+
+    if (this.showAxis && this.autoScale) {
+      this.drawAxis(minX, maxX, minY, maxY, xScale, yScale, offsetX, offsetY);
+    }
   }
+
+  drawAxis(minX, maxX, minY, maxY, xScale, yScale, offsetX, offsetY) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = "#888";
+    ctx.lineWidth = 1;
+
+    if (minY < 0 && maxY > 0) {
+      const y0 = this.H - (0 + offsetY) * yScale;
+      ctx.moveTo(0, y0);
+      ctx.lineTo(this.W, y0);
+    }
+
+    if (minX < 0 && maxX > 0) {
+      const x0 = (0 + offsetX) * xScale;
+      ctx.moveTo(x0, 0);
+      ctx.lineTo(x0, this.H);
+    }
+
+    ctx.stroke();
+    ctx.restore();
+  }
+
   drawText(text, x, y, options = {}) {
     const ctx = this.ctx;
     ctx.save();
-
     ctx.fillStyle = options.color || "#fff";
     ctx.font = `${options.size || 16}px sans-serif`;
     ctx.textAlign = options.align || "left";
     ctx.textBaseline = options.baseline || "top";
-
     ctx.fillText(text, x, y);
     ctx.restore();
   }
 }
+
 
 CompVis.Matrix = class {
   constructor (A = [[0]]){
