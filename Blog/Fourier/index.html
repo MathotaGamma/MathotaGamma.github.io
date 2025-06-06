@@ -389,8 +389,29 @@
         $$\int_{-1}^0\cos (n\pi t)\,dt=\int_0^1\cos (n\pi t)\,dt$$
         <p>よって</p>
         $$a_n = -\int_0^1\cos (n\pi t)\,dt+\int_0^1\cos (n\pi t)\,dt = 0$$
-
-
+        <p>次に\(b_n\)を求める。</p>
+        $$
+        \begin{eqnarray*}
+          a_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
+              &=& -\int_{-1}^0\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt
+        \end{eqnarray*}
+        $$
+        <p>\(\sin(n\pi \cdot(-t)) = \sin(-n\pi t) = -\sin(n\pi t)\)より(奇関数なので)</p>
+        $$-\int_{-1}^0\sin (n\pi t)\,dt = \int_0^1\sin (n\pi t)\,dt$$
+        <p>よって</p>
+        $$
+        \begin{eqnarray*}
+          a_n &=& \int_0^1\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt\\
+              &=& 2\int_0^1\sin (n\pi t)\,dt\\
+              &=& 2\left[-\frac{1}{n\pi}\cos (n\pi t)\right]_0^1\\
+              &=& -\frac{2}{n\pi }(\cos (n\pi ) - \cos 0)
+              &=& \frac{2}{n\pi }(1-\cos (n\pi ))
+        \end{eqnarray*}
+        $$
+        <p>である。</p>
+        $$\cos (n\pi ) = \begin{cases}1 &(nが偶数) \\ -1 &(nが奇数)\end{cases}\\ = (-1)^n$$
+        <p>より</p>
+        $$a_n = \frac{2}{n\pi } (1-(-1)^n)$$
       </div>
     </section>
     <section id="section2">
