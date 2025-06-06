@@ -488,6 +488,36 @@
   });
 
 
+  const square = document.getElementById("square");
+  square.width = 300;
+  square.height = 300;
+  const viewer = new CompVis.view(square);
+
+  // Canvasにグラフを描く
+  viewer.addGraph((t) => {
+    if(t % 4*Math.PI < 2*Math.PI) return -100;
+    return 100;
+  }, 300);
+
+  // 上にテキスト表示（px座標）
+  viewer.showText("矩形波", 100, 30, {
+    color: "#0f0",
+    size: 24,
+  });
+
+  // 外部変数で動く例
+  /*let x = 1;
+  const graph = viewer.addGraph(t => Math.sin(x * t), 0, 2 * Math.PI, 300);
+  viewer.showText("x = " + x, 30, 70, { id: "label-x" });
+
+  setTimeout(() => {
+    x = 2;
+    viewer.update(graph);
+    viewer.showText("x = " + x, 30, 70, { id: "label-x" }); // 上書き更新
+  }, 1000);*/
+
+
+
   const canvasCircle = document.getElementById("circle");
   canvasCircle.width = 300;
   canvasCircle.height = 300;
