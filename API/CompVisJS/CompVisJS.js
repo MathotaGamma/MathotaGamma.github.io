@@ -229,14 +229,14 @@ CompVis.View = class {
     this.renderAll();
   }
 
-  addGraph(f, α, β, span, color = "#0ff", options = {}) {
+  addGraph(f, α, β, span, options = {}) {
     // optionsにautoScale, showAxisを含める
     const graph = {
       f,
       α,
       β,
       span,
-      color,
+      color : options.color !== undefined ? options.color : "0ff",
       autoScale: options.autoScale !== undefined ? options.autoScale : false,
       showAxis: options.showAxis !== undefined ? options.showAxis : false,
     };
