@@ -585,13 +585,13 @@
     ctx2.lineWidth = 2;
 
     
-    let y2 = 260;  // 最初は下
+    let y2 = 90;  // 最初は下
 
     ctx2.moveTo(value_ctx2, y2);
 
     while (value_ctx2 < 300) {
       ctx2.lineTo(value_ctx2 + 15, y2);
-      let nextY = (y2 === 260) ? 40 : 260;
+      let nextY = (y2 === 90) ? 10 : 90;
       ctx2.moveTo(value_ctx2 + 15, nextY);
       y2 = nextY;
       value_ctx2 += 15;
