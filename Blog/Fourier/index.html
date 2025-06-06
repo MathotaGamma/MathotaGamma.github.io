@@ -499,7 +499,7 @@
       </p>
       <canvas id="Epi" style="border: 1px solid black;"></canvas>
       <p>
-        フーリエ変換の雰囲気を理解できましたか？このデモでは二次元(陰関数)に対してフーリエ変換をしましたが、y=f(x)と表される関数(陽関数)に対してフーリエ変換を行うとsinとcosでf(x)を表せます。
+        フーリエ変換の雰囲気を理解できましたか？このデモでは円を用いてフーリエ変換の結果を視覚化しました。さらに、y=f(x)と表される関数(陽関数)に対してフーリエ変換を行うことで、sinとcosでf(x)を表すこともできます。
       </p>
       <p>
         この結果はとても有用です。その理由は、声などの<b>全ての</b>音は色々な周波数のsin波(cos波)が混ざったものであり、音に対してフーリエ変換を適用するとその音を構成する周波数やその大きさを得ることができます。
@@ -580,7 +580,7 @@
     square2.height = 100;
     const ctx2 = square2.getContext("2d");
     ctx2.beginPath();
-    ctx2.strokeStyle = "black";
+    ctx2.strokeStyle = "red";
     ctx2.lineWidth = 2;
     ctx2.moveTo(0, 90);
     ctx2.lineTo(50,90);
