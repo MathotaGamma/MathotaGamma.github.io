@@ -431,17 +431,17 @@
         $$
         \begin{eqnarray*}
           f(t) &=& a_0 + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2n\pi}{2}t) + b_n \sin(\frac{2n\pi}{2}t) \right\}\\
-               &=& 0 + \sum_{n=1}^{\infty} \left(0\cdot \cos(n\pi t) + \frac{2}{n\pi } (1-(-1)^n)\cdot \cos(n\pi t)\right)\\
-               &=& \sum_{n=1}^{\infty} \frac{2}{n\pi } (1-(-1)^n)\cos(n\pi t)
+               &=& 0 + \sum_{n=1}^{\infty} \left(0\cdot \cos(n\pi t) + \frac{2}{n\pi } (1-(-1)^n)\cdot \sin(n\pi t)\right)\\
+               &=& \sum_{n=1}^{\infty} \frac{2}{n\pi } (1-(-1)^n)\sin(n\pi t)
         \end{eqnarray*}
         $$
         <p>これが答えで十分だが、この式を見ると周波数が偶数のとき\((1-(-1)^n)=0\)なので奇数項だけを集める。</p>
         <p>\(n=2m-1\)とすると</p>
         $$
         \begin{eqnarray*}
-          f(t) &=& \sum_{m=1}^{\infty} \frac{2}{(2m-1)\pi}(1-(-1)^{2m-1})\cos\left((2m-1)\pi t\right)\\
-               &=& \frac{2}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}(1+1)\cos\left((2m-1)\pi t\right)\\
-               &=& \frac{4}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}\cos\left((2m-1)\pi t\right)
+          f(t) &=& \sum_{m=1}^{\infty} \frac{2}{(2m-1)\pi}(1-(-1)^{2m-1})\sin\left((2m-1)\pi t\right)\\
+               &=& \frac{2}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}(1+1)\sin\left((2m-1)\pi t\right)\\
+               &=& \frac{4}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}\sin\left((2m-1)\pi t\right)
         \end{eqnarray*}
         $$
       </div>
