@@ -206,22 +206,22 @@
             唐突ですがここでクイズです。すれ違った人に、「ゼータを書いてください」と言ったら\(\zeta\)のようにゼータの小文字を書いてくれると思いますが、
           </p>
           <p>
-            大文字は次のうちどちらでしょうか？(クリックすると正誤が出ます)
+            大文字は次のうちどちらでしょうか？
           </p>
           <ul>
-            <li>&#x005A</li>
-            <li>&#x0396</li>
+            <li><button onclick="zetaQuiz(1)">&#x005A</button></li>
+            <li><button onclick="zetaQuiz(2)">&#x0396</button></li>
           </ul>
-          
+          <p></p>
         </section>
 
         <!-- 他のセクションや toggle-content をここに追加 -->
         <!-- 例： -->
         <button class="dropdown-toggle">▼ 詳細を見る</button>
-        <div class="dropdown-content">
+        <!--<div class="dropdown-content">
           <p>ここに数式や説明などを記述できます。</p>
           $$ \zeta(s) = \sum_{n=1}^{\infty} \frac{1}{n^s} $$
-        </div>
+        </div>-->
       </article>
 
       <aside class="sidebar">
@@ -259,6 +259,23 @@
           }
         });
       });
+
+      let ansCount = 0;
+
+      function zetaQuiz(ans){
+        if(ans == 1){
+          alert('不正解──ゼータの神は遠くで沈黙を保っている。');
+          ansCount = 1;
+        } else {
+          if(ansCount == 0){
+            alert('正解です！ゼータの神は告げる──「その答え、しかと受け取った」');
+
+          } else {
+           alert('正解です が、ゼータの神は静かにこう告げました──「最初の判断を誤った者に、完全な理解はまだ早い」');
+          }
+        }
+      }
+      
     </script>
   </body>
 </html>
