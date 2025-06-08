@@ -27,11 +27,18 @@
       -webkit-user-select: none;
     }
 
-    mjx-container[jax="CHTML"][display="true"] {
+    mjx-container[display="true"] {
       display: block;
       overflow-x: auto;
+      overflow-y: hidden;
       white-space: nowrap;
       max-width: 100%;
+      padding: 4px 0;
+    }
+
+    /* 内部要素にも必要 */
+    mjx-container[display="true"] > mjx-math {
+      min-width: fit-content;
     }
     
     body {
