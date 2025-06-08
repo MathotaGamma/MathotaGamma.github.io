@@ -26,25 +26,21 @@
       -webkit-touch-callout: none;
       -webkit-user-select: none;
     }
-
-    mjx-container[display="true"] {
-      display: block;
-      overflow-x: auto;
-      overflow-y: hidden;
-      white-space: nowrap;
-      max-width: 100%;
-      padding: 4px 0;
-    }
-
-    /* 内部要素にも必要 */
-    mjx-container[display="true"] > mjx-math {
-      min-width: fit-content;
-    }
     
     body {
       display: flex;
       flex-direction: column;
       min-height: 100vh;
+    }
+    
+    mjx-container[display="true"] {
+      display: block;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    mjx-container[display="true"] > svg {
+      min-width: max-content;
     }
 
     header {
@@ -707,6 +703,11 @@
       content.style.display = 'none';
     }
   });
+
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+    svg: { fontCache: 'global' }
+  };
 
   window.addEventListener("DOMContentLoaded", () => {
     const square = document.getElementById("square");
