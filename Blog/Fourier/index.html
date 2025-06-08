@@ -26,6 +26,14 @@
       -webkit-touch-callout: none;
       -webkit-user-select: none;
     }
+
+    mjx-container[jax="CHTML"][display="true"] {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    
     body {
       display: flex;
       flex-direction: column;
@@ -384,67 +392,6 @@
       <p>
         そして、このグラフはsinθのみで表されています。これは下側の線と上側の線が同じ長さで、原点(今回は不連続な部分の中間とする)に対して点対称(=奇関数)であることからこのような結果になります。
       </p>
-      <button class="dropdown-toggle">矩形波のフーリエ級数展開の計算</button>
-      <div class="dropdown-content" style="display:none;">
-        $$f(t)=\begin{cases}-1 &(-1\le t \lt0)\\1 &(0 \le t \lt 1)\end{cases}$$
-        <p>とする。周期は2。不連続な点で積分を分ける。</p>
-        <p>\(a_n\)を求める。
-        $$
-        \begin{eqnarray*}
-          a_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
-              &=& -\int_{-1}^0\cos (n\pi t)\,dt+\int_0^1\cos (n\pi t)\,dt\\
-        \end{eqnarray*}
-        $$
-        <p>ここで、\(\cos(n\pi \cdot(-t)) = \cos(-n\pi t) = \cos(n\pi t)\)より(偶関数なので)</p>
-        $$\int_{-1}^0\cos (n\pi t)\,dt=\int_0^1\cos (n\pi t)\,dt$$
-        <p>よって</p>
-        $$a_n = -\int_0^1\cos (n\pi t)\,dt+\int_0^1\cos (n\pi t)\,dt = 0$$
-        <p>次に\(b_n\)を求める。</p>
-        $$
-        \begin{eqnarray*}
-          b_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
-              &=& -\int_{-1}^0\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt
-        \end{eqnarray*}
-        $$
-        <p>\(\sin(n\pi \cdot(-t)) = \sin(-n\pi t) = -\sin(n\pi t)\)より(奇関数なので)</p>
-        $$-\int_{-1}^0\sin (n\pi t)\,dt = \int_0^1\sin (n\pi t)\,dt$$
-        <p>よって</p>
-        $$
-        \begin{eqnarray*}
-          b_n &=& \int_0^1\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt\\
-              &=& 2\int_0^1\sin (n\pi t)\,dt\\
-              &=& 2\left[-\frac{1}{n\pi}\cos (n\pi t)\right]_0^1\\
-              &=& -\frac{2}{n\pi }(\cos (n\pi ) - \cos 0)\\
-              &=& \frac{2}{n\pi }(1-\cos (n\pi ))
-        \end{eqnarray*}
-        $$
-        <p>である。また、</p>
-        $$
-        \begin{eqnarray*}
-          \cos (n\pi ) &=& \begin{cases}1 &(nが偶数) \\ -1 &(nが奇数)\end{cases} \\
-                       &=& (-1)^n
-        \end{eqnarray*}
-        $$
-        <p>より</p>
-        $$b_n = \frac{2}{n\pi } (1-(-1)^n)$$
-        <p>以上より、</p>
-        $$
-        \begin{eqnarray*}
-          f(t) &=& a_0 + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2n\pi}{2}t) + b_n \sin(\frac{2n\pi}{2}t) \right\}\\
-               &=& 0 + \sum_{n=1}^{\infty} \left(0\cdot \cos(n\pi t) + \frac{2}{n\pi } (1-(-1)^n)\cdot \sin(n\pi t)\right)\\
-               &=& \sum_{n=1}^{\infty} \frac{2}{n\pi } (1-(-1)^n)\sin(n\pi t)
-        \end{eqnarray*}
-        $$
-        <p>これが答えで十分だが、この式を見ると周波数が偶数のとき\((1-(-1)^n)=0\)なので奇数項だけを集める。</p>
-        <p>\(n=2m-1\)とすると</p>
-        $$
-        \begin{eqnarray*}
-          f(t) &=& \sum_{m=1}^{\infty} \frac{2}{(2m-1)\pi}(1-(-1)^{2m-1})\sin\left((2m-1)\pi t\right)\\
-               &=& \frac{2}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}(1+1)\sin\left((2m-1)\pi t\right)\\
-               &=& \frac{4}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}\sin\left((2m-1)\pi t\right)
-        \end{eqnarray*}
-        $$
-      </div>
     </section>
     <section id="section2">
       <h2>Fourier変換の種類</h2>
@@ -587,6 +534,68 @@
       <p>
         導出などは追々作る<span style="color: red;">予定</span>です。
       </p>
+      <p>例として、矩形波のフーリエ変換(フーリエ級数展開)は以下のようになります。</p>
+      <button class="dropdown-toggle">▼矩形波のフーリエ級数展開の計算▼</button>
+      <div class="dropdown-content" style="display:none;">
+        $$f(t)=\begin{cases}-1 &(-1\le t \lt0)\\1 &(0 \le t \lt 1)\end{cases}$$
+        <p>とする。周期は2。不連続な点で積分を分ける。</p>
+        <p>\(a_n\)を求める。
+        $$
+        \begin{eqnarray*}
+          a_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
+              &=& -\int_{-1}^0\cos (n\pi t)\,dt+\int_0^1\cos (n\pi t)\,dt\\
+        \end{eqnarray*}
+        $$
+        <p>ここで、\(\cos(n\pi \cdot(-t)) = \cos(-n\pi t) = \cos(n\pi t)\)より(偶関数なので)</p>
+        $$\int_{-1}^0\cos (n\pi t)\,dt=\int_0^1\cos (n\pi t)\,dt$$
+        <p>よって</p>
+        $$a_n = -\int_0^1\cos (n\pi t)\,dt+\int_0^1\cos (n\pi t)\,dt = 0$$
+        <p>次に\(b_n\)を求める。</p>
+        $$
+        \begin{eqnarray*}
+          b_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
+              &=& -\int_{-1}^0\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt
+        \end{eqnarray*}
+        $$
+        <p>\(\sin(n\pi \cdot(-t)) = \sin(-n\pi t) = -\sin(n\pi t)\)より(奇関数なので)</p>
+        $$-\int_{-1}^0\sin (n\pi t)\,dt = \int_0^1\sin (n\pi t)\,dt$$
+        <p>よって</p>
+        $$
+        \begin{eqnarray*}
+          b_n &=& \int_0^1\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt\\
+              &=& 2\int_0^1\sin (n\pi t)\,dt\\
+              &=& 2\left[-\frac{1}{n\pi}\cos (n\pi t)\right]_0^1\\
+              &=& -\frac{2}{n\pi }(\cos (n\pi ) - \cos 0)\\
+              &=& \frac{2}{n\pi }(1-\cos (n\pi ))
+        \end{eqnarray*}
+        $$
+        <p>である。また、</p>
+        $$
+        \begin{eqnarray*}
+          \cos (n\pi ) &=& \begin{cases}1 &(nが偶数) \\ -1 &(nが奇数)\end{cases} \\
+                       &=& (-1)^n
+        \end{eqnarray*}
+        $$
+        <p>より</p>
+        $$b_n = \frac{2}{n\pi } (1-(-1)^n)$$
+        <p>以上より、</p>
+        $$
+        \begin{eqnarray*}
+          f(t) &=& a_0 + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2n\pi}{2}t) + b_n \sin(\frac{2n\pi}{2}t) \right\}\\
+               &=& 0 + \sum_{n=1}^{\infty} \left(0\cdot \cos(n\pi t) + \frac{2}{n\pi } (1-(-1)^n)\cdot \sin(n\pi t)\right)\\
+               &=& \sum_{n=1}^{\infty} \frac{2}{n\pi } (1-(-1)^n)\sin(n\pi t)
+        \end{eqnarray*}
+        $$
+        <p>これが答えで十分だが、この式を見ると周波数が偶数のとき\((1-(-1)^n)=0\)なので奇数項だけを集める。</p>
+        <p>\(n=2m-1\)とすると</p>
+        $$
+        \begin{eqnarray*}
+          f(t) &=& \sum_{m=1}^{\infty} \frac{2}{(2m-1)\pi}(1-(-1)^{2m-1})\sin\left((2m-1)\pi t\right)\\
+               &=& \frac{2}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}(1+1)\sin\left((2m-1)\pi t\right)\\
+               &=& \frac{4}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}\sin\left((2m-1)\pi t\right)
+        \end{eqnarray*}
+        $$
+      </div>
     </section>
     <section id="section4">
       <h2>体感する</h2>
