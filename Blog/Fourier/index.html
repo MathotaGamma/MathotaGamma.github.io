@@ -33,13 +33,9 @@
       min-height: 100vh;
     }
     
-    mjx-container {
-    	overflow-x: auto;
-    	overflow-y: hidden;
-	    max-width: 100%;
-    	padding:0.1rem 0.2rem;
+    .equation {
+      overflow-x: auto;
     }
-
 
     header {
       position: sticky;
@@ -501,7 +497,7 @@
         「式を眺めて」みましょう。
       </p>
       
-      <div class="block">
+      <div class="block　equation">
         <p>周期をTとする。</p>
         <h3>フーリエ級数展開（FSE）</h3>
         <h4>実数表記</h4>
@@ -537,7 +533,7 @@
       </p>
       <p>例として、矩形波のフーリエ変換(フーリエ級数展開)は以下のようになります。</p>
       <button class="dropdown-toggle">▼矩形波のフーリエ級数展開の計算▼</button>
-      <div class="dropdown-content" style="display:none;">
+      <div class="dropdown-content equation" style="display:none;">
         $$f(t)=\begin{cases}-1 &(-1\le t \lt0)\\1 &(0 \le t \lt 1)\end{cases}$$
         <p>とする。周期は2。不連続な点で積分を分ける。</p>
         <p>\(a_n\)を求める。
