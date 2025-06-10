@@ -442,10 +442,10 @@
   5: 'ka',
   6: 'spare'
 };
-
+let errorAlertTf = true;
 async function pollTaTaCon() {
   try {
-    const res = await fetch("http://IP/state"); // IPアドレスに変更可
+    const res = await fetch("http://"+IP+"/state"); // IPアドレスに変更可
     const json = await res.json();
 
     json.forEach(event => {
@@ -464,7 +464,10 @@ async function pollTaTaCon() {
       }
     });
   } catch (e) {
-    alert("TaTaCon通信エラー:"+String(e));
+    if(errorAlertTf) {
+      alert("TaTaCon通信エラー:"+String(e));
+      errorAlertTf = false;
+    }
   }
 }
 
