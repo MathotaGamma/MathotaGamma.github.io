@@ -432,6 +432,55 @@
         }
         
       }
+
+      const pinToKind = {
+  2: 'don',
+  3: 'don',
+  4: 'ka',
+  5: 'ka',
+  6: 'spare'
+};
+
+async function pollTaTaCon() {
+  try {
+    const res = await fetch("http://arduino.local/state"); // IPアドレスに変更可
+    const json = await res.json();
+
+    json.forEach(event => {
+      const pin = event.pin;
+      const kind = pinToKind[pin];
+      const time = event.time;
+      alert(pin)
+      alert(kind)
+      // 判定処理またはログ表示
+      console.log(`[${kind}] hit at pin ${pin} / time ${time}`);
+
+      if (kind === 'don') {
+        onDon();
+      } else if (kind === 'ka') {
+        onKa();
+      }
+    });
+  } catch (e) {
+    console.warn("TaTaCon通信エラー:", e);
+  }
+}
+
+// 任意の描画・判定処理
+function onDon() {
+  console.log("ドン入力反応");
+  // 判定・エフェクトなど追加
+  alert("don")
+}
+
+function onKa() {
+  console.log("カッ入力反応");
+  // 判定・エフェクトなど追加
+  alert("ka")
+}
+
+// 定期ポーリング開始
+setInterval(pollTaTaCon, 30);
       
       
       
