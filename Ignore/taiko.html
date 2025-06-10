@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>太鼓</title>
+    <style>
+      body, html {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        overflow: hidden;
+        touch-action: none;
+      }
+      
+      #canvas {
+        position: absolute;
+        top: 50px;
+        left: 0px;
+        z-index: 499;
+      }
+      
+      header {
+        top: 0px;
+        left: 0px;
+        height: 50px;
+        width: 100vw;
+        background: black;
+      }
+      
+      header > button {
+        width: auto;
+        max-width: 100px;
+        color: black;
+        background: white;
+        height: 40px;
+        margin: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <button onclick="start();">Start</button>
+      <div id="timeView">Time:</div>
+    </header>
+    <canvas id="canvas"></canvas>
+    <script>
+      const timeView = document.getElementById("timeView");
+      const canvas = document.getElementById('canvas');
+      const w = innerWidth;
+      const h = innerHeight;
+      canvas.width = w;
+      canvas.height = h;
+      let ctx = canvas.getContext('2d');
+      
+      const laneWidth = 948; //レーンの長さ(px)。highSpeedが1かつbeatが4/4や8/8でレーンの長さと小節線の長さが等しくなる。。
+      const laneHeight = 75; //レーンの高さ(px)。
+      const frameWidth = 2; //レーンの周りにある枠線の幅(px)
+      const margin = 100; //レーンの上の余白
+      const judgePos = 60; //判定円の位置(レーンの左端から判定円の(大円の)左端)。
+      const circleSize = [0.65,0.85]; //小円と大円のサイズ(lineHeightに対する倍率)。サイズは判定円のサイズと一致させる(二重の縁)。
+      
+      
+      const dataSet = [
+        [ //mode:0 ユーザーの譜面
+          
+        ],
+        [ //mode:1 
+          {
+            initData: { //始まる前の情報と曲の情報。それぞれの意味は const data に書いてある。
+              bpm: 150,
+              beat: [3,4],
+              margin: [2,3],
+              offSet: 0,
+              highSpeed: 1
+            },
+            data:
+              [
+                '111111', //0小節目
+                '22222222', //1小節目
+                '1111111111111111', //2小節目
+                '2222222222222222', //3小節目
+                '1111111111111111',
+                '1111111111111111',
+                '1022102011201120',
+                '1022201020101000',
+                '1022102210101022',
+                '1000000110001000',
+                '1000100010001000',
+                '',
+              ],
+            supplement: { //追加情報
+              //例。
+              //小節は、譜面開始は0、その前は-1
+              2: {beat:[4,4],},
+              5: {noLine:undefined,},
+              7: {highSpeed:2},
+              9: {bpm: 300,},
+              
+              
+              //6: {noLine:undefined,},
+              //種類は、noLine:なんでも,highSpeed,bpm,beat
+            }
+          }
+        ]
+      ]
+      
+      //譜面の位置(今どこをやるか等)は経過時間で
+      
+      let data = { //初期のデータにセットする
+        sheet: {}, //譜面。書き方はcalcSheet関数内の上部に
+        bpm: 270, //BPM
+        beat: [3,4], //拍。[a,b]でa/b拍子
+        margin: [2,3], //始まりと終わった後の余白の秒数※offSetがある場合、その絶対値が自動でどちらにも足される！
+        offSet: 0, //オフセット。マイナスで曲が早くなる
+        highSpeed: 1, //流れてくる速さがなん倍速か(時間の間隔は変わらない)
+        startTime: 0, //開始時の時刻(ms)
+        judgePosCenter: judgePos+circleSize[1]*laneHeight/2, //判定円の中心
+        results: { //途中経過の成績
+          score: 0, //点数
+          diff: 0, //判定の合計の差分(早く叩くとマイナス)
+          count: [0,0], //早いと遅いのそれぞれの数
+        }
+      };
+      
+      let value = {
+        mode: 1, //モード(0:自分でtja入れる、1:既存の(入ってる)譜面を使う、2:練習モード
+        subMode: 0, //下に書いてる
+        T: 0, //経過時間(s)
+        lineView: false, //開始前の小節線を表示するか
+      }
+      
+      let laneCtx = null;
+      
+      /*
+        mode:0
+         -subMode 関係なし
+        mode:1
+         -subMode 0:
+          -ずっとドン(16分)
+      */
+      
+      
+      
+      function calcSheet(dataSetK){ //data.sheetを作成。
+        const splitData = dataSetK.data; //譜面の小節の配列
+        const supple = dataSetK.supplement; //補足情報が辞書型で
+        const suppleKeys = Object.keys(supple); //補足情報の小節
+        /*
+        作成のルール。
+        例
+        初期,BPM:240,BEAT:4/4
+        2小節目でBEAT:3/4
+        let data = {
+          sheet: {
+            kind: [ //-1は小節線。それ以外はtjaと同じ。(開始前のmargin中も入れる。)
+              -1,-1,
+              -1,1,1,1,1,
+              -1,1,0,2,0,1,0,2,0,
+              -1,1,1,2,2,1,1,
+              ...
+            ],
+            highSpeed: [ //const dataに説明書いてる。例
+              1,1.
+              1,1,1,1,1,
+              1,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,
+              1,1,1,1,1,
+            ],
+            T: [ //判定円にくる時間。(開始前のmargin中も入れる。譜面スタートは0。)
+              -2,-1,
+              0,0,0.25,0.5,0.75.
+              1,1,1.125,1.25,1.375,1.5,1.675,1.75,1.875,
+              2,2,2.125,2.25,2.375,2.5,2.625,
+              2.75,...
+            ]
+          },
+          ...
+        }
+        
+        
+        処理の最後に3種類の個数が合ってるか確かめたい
+        */
+        
+        
+        let sheet = {
+          kind:[],
+          highSpeed:[],
+          T:[],
+        };
+        
+        
+        //開始前
+        
+        let BEAT = data.beat[0]/data.beat[1];
+        
+        //何小節あるかの計算
+        //期間(s)をT,data.bpmをBPM,小節の個数をNとする。
+        //N = (T/BEAT<-4/4拍子での時間に変換)*(BPM/240<-BPM240で1分に4/4拍子の小節が60個<=>1秒に1個)
+        //より、N = T*BPM/240*BEAT;
+        
+        //一小節でかかる時間 = T/N = 240*BEAT/BPM;
+        let preSpan = 240*BEAT/data.bpm;
+        
+        if(value.lineView){
+          for(let k = 0; k <= data.margin[0]/BEAT*data.bpm/240 - 1; k++){
+            sheet.kind.push(-1);
+            sheet.highSpeed.push(data.highSpeed);
+          
+            sheet.T.push(data.margin[0]-Math.floor(data.margin[0]/BEAT*data.bpm/240 + k*preSpan));
+          }
+        }
+
+        //譜面に対する操作
+        //繰り返し単位は小節ごと
+        
+        //bpm,beat,highSpeed
+        let valueList = {
+          bpm: data.bpm,
+          beat: data.beat,
+          highSpeed: data.highSpeed,
+          line: true, //小節線を表示するか
+        };
+        //alert(valueList.beat[0]);
+        
+        function OneSheet(preT,valueList,oneSheet){
+          let highSpeedK = [];
+          let kindK = [];
+          let TK = [];
+          
+          const span = 240*valueList.beat[0]/(valueList.beat[1]*valueList.bpm);
+          
+          
+          if(valueList.line){
+            kindK.push(-1);
+            highSpeedK.push(valueList.highSpeed);
+            TK.push(preT);
+          }
+          
+          if(oneSheet.length >= 1){
+            const spanK = span/oneSheet.length;
+            for(let k = 0; k < oneSheet.length; k++){
+              kindK.push(parseInt(oneSheet[k]));
+              highSpeedK.push(valueList.highSpeed);
+              TK.push(preT+spanK*k);
+            }
+          }
+          
+          return [span, {kind: kindK, highSpeed: highSpeedK, T: TK}];
+        }
+        
+        
+        let preT = 0;
+        
+        for(let k = 0; k < splitData.length; k++){
+          const supl = suppleKeys.includes(String(k)) ? supple[String(k)] : {};
+          
+          if(Object.keys(supl).includes('noLine')){
+            valueList.line = false;
+          }
+          if(Object.keys(supl).includes('highSpeed')){
+            valueList.highSpeed = supl.highSpeed;
+          }
+          if(Object.keys(supl).includes('beat')){
+            valueList.beat = supl.beat;
+          }
+          if(Object.keys(supl).includes('bpm')){
+            valueList.bpm = supl.bpm;
+          }
+        
+          //alert(valueList.beat[0])
+          let [i, dataI] = OneSheet(preT,valueList,splitData[k])
+          
+          preT += i;
+          
+          sheet.kind = sheet.kind.concat(dataI.kind);
+          sheet.highSpeed = sheet.highSpeed.concat(dataI.highSpeed);
+          sheet.T = sheet.T.concat(dataI.T);
+          
+        
+          valueList.line = true; //戻す
+        }
+        return sheet;
+      }
+      
+      function init(){ //値を初期化
+        const laneCanvas = document.getElementById("laneCanvas") == null ? 
+              document.createElement("canvas") :
+              document.getElementById("laneCanvas");
+        
+        laneCanvas.id = "laneCanvas";
+        laneCanvas.width = laneWidth;
+        laneCanvas.height = laneHeight;
+        laneCanvas.style.position = "absolute";
+        laneCanvas.style.left = String(w-laneWidth-frameWidth)+"px";
+        laneCanvas.style.top = String(margin*1.5)+"px";
+        laneCanvas.style.zIndex = "999";
+        
+        document.body.appendChild(laneCanvas);
+        
+        laneCtx = laneCanvas.getContext('2d');
+        
+        if(value.mode == 1){
+          const dataSetK = dataSet[1][value.subMode];
+          //alert(Object.keys(dataSetK))
+          
+          for(const k of Object.keys(dataSetK.initData)){
+            data[k] = dataSetK.initData[k];
+          }
+          
+          if(data.offSet != 0){
+            const offSetAbs = Math.abs(data.offSet);
+            data.margin[0] += offSetAbs;
+            data.margin[1] += offSetAbs;
+          }
+          
+          value.T = 0;
+          
+          
+          let sheetK = calcSheet(dataSetK); //初期値設定し終わって、一番最後に入れる
+          
+          //downloadAsFile(JSON.stringify(sheetK),'sheet.txt');
+          
+          //console.log(sheetK)
+          if(sheetK.kind.length != sheetK.highSpeed.length || sheetK.kind.length != sheetK.T.length) throw new Error('sheet生成において、配列の長さが揃っていません。')
+          data.sheet = sheetK;
+        }
+      }
+      
+      function downloadAsFile(text, filename) {
+        const blob = new Blob([text], { type: "text/plain"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      
+      function drawStage(){
+        ctx.clearRect(0,0,w,h);
+        ctx.fillStyle = "black";
+        ctx.fillRect(0,margin-frameWidth,w,laneHeight+2*frameWidth);
+        ctx.fillStyle = "green";
+        ctx.fillRect(frameWidth,margin,w-laneWidth-3*frameWidth,laneHeight)
+        ctx.fillStyle = "#404040";
+        ctx.fillRect(w-laneWidth-frameWidth,margin,laneWidth,laneHeight);
+        
+        const R = laneHeight*circleSize[1]/2;
+        const r = laneHeight*circleSize[0]/2;
+        const centerX = w-laneWidth-frameWidth+judgePos+R;
+        
+        ctx.strokeStyle = "#d4d4d4"
+        ctx.beginPath();
+        ctx.arc(centerX,margin+laneHeight/2,R,0,2*Math.PI);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(centerX,margin+laneHeight/2,r,0,2*Math.PI);
+        ctx.stroke();
+      }
+      
+      
+      
+      function drawObject(){
+        //laneCtx.fillStyle = "red"
+        laneCtx.clearRect(0,0,laneWidth,laneHeight);
+        
+        let time = (Date.now()-data.startTime)/1000-data.margin[0]; //譜面開始からの経過時間
+        timeView.innerText = "Text:"+String(time);
+        //console.log(time)
+        const kindList = data.sheet.kind;
+        const highSpeedList = data.sheet.highSpeed;
+        const TList = data.sheet.T;
+        const R = laneHeight*circleSize[1]/2;
+        const r = laneHeight*circleSize[0]/2;
+        
+        //TListですでにBPMの情報が含まれているため、highSpeed==1のときlaneの時間は1秒となる。
+        
+        for(let k = 0; k < kindList.length; k++){
+          /*const laneTime = 240/data.bpm;
+        
+          const edgeTime = [laneTime*data.judgePosCenter/laneHeight,240/data.bpm*(1-data.judgePosCenter/laneHeight)]; //左端、右端の時間の差分(highSpeed==1);*/
+          
+          const edgeTime = [-data.judgePosCenter/laneWidth,1+data.judgePosCenter/laneWidth];
+          //console.log(edgeTime)
+          if(!(
+                time-edgeTime[0]/highSpeedList[k] <= TList[k] &&
+                TList[k] <= time+edgeTime[1]/highSpeedList[k]
+            )) continue;
+          
+          const posX = ((TList[k]-time)*highSpeedList[k]+edgeTime[0])*laneWidth; //laneCanvasからのx座標
+          
+          if(kindList[k] == -1){
+            laneCtx.strokeStyle = "white";
+            laneCtx.lineWidth = 1;
+            laneCtx.beginPath();
+            laneCtx.moveTo(posX,0);
+            laneCtx.lineTo(posX,laneHeight);
+            laneCtx.stroke();
+          } else if(kindList[k] == 1){
+            laneCtx.strokeStyle = "white";
+            laneCtx.fillStyle = "#ff4500";
+            laneCtx.lineWidth = 1;
+            laneCtx.beginPath();
+            laneCtx.arc(posX,laneHeight/2,r,0,2*Math.PI);
+            laneCtx.fill();
+          } else if(kindList[k] == 2){
+            laneCtx.strokeStyle = "white";
+            laneCtx.fillStyle = "#00ddff";
+            laneCtx.lineWidth = 1;
+            laneCtx.beginPath();
+            laneCtx.arc(posX,laneHeight/2,r,0,2*Math.PI);
+            laneCtx.fill();
+          } else if(kindList[k] == 3){
+            laneCtx.strokeStyle = "white";
+            laneCtx.fillStyle = "#ff4500";
+            laneCtx.lineWidth = 1;
+            laneCtx.beginPath();
+            laneCtx.arc(posX,laneHeight/2,R,0,2*Math.PI);
+            laneCtx.fill();
+          } else if(kindList[k] == 4){
+            laneCtx.strokeStyle = "white";
+            laneCtx.fillStyle = "#00ddff";
+            laneCtx.lineWidth = 1;
+            laneCtx.beginPath();
+            laneCtx.arc(posX,laneHeight/2,R,0,2*Math.PI);
+            laneCtx.fill();
+          }
+        }
+        
+      }
+      
+      
+      
+      drawStage();
+      
+      function start(){
+        init();
+        ctx.clearRect(0,0,w,h);
+        drawStage();
+        data.startTime = Date.now();
+        setInterval(drawObject,1);
+      }
+      
+      
+      
+      
+      let num = 0;
+      
+      function touchEventFunc(x,y){
+        console.log(num)
+      }
+      
+      //let num = 0;
+      
+      //let num = 0;
+      //const timeView = document.getElementById('timeView'); 
+      const touchArea = canvas;
+      const activeTouchIdentifiers = new Set(); 
+
+      // イベントリスナーをdocument全体に設定することで、
+      // touchArea外で指が離れた場合もイベントを捕捉できます。
+      document.addEventListener('touchstart', (event) => {
+        event.preventDefault(); 
+        const rect = canvas.getBoundingClientRect();
+        for (let i = 0; i < event.changedTouches.length; i++) {
+          const touch = event.changedTouches[i];
+          const x = touch.clientX - rect.left;
+          const y = touch.clientY - rect.top;
+          if (!activeTouchIdentifiers.has(touch.identifier)) {
+            activeTouchIdentifiers.add(touch.identifier);
+            num++; 
+            touchEventFunc(x,y);
+          }
+        }
+      }, { passive: false }); 
+
+      document.addEventListener('touchmove', (event) => {
+        event.preventDefault(); 
+      });
+
+      document.addEventListener('touchend', (event) => {
+        event.preventDefault(); 
+
+        for (let i = 0; i < event.changedTouches.length; i++) {
+          const touch = event.changedTouches[i];
+        
+          if (activeTouchIdentifiers.has(touch.identifier)) {
+            activeTouchIdentifiers.delete(touch.identifier);
+          }
+        }
+      });
+
+      document.addEventListener('touchcancel', (event) => {
+        event.preventDefault(); 
+
+        for (let i = 0; i < event.changedTouches.length; i++) {
+          const touch = event.changedTouches[i];
+        
+          if (activeTouchIdentifiers.has(touch.identifier)) {
+            activeTouchIdentifiers.delete(touch.identifier);
+          }
+        }
+      });
+
+      
+    </script>
+  </body>
+</html>
