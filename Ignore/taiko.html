@@ -47,6 +47,8 @@
     </header>
     <canvas id="canvas"></canvas>
     <script>
+      const IP = input('IPアドレスを入力') || "192.168.0.7";
+      
       const timeView = document.getElementById("timeView");
       const canvas = document.getElementById('canvas');
       const w = innerWidth;
@@ -443,7 +445,7 @@
 
 async function pollTaTaCon() {
   try {
-    const res = await fetch("http://arduino.local/state"); // IPアドレスに変更可
+    const res = await fetch("http://IP/state"); // IPアドレスに変更可
     const json = await res.json();
 
     json.forEach(event => {
@@ -462,7 +464,7 @@ async function pollTaTaCon() {
       }
     });
   } catch (e) {
-    console.warn("TaTaCon通信エラー:", e);
+    alert("TaTaCon通信エラー:"+String(e));
   }
 }
 
@@ -480,7 +482,7 @@ function onKa() {
 }
 
 // 定期ポーリング開始
-setInterval(pollTaTaCon, 30);
+setInterval(pollTaTaCon, 10);
       
       
       
