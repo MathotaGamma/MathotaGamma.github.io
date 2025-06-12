@@ -113,7 +113,7 @@
   <div id="centerCircle"></div>
   <script>
     const canvas = document.getElementById('canvas');
-    const importInput = document.getElementById('downloadAsImg');
+    //const importInput = document.getElementById('downloadAsImg');
     const thicknessLabel = document.getElementById('thicknessLabel');
     const ctx = canvas.getContext('2d');
     const DPR = window.devicePixelRatio || 1;
@@ -178,7 +178,7 @@
     
     
     
-    importInput.addEventListener('change', (e) => {
+    /*importInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if(!file) return;
 
@@ -199,7 +199,7 @@
 
       // ファイル選択後は値リセット（同じファイル選択のため）
       importInput.value = '';
-    });
+    });*/
 
     function resize() {
       canvas.width = window.innerWidth * DPR;
