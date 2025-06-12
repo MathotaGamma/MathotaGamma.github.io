@@ -10,6 +10,7 @@
       padding: 0;
       overflow: hidden;
       touch-action: none;
+      -webkit-touch-callout:none;
       -webkit-user-select: none;
       user-select: none;
       background: #fff;
@@ -366,7 +367,7 @@
       }, 1000);
     }
     
-    function showLineDrawing(offsetX,offsetY,scale,x,y) {
+    function showLineDrawing(x,y) {
       lineEnd = {x:x,y:y}
       ctx.save();
       ctx.translate(offsetX, offsetY);
@@ -425,7 +426,6 @@
           offsetY += (midY - panStart.y);
           panStart = {x: midX, y: midY};
           drawAll();
-          
           return;
         }
       }
@@ -435,19 +435,7 @@
       addPoint(p.x, p.y);
       
       drawAll();
-      showLineDrawing(offsetX, offsetY, scale, x, y);
-      /*ctx.save();
-      ctx.translate(offsetX, offsetY);
-      ctx.scale(scale, scale);
-      ctx.strokeStyle = getColor();
-      ctx.lineWidth = getThickness();
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(lineStart.x, lineStart.y); // ← ここが重要
-      ctx.lineTo(x, y);                     // ← 現在のマウス位置
-      ctx.stroke();
-      ctx.restore();*/
+      showLineDrawing(x, y);
     }
     function handleUp(x, y, e) {
       if (isPanning) {
