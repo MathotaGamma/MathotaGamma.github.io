@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>無限キャンバス（拡大縮小・中央リセット・ペン太さ表示）</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      background: #fff;
+      height: 100vh;
+      width: 100vw;
+    }
+    canvas {
+      display: block;
+      background: #fff;
+      touch-action: none;
+    }
+    #toolbar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 20;
+      font-size: 14px;
+      user-select: none;
+    }
+    #toolbar > div {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button, input[type="color"], input[type="range"] {
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button {
+      padding: 6px 8px;
+      border: 1px solid #999;
+      background: #eee;
+      border-radius: 4px;
+      user-select: none;
+    }
+    button:hover {
+      background: #ddd;
+    }
+    #penSizeDisplay {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: black;
+      border: 1.5px solid #444;
+      flex-shrink: 0;
+    }
+    #centerCircle {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      background: black;
+      z-index: 30;
+      transition: opacity 0.8s ease;
+      user-select: none;
+    }
+    
+    .area {
+      border: 1px solid black;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div id="toolbar">
+    <div>
+      <button onclick="setTool('pen')">✍️ ペン</button>
+      <button onclick="setTool('eraser')">🧽 消しゴム</button>
+      <button onclick="setTool('line')">📏 定規</button>
+      <button onclick="undo()">↩️ 戻す</button>
+      <button onclick="resetView()">📍 中央に戻す</button>
+      <button onclick="downloadAsPng()">画像をダウンロード</button>
+    </div>
+    <div>
+      <span class="area">
+        <label for="colorPicker">🎨 色</label>
+        <input type="color" id="colorPicker" value="#000000" />
+      </span>
+      <span>
+        <tt><label for="thickness" id="thicknessLabel">3px:</label></tt>
+        <input type="range" id="thickness" min="1" max="40" value="3" />
+      </span>
+      <span>
+        <div id="penSizeDisplay"></div>
+      </span>
+      <!--<span class="area">
+        <input type="file" id="downloadAsImg" accept="image/*" />
+      </span>-->
+    </div>
+  </div>
+  <div id="centerCircle"></div>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const importInput = document.getElementById('downloadAsImg');
+    const thicknessLabel = document.getElementById('thicknessLabel');
+    const ctx = canvas.getContext('2d');
+    const DPR = window.devicePixelRatio || 1;
+    
+    function downloadAsPng() {
+      if(paths.length === 0) return alert('描画がありません');
+
+      // 全線の座標範囲を取得
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      paths.forEach(path => {
+        path.points.forEach(p => {
+          if(p.x < minX) minX = p.x;
+          if(p.y < minY) minY = p.y;
+          if(p.x > maxX) maxX = p.x;
+          if(p.y > maxY) maxY = p.y;
+        });
+      });
+
+      // マージンを少し取る（線幅の半分とか）
+      const margin = 20;
+      minX -= margin;
+      minY -= margin;
+      maxX += margin;
+      maxY += margin;
+
+      const width = maxX - minX;
+      const height = maxY - minY;
+
+      // オフスクリーンキャンバス作成
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = width;
+      offCanvas.height = height;
+      const ctx2 = offCanvas.getContext('2d');
+
+      // 白背景にしたい場合は以下を有効にしてください
+      ctx2.fillStyle = 'white';
+      ctx2.fillRect(0, 0, width, height);
+
+      // pathsを描画（移動量を考慮）
+      paths.forEach(path => {
+        ctx2.strokeStyle = path.color;
+        ctx2.lineWidth = path.size;
+        ctx2.lineCap = 'round';
+        ctx2.lineJoin = 'round';
+        ctx2.beginPath();
+        path.points.forEach((p, i) => {
+          const x = p.x - minX;
+          const y = p.y - minY;
+          if(i === 0) ctx2.moveTo(x, y);
+          else ctx2.lineTo(x, y);
+        });
+        ctx2.stroke();
+      });
+
+      // 画像ダウンロード
+      const dataURL = offCanvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = 'drawing.png';
+      a.click();
+    }
+    
+    
+    
+    importInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // 画像を現在のキャンバスの中心に描画する例
+          const centerX = (canvas.width / 2) - (img.width / 2);
+          const centerY = (canvas.height / 2) - (img.height / 2);
+          ctx.drawImage(img, centerX, centerY);
+
+          // 必要に応じてpathsに画像レイヤー情報を保存したりしてください
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+
+      // ファイル選択後は値リセット（同じファイル選択のため）
+      importInput.value = '';
+    });
+
+    function resize() {
+      canvas.width = window.innerWidth * DPR;
+      canvas.height = window.innerHeight * DPR;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(DPR, DPR);
+      drawAll();
+    }
+    window.addEventListener('resize', resize);
+
+    // 状態
+    let offsetX = 0, offsetY = 0;
+    let scale = 1;
+    let dragging = false;
+    let isPanning = false;
+    let panStart = {x: 0, y: 0};
+    let lastTouchDist = null;
+
+    const paths = [];
+    let currentPath = null;
+    let tool = 'pen';
+    let lineStart = null;
+
+    const penSizeDisplay = document.getElementById('penSizeDisplay');
+    const thicknessRange = document.getElementById('thickness');
+    const colorPicker = document.getElementById('colorPicker');
+    const centerCircle = document.getElementById('centerCircle');
+
+    // ペンサイズ表示更新
+    function updatePenSizeDisplay() {
+      const size = getThickness();
+      thicknessLabel.innerText = String(size).padStart(2,'0')+"px:";
+      penSizeDisplay.style.width = size + 'px';
+      penSizeDisplay.style.height = size + 'px';
+      penSizeDisplay.style.background = tool === 'eraser' ? '#fff' : getColor();
+      penSizeDisplay.style.borderColor = '#444';
+    }
+    thicknessRange.addEventListener('input', () => {
+      updatePenSizeDisplay();
+      //showCenterCircle();
+    });
+
+    function setTool(name) {
+      tool = name;
+      lineStart = null;
+      updatePenSizeDisplay();
+    }
+
+    function getColor() {
+      return colorPicker.value;
+    }
+    function getThickness() {
+      return parseInt(thicknessRange.value);
+    }
+
+    function undo() {
+      if(paths.length > 0){
+        paths.pop();
+        drawAll();
+      }
+    }
+
+    function resetView() {
+      offsetX = 0;
+      offsetY = 0;
+      scale = 1;
+      drawAll();
+    }
+
+    function toCanvasCoords(x, y) {
+      return {
+        x: (x - offsetX) / scale,
+        y: (y - offsetY) / scale
+      };
+    }
+    function toScreenCoords(x, y) {
+      return {
+        x: x * scale + offsetX,
+        y: y * scale + offsetY
+      };
+    }
+
+    function startPath(x, y) {
+      if (tool === 'line') {
+        lineStart = {x, y};
+        return;
+      }
+      currentPath = {
+        tool,
+        color: tool === 'eraser' ? '#ffffff' : getColor(),
+        thickness: getThickness(),
+        points: [{x, y}]
+      };
+      paths.push(currentPath);
+    }
+
+    function addPoint(x, y) {
+      if (!currentPath || tool === 'line') return;
+      currentPath.points.push({x, y});
+      drawAll();
+    }
+
+    function endPath(x, y) {
+      if (tool === 'line' && lineStart) {
+        currentPath = {
+          tool: 'line',
+          color: getColor(),
+          thickness: getThickness(),
+          points: [lineStart, {x, y}]
+        };
+        paths.push(currentPath);
+        lineStart = null;
+        drawAll();
+      }
+      currentPath = null;
+    }
+
+    function drawAll() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      for (const path of paths) {
+        ctx.strokeStyle = path.color;
+        ctx.lineWidth = path.thickness;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        if (path.tool === 'line') {
+          ctx.moveTo(path.points[0].x, path.points[0].y);
+          ctx.lineTo(path.points[1].x, path.points[1].y);
+        } else {
+          ctx.moveTo(path.points[0].x, path.points[0].y);
+          for (let i = 1; i < path.points.length; i++) {
+            ctx.lineTo(path.points[i].x, path.points[i].y);
+          }
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function showCenterCircle() {
+      const size = getThickness();
+      centerCircle.style.width = size + 'px';
+      centerCircle.style.height = size + 'px';
+      centerCircle.style.background = tool === 'eraser' ? '#fff' : getColor();
+      centerCircle.style.border = '1.5px solid #444';
+      centerCircle.style.opacity = '1';
+      clearTimeout(centerCircle._timeout);
+      centerCircle._timeout = setTimeout(() => {
+        centerCircle.style.opacity = '0';
+      }, 1000);
+    }
+
+    // 操作ハンドラー
+    let pointerDown = false;
+
+    function handleDown(x, y, e) {
+      // 2本指タッチならパン開始
+      if (e instanceof TouchEvent && e.touches.length === 2) {
+        isPanning = true;
+        lastTouchDist = getTouchDistance(e.touches);
+        panStart = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+        return;
+      }
+      // Ctrl + マウスでのズーム中はパンしない、通常は左クリックで描画
+      if (e instanceof MouseEvent && e.button !== 0) return;
+      pointerDown = true;
+      const p = toCanvasCoords(x, y);
+      startPath(p.x, p.y);
+    }
+    function handleMove(x, y, e) {
+      if (isPanning) {
+        if (e instanceof TouchEvent && e.touches.length === 2) {
+          const newDist = getTouchDistance(e.touches);
+          const zoomFactor = newDist / lastTouchDist;
+          lastTouchDist = newDist;
+          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+          // 拡大縮小の中心をmidに
+          const beforeMid = toCanvasCoords(midX, midY);
+          scale *= zoomFactor;
+          if(scale < 0.2) scale = 0.2;
+          if(scale > 10) scale = 10;
+          const afterMid = toCanvasCoords(midX, midY);
+          offsetX += (afterMid.x - beforeMid.x) * scale;
+          offsetY += (afterMid.y - beforeMid.y) * scale;
+
+          // パンも移動
+          offsetX += (midX - panStart.x);
+          offsetY += (midY - panStart.y);
+          panStart = {x: midX, y: midY};
+          drawAll();
+          return;
+        }
+      }
+      if (!pointerDown) return;
+      const p = toCanvasCoords(x, y);
+      addPoint(p.x, p.y);
+    }
+    function handleUp(x, y, e) {
+      if (isPanning) {
+        if (e instanceof TouchEvent && e.touches.length < 2) {
+          isPanning = false;
+          lastTouchDist = null;
+        }
+        return;
+      }
+      if (!pointerDown) return;
+      pointerDown = false;
+      const p = toCanvasCoords(x, y);
+      endPath(p.x, p.y);
+    }
+
+    // マウスイベント
+    canvas.addEventListener('mousedown', (e) => {
+      handleDown(e.clientX, e.clientY, e);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      handleMove(e.clientX, e.clientY, e);
+    });
+    canvas.addEventListener('mouseup', (e) => {
+      handleUp(e.clientX, e.clientY, e);
+    });
+    canvas.addEventListener('mouseleave', (e) => {
+      handleUp(e.clientX, e.clientY, e);
+    });
+
+    // タッチイベント
+    canvas.addEventListener('touchstart', (e) => {
+      if(e.touches.length === 1){
+        const t = e.touches[0];
+        handleDown(t.clientX, t.clientY, e);
+      } else {
+        handleDown(0, 0, e);
+      }
+      e.preventDefault();
+    }, {passive:false});
+    canvas.addEventListener('touchmove', (e) => {
+      if(e.touches.length === 1){
+        const t = e.touches[0];
+        handleMove(t.clientX, t.clientY, e);
+      } else if (e.touches.length === 2) {
+        handleMove(0, 0, e);
+      }
+      e.preventDefault();
+    }, {passive:false});
+    canvas.addEventListener('touchend', (e) => {
+      if(e.touches.length === 0){
+        handleUp(0, 0, e);
+      } else if(e.touches.length === 1){
+        const t = e.touches[0];
+        handleUp(t.clientX, t.clientY, e);
+      }
+      e.preventDefault();
+    }, {passive:false});
+
+    // Ctrl + マウスホイールで拡大縮小
+    canvas.addEventListener('wheel', (e) => {
+      if(e.ctrlKey){
+        e.preventDefault();
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+        const beforeMouse = toCanvasCoords(mouseX, mouseY);
+        scale *= e.deltaY < 0 ? 1.1 : 0.9;
+        if(scale < 0.2) scale = 0.2;
+        if(scale > 10) scale = 10;
+        const afterMouse = toCanvasCoords(mouseX, mouseY);
+        offsetX += (afterMouse.x - beforeMouse.x) * scale;
+        offsetY += (afterMouse.y - beforeMouse.y) * scale;
+        drawAll();
+      }
+    }, { passive: false });
+
+    // パン操作 (右ドラッグ or 2本指)も可能に
+    let isRightDrag = false;
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('mousedown', e => {
+      if(e.button === 2){
+        isRightDrag = true;
+        panStart = {x: e.clientX, y: e.clientY};
+      }
+    });
+    canvas.addEventListener('mousemove', e => {
+      if(isRightDrag){
+        offsetX += e.clientX - panStart.x;
+        offsetY += e.clientY - panStart.y;
+        panStart = {x: e.clientX, y: e.clientY};
+        drawAll();
+      }
+    });
+    canvas.addEventListener('mouseup', e => {
+      if(e.button === 2) isRightDrag = false;
+    });
+
+    function getTouchDistance(touches){
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx*dx + dy*dy);
+    }
+
+    // 初期表示設定
+    updatePenSizeDisplay();
+    resize();
+  </script>
+</body>
+</html>
