@@ -92,6 +92,8 @@
       <button onclick="undo()">↩️ 戻す</button>
       <button onclick="resetView()">📍 中央に戻す</button>
       <button onclick="downloadAsPng()">画像をダウンロード</button>
+      <button onclick="clearCanvas()">白紙に戻す</button>
+
     </div>
     <div>
       <span class="area">
@@ -105,15 +107,15 @@
       <span>
         <div id="penSizeDisplay"></div>
       </span>
-      <!--<span class="area">
+      <span class="area">
         <input type="file" id="downloadAsImg" accept="image/*" />
-      </span>-->
+      </span>
     </div>
   </div>
   <div id="centerCircle"></div>
   <script>
     const canvas = document.getElementById('canvas');
-    //const importInput = document.getElementById('downloadAsImg');
+    const importInput = document.getElementById('downloadAsImg');
     const thicknessLabel = document.getElementById('thicknessLabel');
     const ctx = canvas.getContext('2d');
     const DPR = window.devicePixelRatio || 1;
@@ -176,9 +178,14 @@
       a.click();
     }
     
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // キャンバスをクリア
+      paths.length = 0; // 描いたパスの履歴を削除（undo対象も消える）
+      draw(); // 再描画（必要なら）
+    }
+
     
-    
-    /*importInput.addEventListener('change', (e) => {
+    importInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if(!file) return;
 
@@ -199,7 +206,7 @@
 
       // ファイル選択後は値リセット（同じファイル選択のため）
       importInput.value = '';
-    });*/
+    });
 
     function resize() {
       canvas.width = window.innerWidth * DPR;
@@ -224,6 +231,7 @@
     let currentPath = null;
     let tool = 'pen';
     let lineStart = null;
+    let lineEnd = null;
 
     const penSizeDisplay = document.getElementById('penSizeDisplay');
     const thicknessRange = document.getElementById('thickness');
@@ -310,7 +318,7 @@
           tool: 'line',
           color: getColor(),
           thickness: getThickness(),
-          points: [lineStart, {x, y}]
+          points: [lineStart, lineEnd]
         };
         paths.push(currentPath);
         lineStart = null;
@@ -328,6 +336,8 @@
         ctx.strokeStyle = path.color;
         ctx.lineWidth = path.thickness;
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
         ctx.beginPath();
         if (path.tool === 'line') {
           ctx.moveTo(path.points[0].x, path.points[0].y);
@@ -354,6 +364,22 @@
       centerCircle._timeout = setTimeout(() => {
         centerCircle.style.opacity = '0';
       }, 1000);
+    }
+    
+    function showLineDrawing(offsetX,offsetY,scale,x,y) {
+      lineEnd = {x:x,y:y}
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      ctx.strokeStyle = getColor();
+      ctx.lineWidth = getThickness();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(lineStart.x, lineStart.y); // ← ここが重要
+      ctx.lineTo(x, y);                     // ← 現在のマウス位置
+      ctx.stroke();
+      ctx.restore();
     }
 
     // 操作ハンドラー
@@ -399,12 +425,29 @@
           offsetY += (midY - panStart.y);
           panStart = {x: midX, y: midY};
           drawAll();
+          
           return;
         }
       }
       if (!pointerDown) return;
+      
       const p = toCanvasCoords(x, y);
       addPoint(p.x, p.y);
+      
+      drawAll();
+      showLineDrawing(offsetX, offsetY, scale, x, y);
+      /*ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      ctx.strokeStyle = getColor();
+      ctx.lineWidth = getThickness();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(lineStart.x, lineStart.y); // ← ここが重要
+      ctx.lineTo(x, y);                     // ← 現在のマウス位置
+      ctx.stroke();
+      ctx.restore();*/
     }
     function handleUp(x, y, e) {
       if (isPanning) {
