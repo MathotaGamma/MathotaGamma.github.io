@@ -109,19 +109,19 @@
         <div id="penSizeDisplay"></div>
       </span>
       <span class="area">
-        <input type="file" id="downloadAsImg" accept="image/*" />
+        <input type="file" id="importImg" accept="image/*" />
       </span>
     </div>
   </div>
   <div id="centerCircle"></div>
   <script>
     const canvas = document.getElementById('canvas');
-    const importInput = document.getElementById('downloadAsImg');
+    const importImg = document.getElementById('importImg');
     const thicknessLabel = document.getElementById('thicknessLabel');
     const ctx = canvas.getContext('2d');
     const DPR = window.devicePixelRatio || 1;
     
-    function downloadAsPng() {
+    /*function downloadAsPng() {
       if(paths.length === 0) return alert('描画がありません');
 
       // 全線の座標範囲を取得
@@ -177,16 +177,16 @@
       a.href = dataURL;
       a.download = 'drawing.png';
       a.click();
-    }
+    }*/
     
     function clearCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height); // キャンバスをクリア
       paths.length = 0; // 描いたパスの履歴を削除（undo対象も消える）
-      draw(); // 再描画（必要なら）
+      //drawAll(); // 再描画（必要なら）
     }
 
     
-    importInput.addEventListener('change', (e) => {
+    /*importInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if(!file) return;
 
@@ -207,7 +207,7 @@
 
       // ファイル選択後は値リセット（同じファイル選択のため）
       importInput.value = '';
-    });
+    });*/
 
     function resize() {
       canvas.width = window.innerWidth * DPR;
@@ -228,7 +228,7 @@
     let panStart = {x: 0, y: 0};
     let lastTouchDist = null;
 
-    const paths = [];
+    let paths = [];
     let currentPath = null;
     let tool = 'pen';
     let lineStart = null;
@@ -238,6 +238,150 @@
     const thicknessRange = document.getElementById('thickness');
     const colorPicker = document.getElementById('colorPicker');
     const centerCircle = document.getElementById('centerCircle');
+    
+    
+    function downloadAsPng() {
+      if (paths.length === 0) return alert('描画がありません');
+
+      // 全線の座標範囲を取得
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      paths.forEach(path => {
+        path.points.forEach(p => {
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+        });
+      });
+
+      // マージンを少し取る（線幅の半分とか）
+      const margin = 20;
+      minX -= margin;
+      minY -= margin;
+      maxX += margin;
+      maxY += margin;
+
+      const width = maxX - minX;
+      const height = maxY - minY;
+
+      // オフスクリーンキャンバス作成
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = width;
+      offCanvas.height = height;
+      const ctx2 = offCanvas.getContext('2d');
+
+      // 白背景
+      ctx2.fillStyle = 'white';
+      ctx2.fillRect(0, 0, width, height);
+
+      // pathsを描画（移動量を考慮）
+      paths.forEach(path => {
+        ctx2.strokeStyle = path.color;
+        ctx2.lineWidth = path.thickness || path.size || 2;
+        ctx2.lineCap = 'round';
+        ctx2.lineJoin = 'round';
+        ctx2.beginPath();
+        path.points.forEach((p, i) => {
+          const x = p.x - minX;
+          const y = p.y - minY;
+          if (i === 0) ctx2.moveTo(x, y);
+          else ctx2.lineTo(x, y);
+        });
+        ctx2.stroke();
+      });
+      
+      
+      // paths情報をJSONに変換してビット埋め込み
+      const jsonStr = JSON.stringify(paths);
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(jsonStr);
+
+      // 埋め込み可能か判定（目安：キャンバスのピクセル数 × 4(RGBA)の1bitずつ）
+      const maxBits = width * height * 4; // 1bitずつ使えるとして
+      if(bytes.length * 8 > maxBits) {
+        alert('描画データが大きすぎて画像に埋め込めません');
+        return;
+      }
+
+      // paths をステガノグラフィとして Rチャンネルに埋め込む
+      const imageData = ctx2.getImageData(0, 0, width, height);
+      const data = imageData.data;
+      const pathStr = JSON.stringify(paths);
+      const encoded = new TextEncoder().encode(pathStr);
+
+      const bits = [];
+      for (const byte of encoded) {
+        for (let i = 7; i >= 0; i--) {
+          bits.push((byte >> i) & 1);
+        }
+      }
+
+      // 終端マーク（00000000）を追加
+      for (let i = 0; i < 8; i++) bits.push(0);
+
+      // RチャンネルのLSBに埋め込み
+      for (let i = 0; i < bits.length && i * 4 < data.length; i++) {
+        data[i * 4] = (data[i * 4] & ~1) | bits[i];
+      }
+
+      ctx2.putImageData(imageData, 0, 0);
+
+      // ダウンロード
+      const dataURL = offCanvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = 'draw.png';
+      a.click();
+      console.log(paths)
+    }
+
+    function extractPathsFromImage(img, callback) {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+      const bits = [];
+      for (let i = 0; i < data.length; i += 4) {
+        bits.push(data[i] & 1); // RのLSB
+      }
+
+      const bytes = [];
+      for (let i = 0; i < bits.length; i += 8) {
+        let byte = 0;
+        for (let j = 0; j < 8; j++) {
+          byte = (byte << 1) | bits[i + j];
+        }
+        if (byte === 0) break; // 終端とみなす
+        bytes.push(byte);
+      }
+
+      try {
+        const str = new TextDecoder().decode(new Uint8Array(bytes));
+        const readPaths = JSON.parse(str);
+        callback(readPaths);
+      } catch (e) {
+        alert('画像の復元に失敗しました。');
+        console.error(e);
+      }
+    }
+
+    importImg.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        extractPathsFromImage(img, readPaths => {
+          //console.log('復元されたpaths:', readPaths);
+          paths = readPaths;
+          drawAll();
+        });
+      };
+      img.src = URL.createObjectURL(file);
+    });
 
     // ペンサイズ表示更新
     function updatePenSizeDisplay() {
@@ -368,6 +512,7 @@
     }
     
     function showLineDrawing(x,y) {
+      if(tool !== "line") return;
       lineEnd = {x:x,y:y}
       ctx.save();
       ctx.translate(offsetX, offsetY);
