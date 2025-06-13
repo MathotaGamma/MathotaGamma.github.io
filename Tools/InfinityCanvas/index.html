@@ -82,6 +82,10 @@
     .area {
       border: 1px solid black;
     }
+    
+    #textSpan {
+      color: red;
+    }
   </style>
 </head>
 <body>
@@ -95,7 +99,7 @@
       <button onclick="resetView()">📍 中央に戻す</button>
       <button onclick="downloadAsPng()">画像をダウンロード</button>
       <button onclick="clearCanvas()">白紙に戻す</button>
-
+      <button onclick="saveLS()">データを保存</button>
     </div>
     <div>
       <span class="area">
@@ -112,10 +116,42 @@
       <span class="area">
         <input type="file" id="importImg"/>
       </span>
+      <span id="textSpan"></span>
     </div>
   </div>
-  <div id="centerCircle"></div>
+  <!--<div id="centerCircle"></div>-->
   <script>
+    const textSpan = document.getElementById("textSpan");
+    
+    function saveLS() {
+      //console.log("save");
+      textSpan.innerText = "保存中";
+      try {
+        const data = JSON.stringify(paths);
+        localStorage.setItem('drawData', data);
+        textSpan.innerText = "保存完了";
+        setTimeout(() => {textSpan.innerText = ""},500);
+      } catch (e) {
+        console.warn('保存失敗:', e);
+        textSpan.innerText = "保存失敗";
+      }
+    }
+
+    function loadLS() {
+      try {
+        const data = localStorage.getItem('drawData');
+        if (data) {
+          paths = JSON.parse(data);
+          drawAll();
+        }
+      } catch (e) {
+        console.warn('復元失敗:', e);
+      }
+    }
+
+    
+    
+    
     const canvas = document.getElementById('canvas');
     const importImg = document.getElementById('importImg');
     const thicknessLabel = document.getElementById('thicknessLabel');
@@ -125,6 +161,7 @@
     function clearCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height); // キャンバスをクリア
       paths.length = 0; // 描いたパスの履歴を削除（undo対象も消える）
+      //drawAll(); // 再描画（必要なら）
     }
 
     function resize() {
@@ -292,31 +329,6 @@
       a.click();
       console.log(paths)
     }
-    
-    /*async function checkFileAndExtractPathsTxt(file) {
-
-      // zip判定（MIMEタイプか拡張子）
-      if (file.type === "application/zip" || file.name.endsWith(".zip")) {
-        const jszip = new JSZip();
-        try {
-          const zip = await jszip.loadAsync(file);
-          const pathsFile = zip.file("paths.txt");
-          if (!pathsFile) {
-            alert('Error : zipファイル内にpaths.txtが含まれている必要があります。');
-            return;
-          }
-
-          const content = await pathsFile.async("text");
-          console.log(atob(content));
-          return;
-        } catch {
-          alert('An error has occured!');
-          return;
-        }
-    
-      }*/
-
-      
     
 
 
@@ -706,6 +718,13 @@
     // 初期表示設定
     updatePenSizeDisplay();
     resize();
+    if(localStorage.getItem("drawData")){
+      if(confirm("以前のデータが残っています。復元しますか？")) loadLS();
+    }
+    
+    setInterval(() => {
+      saveLS();
+    },60000);
   </script>
 </body>
 </html>
