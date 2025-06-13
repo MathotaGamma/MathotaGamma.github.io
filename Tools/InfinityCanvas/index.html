@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <title>無限キャンバス（拡大縮小・中央リセット・ペン太さ表示）</title>
   <style>
     html, body {
@@ -109,7 +110,7 @@
         <div id="penSizeDisplay"></div>
       </span>
       <span class="area">
-        <input type="file" id="importImg" accept="image/*" />
+        <input type="file" id="importImg"/>
       </span>
     </div>
   </div>
@@ -121,93 +122,10 @@
     const ctx = canvas.getContext('2d');
     const DPR = window.devicePixelRatio || 1;
     
-    /*function downloadAsPng() {
-      if(paths.length === 0) return alert('描画がありません');
-
-      // 全線の座標範囲を取得
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      paths.forEach(path => {
-        path.points.forEach(p => {
-          if(p.x < minX) minX = p.x;
-          if(p.y < minY) minY = p.y;
-          if(p.x > maxX) maxX = p.x;
-          if(p.y > maxY) maxY = p.y;
-        });
-      });
-
-      // マージンを少し取る（線幅の半分とか）
-      const margin = 20;
-      minX -= margin;
-      minY -= margin;
-      maxX += margin;
-      maxY += margin;
-
-      const width = maxX - minX;
-      const height = maxY - minY;
-
-      // オフスクリーンキャンバス作成
-      const offCanvas = document.createElement('canvas');
-      offCanvas.width = width;
-      offCanvas.height = height;
-      const ctx2 = offCanvas.getContext('2d');
-
-      // 白背景にしたい場合は以下を有効にしてください
-      ctx2.fillStyle = 'white';
-      ctx2.fillRect(0, 0, width, height);
-
-      // pathsを描画（移動量を考慮）
-      paths.forEach(path => {
-        ctx2.strokeStyle = path.color;
-        ctx2.lineWidth = path.size;
-        ctx2.lineCap = 'round';
-        ctx2.lineJoin = 'round';
-        ctx2.beginPath();
-        path.points.forEach((p, i) => {
-          const x = p.x - minX;
-          const y = p.y - minY;
-          if(i === 0) ctx2.moveTo(x, y);
-          else ctx2.lineTo(x, y);
-        });
-        ctx2.stroke();
-      });
-
-      // 画像ダウンロード
-      const dataURL = offCanvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = dataURL;
-      a.download = 'drawing.png';
-      a.click();
-    }*/
-    
     function clearCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height); // キャンバスをクリア
       paths.length = 0; // 描いたパスの履歴を削除（undo対象も消える）
-      //drawAll(); // 再描画（必要なら）
     }
-
-    
-    /*importInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if(!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          // 画像を現在のキャンバスの中心に描画する例
-          const centerX = (canvas.width / 2) - (img.width / 2);
-          const centerY = (canvas.height / 2) - (img.height / 2);
-          ctx.drawImage(img, centerX, centerY);
-
-          // 必要に応じてpathsに画像レイヤー情報を保存したりしてください
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-
-      // ファイル選択後は値リセット（同じファイル選択のため）
-      importInput.value = '';
-    });*/
 
     function resize() {
       canvas.width = window.innerWidth * DPR;
@@ -233,6 +151,8 @@
     let tool = 'pen';
     let lineStart = null;
     let lineEnd = null;
+    
+    const key = 0b0110101;
 
     const penSizeDisplay = document.getElementById('penSizeDisplay');
     const thicknessRange = document.getElementById('thickness');
@@ -240,7 +160,17 @@
     const centerCircle = document.getElementById('centerCircle');
     
     
-    function downloadAsPng() {
+    function encrypt(str) {
+      const encrypted = Array.from(str, c => c.charCodeAt(0) ^ key);
+      return btoa(String.fromCharCode(...encrypted));
+    }
+
+    function decrypt(base64) {
+      const decoded = atob(base64);
+      return Array.from(decoded, c => String.fromCharCode(c.charCodeAt(0) ^ key)).join('');
+    }
+    
+    async function downloadAsPng() {
       if (paths.length === 0) return alert('描画がありません');
 
       // 全線の座標範囲を取得
@@ -295,12 +225,40 @@
       const jsonStr = JSON.stringify(paths);
       const encoder = new TextEncoder();
       const bytes = encoder.encode(jsonStr);
+      
+      let enc = "";
 
       // 埋め込み可能か判定（目安：キャンバスのピクセル数 × 4(RGBA)の1bitずつ）
       const maxBits = width * height * 4; // 1bitずつ使えるとして
       if(bytes.length * 8 > maxBits) {
-        alert('描画データが大きすぎて画像に埋め込めません');
-        return;
+        if(confirm('描画データが大きすぎて画像に埋め込めません。別のファイルとして保存しますか')){
+          //console.log(encrypt(jsonStr));
+          const encryptedBase64 = encrypt(jsonStr);
+          const blob = new Blob([encryptedBase64], { type: "text/plain" });
+          const imageData = ctx2.getImageData(0, 0, width, height);
+          const imageBytes = new Uint8Array(imageData.data.buffer);
+          const data = imageData.data;
+          
+          const zip = new JSZip();
+          zip.file("paths.txt", blob);
+          zip.file("drawing.png", imageBytes);
+          
+          
+          const zipBlob = await zip.generateAsync({ type: "blob" });
+          
+
+          const url = URL.createObjectURL(zipBlob);
+          
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "drawSet.zip";
+          a.click();
+          URL.revokeObjectURL(url);
+          
+          return;
+        } else {
+          return;
+        }
       }
 
       // paths をステガノグラフィとして Rチャンネルに埋め込む
@@ -334,8 +292,60 @@
       a.click();
       console.log(paths)
     }
+    
+    /*async function checkFileAndExtractPathsTxt(file) {
 
-    function extractPathsFromImage(img, callback) {
+      // zip判定（MIMEタイプか拡張子）
+      if (file.type === "application/zip" || file.name.endsWith(".zip")) {
+        const jszip = new JSZip();
+        try {
+          const zip = await jszip.loadAsync(file);
+          const pathsFile = zip.file("paths.txt");
+          if (!pathsFile) {
+            alert('Error : zipファイル内にpaths.txtが含まれている必要があります。');
+            return;
+          }
+
+          const content = await pathsFile.async("text");
+          console.log(atob(content));
+          return;
+        } catch {
+          alert('An error has occured!');
+          return;
+        }
+    
+      }*/
+
+      
+    
+
+
+    async function extractPathsFromImage(file, callback) {
+      //alert(file.type)
+      if (file.type === "application/zip" || file.name.endsWith(".zip")) {
+        const jszip = new JSZip();
+        try {
+          const zip = await jszip.loadAsync(file);
+          const pathsFile = zip.file("paths.txt");
+          if(!pathsFile){
+            alert("zip内にpaths.txtが存在しません。");
+            return;
+          }
+          const content = await pathsFile.async("text");
+          //console.log(Array.from(btoa(content), c => c ^ key));
+          
+          const readJson = JSON.parse(decrypt(content))
+          
+          //console.log(readJson)
+          
+          callback(readJson);
+          return;
+        } catch (err) {
+          alert("復号に失敗しました。Base64形式が正しいか確認してください。");
+        }
+      };
+      
+      const img = file;
       const canvas = document.createElement('canvas');
       canvas.width = img.naturalWidth || img.width;
       canvas.height = img.naturalHeight || img.height;
@@ -369,19 +379,29 @@
       }
     }
 
-    importImg.addEventListener('change', e => {
+    importImg.addEventListener('change', async e => {
       const file = e.target.files[0];
       if (!file) return;
-      const img = new Image();
-      img.onload = () => {
-        extractPathsFromImage(img, readPaths => {
-          //console.log('復元されたpaths:', readPaths);
+
+      if (file.type === "application/zip" || file.name.endsWith(".zip")) {
+        // ZIPファイルはそのままextractPathsFromImageに渡すだけでOK
+        extractPathsFromImage(file, readPaths => {
           paths = readPaths;
           drawAll();
         });
-      };
-      img.src = URL.createObjectURL(file);
+      } else {
+        // 画像ファイルはImageオブジェクトを作成して渡す
+        const img = new Image();
+        img.onload = () => {
+          extractPathsFromImage(img, readPaths => {
+            paths = readPaths;
+            drawAll();
+          });
+        };
+        img.src = URL.createObjectURL(file);
+      }
     });
+
 
     // ペンサイズ表示更新
     function updatePenSizeDisplay() {
