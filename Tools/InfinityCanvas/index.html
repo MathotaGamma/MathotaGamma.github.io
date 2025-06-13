@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <title>無限キャンバス（拡大縮小・中央リセット・ペン太さ表示）</title>
+  <title>無限キャンバス : NeoTopazm</title>
   <style>
     html, body {
       margin: 0;
@@ -104,7 +104,7 @@
       <button onclick="resetView()">📍 中央に戻す</button>
       <button onclick="downloadAsPng()">画像をダウンロード</button>
       <button onclick="clearCanvas()">白紙に戻す</button>
-      <button onclick="saveLS()">データを保存</button>
+      <button onclick="saveToDB()">データを保存</button>
     </div>
     <div>
       <span class="area">
@@ -128,8 +128,13 @@
       <span id="textSpan"></span>
     </div>
   </div>
+  <!--<div id="centerCircle"></div>-->
   <script>
     const textSpan = document.getElementById("textSpan");
+    let paths = [];
+    let drawName = "None";
+    
+
     
     function saveLS() {
       //console.log("save");
@@ -166,10 +171,121 @@
     const ctx = canvas.getContext('2d');
     const DPR = window.devicePixelRatio || 1;
     
+    
+    
+    
+    
+    const dbName = 'NeoTopazmDB';
+    const storeName = 'Tool_InfinityDraw_index-Paths';
+    let db; // グローバルで使う
+
+    const request = indexedDB.open(dbName, 1); // バージョン1で開く
+    
+    request.onupgradeneeded = (event) => {
+      db = event.target.result;
+      if (!db.objectStoreNames.contains(storeName)) {
+        db.createObjectStore(storeName, { keyPath: 'id' }); // 主キーは'id'
+      }
+      console.log("DB更新")
+    };
+
+    request.onsuccess = (event) => {
+      db = event.target.result;
+      console.log('DBオープン成功');
+      //const result = loadFromDB();
+      loadFromDB().then(data => {
+        if (data) {
+          console.log('読み込み成功:', data);
+          if(confirm("以前のデータが残っています。復元しますか？")) loadImg(data);
+        } else {
+          console.log('データが存在しません');
+        }
+      }).catch(err => {
+        console.error('読み込み失敗:', err);
+      });
+
+      
+    };
+    request.onerror = (event) => {
+      alert('DBオープン失敗:'+String(event.target.error));
+    };
+
+    function saveToDB(){
+      textSpan.innerText = "保存中";
+      
+      const data = JSON.stringify(paths);
+      setTimeout(() => {textSpan.innerText = ""},500);
+      
+      
+      const dataToSave = { id: drawName, content: data };
+      if (!db) {
+        alert('DBがまだ開かれていません');
+        return;
+      }
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const request = store.put(dataToSave); // 既存なら上書き、なければ追加
+
+      request.onsuccess = () => {
+        textSpan.innerText = "保存完了";
+      };
+      request.onerror = (event) => {
+        console.error('保存中にエラー', event.target.error);
+        textSpan.innerText = "保存失敗";
+      };
+    }
+    
+    function loadFromDB() {
+      return new Promise((resolve, reject) => {
+        if (!db) {
+          console.error('DBがまだ開かれていません');
+          reject(new Error('DBが未接続'));
+          return;
+        }
+
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const request = store.get(drawName);
+
+        request.onsuccess = () => {
+          if (request.result) {
+            resolve(request.result.content);
+          } else {
+            console.log('該当データが見つかりません');
+            resolve(null);
+          }
+        };
+
+        request.onerror = (event) => {
+          console.error('読み込み中にエラー', event.target.error);
+          reject(event.target.error);
+        };
+      });
+    }
+
+    
+    function loadImg(content){
+      try {
+        paths = JSON.parse(content);
+        drawAll();
+      } catch (e) {
+        console.warn('復元失敗:', e);
+      }
+    }
+    
+    
+    
+
+    
+    
+    
+    
+    
     let autoSaveInterval = null;
     function autoSaveIntervalSet() {
       autoSaveInterval = setInterval(() => {
-        saveLS();
+        saveToDB();
+        //saveLS();
       },60000);
     }
     
@@ -177,7 +293,7 @@
     autoSaveCheckBox.addEventListener('change',() => {
       if(autoSaveCheckBox.checked){
         autoSaveIntervalSet();
-        saveLS();
+        saveToDB();
       } else {
         clearInterval(autoSaveInterval);
         autoSaveInterval = null;
@@ -212,7 +328,7 @@
     let panStart = {x: 0, y: 0};
     let lastTouchDist = null;
 
-    let paths = [];
+    
     let currentPath = null;
     let tool = 'pen';
     let lineStart = null;
@@ -747,9 +863,7 @@
     // 初期表示設定
     updatePenSizeDisplay();
     resize();
-    if(localStorage.getItem("drawData")){
-      if(confirm("以前のデータが残っています。復元しますか？")) loadLS();
-    }
+    
     
     autoSaveIntervalSet();
   </script>
