@@ -27,6 +27,8 @@
       position: fixed;
       top: 10px;
       left: 10px;
+      max-width: calc(100vw - 20px);
+      max-height: 10vh;
       background: rgba(255,255,255,0.9);
       border: 1px solid #ccc;
       padding: 10px;
@@ -37,11 +39,14 @@
       z-index: 20;
       font-size: 14px;
       user-select: none;
+      overflow-x: auto;
+      overflow-y: auto;
     }
     #toolbar > div {
       display: flex;
       align-items: center;
       gap: 8px;
+      max-height: 30px;
     }
     button, input[type="color"], input[type="range"] {
       font-size: 14px;
@@ -123,7 +128,6 @@
       <span id="textSpan"></span>
     </div>
   </div>
-  <!--<div id="centerCircle"></div>-->
   <script>
     const textSpan = document.getElementById("textSpan");
     
