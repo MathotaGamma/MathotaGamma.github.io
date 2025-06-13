@@ -116,6 +116,10 @@
       <span class="area">
         <input type="file" id="importImg"/>
       </span>
+      <span class="area">
+        <label>自動保存(1分毎):</label>
+        <input type="checkbox" id="autoSaveCheckBox">
+      </span>
       <span id="textSpan"></span>
     </div>
   </div>
@@ -157,6 +161,27 @@
     const thicknessLabel = document.getElementById('thicknessLabel');
     const ctx = canvas.getContext('2d');
     const DPR = window.devicePixelRatio || 1;
+    
+    let autoSaveInterval = null;
+    function autoSaveIntervalSet() {
+      autoSaveInterval = setInterval(() => {
+        saveLS();
+      },60000);
+    }
+    
+    const autoSaveCheckBox = document.getElementById('autoSaveCheckBox');
+    autoSaveCheckBox.addEventListener('change',() => {
+      if(autoSaveCheckBox.checked){
+        autoSaveIntervalSet();
+        saveLS();
+      } else {
+        clearInterval(autoSaveInterval);
+        autoSaveInterval = null;
+      }
+      //alert(autoSaveInterval) //idが表示される。idは停止しても1づつ増えてく
+    });
+    
+    
     
     function clearCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height); // キャンバスをクリア
@@ -722,9 +747,7 @@
       if(confirm("以前のデータが残っています。復元しますか？")) loadLS();
     }
     
-    setInterval(() => {
-      saveLS();
-    },60000);
+    autoSaveIntervalSet();
   </script>
 </body>
 </html>
