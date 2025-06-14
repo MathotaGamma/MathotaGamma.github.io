@@ -231,38 +231,8 @@
   <script>
     const textSpan = document.getElementById("textSpan");
     let paths = [];
-    let drawName = "None";
-    
+    let drawName = "default";
 
-    
-    function saveLS() {
-      //console.log("save");
-      textSpan.innerText = "保存中";
-      try {
-        const data = JSON.stringify(paths);
-        localStorage.setItem('drawData', data);
-        textSpan.innerText = "保存完了";
-        setTimeout(() => {textSpan.innerText = ""},500);
-      } catch (e) {
-        console.warn('保存失敗:', e);
-        textSpan.innerText = "保存失敗";
-      }
-    }
-
-    function loadLS() {
-      try {
-        const data = localStorage.getItem('drawData');
-        if (data) {
-          paths = JSON.parse(data);
-          drawAll();
-        }
-      } catch (e) {
-        console.warn('復元失敗:', e);
-      }
-    }
-
-    
-    
     
     const canvas = document.getElementById('canvas');
     const importImg = document.getElementById('importImg');
@@ -310,10 +280,10 @@
     };
 
     function saveToDB(){
-      textSpan.innerText = "保存中";
-      
       const data = JSON.stringify(paths);
-      setTimeout(() => {textSpan.innerText = ""},500);
+      if(data == "[]") return;
+      textSpan.innerText = "保存中";
+      setTimeout(() => {textSpan.innerText = ""}, 1000);
       
       
       const dataToSave = { id: drawName, content: data };
