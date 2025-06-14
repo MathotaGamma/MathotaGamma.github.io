@@ -198,6 +198,7 @@
     <div>
       <button onclick="setTool('pen')">✍️ ペン</button>
       <button onclick="setTool('eraser')">🧽 消しゴム</button>
+      <button onclick="setTool('delete')">🎯 オブジェクト消し</button>
       <button onclick="setTool('line')">📏 定規</button>
       <button onclick="undo()">↩️ 戻す</button>
       <button onclick="resetView()">📍 中央に戻す</button>
@@ -231,7 +232,7 @@
   <script>
     const textSpan = document.getElementById("textSpan");
     let paths = [];
-    let drawName = "default";
+    let drawName = "None";
 
     
     const canvas = document.getElementById('canvas');
@@ -280,6 +281,7 @@
     };
 
     function saveToDB(){
+      try{
       const data = JSON.stringify(paths);
       if(data == "[]") return;
       textSpan.innerText = "保存中";
@@ -294,14 +296,26 @@
       const tx = db.transaction(storeName, 'readwrite');
       const store = tx.objectStore(storeName);
       const request = store.put(dataToSave); // 既存なら上書き、なければ追加
+      console.log(request)
+        console.log('保存データ:', dataToSave);
+console.log('DB:', db);
+console.log('store:', store);
+console.log('request:', request);
+
+      
+     
 
       request.onsuccess = () => {
+        alert('a')
         textSpan.innerText = "保存完了";
       };
       request.onerror = (event) => {
         console.error('保存中にエラー', event.target.error);
         textSpan.innerText = "保存失敗";
       };
+        } catch(e) {
+        alert(e)
+      }
     }
     
     function loadFromDB() {
@@ -315,6 +329,7 @@
         const tx = db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const request = store.get(drawName);
+        
 
         request.onsuccess = () => {
           if (request.result) {
@@ -635,13 +650,37 @@
       thicknessLabel.innerText = String(size).padStart(2,'0')+"px:";
       penSizeDisplay.style.width = size + 'px';
       penSizeDisplay.style.height = size + 'px';
-      penSizeDisplay.style.background = tool === 'eraser' ? '#fff' : getColor();
+      penSizeDisplay.style.background = (tool === 'eraser' || tool === 'delete') ? '#fff' : getColor();
       penSizeDisplay.style.borderColor = '#444';
     }
     thicknessRange.addEventListener('input', () => {
       updatePenSizeDisplay();
       //showCenterCircle();
     });
+    
+    function deleteNearbyObject(p) {
+      const threshold = getThickness() * 2;
+
+      for (let i = paths.length - 1; i >= 0; i--) {
+        const path = paths[i];
+        for (const pt of path.points) {
+          const dx = pt.x - p.x;
+          const dy = pt.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < threshold) {
+            const removed = paths.splice(i, 1)[0]; // 取り出して削除
+            paths.push({
+              tool: 'delete',
+              deletedPath: removed
+            });
+            drawAll();
+            return;
+          }
+        }
+      }
+    }
+
+
 
     function setTool(name) {
       tool = name;
@@ -656,12 +695,24 @@
       return parseInt(thicknessRange.value);
     }
 
-    function undo() {
+    /*function undo() {
       if(paths.length > 0){
         paths.pop();
         drawAll();
       }
+    }*/
+    function undo() {
+      if (paths.length === 0) return;
+
+      const last = paths.pop();
+
+      if (last.tool === 'delete' && last.deletedPath) {
+        paths.push(last.deletedPath);
+      }
+
+      drawAll();
     }
+
 
     function resetView() {
       offsetX = 0;
@@ -778,6 +829,30 @@
     let pointerDown = false;
 
     function handleDown(x, y, e) {
+      if (tool === 'delete') {
+        const p = toCanvasCoords(x, y);
+        deleteNearbyObject(p);
+        return;
+      }
+
+      if (e instanceof TouchEvent && e.touches.length === 2) {
+        isPanning = true;
+        lastTouchDist = getTouchDistance(e.touches);
+        panStart = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+        return;
+      }
+
+      if (e instanceof MouseEvent && e.button !== 0) return;
+      pointerDown = true;
+      const p = toCanvasCoords(x, y);
+      startPath(p.x, p.y);
+    }
+
+    
+    /*function handleDown(x, y, e) {
       // 2本指タッチならパン開始
       if (e instanceof TouchEvent && e.touches.length === 2) {
         isPanning = true;
@@ -793,8 +868,68 @@
       pointerDown = true;
       const p = toCanvasCoords(x, y);
       startPath(p.x, p.y);
+      if (tool === 'delete') {
+  //const p = toCanvasCoords(x, y);
+  const threshold = getThickness() * 2; // 距離のしきい値
+
+  for (let i = paths.length - 1; i >= 0; i--) {
+    const path = paths[i];
+    for (const pt of path.points) {
+      const dx = pt.x - p.x;
+      const dy = pt.y - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < threshold) {
+        paths.splice(i, 1);
+        drawAll();
+        return;
+      }
     }
+  }
+  return;
+}
+
+    }*/
+    
     function handleMove(x, y, e) {
+      if (tool === 'delete') {
+        const p = toCanvasCoords(x, y);
+        deleteNearbyObject(p);
+        return;
+      }
+
+      if (isPanning) {
+        if (e instanceof TouchEvent && e.touches.length === 2) {
+          const newDist = getTouchDistance(e.touches);
+          const zoomFactor = newDist / lastTouchDist;
+          lastTouchDist = newDist;
+          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+          const beforeMid = toCanvasCoords(midX, midY);
+          scale *= zoomFactor;
+          if (scale < 0.2) scale = 0.2;
+          if (scale > 10) scale = 10;
+          const afterMid = toCanvasCoords(midX, midY);
+          offsetX += (afterMid.x - beforeMid.x) * scale;
+          offsetY += (afterMid.y - beforeMid.y) * scale;
+
+          offsetX += (midX - panStart.x);
+          offsetY += (midY - panStart.y);
+          panStart = { x: midX, y: midY };
+          drawAll();
+          return;
+        }
+      }
+
+      if (!pointerDown) return;
+
+      const p = toCanvasCoords(x, y);
+      addPoint(p.x, p.y);
+      drawAll();
+      showLineDrawing(p.x, p.y);
+    }
+
+    /*function handleMove(x, y, e) {
       if (isPanning) {
         if (e instanceof TouchEvent && e.touches.length === 2) {
           const newDist = getTouchDistance(e.touches);
@@ -828,6 +963,8 @@
       drawAll();
       showLineDrawing(x, y);
     }
+    */
+    
     function handleUp(x, y, e) {
       if (isPanning) {
         if (e instanceof TouchEvent && e.touches.length < 2) {
