@@ -443,6 +443,7 @@
     const centerCircle = document.getElementById('centerCircle');
     
     let deleteList = [];
+    const thresholdNum = 4;
     
     function encrypt(str) {
       const encrypted = Array.from(str, c => c.charCodeAt(0) ^ key);
@@ -695,13 +696,13 @@
     });
     
     function deleteNearbyObject(p) {
-      const threshold = getThickness() * 2;
+      const threshold = getThickness() * thresholdNum;
 
       
       for (let i = paths.length - 1; i >= 0; i--) {
         if(deleteList.includes(i)) continue;
         const path = paths[i];
-        if(path.tool == "delete") continue;
+        if(path.tool === "delete") continue;
         for (const pt of path.points) {
           const dx = pt.x - p.x;
           const dy = pt.y - p.y;
@@ -822,7 +823,7 @@
       
       let deleteListK = [];
       for (const path of paths) {
-        if(path.tool == 'delete'){
+        if(path.tool === 'delete'){
           deleteListK = deleteListK.concat(path.deletedPath);
         }
       }
@@ -830,7 +831,7 @@
       for (let k = 0; k < paths.length; k++) {
         if(deleteListK.includes(k)) continue;
         const path = paths[k];
-        if(path.tool == 'delete') continue;
+        if(path.tool === 'delete') continue;
         ctx.strokeStyle = path.color;
         ctx.lineWidth = path.thickness;
         ctx.lineCap = 'round';
