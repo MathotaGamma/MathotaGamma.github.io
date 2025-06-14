@@ -271,7 +271,8 @@
       //const result = loadFromDB();
       loadFromDB().then(data => {
         if (data) {
-          console.log('読み込み成功:', data);
+          //console.log('読み込み成功:', data);
+          console.log("読み込み成功");
           if(confirm("以前のデータが残っています。復元しますか？")) loadImg(data);
         } else {
           console.log('データが存在しません');
@@ -348,7 +349,7 @@
 
         request.onsuccess = () => {
           if (request.result) {
-            console.log("ttttt",request.result)
+            console.log("LoadData:",request.result)
             resolve(request.result.content);
           } else {
             console.log('該当データが見つかりません');
@@ -454,18 +455,27 @@
     }
     
     async function downloadAsPng() {
+      
       if (paths.length === 0) return alert('描画がありません');
 
       // 全線の座標範囲を取得
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      paths.forEach(path => {
+      let deleteListK = [];
+      for(let k = 0; k < paths.length; k++){
+        if(paths[k].tool == 'delete') deleteListK = deleteListK.concat(paths[k].deletedPath);
+      }
+  
+      for(let k = 0; k < paths.length; k++){
+        if(deleteListK.includes(k)) continue;
+        const path = paths[k];
+        if(path.tool === 'delete') continue;
         path.points.forEach(p => {
           if (p.x < minX) minX = p.x;
           if (p.y < minY) minY = p.y;
           if (p.x > maxX) maxX = p.x;
           if (p.y > maxY) maxY = p.y;
         });
-      });
+      };
 
       // マージンを少し取る（線幅の半分とか）
       const margin = 20;
@@ -486,9 +496,17 @@
       // 白背景
       ctx2.fillStyle = 'white';
       ctx2.fillRect(0, 0, width, height);
+      
 
       // pathsを描画（移動量を考慮）
-      paths.forEach(path => {
+      /*let deleteListK = [];
+      for(let k = 0; k < paths.length; k++){
+        if(paths[k].tool == 'delete') deleteListK = deleteListK.concat(paths[k].deletedPath);
+      }*/
+      for(let k = 0; k < paths.length; k++){
+        if(deleteListK.includes(k)) continue;
+        const path = paths[k];
+        if(path.tool === 'delete') continue;
         ctx2.strokeStyle = path.color;
         ctx2.lineWidth = path.thickness || path.size || 2;
         ctx2.lineCap = 'round';
@@ -501,7 +519,7 @@
           else ctx2.lineTo(x, y);
         });
         ctx2.stroke();
-      });
+      }
       
       
       // paths情報をJSONに変換してビット埋め込み
@@ -573,7 +591,6 @@
       a.href = dataURL;
       a.download = 'draw.png';
       a.click();
-      console.log(paths)
     }
     
 
@@ -629,11 +646,13 @@
 
       try {
         const str = new TextDecoder().decode(new Uint8Array(bytes));
+        
         const readPaths = JSON.parse(str);
+        
         callback(readPaths);
       } catch (e) {
         alert('画像の復元に失敗しました。');
-        console.error(e);
+        console.error(e.message);
       }
     }
 
@@ -801,15 +820,15 @@
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
       
-      let deleteList = [];
+      let deleteListK = [];
       for (const path of paths) {
         if(path.tool == 'delete'){
-          deleteList = deleteList.concat(path.deletedPath);
+          deleteListK = deleteListK.concat(path.deletedPath);
         }
       }
       
       for (let k = 0; k < paths.length; k++) {
-        if(deleteList.includes(k)) continue;
+        if(deleteListK.includes(k)) continue;
         const path = paths[k];
         if(path.tool == 'delete') continue;
         ctx.strokeStyle = path.color;
@@ -867,6 +886,8 @@
     let pointerDown = false;
 
     function handleDown(x, y, e) {
+      x = Math.round(10*x)/10;
+      y = Math.round(10*y)/10;
       if (tool === 'delete') {
         const p = toCanvasCoords(x, y);
         deleteNearbyObject(p);
@@ -890,45 +911,9 @@
     }
 
     
-    /*function handleDown(x, y, e) {
-      // 2本指タッチならパン開始
-      if (e instanceof TouchEvent && e.touches.length === 2) {
-        isPanning = true;
-        lastTouchDist = getTouchDistance(e.touches);
-        panStart = {
-          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-        };
-        return;
-      }
-      // Ctrl + マウスでのズーム中はパンしない、通常は左クリックで描画
-      if (e instanceof MouseEvent && e.button !== 0) return;
-      pointerDown = true;
-      const p = toCanvasCoords(x, y);
-      startPath(p.x, p.y);
-      if (tool === 'delete') {
-  //const p = toCanvasCoords(x, y);
-  const threshold = getThickness() * 2; // 距離のしきい値
-
-  for (let i = paths.length - 1; i >= 0; i--) {
-    const path = paths[i];
-    for (const pt of path.points) {
-      const dx = pt.x - p.x;
-      const dy = pt.y - p.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < threshold) {
-        paths.splice(i, 1);
-        drawAll();
-        return;
-      }
-    }
-  }
-  return;
-}
-
-    }*/
-    
     function handleMove(x, y, e) {
+      x = Math.round(10*x)/10;
+      y = Math.round(10*y)/10;
       if (tool === 'delete') {
         const p = toCanvasCoords(x, y);
         deleteNearbyObject(p);
@@ -966,44 +951,10 @@
       drawAll();
       showLineDrawing(p.x, p.y);
     }
-
-    /*function handleMove(x, y, e) {
-      if (isPanning) {
-        if (e instanceof TouchEvent && e.touches.length === 2) {
-          const newDist = getTouchDistance(e.touches);
-          const zoomFactor = newDist / lastTouchDist;
-          lastTouchDist = newDist;
-          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-
-          // 拡大縮小の中心をmidに
-          const beforeMid = toCanvasCoords(midX, midY);
-          scale *= zoomFactor;
-          if(scale < 0.2) scale = 0.2;
-          if(scale > 10) scale = 10;
-          const afterMid = toCanvasCoords(midX, midY);
-          offsetX += (afterMid.x - beforeMid.x) * scale;
-          offsetY += (afterMid.y - beforeMid.y) * scale;
-
-          // パンも移動
-          offsetX += (midX - panStart.x);
-          offsetY += (midY - panStart.y);
-          panStart = {x: midX, y: midY};
-          drawAll();
-          return;
-        }
-      }
-      if (!pointerDown) return;
-      
-      const p = toCanvasCoords(x, y);
-      addPoint(p.x, p.y);
-      
-      drawAll();
-      showLineDrawing(x, y);
-    }
-    */
     
     function handleUp(x, y, e) {
+      x = Math.round(10*x)/10;
+      y = Math.round(10*y)/10;
       if (isPanning) {
         if (e instanceof TouchEvent && e.touches.length < 2) {
           isPanning = false;
