@@ -232,7 +232,7 @@
   <script>
     const textSpan = document.getElementById("textSpan");
     let paths = [];
-    let drawName = "None";
+    let drawName = "default";
 
     
     const canvas = document.getElementById('canvas');
@@ -248,8 +248,14 @@
     const dbName = 'NeoTopazmDB';
     const storeName = 'Tool_InfinityDraw_index-Paths';
     let db; // グローバルで使う
+    
+    //indexedDB.deleteDatabase('NeoTopazmDB').onsuccess = () => {
+    //console.log('データベースNeoTopazmDBを削除しました。');
+    //};
+
 
     const request = indexedDB.open(dbName, 1); // バージョン1で開く
+    
     
     request.onupgradeneeded = (event) => {
       db = event.target.result;
@@ -282,38 +288,47 @@
 
     function saveToDB(){
       try{
-      const data = JSON.stringify(paths);
-      if(data == "[]") return;
-      textSpan.innerText = "保存中";
-      setTimeout(() => {textSpan.innerText = ""}, 1000);
+        const data = JSON.stringify(paths);
+        if(data == "[]") return;
+        textSpan.innerText = "保存中";
+        setTimeout(() => {textSpan.innerText = ""}, 1000);
       
       
-      const dataToSave = { id: drawName, content: data };
-      if (!db) {
-        alert('DBがまだ開かれていません');
-        return;
-      }
-      const tx = db.transaction(storeName, 'readwrite');
-      const store = tx.objectStore(storeName);
-      const request = store.put(dataToSave); // 既存なら上書き、なければ追加
-      console.log(request)
+        const dataToSave = { id: drawName, content: data };
+        if (!db) {
+          alert('DBがまだ開かれていません');
+          return;
+        }
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const request = store.put(dataToSave); // 既存なら上書き、なければ追加
+        /*console.log(request)
         console.log('保存データ:', dataToSave);
-console.log('DB:', db);
-console.log('store:', store);
-console.log('request:', request);
+        console.log('DB:', db);
+        console.log('store:', store);
+        console.log('request:', request);
 
-      
+        console.log(db.objectStoreNames);*/
+
      
 
-      request.onsuccess = () => {
-        alert('a')
-        textSpan.innerText = "保存完了";
-      };
-      request.onerror = (event) => {
-        console.error('保存中にエラー', event.target.error);
-        textSpan.innerText = "保存失敗";
-      };
-        } catch(e) {
+        request.onsuccess = () => {
+          console.log("保存")
+          textSpan.innerText = "保存完了";
+        };
+        request.onerror = (event) => {
+          console.error('保存中にエラー', event.target.error);
+          textSpan.innerText = "保存失敗";
+        };
+        /*tx.oncomplete = () => {
+          console.log('トランザクション完了');
+        };
+
+        tx.onerror = (event) => {
+          console.error('トランザクションエラー', event.target.error);
+        };*/
+        
+      } catch(e) {
         alert(e)
       }
     }
@@ -333,6 +348,7 @@ console.log('request:', request);
 
         request.onsuccess = () => {
           if (request.result) {
+            console.log("ttttt",request.result)
             resolve(request.result.content);
           } else {
             console.log('該当データが見つかりません');
@@ -425,6 +441,7 @@ console.log('request:', request);
     const colorPicker = document.getElementById('colorPicker');
     const centerCircle = document.getElementById('centerCircle');
     
+    let deleteList = [];
     
     function encrypt(str) {
       const encrypted = Array.from(str, c => c.charCodeAt(0) ^ key);
@@ -661,18 +678,27 @@ console.log('request:', request);
     function deleteNearbyObject(p) {
       const threshold = getThickness() * 2;
 
+      
       for (let i = paths.length - 1; i >= 0; i--) {
+        if(deleteList.includes(i)) continue;
         const path = paths[i];
+        if(path.tool == "delete") continue;
         for (const pt of path.points) {
           const dx = pt.x - p.x;
           const dy = pt.y - p.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < threshold) {
-            const removed = paths.splice(i, 1)[0]; // 取り出して削除
-            paths.push({
-              tool: 'delete',
-              deletedPath: removed
-            });
+            //const removed = paths.splice(i, 1)[0]; // 取り出して削除
+            if(deleteList.length == 0){
+              paths.push({
+                tool: 'delete',
+                deletedPath: [i]
+              });
+            } else {
+              paths[paths.length-1].deletedPath.push(i);
+            }
+            deleteList.push(i);
+            
             drawAll();
             return;
           }
@@ -706,9 +732,9 @@ console.log('request:', request);
 
       const last = paths.pop();
 
-      if (last.tool === 'delete' && last.deletedPath) {
+      /*if (last.tool === 'delete' && last.deletedPath) {
         paths.push(last.deletedPath);
-      }
+      }*/
 
       drawAll();
     }
@@ -774,7 +800,18 @@ console.log('request:', request);
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
+      
+      let deleteList = [];
       for (const path of paths) {
+        if(path.tool == 'delete'){
+          deleteList = deleteList.concat(path.deletedPath);
+        }
+      }
+      
+      for (let k = 0; k < paths.length; k++) {
+        if(deleteList.includes(k)) continue;
+        const path = paths[k];
+        if(path.tool == 'delete') continue;
         ctx.strokeStyle = path.color;
         ctx.lineWidth = path.thickness;
         ctx.lineCap = 'round';
@@ -782,6 +819,7 @@ console.log('request:', request);
 
         ctx.beginPath();
         if (path.tool === 'line') {
+          
           ctx.moveTo(path.points[0].x, path.points[0].y);
           ctx.lineTo(path.points[1].x, path.points[1].y);
         } else {
@@ -977,6 +1015,7 @@ console.log('request:', request);
       pointerDown = false;
       const p = toCanvasCoords(x, y);
       endPath(p.x, p.y);
+      deleteList = [];
     }
 
     // マウスイベント
