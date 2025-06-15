@@ -557,29 +557,28 @@
         // 埋め込めない処理へ
         if(confirm('描画データが大きすぎて画像に埋め込めません。別のファイルとして保存しますか')){
           //console.log(encrypt(jsonStr));
-          alert(jsonStr);
-          alert('a');
+          
           const encryptedBase64 = encrypt(jsonStr);
-          alert('b');
+          
           const blob = new Blob([encryptedBase64], { type: "text/plain" });
-          alert('c');
+          
           const imageData = ctx2.getImageData(0, 0, width, height);
-          alert('d');
+          
           const imageBytes = new Uint8Array(imageData.data.buffer);
-          alert('e');
+          
           const data = imageData.data;
-          alert('f');
+          
           const zip = new JSZip();
-          alert('g');
+          
           zip.file("paths.txt", blob);
           zip.file("drawing.png", imageBytes);
           
-          alert('h');
+          
           const zipBlob = await zip.generateAsync({ type: "blob" });
           
-          alert('i');
+          
           const url = URL.createObjectURL(zipBlob);
-          alert(url)
+          
           
           const a = document.createElement("a");
           a.href = url;
