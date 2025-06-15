@@ -457,7 +457,7 @@
     }
     
     async function downloadAsPng() {
-      
+      try{
       if (paths.length === 0) return alert('描画がありません');
 
       // 全線の座標範囲を取得
@@ -556,6 +556,7 @@
           
 
           const url = URL.createObjectURL(zipBlob);
+          alert(url)
           
           const a = document.createElement("a");
           a.href = url;
@@ -598,6 +599,10 @@
       a.href = dataURL;
       a.download = 'draw.png';
       a.click();
+      } catch(e) {
+
+        alert(e.message);
+      }
     }
     
 
