@@ -444,6 +444,7 @@
     
     let deleteList = [];
     const thresholdNum = 4;
+    let scrollTf = false;
     
     function encrypt(str) {
       const encrypted = Array.from(str, c => c.charCodeAt(0) ^ key);
