@@ -445,16 +445,32 @@
     let deleteList = [];
     const thresholdNum = 4;
     let scrollTf = false;
-    
+
     function encrypt(str) {
       const encrypted = Array.from(str, c => c.charCodeAt(0) ^ key);
-      return btoa(String.fromCharCode(...encrypted));
+      let encodedStr = '';
+      for (let i = 0; i < encrypted.length; i++) {
+        encodedStr += String.fromCharCode(encrypted[i]);
+      }
+      return btoa(encodedStr);
     }
+
+    
+    /*function encrypt(str) {
+      const encrypted = Array.from(str, c => c.charCodeAt(0) ^ key);
+      return btoa(String.fromCharCode(...encrypted));
+    }*/
 
     function decrypt(base64) {
       const decoded = atob(base64);
       return Array.from(decoded, c => String.fromCharCode(c.charCodeAt(0) ^ key)).join('');
     }
+
+
+    /*function decrypt(base64) {
+      const decoded = atob(base64);
+      return Array.from(decoded, c => String.fromCharCode(c.charCodeAt(0) ^ key)).join('');
+    }*/
     
     async function downloadAsPng() {
       try{
