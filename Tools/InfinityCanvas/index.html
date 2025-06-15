@@ -531,8 +531,13 @@
       let enc = "";
 
       // 埋め込み可能か判定（目安：キャンバスのピクセル数 × 4(RGBA)の1bitずつ）
-      const maxBits = width * height * 4; // 1bitずつ使えるとして
-      if(bytes.length * 8 > maxBits) {
+      //const maxBits = width * height * 4; // 1bitずつ使えるとして
+      const usableBits = width * height; // Rチャンネルのみ → 1画素 = 1bit
+      const requiredBits = (jsonStr.length + 1) * 8; // +1 は終端用 null byte
+
+      if (requiredBits > usableBits) {
+      //if(bytes.length * 8 > maxBits) {
+        // 埋め込めない処理へ
         if(confirm('描画データが大きすぎて画像に埋め込めません。別のファイルとして保存しますか')){
           //console.log(encrypt(jsonStr));
           const encryptedBase64 = encrypt(jsonStr);
