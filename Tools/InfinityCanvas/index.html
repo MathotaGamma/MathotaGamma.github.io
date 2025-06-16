@@ -196,11 +196,11 @@
   <canvas id="canvas"></canvas>
   <div id="toolbar">
     <div>
-      <span>
+      <span class="area">
         プロジェクト名:<select id="nameSelect"></select>
       </span>
-      <span>
-        新規作成or上書き:<input type="text" value="default" id="drawNameInput"><input type="button" value="OK" onclick="nameDecision();">
+      <span class="area">
+        新規作成or複製:<input type="text" value="default" id="drawNameInput"><input type="button" value="OK" onclick="nameDecision();"><span>※新しく白紙のプロジェクトを作るときは、複製後白紙にして保存。</span>
       </span>
     </div>
     <div>
@@ -317,7 +317,6 @@
     function saveToDB(){
       try{
         const data = JSON.stringify(paths);
-        if(data == "[]") return;
         textSpan.innerText = "保存中";
         setTimeout(() => {textSpan.innerText = ""}, 1000);
       
