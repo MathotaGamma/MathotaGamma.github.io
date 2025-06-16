@@ -250,7 +250,7 @@
     
     
     
-    const dbName = 'NeoTopazmDB';
+    const dbName = 'NeoTopazm_DB';
     const storeName = 'Tools_InfinityCanva_index_Paths';
     let db; // グローバルで使う
     
@@ -366,7 +366,7 @@
     function nameDecision(){//入力した名前が存在→上書き | 存在しない→新規
       try{
         if(document.getElementById('drawNameInput').value == drawName) return;
-        
+        nameSelectFunc();
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
         const getRequest = store.getAllKeys();
@@ -396,7 +396,7 @@
           request.onsuccess = () => {
             console.log("保存")
             textSpan.innerText = "保存完了";
-            nameSelectFunc();
+            //nameSelectFunc();
           };
           request.onerror = (event) => {
             console.error('保存中にエラー', event.target.error);
