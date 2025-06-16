@@ -120,33 +120,6 @@
         margin: auto;
       }
     }
-
-    
-    /*#toolbar {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      max-width: calc(100vw - 20px);
-      max-height: 10vh;
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #ccc;
-      padding: 10px;
-      border-radius: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      z-index: 20;
-      font-size: 14px;
-      user-select: none;
-      overflow-x: auto;
-      overflow-y: auto;
-    }
-    #toolbar > div {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      max-height: 30px;
-    }*/
     button, input[type="color"], input[type="range"] {
       font-size: 14px;
       cursor: pointer;
@@ -195,8 +168,13 @@
 <body>
   <canvas id="canvas"></canvas>
   <div id="toolbar">
-    <div class="area">
-      <input type="text" value="default" id="drawNameInput"><input type="button" value="OK" onclick="nameDecision();"><select id="nameSelect"></select>
+    <div>
+      <span>
+        プロジェクト名:<select id="nameSelect"></select>
+      </span>
+      <span>
+        新規作成or上書き:<input type="text" value="default" id="drawNameInput"><input type="button" value="OK" onclick="nameDecision();">
+      </span>
     </div>
     <div>
       <button onclick="setTool('pen')">✍️ ペン</button>
@@ -230,6 +208,9 @@
       </span>
       <span id="textSpan"></span>
     </div>
+    <div>
+      <input type="button" value="プロジェクトを削除" onclick="projectDelete()">
+    </div>
   </div>
   <!--<div id="centerCircle"></div>-->
   <script>
@@ -239,14 +220,16 @@
     
     if(drawName == "default") localStorage.setItem('Tools_InfinityCanva_index_default',drawName);
 
+    document.getElementById('nameSelect').value = drawName;
+    document.getElementById('drawNameInput').value = drawName;
+    alert(drawName)
+    
     
     const canvas = document.getElementById('canvas');
     const importImg = document.getElementById('importImg');
     const thicknessLabel = document.getElementById('thicknessLabel');
     const ctx = canvas.getContext('2d');
     const DPR = window.devicePixelRatio || 1;
-    
-    
     
     
     
@@ -307,36 +290,28 @@
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
         const request = store.put(dataToSave); // 既存なら上書き、なければ追加
-        /*console.log(request)
-        console.log('保存データ:', dataToSave);
-        console.log('DB:', db);
-        console.log('store:', store);
-        console.log('request:', request);
-
-        console.log(db.objectStoreNames);*/
+        
 
      
 
         request.onsuccess = () => {
           console.log("保存")
           textSpan.innerText = "保存完了";
+          nameSelectFunc();
         };
         request.onerror = (event) => {
           console.error('保存中にエラー', event.target.error);
           textSpan.innerText = "保存失敗";
         };
-        /*tx.oncomplete = () => {
-          console.log('トランザクション完了');
-        };
-
-        tx.onerror = (event) => {
-          console.error('トランザクションエラー', event.target.error);
-        };*/
+        
         
       } catch(e) {
         alert(e)
       }
     }
+    
+    
+
     
     function nameSelectFunc(){
       const elem = document.getElementById('nameSelect');
@@ -345,33 +320,102 @@
         alert('DBがまだ開かれていません');
         return;
       }
+      
+      
+      
+      
       const tx = db.transaction(storeName, 'readwrite');
       const store = tx.objectStore(storeName);
       const request = store.getAllKeys();
       request.onsuccess = () => {
+        elem.innerHTML = "";
         console.log("全keyデータ:", request.result);
-        request.result.forEach((k) => {
+        let drawNameInd = 0;
+        for(let i = 0; i < request.result.length; i++){
+          const k = request.result[i];
           const opt = document.createElement('option');
           opt.innerHTML = k;
+          if(k == drawName) drawNameInd = i;
           elem.appendChild(opt);
-        });
+        };
+        elem.options[drawNameInd].selected = true;
       };
       request.onerror = () => {
         console.error("getAllKeys 失敗");
       };
+      
     }
     
+    function projectDelete(){
+      if(!confirm('本当に'+drawName+'を削除してもよろしいですか？')) return;
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const deleteRequest = store.delete(drawName); // または具体的なキー
+
+      deleteRequest.onsuccess = () => {
+        console.log('削除成功');
+        alert('削除しました。');
+        nameSelectFunc();
+        drawName = "default";
+        localStorage.setItem('Tools_InfinityCanva_index_default', drawName);
+        document.getElementById('nameSelect').value = drawName;
+        document.getElementById('drawNameInput').value = drawName;
+
+        // default の存在確認
+        const tx2 = db.transaction(storeName, 'readonly');
+        const store2 = tx2.objectStore(storeName);
+        const checkRequest = store2.get(drawName);
+
+        checkRequest.onsuccess = () => {
+          if (checkRequest.result) {
+            loadImg(checkRequest.result.content);
+          } else {
+            paths = [];
+            drawAll();
+            saveToDB();
+            const tx3 = db.transaction(storeName, 'readwrite');
+        const store3 = tx3.objectStore(storeName);
+        const addRequest = store3.put({ id: drawName, content: JSON.stringify(paths) });
+
+        addRequest.onsuccess = () => {
+          console.log("default プロジェクトを新規作成");
+          nameSelectFunc(); // select 更新
+        };
+        addRequest.onerror = (event) => {
+          console.error("default プロジェクトの作成に失敗:", event.target.error);
+        };
+          }
+        };
+
+        checkRequest.onerror = (event) => {
+          console.error("default プロジェクト確認失敗:", event.target.error);
+        };
+      };
+
+      deleteRequest.onerror = (event) => {
+        console.error('削除失敗:', event.target.error);
+        alert('削除失敗')
+      };
+    }
     
     function nameDecision(){//入力した名前が存在→上書き | 存在しない→新規
       try{
         if(document.getElementById('drawNameInput').value == drawName) return;
-        nameSelectFunc();
+        
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
         const getRequest = store.getAllKeys();
+        
+        const elem = document.getElementById('nameSelect');
+      
+        
+       
+      
         getRequest.onsuccess = () => {
           console.log("全keyデータ:", getRequest.result);
-          alert(getRequest.result.includes(document.getElementById('drawNameInput').value));
+          
+          
+          
           if(getRequest.result.includes(document.getElementById('drawNameInput').value)){
             if(!confirm('指定した名前は既に存在しています。上書きしてもよろしいですか？')) return;
           }
@@ -395,7 +439,8 @@
           request.onsuccess = () => {
             console.log("保存")
             textSpan.innerText = "保存完了";
-            //nameSelectFunc();
+            nameSelectFunc();
+            
           };
           request.onerror = (event) => {
             console.error('保存中にエラー', event.target.error);
@@ -615,11 +660,7 @@
       ctx2.fillRect(0, 0, width, height);
       
 
-      // pathsを描画（移動量を考慮）
-      /*let deleteListK = [];
-      for(let k = 0; k < paths.length; k++){
-        if(paths[k].tool == 'delete') deleteListK = deleteListK.concat(paths[k].deletedPath);
-      }*/
+      
       for(let k = 0; k < paths.length; k++){
         if(deleteListK.includes(k)) continue;
         const path = paths[k];
