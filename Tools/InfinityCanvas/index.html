@@ -120,6 +120,33 @@
         margin: auto;
       }
     }
+
+    
+    /*#toolbar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      max-width: calc(100vw - 20px);
+      max-height: 10vh;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 20;
+      font-size: 14px;
+      user-select: none;
+      overflow-x: auto;
+      overflow-y: auto;
+    }
+    #toolbar > div {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-height: 30px;
+    }*/
     button, input[type="color"], input[type="range"] {
       font-size: 14px;
       cursor: pointer;
@@ -222,7 +249,7 @@
 
     document.getElementById('nameSelect').value = drawName;
     document.getElementById('drawNameInput').value = drawName;
-    alert(drawName)
+    
     
     
     const canvas = document.getElementById('canvas');
@@ -260,9 +287,22 @@
         if (data) {
           //console.log('読み込み成功:', data);
           console.log("読み込み成功");
-          if(confirm("以前のデータが残っています。復元しますか？")) loadImg(data);
+          //if(confirm("以前のデータが残っています。復元しますか？")) loadImg(data);
+          loadImg(data);
         } else {
           console.log('データが存在しません');
+          paths = [];
+          const tx = db.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+          const addRequest = store.put({ id: drawName, content: JSON.stringify(paths) });
+
+          addRequest.onsuccess = () => {
+            console.log("default プロジェクトを新規作成");
+            nameSelectFunc(); // select 更新
+          };
+          addRequest.onerror = (event) => {
+            console.error("default プロジェクトの作成に失敗:", event.target.error);
+          };
         }
       }).catch(err => {
         console.error('読み込み失敗:', err);
@@ -374,16 +414,16 @@
             drawAll();
             saveToDB();
             const tx3 = db.transaction(storeName, 'readwrite');
-        const store3 = tx3.objectStore(storeName);
-        const addRequest = store3.put({ id: drawName, content: JSON.stringify(paths) });
+            const store3 = tx3.objectStore(storeName);
+            const addRequest = store3.put({ id: drawName, content: JSON.stringify(paths) });
 
-        addRequest.onsuccess = () => {
-          console.log("default プロジェクトを新規作成");
-          nameSelectFunc(); // select 更新
-        };
-        addRequest.onerror = (event) => {
-          console.error("default プロジェクトの作成に失敗:", event.target.error);
-        };
+            addRequest.onsuccess = () => {
+              console.log("default プロジェクトを新規作成");
+              nameSelectFunc(); // select 更新
+            };
+            addRequest.onerror = (event) => {
+              console.error("default プロジェクトの作成に失敗:", event.target.error);
+            };
           }
         };
 
@@ -659,8 +699,6 @@
       ctx2.fillStyle = 'white';
       ctx2.fillRect(0, 0, width, height);
       
-
-      
       for(let k = 0; k < paths.length; k++){
         if(deleteListK.includes(k)) continue;
         const path = paths[k];
@@ -699,15 +737,10 @@
           //console.log(encrypt(jsonStr));
           
           const encryptedBase64 = encrypt(jsonStr);
-          
           const blob = new Blob([encryptedBase64], { type: "text/plain" });
-          
           const imageData = ctx2.getImageData(0, 0, width, height);
-          
           const imageBytes = new Uint8Array(imageData.data.buffer);
-          
           const data = imageData.data;
-          
           const zip = new JSZip();
           
           zip.file("paths.txt", blob);
@@ -913,13 +946,6 @@
     function getThickness() {
       return parseInt(thicknessRange.value);
     }
-
-    /*function undo() {
-      if(paths.length > 0){
-        paths.pop();
-        drawAll();
-      }
-    }*/
     function undo() {
       if (paths.length === 0) return;
 
