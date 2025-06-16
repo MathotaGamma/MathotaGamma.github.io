@@ -701,6 +701,12 @@
       ctx2.fillStyle = 'white';
       ctx2.fillRect(0, 0, width, height);
       
+
+      // pathsを描画（移動量を考慮）
+      /*let deleteListK = [];
+      for(let k = 0; k < paths.length; k++){
+        if(paths[k].tool == 'delete') deleteListK = deleteListK.concat(paths[k].deletedPath);
+      }*/
       for(let k = 0; k < paths.length; k++){
         if(deleteListK.includes(k)) continue;
         const path = paths[k];
@@ -739,10 +745,15 @@
           //console.log(encrypt(jsonStr));
           
           const encryptedBase64 = encrypt(jsonStr);
+          
           const blob = new Blob([encryptedBase64], { type: "text/plain" });
+          
           const imageData = ctx2.getImageData(0, 0, width, height);
+          
           const imageBytes = new Uint8Array(imageData.data.buffer);
+          
           const data = imageData.data;
+          
           const zip = new JSZip();
           
           zip.file("paths.txt", blob);
@@ -906,27 +917,27 @@
     function deleteNearbyObject(p) {
       const threshold = getThickness() * thresholdNum;
 
-      
       for (let i = paths.length - 1; i >= 0; i--) {
         if(deleteList.includes(i)) continue;
         const path = paths[i];
         if(path.tool === "delete") continue;
-        for (const pt of path.points) {
-          const dx = pt.x - p.x;
-          const dy = pt.y - p.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+
+        const pts = path.points;
+        for (let j = 0; j < pts.length - 1; j++) {
+          const pt1 = pts[j];
+          const pt2 = pts[j + 1];
+
+          const dist = pointToSegmentDistance(p, pt1, pt2);
           if (dist < threshold) {
-            //const removed = paths.splice(i, 1)[0]; // 取り出して削除
-            if(deleteList.length == 0){
+            if(deleteList.length === 0){
               paths.push({
                 tool: 'delete',
                 deletedPath: [i]
               });
             } else {
-              paths[paths.length-1].deletedPath.push(i);
+              paths[paths.length - 1].deletedPath.push(i);
             }
             deleteList.push(i);
-            
             drawAll();
             return;
           }
@@ -934,6 +945,19 @@
       }
     }
 
+
+    function pointToSegmentDistance(p, v, w) {
+      const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      const proj = {
+        x: v.x + t * (w.x - v.x),
+        y: v.y + t * (w.y - v.y)
+      };
+      return Math.hypot(p.x - proj.x, p.y - proj.y);
+    }
 
 
     function setTool(name) {
@@ -948,6 +972,13 @@
     function getThickness() {
       return parseInt(thicknessRange.value);
     }
+
+    /*function undo() {
+      if(paths.length > 0){
+        paths.pop();
+        drawAll();
+      }
+    }*/
     function undo() {
       if (paths.length === 0) return;
 
