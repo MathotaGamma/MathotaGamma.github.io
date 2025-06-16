@@ -261,7 +261,6 @@
     
     
     request.onupgradeneeded = (event) => {
-      alert('upgrade')
       db = event.target.result;
       if (!db.objectStoreNames.contains(storeName)) {
         db.createObjectStore(storeName, { keyPath: 'id' }); // 主キーは'id'
