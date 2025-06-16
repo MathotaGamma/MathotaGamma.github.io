@@ -599,6 +599,8 @@
       canvas.height = window.innerHeight * DPR;
       canvas.style.width = window.innerWidth + 'px';
       canvas.style.height = window.innerHeight + 'px';
+      canvas.top = "0px";
+      canvas.left = "0px";
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(DPR, DPR);
       drawAll();
