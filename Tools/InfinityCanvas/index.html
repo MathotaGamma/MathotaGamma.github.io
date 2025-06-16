@@ -914,6 +914,9 @@
       //showCenterCircle();
     });
     
+    let deletingTouchUpTf = false;
+      
+    
     function deleteNearbyObject(p) {
       const threshold = getThickness() * thresholdNum;
 
@@ -929,14 +932,18 @@
 
           const dist = pointToSegmentDistance(p, pt1, pt2);
           if (dist < threshold) {
-            if(deleteList.length === 0){
+            const last = paths[paths.length - 1];
+            
+            if (last && last.tool === 'delete' && Array.isArray(last.deletedPath) && deletingTouchUpTf) {
+              last.deletedPath.push(i);
+            } else {
+              deletingTouchUpTf = true;
               paths.push({
                 tool: 'delete',
                 deletedPath: [i]
               });
-            } else {
-              paths[paths.length - 1].deletedPath.push(i);
             }
+
             deleteList.push(i);
             drawAll();
             return;
@@ -944,6 +951,8 @@
         }
       }
     }
+
+
 
 
     function pointToSegmentDistance(p, v, w) {
@@ -987,6 +996,10 @@
       /*if (last.tool === 'delete' && last.deletedPath) {
         paths.push(last.deletedPath);
       }*/
+      
+      if (last.tool === 'delete') {
+        deleteList.length = 0; // 削除リストをクリア
+      }
 
       drawAll();
     }
@@ -1188,6 +1201,8 @@
     function handleUp(x, y, e) {
       x = Math.round(10*x)/10;
       y = Math.round(10*y)/10;
+      deletingTouchUpTf = false;
+      
       if (isPanning) {
         if (e instanceof TouchEvent && e.touches.length < 2) {
           isPanning = false;
