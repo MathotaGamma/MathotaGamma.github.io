@@ -657,6 +657,76 @@
       return Array.from(decoded, c => String.fromCharCode(c.charCodeAt(0) ^ key)).join('');
     }*/
     
+    function getNonWhiteBoundingBox(canvas, ctx) {
+      const w = canvas.width;
+      const h = canvas.height;
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+
+      let minX = w, minY = h, maxX = 0, maxY = 0;
+      let found = false;
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          const a = data[idx + 3];
+
+          // 白色かどうか判定（アルファ0は無視）
+          // 完全な白（R=255,G=255,B=255）でかつ不透明とする
+          if (a !== 0 && !(r === 255 && g === 255 && b === 255)) {
+            found = true;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (!found) {
+        return null; // 白のみ、または透明のみの画像
+      }
+
+      return [minX,minY,maxX,maxY];
+    }
+    
+    function cropCanvasCtx(ctx, minX, minY, maxX, maxY) {
+      const width = maxX - minX;
+      const height = maxY - minY;
+
+      // 新しいオフスクリーンキャンバス作成
+      const croppedCanvas = document.createElement('canvas');
+      croppedCanvas.width = width;
+  croppedCanvas.height = height;
+  const croppedCtx = croppedCanvas.getContext('2d');
+
+  // 指定範囲のピクセルを取得
+  const imageData = ctx.getImageData(minX, minY, width, height);
+
+  // 切り出した画像データを新しいキャンバスに描画
+  croppedCtx.putImageData(imageData, 0, 0);
+
+  // 新しい context を返す
+  return croppedCtx;
+}
+const ImageDataToBlob = function(imageData){
+  let w = imageData.width;
+  let h = imageData.height;
+  let canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  let ctx = canvas.getContext("2d");
+  ctx.putImageData(imageData, 0, 0);        // synchronous
+
+  return new Promise((resolve) => {
+        canvas.toBlob(resolve); // implied image/png format
+  });
+}
+
+    
     async function downloadAsPng() {
       try{
       if (paths.length === 0) return alert('描画がありません');
@@ -664,22 +734,27 @@
       // 全線の座標範囲を取得
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       let deleteListK = [];
+      
       for(let k = 0; k < paths.length; k++){
         if(paths[k].tool == 'delete') deleteListK = deleteListK.concat(paths[k].deletedPath);
       }
+      
   
       for(let k = 0; k < paths.length; k++){
         if(deleteListK.includes(k)) continue;
         const path = paths[k];
         if(path.tool === 'delete') continue;
+        if(path.tool === 'eraser') continue;
         path.points.forEach(p => {
+          
           if (p.x < minX) minX = p.x;
           if (p.y < minY) minY = p.y;
           if (p.x > maxX) maxX = p.x;
           if (p.y > maxY) maxY = p.y;
+          
         });
       };
-
+      
       // マージンを少し取る（線幅の半分とか）
       const margin = 20;
       minX -= margin;
@@ -687,25 +762,19 @@
       maxX += margin;
       maxY += margin;
 
-      const width = maxX - minX;
-      const height = maxY - minY;
+      let width = maxX - minX;
+      let height = maxY - minY;
 
       // オフスクリーンキャンバス作成
       const offCanvas = document.createElement('canvas');
       offCanvas.width = width;
       offCanvas.height = height;
-      const ctx2 = offCanvas.getContext('2d');
+      let ctx2 = offCanvas.getContext('2d');
 
       // 白背景
       ctx2.fillStyle = 'white';
       ctx2.fillRect(0, 0, width, height);
       
-
-      // pathsを描画（移動量を考慮）
-      /*let deleteListK = [];
-      for(let k = 0; k < paths.length; k++){
-        if(paths[k].tool == 'delete') deleteListK = deleteListK.concat(paths[k].deletedPath);
-      }*/
       for(let k = 0; k < paths.length; k++){
         if(deleteListK.includes(k)) continue;
         const path = paths[k];
@@ -724,6 +793,17 @@
         ctx2.stroke();
       }
       
+
+      [minX,minY,maxX,maxY] = getNonWhiteBoundingBox(offCanvas,ctx2);
+      
+      minX -= margin;
+      minY -= margin;
+      maxX += margin;
+      maxY += margin;
+      width = maxX - minX;
+      height = maxY - minY;
+      ctx2 = cropCanvasCtx(ctx2, minX, minY, maxX, maxY);
+      
       
       // paths情報をJSONに変換してビット埋め込み
       const jsonStr = JSON.stringify(paths);
@@ -733,7 +813,6 @@
       let enc = "";
 
       // 埋め込み可能か判定（目安：キャンバスのピクセル数 × 4(RGBA)の1bitずつ）
-      //const maxBits = width * height * 4; // 1bitずつ使えるとして
       const usableBits = width * height; // Rチャンネルのみ → 1画素 = 1bit
       const requiredBits = (jsonStr.length + 1) * 8; // +1 は終端用 null byte
 
@@ -741,29 +820,22 @@
       //if(bytes.length * 8 > maxBits) {
         // 埋め込めない処理へ
         if(confirm('描画データが大きすぎて画像に埋め込めません。別のファイルとして保存しますか')){
-          //console.log(encrypt(jsonStr));
           
           const encryptedBase64 = encrypt(jsonStr);
-          
           const blob = new Blob([encryptedBase64], { type: "text/plain" });
-          
           const imageData = ctx2.getImageData(0, 0, width, height);
-          
-          const imageBytes = new Uint8Array(imageData.data.buffer);
-          
           const data = imageData.data;
           
           const zip = new JSZip();
-          
           zip.file("paths.txt", blob);
-          zip.file("drawing.png", imageBytes);
-          
+          const canvas2 = ctx2.canvas;
+          const pngBlob = await new Promise(resolve => {
+            canvas2.toBlob(blob => resolve(blob), 'image/png');
+          });
+          zip.file("drawing.png", pngBlob);
           
           const zipBlob = await zip.generateAsync({ type: "blob" });
-          
-          
           const url = URL.createObjectURL(zipBlob);
-          
           
           const a = document.createElement("a");
           a.href = url;
@@ -778,6 +850,8 @@
       }
 
       // paths をステガノグラフィとして Rチャンネルに埋め込む
+        
+      //const imageData = ctx2.getImageData(minX, minY, maxX, maxY);
       const imageData = ctx2.getImageData(0, 0, width, height);
       const data = imageData.data;
       const pathStr = JSON.stringify(paths);
@@ -798,10 +872,12 @@
         data[i * 4] = (data[i * 4] & ~1) | bits[i];
       }
 
+      /*ctx2.canvas.width = imageData.width;
+      ctx2.canvas.height = imageData.height;*/
       ctx2.putImageData(imageData, 0, 0);
 
       // ダウンロード
-      const dataURL = offCanvas.toDataURL('image/png');
+      const dataURL = ctx2.canvas.toDataURL('image/png');
       const a = document.createElement('a');
       a.href = dataURL;
       a.download = 'draw.png';
