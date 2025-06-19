@@ -217,6 +217,13 @@
       <button onclick="saveToDB()">データを保存</button>
     </div>
     <div>
+      <button onclick="setTool('lasso')">縄選択</button>
+      <button onclick="moveSelected()">移動</button>
+      <button onclick="deleteSelected()">削除</button>
+      <input type="color" onchange="changeSelectedColor(this.value)">
+
+    </div>
+    <div>
       <span class="area">
         <label for="colorPicker">🎨 色</label>
         <input type="color" id="colorPicker" value="#000000" />
@@ -246,6 +253,11 @@
     window.addEventListener('scroll', () => {
       window.scrollTo(0, 0);
     });
+    
+    let lassoPoints = [];
+    let lassoMode = false;
+    let selectedPathIndices = [];
+
 
     const textSpan = document.getElementById("textSpan");
     const nestSpan = document.getElementById("selectNest")
@@ -1350,6 +1362,11 @@
         ctx.lineWidth = path.thickness;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        
+        const isSelected = selectedPathIndices.includes(k);
+        ctx.strokeStyle = path.color;
+        ctx.lineWidth = (path.thickness || 2) + (isSelected ? 2 : 0);
+
 
         ctx.beginPath();
         if (path.tool === 'line') {
@@ -1365,7 +1382,11 @@
         ctx.stroke();
       }
       ctx.restore();
+      
+      drawLasso();
     }
+    
+    
 
     /*function showCenterCircle() {
       const size = getThickness();
@@ -1396,6 +1417,91 @@
       ctx.stroke();
       ctx.restore();
     }
+    
+    function drawLasso() {
+  if (tool !== 'lasso' || lassoPoints.length < 2) return;
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  ctx.strokeStyle = '#0000ff';
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+  for (let i = 1; i < lassoPoints.length; i++) {
+    ctx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+    
+    function pointInPolygon(p, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y;
+    const xj = poly[j].x, yj = poly[j].y;
+    const intersect = ((yi > p.y) !== (yj > p.y)) &&
+      (p.x < (xj - xi) * (p.y - yi) / (yj - yi + 0.0001) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function selectPathsInLasso() {
+  selectedPathIndices = [];
+  for (let i = 0; i < paths.length; i++) {
+    const path = paths[i];
+    if (path.tool === 'delete') continue;
+    for (const pt of path.points) {
+      if (pointInPolygon(pt, lassoPoints)) {
+        selectedPathIndices.push(i);
+        break;
+      }
+    }
+  }
+  // 🔽 ラッソ選択後に消す
+  lassoPoints = [];
+}
+
+
+/*function moveSelected(dx = 10, dy = 10) {
+  for (const index of selectedPathIndices) {
+    const path = paths[index];
+    path.points.forEach(p => {
+      p.x += dx;
+      p.y += dy;
+    });
+  }
+  drawAll();
+}*/
+
+function deleteSelected() {
+  if(!confirm('選択されたオブジェクトを削除しますか？')) return;
+  selectedPathIndices.sort((a, b) => b - a); // 後ろから削除
+  for (const index of selectedPathIndices) {
+    paths.splice(index, 1);
+  }
+  selectedPathIndices = [];
+  drawAll();
+}
+
+function changeSelectedColor(color) {
+  for (const index of selectedPathIndices) {
+    paths[index].color = color;
+  }
+  drawAll();
+}
+
+    
+    
+    let isDraggingSelection = false;
+let dragStart = null;
+
+    
+    
+    
+    
 
     // 操作ハンドラー
     let pointerDown = false;
@@ -1423,6 +1529,41 @@
         deleteNearbyObject(p);
         return;
       }
+      
+      /*if (tool === 'lasso') {
+  const canvasPos = toCanvasCoords(x, y);
+
+  if (selectedPathIndices.length > 0) {
+    // 選択後 → 指一本で移動開始
+    isDraggingSelection = true;
+    dragStart = canvasPos;
+    pointerDown = true;
+  } else {
+    // 新しい囲み開始
+    lassoPoints = [canvasPos];
+    pointerDown = true;
+  }
+  return;
+}*/
+      
+      if (tool === 'lasso') {
+  const canvasPos = toCanvasCoords(x, y);
+
+  if (selectedPathIndices.length > 0) {
+    // すでに選択中 → そのままタッチで解除
+    selectedPathIndices = [];
+    drawAll();
+    return;
+  }
+
+  // 新しい囲み開始
+  lassoPoints = [canvasPos];
+  pointerDown = true;
+  return;
+}
+
+
+
 
       if (e instanceof MouseEvent && e.button !== 0) return;
       pointerDown = true;
@@ -1465,6 +1606,36 @@
         deleteNearbyObject(p);
         return;
       }
+      
+      if (tool === 'lasso' && pointerDown) {
+  const canvasPos = toCanvasCoords(x, y);
+
+  if (isDraggingSelection && dragStart) {
+    const dx = canvasPos.x - dragStart.x;
+    const dy = canvasPos.y - dragStart.y;
+
+    for (const index of selectedPathIndices) {
+      const path = paths[index];
+      path.points.forEach(p => {
+        p.x += dx;
+        p.y += dy;
+      });
+    }
+
+    dragStart = canvasPos;
+    drawAll();
+  } else {
+    // 囲み線描画中
+    lassoPoints.push(canvasPos);
+    drawAll();
+    drawLasso();
+  }
+
+  return;
+}
+
+
+
 
       if (!pointerDown) return;
 
@@ -1486,6 +1657,24 @@
         }
         return;
       }
+      
+      if (tool === 'lasso') {
+  pointerDown = false;
+
+  if (isDraggingSelection) {
+    isDraggingSelection = false;
+    dragStart = null;
+  } else {
+    // 囲み終了 → パス選択処理
+    selectPathsInLasso();  // lassoPoints に基づいて paths から選択
+    drawAll();
+  }
+
+  return;
+}
+
+
+
       
       if (!pointerDown) return;
       pointerDown = false;
