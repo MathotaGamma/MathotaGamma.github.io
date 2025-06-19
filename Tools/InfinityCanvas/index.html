@@ -1495,7 +1495,7 @@ function changeSelectedColor(color) {
     
     
     let isDraggingSelection = false;
-let dragStart = null;
+    let dragStart = null;
 
     
     
@@ -1529,37 +1529,39 @@ let dragStart = null;
         return;
       }
       
-      /*if (tool === 'lasso') {
-  const canvasPos = toCanvasCoords(x, y);
-
-  if (selectedPathIndices.length > 0) {
-    // 選択後 → 指一本で移動開始
-    isDraggingSelection = true;
-    dragStart = canvasPos;
-    pointerDown = true;
-  } else {
-    // 新しい囲み開始
-    lassoPoints = [canvasPos];
-    pointerDown = true;
-  }
-  return;
-}*/
       
-      if (tool === 'lasso') {
+    if (tool === 'lasso') {
   const canvasPos = toCanvasCoords(x, y);
 
+  // すでに選択されている場合 → 選択されたオブジェクト内を押したら move 開始
   if (selectedPathIndices.length > 0) {
-    // すでに選択中 → そのままタッチで解除
+    for (const index of selectedPathIndices) {
+      const path = paths[index];
+      for (const pt of path.points) {
+        const dx = pt.x - canvasPos.x;
+        const dy = pt.y - canvasPos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 10 / scale) { // 半径10px以内なら move 開始
+          isDraggingSelection = true;
+          dragStart = canvasPos;
+          pointerDown = true;
+          return;
+        }
+      }
+    }
+
+    // moveではない＝画面の外を押した→選択解除
     selectedPathIndices = [];
     drawAll();
     return;
   }
 
-  // 新しい囲み開始
+  // 新しいラッソ選択の開始
   lassoPoints = [canvasPos];
   pointerDown = true;
   return;
 }
+
 
 
 
