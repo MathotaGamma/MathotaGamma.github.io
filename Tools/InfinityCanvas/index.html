@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <title>無限キャンバス（拡大縮小・中央リセット・ペン太さ表示）</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-touch-callout:none;
+      -webkit-user-select: none;
+      user-select: none;
+      background: #fff;
+      height: 100vh;
+      width: 100vw;
+    }
+    canvas {
+      display: block;
+      background: #fff;
+      touch-action: none;
+    }
+    
+    #toolbar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      max-height: 15vh;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #ccc;
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+      font-size: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    /* 各行（ツール行） */
+    #toolbar > div {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    /* ボタンなど */
+    #toolbar button,
+    #toolbar input[type="color"],
+    #toolbar input[type="range"],
+    #toolbar input[type="file"],
+    #toolbar input[type="checkbox"],
+    #toolbar label {
+      font-size: 14px;
+      padding: 6px 8px;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      background: #f9f9f9;
+      white-space: nowrap;
+    }
+
+    #toolbar button:hover {
+      background: #eee;
+    }
+
+    /* ペンサイズ丸表示 */
+    #penSizeDisplay {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: black;
+      border: 1.5px solid #444;
+    }
+
+    /* エリア区切りボックス */
+    .area {
+      display: flex;
+      align-items: center;
+      padding: 4px 6px;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      gap: 6px;
+      background: #fff;
+    }
+
+    /* スマホ向け調整 */
+    @media (max-width: 600px) {
+      #toolbar {
+        font-size: 14px;
+        padding: 10px;
+        max-height: 10vh;
+      }
+
+      #toolbar > div {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      #toolbar button,
+      #toolbar input,
+      #toolbar label {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .area {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      #penSizeDisplay {
+        margin: auto;
+      }
+    }
+
+    
+    /*#toolbar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      max-width: calc(100vw - 20px);
+      max-height: 10vh;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 20;
+      font-size: 14px;
+      user-select: none;
+      overflow-x: auto;
+      overflow-y: auto;
+    }
+    #toolbar > div {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-height: 30px;
+    }*/
+    button, input[type="color"], input[type="range"] {
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button {
+      padding: 6px 8px;
+      border: 1px solid #999;
+      background: #eee;
+      border-radius: 4px;
+      user-select: none;
+    }
+    button:hover {
+      background: #ddd;
+    }
+    #penSizeDisplay {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: black;
+      border: 1.5px solid #444;
+      flex-shrink: 0;
+    }
+    
+    .area {
+      border: 1px solid black;
+    }
+    
+    #textSpan {
+      color: red;
+    }
+    
+    #selectNest {
+      width: auto;
+      max-width: 400px;
+      overflow-x: auto;
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div id="toolbar">
+    <div>
+      <span>
+        
+      </span>
+      <span class="area" style="display: flex; flex-flow: column;">
+        <span>※名前の最下層には'_'が先頭に入っています。</span>
+        <span style="display: flex; flex-flow: row;">プロジェクト名:<span id="selectNest"></span></span>
+      </span>
+      <span class="area">
+        新規作成or複製:<input type="text" value="default" id="drawNameInput" placeholder="プロジェクト名('_'と'/'は使えません。)"><input type="button" value="OK" onclick="nameDecision();"><span>※新しく白紙のプロジェクトを作るときは、複製後白紙にして保存。</span>
+      </span>
+    </div>
+    <div>
+      <button onclick="setTool('pen')">✍️ ペン</button>
+      <button onclick="setTool('eraser')">🧽 消しゴム</button>
+      <button onclick="setTool('delete')">🎯 オブジェクト消し</button>
+      <button onclick="setTool('line')">📏 定規</button>
+      <button onclick="undo()">↩️ 戻す</button>
+      <button onclick="resetView()">📍 中央に戻す</button>
+      <button onclick="downloadAsPng()">画像をダウンロード</button>
+      <button onclick="clearCanvas()">白紙に戻す</button>
+      <button onclick="saveToDB()">データを保存</button>
+    </div>
+    <div>
+      <span class="area">
+        <label for="colorPicker">🎨 色</label>
+        <input type="color" id="colorPicker" value="#000000" />
+      </span>
+      <span>
+        <tt><label for="thickness" id="thicknessLabel">3px:</label></tt>
+        <input type="range" id="thickness" min="1" max="40" value="3" />
+      </span>
+      <span>
+        <div id="penSizeDisplay"></div>
+      </span>
+      <span class="area">
+        <input type="file" id="importImg"/>
+      </span>
+      <span class="area">
+        <label>自動保存(1分毎):</label>
+        <input type="checkbox" id="autoSaveCheckBox">
+      </span>
+      <span id="textSpan"></span>
+    </div>
+    <div>
+      <input type="button" value="プロジェクトを削除" onclick="projectDelete()">
+    </div>
+  </div>
+  <!--<div id="centerCircle"></div>-->
+  <script>
+    const textSpan = document.getElementById("textSpan");
+    const nestSpan = document.getElementById("selectNest")
+    let paths = [];
+    let drawName = localStorage.getItem('Tools_InfinityCanva_index_default') ? localStorage.getItem('Tools_InfinityCanva_index_default') : "default";
+    
+    if(drawName == "default") localStorage.setItem('Tools_InfinityCanva_index_default',drawName);
+
+    
+    //drawNameSet();
+    document.getElementById('drawNameInput').value = drawName;
+    
+    //DBから現在のデータを取得してNestを生成。
+    function drawNameSet(selectPath = [], last = false) {
+      if(!Array.isArray(selectPath)){
+        //console.error('Error:drawNameSetの引数が配列でない')
+        throw new Error('Error:drawNameSetの引数が配列でない。')
+      }
+      if(selectPath.join('').includes('/')){
+        throw new Error("Error:drawNameSetの引数の配列に'/'が含まれている。'")
+      }
+      if(last && selectPath.join('').includes('_')){
+        throw new Error("Error:lastをtrueにした状態でdrawNameSetの引数の配列に'_'が含まれている。'")
+      }
+      if (!db) {
+        alert('DBがまだ開かれていません');
+        return;
+      }
+      
+      
+      if(selectPath.length >= 1 && last && selectPath[selectPath.length-1]){
+        selectPath[selectPath.length-1] = "_"+selectPath[selectPath.length-1];
+      }
+      
+      
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const request = store.getAllKeys();
+      request.onsuccess = () => {
+        console.log("全keyデータ:", request.result);
+        nestCreate(listToNest(request.result), selectPath);
+      };
+      request.onerror = () => {
+        console.error("getAllKeys 失敗");
+      };
+    }
+    
+    //配列をnestCreate用の形式(辞書型)に変える
+    function listToNest(list) {
+      /*:
+
+      [
+      memo/math
+      memo/math/one
+      memo/math/two
+      memo/eng
+      default
+      ]
+      
+      {
+        memo:{
+          _math:true,
+          math:{
+            _one:true,
+            _two:true,
+          },
+          _eng:true,
+        },
+        _default:true,
+      }
+      */
+      const root = {};
+
+      for (const path of list) {
+        const keys = path.split('/');
+        let current = root;
+
+        for (let i = 0; i < keys.length; i++) {
+          const key = keys[i];
+          
+          if (i === keys.length - 1) {
+            current["_"+key] = true;
+            break;
+          }
+
+          // キーがなければ初期化
+          if (!(key in current)) {
+            current[key] = {};
+          }
+
+          current = current[key];
+
+          // 最後のキーなら _end:true を付ける
+          
+        }
+      }
+
+      return root;
+    }
+
+    
+    //selectPath時のselectネストを作成する。
+    function nestCreate(data, selectPath = []) {
+      //data:listToDataで変換した時の戻り値。
+      nestSpan.innerHTML = "";
+      
+      //let select = document.createElement('select');
+      let current = data;
+      
+      
+      for(let k = 0; k < selectPath.length + 1; k++) {
+        const select = document.createElement('select');
+        
+        const option0 = document.createElement('option');
+        option0.innerHTML = "選択してください";
+        
+        select.appendChild(option0);
+      
+        Object.keys(current).forEach((i) => {
+          const option = document.createElement('option');
+          option.innerHTML = i;
+          if(i == selectPath[k]) option.selected = true;
+          select.appendChild(option);
+        });
+        //alert(selectPath[k])
+        select.addEventListener('change',() => {
+          let selectPath_k = [];
+          let child = nestSpan.children;
+          for(let n = 0; n < k + 1; n++){
+            selectPath_k.push(child[n].value);
+          }
+          nestCreate(data,selectPath_k);
+          if(
+            selectPath_k[selectPath_k.length-1] &&
+            selectPath_k[selectPath_k.length-1][0] == "_" &&
+            confirm('保存されていないデータは削除されます。よろしいですか？')
+          ) {
+            drawName = selectPath_k.join('/').replace('_','');
+            localStorage.setItem('Tools_InfinityCanva_index_default',drawName);
+            document.getElementById('drawNameInput').value = drawName;
+      
+            loadFromDB().then(data => {
+              if (data) {
+                //console.log('読み込み成功:', data);
+                console.log("読み込み成功");
+                loadImg(data);
+          
+              } else {
+                console.log('データが存在しません');
+              }
+            }).catch(err => {
+              console.error('読み込み失敗:', err);
+            });
+            //alert(drawName)
+          }
+        });
+        
+          
+          //break;
+        /*} else {
+          select.addEventListener('change',() => {
+            let selectPath_k = [];
+            let child = nestSpan.children;
+            for(let n = 0; n < k + 1; n++){
+              selectPath_k.push(child[n].value);
+            }
+            drawName = selectPath_k.join('/')
+            alert("Last!"+selectPath_k.join('/'))
+            //nestCreate(data,selectPath_k);
+          });
+        }*/
+        nestSpan.appendChild(select);
+        
+        if(!selectPath[k] || selectPath[k][0] == "_" || selectPath[k] == "選択してください") break;
+        
+        current = current[selectPath[k]];
+      }
+    }
+    
+    //例:nestCreate(Data,["memo","math","_one"])
+    
+    
+    
+    const canvas = document.getElementById('canvas');
+    const importImg = document.getElementById('importImg');
+    const thicknessLabel = document.getElementById('thicknessLabel');
+    const ctx = canvas.getContext('2d');
+    const DPR = window.devicePixelRatio || 1;
+    
+    
+    
+    const dbName = 'NeoTopazm_DB';
+    const storeName = 'Tools_InfinityCanva_index_Paths';
+    let db; // グローバルで使う
+    
+
+
+    const request = indexedDB.open(dbName, 1); //バージョン1で開く
+    
+    
+    
+    request.onupgradeneeded = (event) => {
+      db = event.target.result;
+      if (!db.objectStoreNames.contains(storeName)) {
+        db.createObjectStore(storeName, { keyPath: 'id' }); // 主キーは'id'
+      }
+      console.log("DB更新")
+    };
+
+    request.onsuccess = (event) => {
+      db = event.target.result;
+      console.log('DBオープン成功');
+      //const result = loadFromDB();
+      drawNameSet();
+      loadFromDB().then(data => {
+        //drawNameのデータがあるか
+        if (data) {
+          //console.log('読み込み成功:', data);
+          console.log("読み込み成功");
+          //if(confirm("以前のデータが残っています。復元しますか？")) loadImg(data);
+          drawNameSet(drawName.split('/'),true)
+          loadImg(data);
+        } else {
+          console.log('データが存在しません');
+          paths = [];
+          const tx = db.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+          const addRequest = store.put({ id: drawName, content: JSON.stringify(paths) });
+
+          addRequest.onsuccess = () => {
+            console.log("default プロジェクトを新規作成");
+            drawNameSet(["_default"]) //Nest 更新
+          };
+          addRequest.onerror = (event) => {
+            console.error("default プロジェクトの作成に失敗:", event.target.error);
+          };
+        }
+      }).catch(err => {
+        console.error('読み込み失敗:', err.message);
+      });
+
+      
+    };
+    request.onerror = (event) => {
+      alert('DBオープン失敗:'+String(event.target.error));
+    };
+
+    function saveToDB(){
+      try{
+        const data = JSON.stringify(paths);
+        textSpan.innerText = "保存中";
+        setTimeout(() => {textSpan.innerText = ""}, 1000);
+      
+      
+        const dataToSave = { id: drawName, content: data };
+        if (!db) {
+          alert('DBがまだ開かれていません');
+          return;
+        }
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const request = store.put(dataToSave); // 既存なら上書き、なければ追加
+        
+
+     
+
+        request.onsuccess = () => {
+          console.log("保存")
+          textSpan.innerText = "保存完了";
+          drawNameSet(drawName.split('/'),true)
+        };
+        request.onerror = (event) => {
+          console.error('保存中にエラー', event.target.error);
+          textSpan.innerText = "保存失敗";
+        };
+        
+        
+      } catch(e) {
+        alert(e)
+      }
+    }
+    
+    
+
+    
+    /*function nameSelectFunc(){
+      const elem = document.getElementById('nameSelect');
+      
+      if (!db) {
+        alert('DBがまだ開かれていません');
+        return;
+      }
+      
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const request = store.getAllKeys();
+      request.onsuccess = () => {
+        elem.innerHTML = "";
+        console.log("全keyデータ:", request.result);
+        let drawNameInd = 0;
+        for(let i = 0; i < request.result.length; i++){
+          const k = request.result[i];
+          const opt = document.createElement('option');
+          opt.innerHTML = k;
+          if(k == drawName) drawNameInd = i;
+          elem.appendChild(opt);
+        };
+        elem.options[drawNameInd].selected = true;
+      };
+      request.onerror = () => {
+        console.error("getAllKeys 失敗");
+      };
+      
+    }*/
+    
+    function projectDelete(){
+      if(!confirm('本当に'+drawName+'を削除してもよろしいですか？')) return;
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const deleteRequest = store.delete(drawName); // または具体的なキー
+
+      deleteRequest.onsuccess = () => {
+        console.log('削除成功');
+        alert('削除しました。');
+        //nameSelectFunc();
+        //この時点ではdefaultがあるかわからないので生成だけする。
+        drawNameSet();
+        drawName = "default";
+        localStorage.setItem('Tools_InfinityCanva_index_default', drawName);
+        //document.getElementById('nameSelect').value = drawName;
+        document.getElementById('drawNameInput').value = drawName;
+
+        // default の存在確認
+        const tx2 = db.transaction(storeName, 'readonly');
+        const store2 = tx2.objectStore(storeName);
+        const checkRequest = store2.get(drawName);
+
+        checkRequest.onsuccess = () => {
+          if (checkRequest.result) {
+            drawNameSet(["_default"]);
+            loadImg(checkRequest.result.content);
+          } else {
+            paths = [];
+            drawAll();
+            saveToDB();
+            const tx3 = db.transaction(storeName, 'readwrite');
+            const store3 = tx3.objectStore(storeName);
+            const addRequest = store3.put({ id: drawName, content: JSON.stringify(paths) });
+
+            addRequest.onsuccess = () => {
+              console.log("default プロジェクトを新規作成");
+              //nameSelectFunc();
+              
+              //Nest 更新
+              drawNameSet(["_default"]);
+            };
+            addRequest.onerror = (event) => {
+              console.error("default プロジェクトの作成に失敗:", event.target.error);
+            };
+          }
+        };
+
+        checkRequest.onerror = (event) => {
+          console.error("default プロジェクト確認失敗:", event.target.error);
+        };
+      };
+
+      deleteRequest.onerror = (event) => {
+        console.error('削除失敗:', event.target.error);
+        alert('削除失敗')
+      };
+    }
+    
+    function nameDecision(){//入力した名前が存在→上書き | 存在しない→新規
+      try{
+        if(document.getElementById('drawNameInput').value == drawName) return;
+        if(document.getElementById('drawNameInput').value.includes('_')){
+          alert("project名に'_'と'/'は使用できません。\n使い方ガイドをご参考ください。")
+          return;
+        }
+        
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const getRequest = store.getAllKeys();
+        
+        //const elem = document.getElementById('nameSelect');
+      
+        
+       
+      
+        getRequest.onsuccess = () => {
+          console.log("全keyデータ:", getRequest.result);
+          
+          
+          
+          if(getRequest.result.includes(document.getElementById('drawNameInput').value)){
+            if(!confirm('指定した名前は既に存在しています。上書きしてもよろしいですか？')) return;
+          }
+          drawName = document.getElementById('drawNameInput').value;
+          localStorage.setItem('Tools_InfinityCanva_index_default',drawName);
+        
+          const data = JSON.stringify(paths);
+          //if(data == "[]") return;
+          textSpan.innerText = "保存中";
+          setTimeout(() => {textSpan.innerText = ""}, 1000);
+      
+      
+          const dataToSave = { id: drawName, content: data };
+          if (!db) {
+            alert('DBがまだ開かれていません');
+            return;
+          }
+            
+          const request = store.put(dataToSave); // 既存なら上書き、なければ追加
+            
+          request.onsuccess = () => {
+            console.log("保存")
+            textSpan.innerText = "保存完了";
+            //nameSelectFunc();
+            
+            drawNameSet(drawName.split('/'), true);
+          };
+          request.onerror = (event) => {
+            console.error('保存中にエラー', event.target.error);
+            textSpan.innerText = "保存失敗";
+          };
+        };
+        getRequest.onerror = () => {
+          console.error("getAllKeys 失敗");
+        };
+        
+        
+        
+      } catch(e) {
+        alert(e)
+      }
+    }
+    
+    /*document.getElementById('nameSelect').addEventListener('change',(event) => {
+      if(!confirm('保存されていないデータは消去されます。よろしいですか？')) return;
+      drawName = event.target.value;
+      localStorage.setItem('Tools_InfinityCanva_index_default',drawName);
+      document.getElementById('drawNameInput').value = drawName;
+      
+      loadFromDB().then(data => {
+        if (data) {
+          //console.log('読み込み成功:', data);
+          console.log("読み込み成功");
+          loadImg(data);
+          
+        } else {
+          console.log('データが存在しません');
+        }
+      }).catch(err => {
+        console.error('読み込み失敗:', err);
+      });
+    });*/
+    
+    function loadFromDB() {
+      return new Promise((resolve, reject) => {
+        if (!db) {
+          console.error('DBがまだ開かれていません');
+          reject(new Error('DBが未接続'));
+          return;
+        }
+
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const request = store.get(drawName);
+        
+
+        request.onsuccess = () => {
+          if (request.result) {
+            console.log("LoadData:",request.result)
+            resolve(request.result.content);
+          } else {
+            console.log('該当データが見つかりません');
+            resolve(null);
+          }
+        };
+
+        request.onerror = (event) => {
+          console.error('読み込み中にエラー', event.target.error);
+          reject(event.target.error);
+        };
+      });
+    }
+
+    
+    function loadImg(content){
+      try {
+        paths = JSON.parse(content);
+        drawAll();
+      } catch (e) {
+        console.warn('復元失敗:', e);
+      }
+    }
+    
+    
+    
+
+    
+    
+    
+    
+    
+    let autoSaveInterval = null;
+    function autoSaveIntervalSet() {
+      autoSaveInterval = setInterval(() => {
+        saveToDB();
+        //saveLS();
+      },60000);
+    }
+    
+    const autoSaveCheckBox = document.getElementById('autoSaveCheckBox');
+    autoSaveCheckBox.addEventListener('change',() => {
+      if(autoSaveCheckBox.checked){
+        autoSaveIntervalSet();
+        saveToDB();
+      } else {
+        clearInterval(autoSaveInterval);
+        autoSaveInterval = null;
+      }
+      //alert(autoSaveInterval) //idが表示される。idは停止しても1づつ増えてく
+    });
+    
+    
+    
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // キャンバスをクリア
+      paths.length = 0; // 描いたパスの履歴を削除（undo対象も消える）
+      //drawAll(); // 再描画（必要なら）
+    }
+
+    function resize() {
+      canvas.width = window.innerWidth * DPR;
+      canvas.height = window.innerHeight * DPR;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      canvas.top = "0px";
+      canvas.left = "0px";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(DPR, DPR);
+      drawAll();
+    }
+    window.addEventListener('resize', resize);
+
+    // 状態
+    let offsetX = 0, offsetY = 0;
+    let scale = 1;
+    let dragging = false;
+    let isPanning = false;
+    let panStart = {x: 0, y: 0};
+    let lastTouchDist = null;
+
+    
+    let currentPath = null;
+    let tool = 'pen';
+    let lineStart = null;
+    let lineEnd = null;
+    
+    const key = 0b0110101;
+
+    const penSizeDisplay = document.getElementById('penSizeDisplay');
+    const thicknessRange = document.getElementById('thickness');
+    const colorPicker = document.getElementById('colorPicker');
+    const centerCircle = document.getElementById('centerCircle');
+    
+    let deleteList = [];
+    const thresholdNum = 4;
+    let scrollTf = false;
+
+    function encrypt(str) {
+      const encrypted = Array.from(str, c => c.charCodeAt(0) ^ key);
+      let encodedStr = '';
+      for (let i = 0; i < encrypted.length; i++) {
+        encodedStr += String.fromCharCode(encrypted[i]);
+      }
+      return btoa(encodedStr);
+    }
+
+    
+    /*function encrypt(str) {
+      const encrypted = Array.from(str, c => c.charCodeAt(0) ^ key);
+      return btoa(String.fromCharCode(...encrypted));
+    }*/
+
+    function decrypt(base64) {
+      const decoded = atob(base64);
+      return Array.from(decoded, c => String.fromCharCode(c.charCodeAt(0) ^ key)).join('');
+    }
+
+
+    /*function decrypt(base64) {
+      const decoded = atob(base64);
+      return Array.from(decoded, c => String.fromCharCode(c.charCodeAt(0) ^ key)).join('');
+    }*/
+    
+    function getNonWhiteBoundingBox(canvas, ctx) {
+      const w = canvas.width;
+      const h = canvas.height;
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+
+      let minX = w, minY = h, maxX = 0, maxY = 0;
+      let found = false;
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          const a = data[idx + 3];
+
+          // 白色かどうか判定（アルファ0は無視）
+          // 完全な白（R=255,G=255,B=255）でかつ不透明とする
+          if (a !== 0 && !(r === 255 && g === 255 && b === 255)) {
+            found = true;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (!found) {
+        return null; // 白のみ、または透明のみの画像
+      }
+
+      return [minX,minY,maxX,maxY];
+    }
+    
+    function cropCanvasCtx(ctx, minX, minY, maxX, maxY) {
+      const width = maxX - minX;
+      const height = maxY - minY;
+
+      // 新しいオフスクリーンキャンバス作成
+      const croppedCanvas = document.createElement('canvas');
+      croppedCanvas.width = width;
+  croppedCanvas.height = height;
+  const croppedCtx = croppedCanvas.getContext('2d');
+
+  // 指定範囲のピクセルを取得
+  const imageData = ctx.getImageData(minX, minY, width, height);
+
+  // 切り出した画像データを新しいキャンバスに描画
+  croppedCtx.putImageData(imageData, 0, 0);
+
+  // 新しい context を返す
+  return croppedCtx;
+}
+    
+    const ImageDataToBlob = function(imageData){
+  let w = imageData.width;
+  let h = imageData.height;
+  let canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  let ctx = canvas.getContext("2d");
+  ctx.putImageData(imageData, 0, 0);        // synchronous
+
+  return new Promise((resolve) => {
+        canvas.toBlob(resolve); // implied image/png format
+  });
+}
+
+    
+    async function downloadAsPng() {
+      try{
+      if (paths.length === 0) return alert('描画がありません');
+
+      // 全線の座標範囲を取得
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let deleteListK = [];
+      
+      for(let k = 0; k < paths.length; k++){
+        if(paths[k].tool == 'delete') deleteListK = deleteListK.concat(paths[k].deletedPath);
+      }
+      
+  
+      for(let k = 0; k < paths.length; k++){
+        if(deleteListK.includes(k)) continue;
+        const path = paths[k];
+        if(path.tool === 'delete') continue;
+        if(path.tool === 'eraser') continue;
+        path.points.forEach(p => {
+          
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+          
+        });
+      };
+      
+      // マージンを少し取る（線幅の半分とか）
+      const margin = 20;
+      minX -= margin;
+      minY -= margin;
+      maxX += margin;
+      maxY += margin;
+
+      let width = maxX - minX;
+      let height = maxY - minY;
+
+      // オフスクリーンキャンバス作成
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = width;
+      offCanvas.height = height;
+      let ctx2 = offCanvas.getContext('2d');
+
+      // 白背景
+      ctx2.fillStyle = 'white';
+      ctx2.fillRect(0, 0, width, height);
+      
+      for(let k = 0; k < paths.length; k++){
+        if(deleteListK.includes(k)) continue;
+        const path = paths[k];
+        if(path.tool === 'delete') continue;
+        ctx2.strokeStyle = path.color;
+        ctx2.lineWidth = path.thickness || path.size || 2;
+        ctx2.lineCap = 'round';
+        ctx2.lineJoin = 'round';
+        ctx2.beginPath();
+        path.points.forEach((p, i) => {
+          const x = p.x - minX;
+          const y = p.y - minY;
+          if (i === 0) ctx2.moveTo(x, y);
+          else ctx2.lineTo(x, y);
+        });
+        ctx2.stroke();
+      }
+      
+
+      [minX,minY,maxX,maxY] = getNonWhiteBoundingBox(offCanvas,ctx2);
+      
+      minX -= margin;
+      minY -= margin;
+      maxX += margin;
+      maxY += margin;
+      width = maxX - minX;
+      height = maxY - minY;
+      ctx2 = cropCanvasCtx(ctx2, minX, minY, maxX, maxY);
+      
+      
+      // paths情報をJSONに変換してビット埋め込み
+      const jsonStr = JSON.stringify(paths);
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(jsonStr);
+      
+      let enc = "";
+
+      // 埋め込み可能か判定（目安：キャンバスのピクセル数 × 4(RGBA)の1bitずつ）
+      const usableBits = width * height; // Rチャンネルのみ → 1画素 = 1bit
+      const requiredBits = (jsonStr.length + 1) * 8; // +1 は終端用 null byte
+
+      if (requiredBits > usableBits) {
+      //if(bytes.length * 8 > maxBits) {
+        // 埋め込めない処理へ
+        if(confirm('描画データが大きすぎて画像に埋め込めません。別のファイルとして保存しますか')){
+          
+          const encryptedBase64 = encrypt(jsonStr);
+          const blob = new Blob([encryptedBase64], { type: "text/plain" });
+          const imageData = ctx2.getImageData(0, 0, width, height);
+          const data = imageData.data;
+          
+          const zip = new JSZip();
+          zip.file("paths.txt", blob);
+          const canvas2 = ctx2.canvas;
+          const pngBlob = await new Promise(resolve => {
+            canvas2.toBlob(blob => resolve(blob), 'image/png');
+          });
+          zip.file("drawing.png", pngBlob);
+          
+          const zipBlob = await zip.generateAsync({ type: "blob" });
+          const url = URL.createObjectURL(zipBlob);
+          
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "drawSet.zip";
+          a.click();
+          URL.revokeObjectURL(url);
+          
+          return;
+        } else {
+          return;
+        }
+      }
+
+      // paths をステガノグラフィとして Rチャンネルに埋め込む
+        
+      //const imageData = ctx2.getImageData(minX, minY, maxX, maxY);
+      const imageData = ctx2.getImageData(0, 0, width, height);
+      const data = imageData.data;
+      const pathStr = JSON.stringify(paths);
+      const encoded = new TextEncoder().encode(pathStr);
+
+      const bits = [];
+      for (const byte of encoded) {
+        for (let i = 7; i >= 0; i--) {
+          bits.push((byte >> i) & 1);
+        }
+      }
+
+      // 終端マーク（00000000）を追加
+      for (let i = 0; i < 8; i++) bits.push(0);
+
+      // RチャンネルのLSBに埋め込み
+      for (let i = 0; i < bits.length && i * 4 < data.length; i++) {
+        data[i * 4] = (data[i * 4] & ~1) | bits[i];
+      }
+
+      /*ctx2.canvas.width = imageData.width;
+      ctx2.canvas.height = imageData.height;*/
+      ctx2.putImageData(imageData, 0, 0);
+
+      // ダウンロード
+      const dataURL = ctx2.canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = 'draw.png';
+      a.click();
+      } catch(e) {
+
+        alert(e.message);
+      }
+    }
+    
+
+
+    async function extractPathsFromImage(file, callback) {
+      //alert(file.type)
+      if (file.type === "application/zip" || file.name.endsWith(".zip")) {
+        const jszip = new JSZip();
+        try {
+          const zip = await jszip.loadAsync(file);
+          const pathsFile = zip.file("paths.txt");
+          if(!pathsFile){
+            alert("zip内にpaths.txtが存在しません。");
+            return;
+          }
+          const content = await pathsFile.async("text");
+          //console.log(Array.from(btoa(content), c => c ^ key));
+          
+          const readJson = JSON.parse(decrypt(content))
+          
+          //console.log(readJson)
+          
+          callback(readJson);
+          return;
+        } catch (err) {
+          alert("復号に失敗しました。Base64形式が正しいか確認してください。");
+        }
+      };
+      
+      const img = file;
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+      const bits = [];
+      for (let i = 0; i < data.length; i += 4) {
+        bits.push(data[i] & 1); // RのLSB
+      }
+
+      const bytes = [];
+      for (let i = 0; i < bits.length; i += 8) {
+        let byte = 0;
+        for (let j = 0; j < 8; j++) {
+          byte = (byte << 1) | bits[i + j];
+        }
+        if (byte === 0) break; // 終端とみなす
+        bytes.push(byte);
+      }
+
+      try {
+        const str = new TextDecoder().decode(new Uint8Array(bytes));
+        
+        const readPaths = JSON.parse(str);
+        
+        callback(readPaths);
+      } catch (e) {
+        alert('画像の復元に失敗しました。');
+        console.error(e.message);
+      }
+    }
+
+    importImg.addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.type === "application/zip" || file.name.endsWith(".zip")) {
+        // ZIPファイルはそのままextractPathsFromImageに渡すだけでOK
+        extractPathsFromImage(file, readPaths => {
+          paths = readPaths;
+          drawAll();
+        });
+      } else {
+        // 画像ファイルはImageオブジェクトを作成して渡す
+        const img = new Image();
+        img.onload = () => {
+          extractPathsFromImage(img, readPaths => {
+            paths = readPaths;
+            drawAll();
+          });
+        };
+        img.src = URL.createObjectURL(file);
+      }
+    });
+
+
+    // ペンサイズ表示更新
+    function updatePenSizeDisplay() {
+      const size = getThickness();
+      thicknessLabel.innerText = String(size).padStart(2,'0')+"px:";
+      penSizeDisplay.style.width = size + 'px';
+      penSizeDisplay.style.height = size + 'px';
+      penSizeDisplay.style.background = (tool === 'eraser' || tool === 'delete') ? '#fff' : getColor();
+      penSizeDisplay.style.borderColor = '#444';
+    }
+    thicknessRange.addEventListener('input', () => {
+      updatePenSizeDisplay();
+      //showCenterCircle();
+    });
+    
+    let deletingTouchUpTf = false;
+      
+    
+    function deleteNearbyObject(p) {
+      const threshold = getThickness() * thresholdNum;
+
+      for (let i = paths.length - 1; i >= 0; i--) {
+        if(deleteList.includes(i)) continue;
+        const path = paths[i];
+        if(path.tool === "delete") continue;
+
+        const pts = path.points;
+        for (let j = 0; j < pts.length - 1; j++) {
+          const pt1 = pts[j];
+          const pt2 = pts[j + 1];
+
+          const dist = pointToSegmentDistance(p, pt1, pt2);
+          if (dist < threshold) {
+            const last = paths[paths.length - 1];
+            
+            if (last && last.tool === 'delete' && Array.isArray(last.deletedPath) && deletingTouchUpTf) {
+              last.deletedPath.push(i);
+            } else {
+              deletingTouchUpTf = true;
+              paths.push({
+                tool: 'delete',
+                deletedPath: [i]
+              });
+            }
+
+            deleteList.push(i);
+            drawAll();
+            return;
+          }
+        }
+      }
+    }
+
+
+
+
+    function pointToSegmentDistance(p, v, w) {
+      const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+      if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      const proj = {
+        x: v.x + t * (w.x - v.x),
+        y: v.y + t * (w.y - v.y)
+      };
+      return Math.hypot(p.x - proj.x, p.y - proj.y);
+    }
+
+
+    function setTool(name) {
+      tool = name;
+      lineStart = null;
+      updatePenSizeDisplay();
+    }
+
+    function getColor() {
+      return colorPicker.value;
+    }
+    
+    function getThickness() {
+      return parseInt(thicknessRange.value);
+    }
+
+    /*function undo() {
+      if(paths.length > 0){
+        paths.pop();
+        drawAll();
+      }
+    }*/
+    function undo() {
+      if (paths.length === 0) return;
+
+      const last = paths.pop();
+
+      /*if (last.tool === 'delete' && last.deletedPath) {
+        paths.push(last.deletedPath);
+      }*/
+      
+      if (last.tool === 'delete') {
+        deleteList.length = 0; // 削除リストをクリア
+      }
+
+      drawAll();
+    }
+
+
+    function resetView() {
+      offsetX = 0;
+      offsetY = 0;
+      scale = 1;
+      drawAll();
+    }
+
+    function toCanvasCoords(x, y) {
+      return {
+        x: (x - offsetX) / scale,
+        y: (y - offsetY) / scale
+      };
+    }
+    function toScreenCoords(x, y) {
+      return {
+        x: x * scale + offsetX,
+        y: y * scale + offsetY
+      };
+    }
+
+    function startPath(x, y) {
+      if (tool === 'line') {
+        lineStart = {x, y};
+        return;
+      }
+      currentPath = {
+        tool,
+        color: tool === 'eraser' ? '#ffffff' : getColor(),
+        thickness: getThickness(),
+        points: [{x, y}]
+      };
+      paths.push(currentPath);
+    }
+
+    function addPoint(x, y) {
+      if (!currentPath || tool === 'line') return;
+      currentPath.points.push({x, y});
+      drawAll();
+    }
+
+    function endPath(x, y) {
+      if (tool === 'line' && lineStart) {
+        currentPath = {
+          tool: 'line',
+          color: getColor(),
+          thickness: getThickness(),
+          points: [lineStart, lineEnd]
+        };
+        paths.push(currentPath);
+        lineStart = null;
+        drawAll();
+      }
+      currentPath = null;
+    }
+
+    function drawAll() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      
+      let deleteListK = [];
+      for (const path of paths) {
+        if(path.tool === 'delete'){
+          deleteListK = deleteListK.concat(path.deletedPath);
+        }
+      }
+      
+      for (let k = 0; k < paths.length; k++) {
+        if(deleteListK.includes(k)) continue;
+        const path = paths[k];
+        if(path.tool === 'delete') continue;
+        ctx.strokeStyle = path.color;
+        ctx.lineWidth = path.thickness;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        if (path.tool === 'line') {
+          
+          ctx.moveTo(path.points[0].x, path.points[0].y);
+          ctx.lineTo(path.points[1].x, path.points[1].y);
+        } else {
+          ctx.moveTo(path.points[0].x, path.points[0].y);
+          for (let i = 1; i < path.points.length; i++) {
+            ctx.lineTo(path.points[i].x, path.points[i].y);
+          }
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    /*function showCenterCircle() {
+      const size = getThickness();
+      centerCircle.style.width = size + 'px';
+      centerCircle.style.height = size + 'px';
+      centerCircle.style.background = tool === 'eraser' ? '#fff' : getColor();
+      centerCircle.style.border = '1.5px solid #444';
+      centerCircle.style.opacity = '1';
+      clearTimeout(centerCircle._timeout);
+      centerCircle._timeout = setTimeout(() => {
+        centerCircle.style.opacity = '0';
+      }, 1000);
+    }*/
+    
+    function showLineDrawing(x,y) {
+      if(tool !== "line") return;
+      lineEnd = {x:x,y:y}
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      ctx.strokeStyle = getColor();
+      ctx.lineWidth = getThickness();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(lineStart.x, lineStart.y); // ← ここが重要
+      ctx.lineTo(x, y);                     // ← 現在のマウス位置
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 操作ハンドラー
+    let pointerDown = false;
+
+    function handleDown(x, y, e) {
+      x = Math.round(10*x)/10;
+      y = Math.round(10*y)/10;
+      if (tool === 'delete') {
+        const p = toCanvasCoords(x, y);
+        deleteNearbyObject(p);
+        return;
+      }
+
+      if (e instanceof TouchEvent && e.touches.length === 2) {
+        isPanning = true;
+        lastTouchDist = getTouchDistance(e.touches);
+        panStart = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+        return;
+      }
+
+      if (e instanceof MouseEvent && e.button !== 0) return;
+      pointerDown = true;
+      const p = toCanvasCoords(x, y);
+      startPath(p.x, p.y);
+    }
+
+    
+    function handleMove(x, y, e) {
+      x = Math.round(10*x)/10;
+      y = Math.round(10*y)/10;
+      if (tool === 'delete') {
+        const p = toCanvasCoords(x, y);
+        deleteNearbyObject(p);
+        return;
+      }
+
+      if (isPanning) {
+        if (e instanceof TouchEvent && e.touches.length === 2) {
+          const newDist = getTouchDistance(e.touches);
+          const zoomFactor = newDist / lastTouchDist;
+          lastTouchDist = newDist;
+          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+          const beforeMid = toCanvasCoords(midX, midY);
+          scale *= zoomFactor;
+          if (scale < 0.2) scale = 0.2;
+          if (scale > 10) scale = 10;
+          const afterMid = toCanvasCoords(midX, midY);
+          offsetX += (afterMid.x - beforeMid.x) * scale;
+          offsetY += (afterMid.y - beforeMid.y) * scale;
+
+          offsetX += (midX - panStart.x);
+          offsetY += (midY - panStart.y);
+          panStart = { x: midX, y: midY };
+          drawAll();
+          return;
+        }
+      }
+
+      if (!pointerDown) return;
+
+      const p = toCanvasCoords(x, y);
+      addPoint(p.x, p.y);
+      drawAll();
+      showLineDrawing(p.x, p.y);
+    }
+    
+    function handleUp(x, y, e) {
+      x = Math.round(10*x)/10;
+      y = Math.round(10*y)/10;
+      deletingTouchUpTf = false;
+      
+      if (isPanning) {
+        if (e instanceof TouchEvent && e.touches.length < 2) {
+          isPanning = false;
+          lastTouchDist = null;
+        }
+        return;
+      }
+      if (!pointerDown) return;
+      pointerDown = false;
+      const p = toCanvasCoords(x, y);
+      endPath(p.x, p.y);
+      deleteList = [];
+    }
+
+    // マウスイベント
+    canvas.addEventListener('mousedown', (e) => {
+      handleDown(e.clientX, e.clientY, e);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      handleMove(e.clientX, e.clientY, e);
+    });
+    canvas.addEventListener('mouseup', (e) => {
+      handleUp(e.clientX, e.clientY, e);
+    });
+    canvas.addEventListener('mouseleave', (e) => {
+      handleUp(e.clientX, e.clientY, e);
+    });
+
+    // タッチイベント
+    canvas.addEventListener('touchstart', (e) => {
+      if(e.touches.length === 1){
+        const t = e.touches[0];
+        handleDown(t.clientX, t.clientY, e);
+      } else {
+        handleDown(0, 0, e);
+      }
+      e.preventDefault();
+    }, {passive:false});
+    canvas.addEventListener('touchmove', (e) => {
+      if(e.touches.length === 1){
+        const t = e.touches[0];
+        handleMove(t.clientX, t.clientY, e);
+      } else if (e.touches.length === 2) {
+        handleMove(0, 0, e);
+      }
+      e.preventDefault();
+    }, {passive:false});
+    canvas.addEventListener('touchend', (e) => {
+      if(e.touches.length === 0){
+        handleUp(0, 0, e);
+      } else if(e.touches.length === 1){
+        const t = e.touches[0];
+        handleUp(t.clientX, t.clientY, e);
+      }
+      e.preventDefault();
+    }, {passive:false});
+
+    // Ctrl + マウスホイールで拡大縮小
+    canvas.addEventListener('wheel', (e) => {
+      if(e.ctrlKey){
+        e.preventDefault();
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+        const beforeMouse = toCanvasCoords(mouseX, mouseY);
+        scale *= e.deltaY < 0 ? 1.1 : 0.9;
+        if(scale < 0.2) scale = 0.2;
+        if(scale > 10) scale = 10;
+        const afterMouse = toCanvasCoords(mouseX, mouseY);
+        offsetX += (afterMouse.x - beforeMouse.x) * scale;
+        offsetY += (afterMouse.y - beforeMouse.y) * scale;
+        drawAll();
+      }
+    }, { passive: false });
+
+    // パン操作 (右ドラッグ or 2本指)も可能に
+    let isRightDrag = false;
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('mousedown', e => {
+      if(e.button === 2){
+        isRightDrag = true;
+        panStart = {x: e.clientX, y: e.clientY};
+      }
+    });
+    canvas.addEventListener('mousemove', e => {
+      if(isRightDrag){
+        offsetX += e.clientX - panStart.x;
+        offsetY += e.clientY - panStart.y;
+        panStart = {x: e.clientX, y: e.clientY};
+        drawAll();
+      }
+    });
+    canvas.addEventListener('mouseup', e => {
+      if(e.button === 2) isRightDrag = false;
+    });
+
+    function getTouchDistance(touches){
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx*dx + dy*dy);
+    }
+
+    // 初期表示設定
+    updatePenSizeDisplay();
+    resize();
+    
+    
+    autoSaveIntervalSet();
+  </script>
+</body>
+</html>
