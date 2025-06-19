@@ -19,6 +19,9 @@
       width: 100vw;
     }
     canvas {
+      position: absolute;
+      left: 0;
+      top: 0;
       display: block;
       background: #fff;
       touch-action: none;
@@ -208,6 +211,7 @@
       <button onclick="setTool('line')">📏 定規</button>
       <button onclick="undo()">↩️ 戻す</button>
       <button onclick="resetView()">📍 中央に戻す</button>
+      <button id="moveToolBtn">移動</button>
       <button onclick="downloadAsPng()">画像をダウンロード</button>
       <button onclick="clearCanvas()">白紙に戻す</button>
       <button onclick="saveToDB()">データを保存</button>
@@ -426,6 +430,11 @@
     const thicknessLabel = document.getElementById('thicknessLabel');
     const ctx = canvas.getContext('2d');
     const DPR = window.devicePixelRatio || 1;
+    
+    document.getElementById('moveToolBtn').addEventListener('click', () => {
+      tool = 'move';
+    });
+
     
     
     
@@ -1388,21 +1397,26 @@
     let pointerDown = false;
 
     function handleDown(x, y, e) {
-      x = Math.round(10*x)/10;
-      y = Math.round(10*y)/10;
-      if (tool === 'delete') {
-        const p = toCanvasCoords(x, y);
-        deleteNearbyObject(p);
+      x = Math.round(10 * x) / 10;
+      y = Math.round(10 * y) / 10;
+
+      if (e instanceof TouchEvent && e.touches.length === 2 || tool === 'move') {
+        isPanning = true;
+        if (e.touches && e.touches.length >= 2) {
+          lastTouchDist = getTouchDistance(e.touches);
+          panStart = {
+            x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+            y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+          };
+        } else {
+          panStart = {x, y};
+        }
         return;
       }
 
-      if (e instanceof TouchEvent && e.touches.length === 2) {
-        isPanning = true;
-        lastTouchDist = getTouchDistance(e.touches);
-        panStart = {
-          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-        };
+      if (tool === 'delete') {
+        const p = toCanvasCoords(x, y);
+        deleteNearbyObject(p);
         return;
       }
 
@@ -1411,19 +1425,15 @@
       const p = toCanvasCoords(x, y);
       startPath(p.x, p.y);
     }
+      
 
     
     function handleMove(x, y, e) {
       x = Math.round(10*x)/10;
       y = Math.round(10*y)/10;
-      if (tool === 'delete') {
-        const p = toCanvasCoords(x, y);
-        deleteNearbyObject(p);
-        return;
-      }
-
+      
       if (isPanning) {
-        if (e instanceof TouchEvent && e.touches.length === 2) {
+        if (e instanceof TouchEvent && e.touches.length === 2 || tool === 'move') {
           const newDist = getTouchDistance(e.touches);
           const zoomFactor = newDist / lastTouchDist;
           lastTouchDist = newDist;
@@ -1445,6 +1455,12 @@
           return;
         }
       }
+      
+      if (tool === 'delete') {
+        const p = toCanvasCoords(x, y);
+        deleteNearbyObject(p);
+        return;
+      }
 
       if (!pointerDown) return;
 
@@ -1459,13 +1475,14 @@
       y = Math.round(10*y)/10;
       deletingTouchUpTf = false;
       
-      if (isPanning) {
+      if (isPanning || tool === 'move') {
         if (e instanceof TouchEvent && e.touches.length < 2) {
           isPanning = false;
           lastTouchDist = null;
         }
         return;
       }
+      
       if (!pointerDown) return;
       pointerDown = false;
       const p = toCanvasCoords(x, y);
