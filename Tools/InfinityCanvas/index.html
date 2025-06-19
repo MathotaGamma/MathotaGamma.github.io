@@ -204,7 +204,7 @@
         新規作成or複製:<input type="text" value="default" id="drawNameInput" placeholder="プロジェクト名('_'と'/'は使えません。)"><input type="button" value="OK" onclick="nameDecision();"><span>※新しく白紙のプロジェクトを作るときは、複製後白紙にして保存。</span>
       </span>
     </div>
-    <div>
+    <div class="area">
       <button onclick="setTool('pen')">✍️ ペン</button>
       <button onclick="setTool('eraser')">🧽 消しゴム</button>
       <button onclick="setTool('delete')">🎯 オブジェクト消し</button>
@@ -215,13 +215,6 @@
       <button onclick="downloadAsPng()">画像をダウンロード</button>
       <button onclick="clearCanvas()">白紙に戻す</button>
       <button onclick="saveToDB()">データを保存</button>
-    </div>
-    <div>
-      <button onclick="setTool('lasso')">縄選択</button>
-      <button onclick="moveSelected()">移動</button>
-      <button onclick="deleteSelected()">削除</button>
-      <input type="color" onchange="changeSelectedColor(this.value)">
-
     </div>
     <div>
       <span class="area">
@@ -243,6 +236,12 @@
         <input type="checkbox" id="autoSaveCheckBox">
       </span>
       <span id="textSpan"></span>
+    </div>
+    <div class="area">
+      <button onclick="setTool('lasso')">縄選択</button>
+      <button onclick="moveSelected()">移動</button>
+      <button onclick="deleteSelected()">削除</button>
+      <input type="color" onchange="changeSelectedColor(this.value)">
     </div>
     <div>
       <input type="button" value="プロジェクトを削除" onclick="projectDelete()">
