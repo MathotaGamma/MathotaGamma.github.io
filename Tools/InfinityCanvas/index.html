@@ -122,7 +122,6 @@
         margin: auto;
       }
     }
-    
 
     button,
     input[type="color"],
@@ -172,7 +171,7 @@
 <body>
   <canvas id="canvas"></canvas>
 
-  <div id="toolbar" style="margin: 2px;">
+  <div id="toolbar">
     <div id="overBar" class="area">
       &#9650;ToolBar
     </div>
@@ -320,11 +319,11 @@
       /*:
 
       [
-        memo/math
-        memo/math/one
-        memo/math/two
-        memo/eng
-        default
+      memo/math
+      memo/math/one
+      memo/math/two
+      memo/eng
+      default
       ]
       
       {
@@ -421,12 +420,24 @@
             }).catch(err => {
               console.error('読み込み失敗:', err);
             });
-            
+            //alert(drawName)
           }
         });
 
 
-        
+        //break;
+        /*} else {
+          select.addEventListener('change',() => {
+            let selectPath_k = [];
+            let child = nestSpan.children;
+            for(let n = 0; n < k + 1; n++){
+              selectPath_k.push(child[n].value);
+            }
+            drawName = selectPath_k.join('/')
+            alert("Last!"+selectPath_k.join('/'))
+            //nestCreate(data,selectPath_k);
+          });
+        }*/
         nestSpan.appendChild(select);
 
         if (!selectPath[k] || selectPath[k][0] == "_" || selectPath[k] == "選択してください") break;
@@ -555,8 +566,6 @@
 
 
 
-
-    
     function projectDelete() {
       if (!confirm('本当に' + drawName + 'を削除してもよろしいですか？')) return;
       const tx = db.transaction(storeName, 'readwrite');
@@ -688,6 +697,25 @@
       }
     }
 
+    /*document.getElementById('nameSelect').addEventListener('change',(event) => {
+      if(!confirm('保存されていないデータは消去されます。よろしいですか？')) return;
+      drawName = event.target.value;
+      localStorage.setItem('Tools_InfinityCanva_index_default',drawName);
+      document.getElementById('drawNameInput').value = drawName;
+      
+      loadFromDB().then(data => {
+        if (data) {
+          //console.log('読み込み成功:', data);
+          console.log("読み込み成功");
+          loadImg(data);
+          
+        } else {
+          console.log('データが存在しません');
+        }
+      }).catch(err => {
+        console.error('読み込み失敗:', err);
+      });
+    });*/
 
     function loadFromDB() {
       return new Promise((resolve, reject) => {
@@ -818,12 +846,21 @@
     }
 
 
+    /*function encrypt(str) {
+      const encrypted = Array.from(str, c => c.charCodeAt(0) ^ key);
+      return btoa(String.fromCharCode(...encrypted));
+    }*/
+
     function decrypt(base64) {
       const decoded = atob(base64);
       return Array.from(decoded, c => String.fromCharCode(c.charCodeAt(0) ^ key)).join('');
     }
 
-    
+
+    /*function decrypt(base64) {
+      const decoded = atob(base64);
+      return Array.from(decoded, c => String.fromCharCode(c.charCodeAt(0) ^ key)).join('');
+    }*/
 
     function getNonWhiteBoundingBox(canvas, ctx) {
       const w = canvas.width;
@@ -1172,6 +1209,7 @@
 
 
     function deleteNearbyObject(p) {
+      p = toCanvasCoords(p.x, p.y);
       const threshold = getThickness() * thresholdNum;
 
       for (let i = paths.length - 1; i >= 0; i--) {
@@ -1237,16 +1275,14 @@
       return parseInt(thicknessRange.value);
     }
 
-    /*function undo() {
-      if(paths.length > 0){
-        paths.pop();
-        drawAll();
-      }
-    }*/
     function undo() {
       if (paths.length === 0) return;
 
       const last = paths.pop();
+
+      /*if (last.tool === 'delete' && last.deletedPath) {
+        paths.push(last.deletedPath);
+      }*/
 
       if (last.tool === 'delete') {
         deleteList.length = 0; // 削除リストをクリア
@@ -1367,9 +1403,6 @@
     }
 
 
-
-    
-
     function showLineDrawing(x, y) {
       if (tool !== "line") return;
       lineEnd = {
@@ -1442,14 +1475,18 @@
 
     function deleteSelected() {
       if (!confirm('選択されたオブジェクトを削除しますか？')) return;
+      
       selectedPathIndices.sort((a, b) => b - a); // 後ろから削除
-      for (const index of selectedPathIndices) {
-        paths.splice(index, 1);
-      }
+      
+      paths.push({
+        tool: 'delete',
+        deletedPath: selectedPathIndices
+      });
+      
       selectedPathIndices = [];
       drawAll();
     }
-
+    
     function changeSelectedColor(color) {
       for (const index of selectedPathIndices) {
         paths[index].color = color;
