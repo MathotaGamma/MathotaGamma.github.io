@@ -1,24 +1,517 @@
 <!DOCTYPE html>
 <html lang="ja">
   <head>
-    <meta charset="utf-8">
-    <title>404 NotFound</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ネオン風3D迷路 - 500ゴール</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        color: #0ff;
+        font-family: 'Arial Black', Arial, sans-serif;
+        user-select: none;
+      }
+      #info {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        color: #0ff;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 18px;
+        z-index: 10;
+      }
+      #controls {
+        position: fixed;
+        bottom: 20px;
+        width: 160px;
+        height: 120px;
+        z-index: 10;
+      }
+      /* 左手前後 */
+      #left-controls {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 60px;
+        height: 120px;
+      }
+      /* 右手視点回転 */
+      #right-controls {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: row;
+        gap: 12px;
+        width: 120px;
+        height: 60px;
+        align-items: center;
+        justify-content: center;
+      }
+      button.control-btn {
+        background: #022;
+        border: 2px solid #0ff;
+        border-radius: 12px;
+        color: #0ff;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: 0 0 8px #0ff;
+        transition: background-color 0.2s ease;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+      button.control-btn:active {
+        background-color: #055;
+      }
+      #result-ui {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #000;
+        border: 3px solid #0ff;
+        border-radius: 20px;
+        padding: 30px 40px;
+        color: #0ff;
+        text-align: center;
+        font-family: 'Arial Black', Arial, sans-serif;
+        font-size: 36px;
+        box-shadow: 0 0 20px #0ff;
+        z-index: 20;
+        user-select: none;
+      }
+      #result-ui button {
+        margin-top: 20px;
+        background: #022;
+        border: 2px solid #0ff;
+        border-radius: 12px;
+        color: #0ff;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: 0 0 8px #0ff;
+        padding: 10px 20px;
+        transition: background-color 0.3s ease;
+      }
+      #result-ui button:hover {
+        background-color: #055;
+      }
+    </style>
   </head>
   <body>
-    <div>
-      <h1>404 NotFound</h1>
+    <div id="info"><strong><span style="color: red;">404 NotFound</span></strong>ボタンで移動／回転</div>
+    <canvas id="game"></canvas>
+
+    <!-- 左手：前後ボタン -->
+    <div id="left-controls">
+      <button class="control-btn" id="btn-up">↑</button>
+      <button class="control-btn" id="btn-down">↓</button>
     </div>
-    <div>
-      <canvas id="canvas"></canvas>
+
+    <!-- 右手：視点回転ボタン -->
+    <div id="right-controls">
+      <button class="control-btn" id="btn-rotate-left">←</button>
+      <button class="control-btn" id="btn-rotate-right">→</button>
     </div>
-    <div>
-      <a href="/">Homeへ</a>
-    </div>
+    
+
     <script>
-      const canvas = document.getElementById('canvas');
+      // 迷路サイズ（奇数推奨）
+      const mazeWidth = 15;
+      const mazeHeight = 15;
+
+      // キャンバスとコンテキスト
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+
+      // ウィンドウリサイズ対応
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // 迷路配列 初期化（1＝壁、0＝道）
+      let maze = [];
+
+      // プレイヤー情報
+      const player = {
+        x: 0,
+        y: 0,
+        dir: 0,
+        speed: 0.03,
+        rotSpeed: Math.PI / 96
+      };
+
+      // ゴール位置
+      const goal = { x: 0, y: 0 };
+
+      // 操作フラグ
+      const controls = {
+        forward: false,
+        backward: false,
+        left: false,
+        right: false
+      };
+
+      // ゲーム終了フラグ
+      let gameEnded = false;
+
+      // キーボード操作管理
+      const keys = {};
+      window.addEventListener('keydown', e => {
+        keys[e.key.toLowerCase()] = true;
+      });
+      window.addEventListener('keyup', e => {
+        keys[e.key.toLowerCase()] = false;
+      });
+
+      // 迷路初期化
+      function initMaze() {
+        maze = [];
+        for (let y = 0; y < mazeHeight; y++) {
+          maze[y] = [];
+          for (let x = 0; x < mazeWidth; x++) {
+            maze[y][x] = 1; // まず全部壁
+          }
+        }
+      }
+
+      // 穴掘り法で迷路生成
+      function carvePassages(cx, cy) {
+        const directions = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1]
+        ];
+
+        // シャッフル関数
+        function shuffle(arr) {
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+        }
+
+        shuffle(directions);
+
+        for (const [dx, dy] of directions) {
+          const nx = cx + dx * 2;
+          const ny = cy + dy * 2;
+
+          if (
+            nx > 0 &&
+            nx < mazeWidth - 1 &&
+            ny > 0 &&
+            ny < mazeHeight - 1 &&
+            maze[ny][nx] === 1
+          ) {
+            maze[cy + dy][cx + dx] = 0;
+            maze[ny][nx] = 0;
+            carvePassages(nx, ny);
+          }
+        }
+      }
+
+      // 迷路生成関数
+      function generateMaze() {
+        initMaze();
+
+        // スタートは真ん中
+        const startX = Math.floor(mazeWidth / 2);
+        const startY = Math.floor(mazeHeight / 2);
+        maze[startY][startX] = 0;
+        carvePassages(startX, startY);
+
+        return [startX, startY];
+      }
 
       
+      
+      const minDistToWall = 0.3;
+
+      function isNearWall(x, y) {
+        // 近くに壁があるか調べる。周囲8方向を調べて距離がminDistToWall未満ならtrueにする
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx * 0.1;
+            const ny = y + dy * 0.1;
+            if (isWall(nx, ny)) {
+              const distX = nx - x;
+              const distY = ny - y;
+              const dist = distX * distX + distY * distY;
+              if (dist < minDistToWall * minDistToWall) return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      // 移動処理
+      function movePlayer() {
+        if (gameEnded) return;
+
+        let dx = 0;
+        let dy = 0;
+
+        // キーボード優先
+        if (keys['w'] || controls.forward) {
+          dx += Math.cos(player.dir) * player.speed;
+          dy += Math.sin(player.dir) * player.speed;
+        }
+        if (keys['s'] || controls.backward) {
+          dx -= Math.cos(player.dir) * player.speed;
+          dy -= Math.sin(player.dir) * player.speed;
+        }
+
+        if (keys['a']) {
+          dx += Math.cos(player.dir - Math.PI / 2) * player.speed;
+          dy += Math.sin(player.dir - Math.PI / 2) * player.speed;
+        }
+        if (keys['d']) {
+          dx += Math.cos(player.dir + Math.PI / 2) * player.speed;
+          dy += Math.sin(player.dir + Math.PI / 2) * player.speed;
+        }
+
+        // 衝突判定
+        if (!isNearWall(player.x + dx, player.y)) player.x += dx;
+        if (!isNearWall(player.x, player.y + dy)) player.y += dy;
+
+        
+        // 回転
+        if (keys['arrowleft'] || controls.left) player.dir -= player.rotSpeed;
+        if (keys['arrowright'] || controls.right) player.dir += player.rotSpeed;
+      }
+
+      // 視野角等
+      const fov = Math.PI / 3;
+      let numRays = 0; // ウィンドウ幅に合わせて変化
+      const maxDepth = 20;
+
+      // 矢印描画（ゴール方向へ）
+      function drawArrow() {
+        const cx = canvas.width / 2;
+        const cy = 60;
+
+        // プレイヤーとゴールのベクトル
+        const dx = goal.x + 0.5 - player.x;
+        const dy = goal.y + 0.5 - player.y;
+        const angleToGoal = Math.atan2(dy, dx);
+
+        // プレイヤーの向きとの差分を取得
+        let diff = angleToGoal - player.dir;
+        while (diff < -Math.PI) diff += 2 * Math.PI;
+        while (diff > Math.PI) diff -= 2 * Math.PI;
+
+        // 矢印を描く
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(diff);
+
+        // 赤いネオン風矢印
+        const grad = ctx.createLinearGradient(0, -20, 0, 20);
+        grad.addColorStop(0, '#f00');
+        grad.addColorStop(1, '#600');
+
+        ctx.fillStyle = grad;
+        ctx.shadowColor = '#f00';
+        ctx.shadowBlur = 15;
+
+        ctx.beginPath();
+        ctx.moveTo(0, -15);
+        ctx.lineTo(15, 10);
+        ctx.lineTo(5, 10);
+        ctx.lineTo(5, 20);
+        ctx.lineTo(-5, 20);
+        ctx.lineTo(-5, 10);
+        ctx.lineTo(-15, 10);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      // 3Dレンダリング
+      function render3D() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 天井グラデーション（本当の高さによる色調）
+        const ceilGrad = ctx.createLinearGradient(0, 0, 0, canvas.height / 2);
+        ceilGrad.addColorStop(0, '#001922');
+        ceilGrad.addColorStop(1, '#004455');
+        ctx.fillStyle = ceilGrad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+
+        // 床グラデーション
+        const floorGrad = ctx.createLinearGradient(0, canvas.height / 2, 0, canvas.height);
+        floorGrad.addColorStop(0, '#003344');
+        floorGrad.addColorStop(1, '#000000');
+        ctx.fillStyle = floorGrad;
+        ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+
+        numRays = canvas.width;
+
+        for (let i = 0; i < numRays; i++) {
+          const rayAngle = player.dir - fov / 2 + (i / numRays) * fov;
+          let distance = 0;
+          let hit = false;
+
+          while (!hit && distance < maxDepth) {
+            distance += 0.01;
+            const testX = player.x + Math.cos(rayAngle) * distance;
+            const testY = player.y + Math.sin(rayAngle) * distance;
+            if (isWall(testX, testY)) hit = true;
+          }
+
+          const correctedDist = distance * Math.cos(rayAngle - player.dir);
+          let wallHeight = (canvas.height / correctedDist) * 0.8;
+          if (wallHeight > canvas.height) wallHeight = canvas.height;
+
+          // グラデーションの色をdistanceベースで変更
+          const brightness = Math.max(0, 1 - correctedDist / maxDepth);
+          const r = Math.floor(0 * brightness);
+          const g = Math.floor(255 * brightness);
+          const b = Math.floor(255 * brightness);
+          const color1 = `rgb(${r},${g},${b})`;
+          const color2 = `rgb(${Math.floor(r/10)},${Math.floor(g/10)},${Math.floor(b/10)})`;
+
+          const grad = ctx.createLinearGradient(
+            i,
+            (canvas.height - wallHeight) / 2,
+            i,
+            (canvas.height + wallHeight) / 2
+          );
+          grad.addColorStop(0, color1);
+          grad.addColorStop(1, color2);
+
+          ctx.fillStyle = grad;
+          ctx.fillRect(i, (canvas.height - wallHeight) / 2, 1, wallHeight);
+        }
+
+        drawArrow();
+      }
+
+
+      // ゲームループ
+      function gameLoop() {
+        movePlayer();
+        render3D();
+
+        const dx = goal.x + 0.5 - player.x;
+        const dy = goal.y + 0.5 - player.y;
+        const distGoal = dx * dx + dy * dy;
+
+        if(distGoal < 0.25 && !gameEnded){
+          gameEnded = true;
+          showResultUI();
+          return; // ここで止める
+        }
+
+        if (!gameEnded) {
+          requestAnimationFrame(gameLoop);
+        }
+      }
+
+
+      // 結果画面の表示
+      function showResultUI() {
+        const existing = document.getElementById('result-ui');
+        if (existing) return;
+
+        const div = document.createElement('div');
+        div.id = 'result-ui';
+        div.innerHTML = `
+          <div>おめでとう！<br>ゴールです！</div>
+          <button id="btn-home">ホームへ</button>
+          <button id="btn-restart">再開</button>
+        `;
+        document.body.appendChild(div);
+
+        document.getElementById('btn-home').addEventListener('click', () => {
+          location.href = "/";
+        });
+        document.getElementById('btn-restart').addEventListener('click', () => {
+          div.remove();
+          startNewGame();
+        });
+      }
+
+      // UIボタンのセットアップ
+      function setupButton(id, controlKey) {
+        const btn = document.getElementById(id);
+        btn.addEventListener('mousedown', () => {
+          controls[controlKey] = true;
+        });
+        btn.addEventListener('mouseup', () => {
+          controls[controlKey] = false;
+        });
+        btn.addEventListener('mouseleave', () => {
+          controls[controlKey] = false;
+        });
+        btn.addEventListener('touchstart', e => {
+          e.preventDefault();
+          controls[controlKey] = true;
+        });
+        btn.addEventListener('touchend', e => {
+          e.preventDefault();
+          controls[controlKey] = false;
+        });
+      }
+
+      setupButton('btn-up', 'forward');
+      setupButton('btn-down', 'backward');
+      setupButton('btn-rotate-left', 'left');
+      setupButton('btn-rotate-right', 'right');
+
+      // 新ゲーム開始処理
+      function startNewGame() {
+        const [startX, startY] = generateMaze();
+
+        // スタートは迷路の真ん中 +0.5で中央座標
+        player.x = startX + 0.5;
+        player.y = startY + 0.5;
+        player.dir = 0;
+
+        // ゴールは4つ角のどれかにランダム配置
+        /*const corners = [
+          [0, 0],
+          [mazeWidth - 1, 0],
+          [0, mazeHeight - 1],
+          [mazeWidth - 1, mazeHeight - 1]
+        ];*/
+        const corners = [
+          [1, 1],
+          [mazeWidth - 2, 1],
+          [1, mazeHeight - 2],
+          [mazeWidth - 2, mazeHeight - 2]
+        ];
+        const [gx, gy] = corners[Math.floor(Math.random() * corners.length)];
+        goal.x = gx;
+        goal.y = gy;
+
+        gameEnded = false;
+        gameLoop();
+      }
+
+      // 最初にゲーム開始
+      startNewGame();
+      //alert(JSON.stringify(maze));
     </script>
   </body>
 </html>
-
