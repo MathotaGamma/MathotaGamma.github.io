@@ -113,7 +113,7 @@
     </style>
   </head>
   <body>
-    <div id="info"><div style="color: red;"><strong>404 NotFound</strong></div><div>ボタンで移動／回転</div><div>お急ぎの方は<a href="/">こちら</a></div></div>
+    <div id="info"><span style="color: red;"><strong>404 NotFound</strong></span><br>ボタンで移動／回転 | 経過時間:<span id="time"></span>秒<br>お急ぎの方は<a href="/">こちら</a>></div>
     <canvas id="game"></canvas>
 
     <!-- 左手：前後ボタン -->
@@ -134,6 +134,9 @@
       const mazeWidth = 15;
       const mazeHeight = 15;
 
+      // 時間表示
+      const timeElem = document.getElementById('time');
+
       // キャンバスとコンテキスト
       const canvas = document.getElementById('game');
       const ctx = canvas.getContext('2d');
@@ -145,6 +148,8 @@
       }
       resizeCanvas();
       window.addEventListener('resize', resizeCanvas);
+
+      let startTime = Date.now();
 
       // 迷路配列 初期化（1＝壁、0＝道）
       let maze = [];
@@ -417,6 +422,8 @@
         movePlayer();
         render3D();
 
+        timeElem.innerText = String((Date.now()-startTime)/1000);
+
         const dx = goal.x + 0.5 - player.x;
         const dy = goal.y + 0.5 - player.y;
         const distGoal = dx * dx + dy * dy;
@@ -438,10 +445,12 @@
         const existing = document.getElementById('result-ui');
         if (existing) return;
 
+        const Time = (Date.now()-startTime)/1000;
+
         const div = document.createElement('div');
         div.id = 'result-ui';
         div.innerHTML = `
-          <div>おめでとう！<br>ゴールです</div>
+          <div>おめでとう！<br>ゴールです。<br>記録:${Time}秒</div>
           <button id="btn-home">ホームへ</button>
           <button id="btn-restart">再開</button>
         `;
@@ -510,6 +519,9 @@
         goal.y = gy;
 
         gameEnded = false;
+
+        startTime = Date.now();
+        
         gameLoop();
       }
 
