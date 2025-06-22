@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>お問い合わせ</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    form {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 15px;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: #007BFF;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>お問い合わせ</h1>
+  <p>ご質問やご意見がありましたら、以下のフォームからお気軽にご連絡ください。</p>
+
+  <form action="https://formspree.io/f/xdkzlqae" method="POST">
+    <label>
+      メールアドレス:
+      <input type="email" name="email" required>
+    </label>
+    <label>
+      メッセージ:
+      <textarea name="message" rows="6" required></textarea>
+    </label>
+    <button type="submit">送信</button>
+  </form>
+</body>
+</html>
