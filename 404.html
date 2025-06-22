@@ -113,7 +113,7 @@
     </style>
   </head>
   <body>
-    <div id="info"><strong><span style="color: red;">404 NotFound</span></strong>ボタンで移動／回転</div>
+    <div id="info"><div style="color: red;"><strong>404 NotFound</strong></div><div>ボタンで移動／回転</div><div>お急ぎの方は<a href="/">こちら</a></div></div>
     <canvas id="game"></canvas>
 
     <!-- 左手：前後ボタン -->
@@ -441,7 +441,7 @@
         const div = document.createElement('div');
         div.id = 'result-ui';
         div.innerHTML = `
-          <div>おめでとう！<br>ゴールです！</div>
+          <div>おめでとう！<br>ゴールです</div>
           <button id="btn-home">ホームへ</button>
           <button id="btn-restart">再開</button>
         `;
