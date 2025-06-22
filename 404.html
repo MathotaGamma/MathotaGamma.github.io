@@ -242,7 +242,11 @@
         return [startX, startY];
       }
 
-      
+      // 壁判定
+      function isWall(x, y) {
+        if (x < 0 || y < 0 || x >= mazeWidth || y >= mazeHeight) return true;
+        return maze[Math.floor(y)][Math.floor(x)] === 1;
+      }
       
       const minDistToWall = 0.3;
 
