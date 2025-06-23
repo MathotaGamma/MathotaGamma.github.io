@@ -31,7 +31,6 @@
         height: 120px;
         z-index: 10;
       }
-      /* 左手前後 */
       #left-controls {
         position: fixed;
         bottom: 20px;
@@ -42,7 +41,6 @@
         width: 60px;
         height: 120px;
       }
-      /* 右手視点回転 */
       #right-controls {
         position: fixed;
         bottom: 20px;
@@ -133,7 +131,64 @@
       <button class="control-btn" id="btn-rotate-left">←</button>
       <button class="control-btn" id="btn-rotate-right">→</button>
     </div>
-    
+
+    <!-- 最初の案内 -->
+    <div id="intro-ui" style="
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #000;
+      border: 3px solid #0ff;
+      border-radius: 20px;
+      padding: 30px 40px;
+      color: #0ff;
+      text-align: center;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-size: 28px;
+      box-shadow: 0 0 20px #0ff;
+      z-index: 30;
+      user-select: none;
+    ">
+      <div>404 NotFound<br>ここは存在しないページです。</div>
+      <br>
+      <div>
+        <a href="/" style="color: white; font-size: 20px;">▶ ホームへ戻る</a>
+      </div>
+      <br>
+      <button id="start-btn" style="
+        background: #022;
+        border: 2px solid #0ff;
+        border-radius: 12px;
+        color: #0ff;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: 0 0 8px #0ff;
+        padding: 10px 20px;
+        transition: background-color 0.3s ease;
+      ">
+        ▶ ミニゲームを始める
+      </button>
+    </div>
+
+    <!-- カウントダウン -->
+    <div id="countdown" style="
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #0ff;
+      font-size: 72px;
+      font-family: 'Arial Black', Arial, sans-serif;
+      z-index: 40;
+      text-shadow: 0 0 20px #0ff;
+      user-select: none;
+    ">
+      3
+    </div>
 
     <script>
       // 迷路サイズ（奇数推奨）
@@ -467,7 +522,8 @@
         });
         document.getElementById('btn-restart').addEventListener('click', () => {
           div.remove();
-          startNewGame();
+          //startNewGame();
+          startCountdownThenGame();
         });
       }
 
@@ -532,8 +588,32 @@
       }
 
       // 最初にゲーム開始
-      startNewGame();
+      //startNewGame();
       //alert(JSON.stringify(maze));
+      function startCountdownThenGame() {
+        const countdownEl = document.getElementById("countdown");
+        countdownEl.style.display = "block";
+
+        let count = 3;
+        countdownEl.textContent = count;
+
+        const interval = setInterval(() => {
+          count--;
+          if (count === 0) {
+            clearInterval(interval);
+            countdownEl.style.display = "none";
+            startNewGame();
+          } else {
+            countdownEl.textContent = count;
+          }
+        }, 1000);
+      }
+
+      // スタートボタン
+      document.getElementById("start-btn").addEventListener("click", () => {
+        document.getElementById("intro-ui").remove();
+        startCountdownThenGame();
+      });
     </script>
   </body>
 </html>
