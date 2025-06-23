@@ -108,6 +108,52 @@
       #result-ui button:hover {
         background-color: #055;
       }
+
+      #intro-ui {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #000;
+        border: 3px solid #0ff;
+        border-radius: 20px;
+        padding: 30px 40px;
+        color: #0ff;
+        text-align: center;
+        font-family: 'Arial Black', Arial, sans-serif;
+        font-size: 28px;
+        box-shadow: 0 0 20px #0ff;
+        z-index: 30;
+        user-select: none;
+      }
+
+      #start-btn {
+        background: #022;
+        border: 2px solid #0ff;
+        border-radius: 12px;
+        color: #0ff;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: 0 0 8px #0ff;
+        padding: 10px 20px;
+        transition: background-color 0.3s ease;
+      }
+
+      #countdown {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #0ff;
+        font-size: 72px;
+        font-family: 'Arial Black', Arial, sans-serif;
+        z-index: 40;
+        text-shadow: 0 0 20px #0ff;
+        user-select: none;
+      }
     </style>
   </head>
   <body>
@@ -133,60 +179,20 @@
     </div>
 
     <!-- 最初の案内 -->
-    <div id="intro-ui" style="
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #000;
-      border: 3px solid #0ff;
-      border-radius: 20px;
-      padding: 30px 40px;
-      color: #0ff;
-      text-align: center;
-      font-family: 'Arial Black', Arial, sans-serif;
-      font-size: 28px;
-      box-shadow: 0 0 20px #0ff;
-      z-index: 30;
-      user-select: none;
-    ">
-      <div>404 NotFound<br>ここは存在しないページです。</div>
+    <div id="intro-ui">
+      <div><span style="color: red;">404 NotFound<br>ページが存在しません<br></span>404の世界に迷い込んだ？</div>
       <br>
       <div>
         <a href="/" style="color: white; font-size: 20px;">▶ ホームへ戻る</a>
       </div>
       <br>
-      <button id="start-btn" style="
-        background: #022;
-        border: 2px solid #0ff;
-        border-radius: 12px;
-        color: #0ff;
-        font-size: 24px;
-        font-weight: bold;
-        cursor: pointer;
-        user-select: none;
-        box-shadow: 0 0 8px #0ff;
-        padding: 10px 20px;
-        transition: background-color 0.3s ease;
-      ">
-        ▶ ミニゲームを始める
+      <button id="start-btn">
+        ▶ 迷路に入り、コード200を探す
       </button>
     </div>
 
     <!-- カウントダウン -->
-    <div id="countdown" style="
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #0ff;
-      font-size: 72px;
-      font-family: 'Arial Black', Arial, sans-serif;
-      z-index: 40;
-      text-shadow: 0 0 20px #0ff;
-      user-select: none;
-    ">
+    <div id="countdown">
       3
     </div>
 
@@ -418,7 +424,7 @@
         ctx.restore();
       }
       
-            // 壁の遮蔽判定（レイキャスト）
+      // 壁の遮蔽判定（レイキャスト）
       function isLineOfSightClear(x1, y1, x2, y2) {
         const dx = x2 - x1;
         const dy = y2 - y1;
@@ -652,7 +658,7 @@
         const div = document.createElement('div');
         div.id = 'result-ui';
         div.innerHTML = `
-          <div>おめでとう！<br>ゴールです。<br>記録:${Time}秒</div>
+          <div>200OK<br>迷路を突破し、正常応答の200に到達！<br>記録:${Time}秒</div>
           <button id="btn-home">ホームへ</button>
           <button id="btn-restart">再開</button>
         `;
