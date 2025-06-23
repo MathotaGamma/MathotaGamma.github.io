@@ -108,52 +108,6 @@
       #result-ui button:hover {
         background-color: #055;
       }
-
-      #intro-ui {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: #000;
-        border: 3px solid #0ff;
-        border-radius: 20px;
-        padding: 30px 40px;
-        color: #0ff;
-        text-align: center;
-        font-family: 'Arial Black', Arial, sans-serif;
-        font-size: 28px;
-        box-shadow: 0 0 20px #0ff;
-        z-index: 30;
-        user-select: none;
-      }
-
-      #start-btn {
-        background: #022;
-        border: 2px solid #0ff;
-        border-radius: 12px;
-        color: #0ff;
-        font-size: 24px;
-        font-weight: bold;
-        cursor: pointer;
-        user-select: none;
-        box-shadow: 0 0 8px #0ff;
-        padding: 10px 20px;
-        transition: background-color 0.3s ease;
-      }
-
-      #countdown {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: #0ff;
-        font-size: 72px;
-        font-family: 'Arial Black', Arial, sans-serif;
-        z-index: 40;
-        text-shadow: 0 0 20px #0ff;
-        user-select: none;
-      }
     </style>
   </head>
   <body>
@@ -179,27 +133,67 @@
     </div>
 
     <!-- 最初の案内 -->
-    <div id="intro-ui">
-      <div>404 NotFound<br>このページは見つかりませんでした。<br>でも、ここから正常応答（200）を目指すゲームが遊べます！  </div>
+    <div id="intro-ui" style="
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #000;
+      border: 3px solid #0ff;
+      border-radius: 20px;
+      padding: 30px 40px;
+      color: #0ff;
+      text-align: center;
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-size: 28px;
+      box-shadow: 0 0 20px #0ff;
+      z-index: 30;
+      user-select: none;
+    ">
+      <div>404 NotFound<br>ここは存在しないページです。</div>
       <br>
       <div>
         <a href="/" style="color: white; font-size: 20px;">▶ ホームへ戻る</a>
       </div>
       <br>
-      <button id="start-btn">
-        ▶ 200を探す迷路に入る
+      <button id="start-btn" style="
+        background: #022;
+        border: 2px solid #0ff;
+        border-radius: 12px;
+        color: #0ff;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: 0 0 8px #0ff;
+        padding: 10px 20px;
+        transition: background-color 0.3s ease;
+      ">
+        ▶ ミニゲームを始める
       </button>
     </div>
 
     <!-- カウントダウン -->
-    <div id="countdown">
+    <div id="countdown" style="
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #0ff;
+      font-size: 72px;
+      font-family: 'Arial Black', Arial, sans-serif;
+      z-index: 40;
+      text-shadow: 0 0 20px #0ff;
+      user-select: none;
+    ">
       3
     </div>
 
     <script>
       // 迷路サイズ（奇数推奨）
-      const mazeWidth = 17;
-      const mazeHeight = 17;
+      const mazeWidth = 25;
+      const mazeHeight = 25;
 
       // 時間表示
       const timeElem = document.getElementById('time');
@@ -306,8 +300,9 @@
         initMaze();
 
         // スタートは真ん中
-        const startX = Math.floor(mazeWidth / 2);
-        const startY = Math.floor(mazeHeight / 2);
+        // | 1で奇数にする
+        const startX = Math.floor(mazeWidth / 2) | 1;
+        const startY = Math.floor(mazeHeight / 2) | 1;
         maze[startY][startX] = 0;
         carvePassages(startX, startY);
 
@@ -422,8 +417,8 @@
 
         ctx.restore();
       }
-  
-      // 壁の遮蔽判定（レイキャスト）
+      
+            // 壁の遮蔽判定（レイキャスト）
       function isLineOfSightClear(x1, y1, x2, y2) {
         const dx = x2 - x1;
         const dy = y2 - y1;
@@ -536,23 +531,109 @@
         drawArrow();
         drawGoalLabel();
       }
+      
+      let lastOverheadViewTime = 0;
+      const overheadCooldown = 45 * 1000; // 45秒
+      const overheadViewDuration = 2 * 1000; // 2秒
+      let isOverheadView = false;
+      let overheadViewStartTime = 0;
 
+      const overheadBtn = document.createElement('button');
+      overheadBtn.textContent = '全体表示';
+      overheadBtn.style.position = 'fixed';
+      overheadBtn.style.bottom = '160px';
+      overheadBtn.style.left = '20px';
+      overheadBtn.style.zIndex = '15';
+      overheadBtn.className = 'control-btn';
+      document.body.appendChild(overheadBtn);
 
-      // ゲームループ
+      const overheadCooldownText = document.createElement('div');
+      overheadCooldownText.style.position = 'fixed';
+      overheadCooldownText.style.bottom = '130px';
+      overheadCooldownText.style.left = '20px';
+      overheadCooldownText.style.color = '#0ff';
+      overheadCooldownText.style.fontFamily = "'Arial Black', Arial, sans-serif";
+      overheadCooldownText.style.fontSize = '16px';
+      overheadCooldownText.style.userSelect = 'none';
+      document.body.appendChild(overheadCooldownText);
+
+      overheadBtn.addEventListener('click', () => {
+        const now = Date.now();
+        if (now - lastOverheadViewTime >= overheadCooldown && !isOverheadView) {
+          isOverheadView = true;
+          overheadViewStartTime = now;
+          lastOverheadViewTime = now;
+        }
+      });
+
+      function renderOverheadView() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const cellSize = Math.min(canvas.width / mazeWidth, canvas.height / mazeHeight) * 0.8;
+        const offsetX = (canvas.width - cellSize * mazeWidth) / 2;
+        const offsetY = (canvas.height - cellSize * mazeHeight) / 2;
+
+        for (let y = 0; y < mazeHeight; y++) {
+          for (let x = 0; x < mazeWidth; x++) {
+            if (maze[y][x] === 1) {
+              ctx.fillStyle = '#004466';
+            } else {
+              ctx.fillStyle = '#002233';
+            }
+            ctx.fillRect(offsetX + x * cellSize, offsetY + y * cellSize, cellSize, cellSize);
+          }
+        }
+
+        ctx.fillStyle = '#f00';
+        ctx.beginPath();
+        ctx.arc(
+          offsetX + player.x * cellSize,
+          offsetY + player.y * cellSize,
+          cellSize * 0.3,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        ctx.fillStyle = '#0f0';
+        ctx.fillRect(
+          offsetX + goal.x * cellSize + cellSize * 0.2,
+          offsetY + goal.y * cellSize + cellSize * 0.2,
+          cellSize * 0.6,
+          cellSize * 0.6
+        );
+      }
+
+      const originalGameLoop = gameLoop;
       function gameLoop() {
-        movePlayer();
-        render3D();
+        if (isOverheadView) {
+          renderOverheadView();
 
-        timeElem.innerText = String((Date.now()-startTime)/1000);
+          const elapsed = Date.now() - overheadViewStartTime;
+          if (elapsed > overheadViewDuration) {
+            isOverheadView = false;
+          }
+        } else {
+          movePlayer();
+          render3D();
+        }
+
+        timeElem.innerText = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        const cooldownLeft = Math.max(0, overheadCooldown - (Date.now() - lastOverheadViewTime));
+        if (cooldownLeft > 0) {
+          overheadCooldownText.innerText = `全体表示: ${Math.ceil(cooldownLeft / 1000)}秒後に使用可`;
+        } else {
+          overheadCooldownText.innerText = '全体表示: 使用可能';
+        }
 
         const dx = goal.x + 0.5 - player.x;
         const dy = goal.y + 0.5 - player.y;
         const distGoal = dx * dx + dy * dy;
-
-        if(distGoal < 0.25 && !gameEnded){
+        if (distGoal < 0.25 && !gameEnded) {
           gameEnded = true;
           showResultUI();
-          return; // ここで止める
+          return;
         }
 
         if (!gameEnded) {
@@ -571,7 +652,7 @@
         const div = document.createElement('div');
         div.id = 'result-ui';
         div.innerHTML = `
-          <div>迷路を抜けて、200:正常応答の世界に到達しました。<br>記録:${Time}秒</div>
+          <div>おめでとう！<br>ゴールです。<br>記録:${Time}秒</div>
           <button id="btn-home">ホームへ</button>
           <button id="btn-restart">再開</button>
         `;
@@ -680,6 +761,7 @@
         gameEnded = false;
 
         startTime = Date.now();
+        lastOverheadViewTime = Date.now();
         
         gameLoop();
       }
