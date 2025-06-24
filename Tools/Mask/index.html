@@ -265,14 +265,14 @@
       saveCtx.drawImage(fullSizeDrawCanvas, 0, 0);
 
       // 反転処理
-      const imgData = saveCtx.getImageData(0, 0, saveCanvas.width, saveCanvas.height);
+      /*const imgData = saveCtx.getImageData(0, 0, saveCanvas.width, saveCanvas.height);
       const data = imgData.data;
       for (let i = 0; i < data.length; i += 4) {
         data[i] = 255 - data[i];     // R
         data[i + 1] = 255 - data[i + 1]; // G
         data[i + 2] = 255 - data[i + 2]; // B
       }
-      saveCtx.putImageData(imgData, 0, 0);
+      saveCtx.putImageData(imgData, 0, 0);*/
 
       const link = document.createElement('a');
       link.download = 'mask.png';
