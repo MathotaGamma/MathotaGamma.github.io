@@ -121,11 +121,16 @@
 
     fillBlackBtn.addEventListener('click', () => {
       if (drawCanvas.width === 0 || drawCanvas.height === 0) return;
+
+      drawCtx.globalCompositeOperation = 'source-over'; // ←追加
       drawCtx.fillStyle = 'black';
       drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+
+      fullSizeCtx.globalCompositeOperation = 'source-over'; // ←追加
       fullSizeCtx.fillStyle = 'black';
       fullSizeCtx.fillRect(0, 0, fullSizeDrawCanvas.width, fullSizeDrawCanvas.height);
     });
+
 
     imageLoader.addEventListener('change', e => {
       const file = e.target.files[0];
