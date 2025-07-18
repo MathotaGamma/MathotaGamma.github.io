@@ -50,6 +50,10 @@
         flex: 1;
         overflow: hidden;
       }
+      .block {
+        display: flex;
+        flex-direction: column;
+      }
       .toc-wrapper {
         width: 220px;
         background: #f3f4f6;
@@ -186,16 +190,25 @@
     </header>
     
     <main>
-
+      <nav class="toc-wrapper" aria-label="記事一覧">
+        <h2>記事一覧</h2>
+        <ul>
+          <li><a href="#parabola" class="anchor">Parabola</a></li>
+          <!--<li><a href="#section1" class="anchor">Fourier変換とは？</a></li>
+          <li><a href="#section2" class="anchor">Fourier変換の種類</a></li>
+          <li><a href="#section3" class="anchor">実際の式</a></li>
+          <li><a href="#section4" class="anchor">体感する</a></li>-->
+        </ul>
+      </nav>
       <article class="article">
         <div id="contents">
-          <div style="display: flex; flex-direction: column;">
+          <div class="block" id="parabola">
             <div>
               <img src="./Parabola/parabola.png" alt="parabolic graph" width="100px">
             </div>
             <a href="./Parabola/">二次関数・放物線</a>
           </div>
-          <div>
+          <div class="block">
           
           </div>
         </div>
