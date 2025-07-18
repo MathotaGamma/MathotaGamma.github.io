@@ -8,3 +8,360 @@
     <h1>高校数学</h1>
   </body>
 </html>
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    
+    <title>{{TITLE}} | NeoTopazm</title>
+
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+    <script src="https://mathotagamma.github.io/API/CompVisJS/CompVisJS.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        height: 100%;
+        font-family: 'Meiryo UI', sans-serif;
+        background: #fff;
+        color: #222;
+        -webkit-user-select: none;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        background: #f8f9fa;
+        padding: 1rem 2rem;
+        font-size: 1.5rem;
+        font-weight: bold;
+        box-shadow: 0 2px 5px #0008;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      header nav a {
+        color: #1f2951;
+        text-decoration: none;
+        margin-left: 1rem;
+      }
+      header nav a:hover {
+        color: #f7931e;
+      }
+      main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+      .toc-wrapper {
+        width: 220px;
+        background: #f3f4f6;
+        padding: 1rem 1.5rem;
+        overflow-y: auto;
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+      .toc-wrapper h2 {
+        color: #f7931e;
+        font-size: 1.2rem;
+        margin-bottom: 0.8rem;
+      }
+      .toc-wrapper ul {
+        list-style: none;
+      }
+      .toc-wrapper li {
+        margin-bottom: 0.5rem;
+      }
+      .toc-wrapper a {
+        color: #1f2951;
+        text-decoration: none;
+      }
+      .toc-wrapper a:hover {
+        text-decoration: underline;
+        color: #ffb933;
+      }
+      .toc-toggle {
+        display: none;
+        background: #f3f4f6;
+        padding: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      article.article {
+        flex: 1;
+        padding: 2rem 3rem;
+        overflow-y: auto;
+        font-size: 1.1rem;
+        line-height: 1.7;
+      }
+      article.article h1 {
+        font-size: 2.2rem;
+        color: #f7931e;
+      }
+      article.article h2 {
+        font-size: 1.6rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #bbb;
+        color: #008080;
+      }
+      article.article p {
+        margin-bottom: 1.2rem;
+      }
+      aside.sidebar {
+        width: 280px;
+        background: #f3f4f6;
+        padding: 1rem 1.5rem;
+        border-left: 1px solid #ddd;
+        font-size: 0.9rem;
+      }
+      aside.sidebar h3 {
+        color: #f7931e;
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+      }
+      aside.sidebar a {
+        text-decoration: none;
+        color: #1f2951;
+      }
+      aside.sidebar a:hover {
+        color: #f7931e;
+      }
+      canvas {
+        display: block;
+        margin: 1rem auto;
+        border: 1px solid black;
+      }
+      .dropdown-toggle {
+        padding: 10px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        color: #fff;
+        background-color: #007ACC;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, box-shadow 0.2s ease;
+        margin-top: 1rem;
+      }
+      .dropdown-toggle:hover {
+        background-color: #005f99;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+      .dropdown-toggle:active {
+        background-color: #004f80;
+        transform: translateY(1px);
+      }
+      .dropdown-content {
+        display: none;
+        border: 1px solid black;
+        padding: 1rem;
+        margin-top: 0.5rem;
+      }
+      @media (max-width: 768px) {
+        main {
+          flex-direction: column;
+        }
+        .toc-wrapper {
+          width: 100%;
+          display: none;
+        }
+        .toc-wrapper.active {
+          display: block;
+        }
+        .toc-toggle {
+          display: block;
+        }
+        aside.sidebar {
+          width: 100%;
+          border-left: none;
+          border-top: 1px solid #ddd;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+
+      
+      <div>{{TITLE}}</div>
+
+      
+      <nav>
+        <a href="../">ホーム</a>
+      </nav>
+    </header>
+
+    <div class="toc-toggle">📑 目次を表示</div>
+    <main>
+      <nav class="toc-wrapper" aria-label="目次">
+        <h2>目次</h2>
+        <ul>
+
+          
+          <li><a href="#section0" class="anchor">はじめに</a></li>
+          <li><a href="#section1" class="anchor">前提知識</a></li>
+          <li><a href="#section2" class="anchor">~~について</a></li>
+
+          
+        </ul>
+      </nav>
+
+      <article class="article">
+
+        
+        <h1>{{TITLE}}</h1>
+
+        
+        <p>
+
+
+          <!-- 例 -->
+          難易度☆(中程度:複素数についての標準知識)
+
+          
+        </p>
+        <section id="section0">
+          <h2>はじめに</h2>
+          <p>皆さんこんにちは！</p>
+          <p>
+            この記事ではリーマンゼータ関数について解説していきます。
+          </p>
+          <p>
+            唐突ですがここでクイズです。すれ違った人に、「ゼータを書いてください」と言ったら当然のように \(\zeta\) とゼータの小文字を書くとおもいますが、
+          </p>
+          <p>
+            大文字は次のうちどちらでしょうか？
+          </p>
+          <ul>
+            <tt>
+              <li><div onclick="zetaQuiz(1)">&#x005A</div></li>
+              <li><div onclick="zetaQuiz(2)">&#x0396</div></li>
+            </tt>
+          </ul>
+          <p>この記事を見ようとしている皆さんなら、もちろん一発で正解しましたよね？</p>
+          <p>
+            しかし、万が一間違えてしまった人でもゼータ関数のゼータは小文字を使うのでこの記事は読むことができます！安心してください
+          </p>
+          <p>
+            それでは、素数や円周率と関連のあるゼータ関数について見てみましょう！
+          </p>
+        </section>
+        <section id="section1">
+          <h2>前提知識</h2>
+          <ul>
+            <li>
+              <h3>虚数単位(i)</h3>
+              <p>
+                \(x^2=-1\)の解は実数では存在しない(全ての実数xは\(x^2\ge 0\)である)。
+              </p>
+              <p>
+                そこで、\(x^2=-1\)の解を新たに虚数単位iとした。
+              </p>
+              <h3>複素数</h3>
+              <p>
+                実数a,bと虚数単位iを用いて\(a+b\rm{i}\)と表される数。このとき、aを実部,bを虚部<small><span style="color: red;">※biでないことに注意</span></small>と呼ぶ。
+              </p>
+              <p>
+                また、x-y平面のxを実部に、yを虚部に対応させた平面を複素(数)平面(又はガウス平面)という。この平面の利点として、点の座標を一つの数で表すことができる(例:2-3iで(2,-3)を表せる)。
+              </p>
+            </li>
+          </ul>
+        </section>
+        <section id="section2">
+          <h2>ゼータ関数の式</h2>
+          <p>
+            実数の範囲では、ゼータ関数\(\zeta (x)\)は自然数のx乗の逆数和、つまり
+          </p>
+            $$ \zeta(x) = \sum_{n=1}^{\infty} \frac{1}{n^x} $$
+          <p>
+            で表されます。
+          </p>
+          <p>
+            とくに、\(x = 2\)のときはバーゼル問題と言われ、\(\frac{\pi^2}{6}\)に収束することが知られています。\(\sin x\)のテイラー展開や\(\frac{x^2}{4}\)をフーリエ級数展開することで求めることができます。
+          </p>
+        </section>
+        <section id="section3">
+          <h2>ゼータ関数の解析接続</h2>
+          <p>
+            先程紹介した式では、xが実数の時であり,収束する範囲は\(1 &#x003C x \)でした。これを複素数の範囲に広げる<b>解析接続</b>をしてみましょう。
+          </p>
+          
+        </section>
+        <!-- 他のセクションや toggle-content をここに追加 -->
+        <!-- 例： -->
+        <!--<button class="dropdown-toggle">▼ 詳細を見る</button>
+        <div class="dropdown-content">
+          <p>ここに数式や説明などを記述できます。</p>
+          $$ \zeta(s) = \sum_{n=1}^{\infty} \frac{1}{n^s} $$
+        </div>-->
+      </article>
+
+      <aside class="sidebar">
+        <section>
+          <h3>おすすめ記事</h3>
+          <!-- おすすめリンクなど -->
+        </section>
+      </aside>
+    </main>
+
+
+    
+    <script>
+      // スムーズスクロール（目次）
+      document.querySelectorAll('.anchor').forEach(anchor => {
+        anchor.addEventListener('click', e => {
+          e.preventDefault();
+          const target = document.getElementById(anchor.getAttribute('href').slice(1));
+          const container = document.querySelector('article.article');
+          if (target && container) {
+            container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
+          }
+        });
+      });
+
+      // モバイル用目次トグル
+      document.querySelector('.toc-toggle').addEventListener('click', () => {
+        document.querySelector('.toc-wrapper').classList.toggle('active');
+      });
+
+      // ドロップダウン展開処理
+      document.querySelectorAll('.dropdown-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const content = btn.nextElementSibling;
+          if (content && content.classList.contains('dropdown-content')) {
+            content.style.display = (content.style.display === 'block') ? 'none' : 'block';
+          }
+        });
+      });
+
+      let ansCount = 0;
+
+      function zetaQuiz(ans){
+        if(ans == 1){
+          alert('不正解──ゼータの神は遠くで沈黙を保っている。');
+          ansCount = 1;
+        } else {
+          if(ansCount == 0){
+            alert('正解です！ゼータの神は告げる──「その答え、しかと受け取った」');
+
+          } else {
+           alert('正解です が、ゼータの神は静かにこう告げました──「一度誤った者に、完全な理解はまだ早い」');
+          }
+        }
+      }
+      
+    </script>
+  </body>
+</html>
