@@ -1,23 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
   <head>
-    <meta charset="utf-8">
-    <title>高校数学</title>
-  </head>
-  <body>
-    <h1>高校数学</h1>
-  </body>
-</html>
-<!DOCTYPE html>
-<html lang="ja">
-  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    
-    <title>{{TITLE}} | NeoTopazm</title>
-
-    
+    <title>高校数学</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
     <script src="https://mathotagamma.github.io/API/CompVisJS/CompVisJS.js"></script>
     <style>
@@ -193,120 +179,23 @@
   </head>
   <body>
     <header>
-
-      
-      <div>{{TITLE}}</div>
-
-      
+      <div>高校数学</div>
       <nav>
         <a href="../">ホーム</a>
       </nav>
     </header>
-
-    <div class="toc-toggle">📑 目次を表示</div>
+    
     <main>
-      <nav class="toc-wrapper" aria-label="目次">
-        <h2>目次</h2>
-        <ul>
 
+      <div id="contents">
+        <div>
+          <img src="" alt="">
+          <a>二次関数・放物線</a>
+        </div>
+        <div>
           
-          <li><a href="#section0" class="anchor">はじめに</a></li>
-          <li><a href="#section1" class="anchor">前提知識</a></li>
-          <li><a href="#section2" class="anchor">~~について</a></li>
-
-          
-        </ul>
-      </nav>
-
-      <article class="article">
-
-        
-        <h1>{{TITLE}}</h1>
-
-        
-        <p>
-
-
-          <!-- 例 -->
-          難易度☆(中程度:複素数についての標準知識)
-
-          
-        </p>
-        <section id="section0">
-          <h2>はじめに</h2>
-          <p>皆さんこんにちは！</p>
-          <p>
-            この記事ではリーマンゼータ関数について解説していきます。
-          </p>
-          <p>
-            唐突ですがここでクイズです。すれ違った人に、「ゼータを書いてください」と言ったら当然のように \(\zeta\) とゼータの小文字を書くとおもいますが、
-          </p>
-          <p>
-            大文字は次のうちどちらでしょうか？
-          </p>
-          <ul>
-            <tt>
-              <li><div onclick="zetaQuiz(1)">&#x005A</div></li>
-              <li><div onclick="zetaQuiz(2)">&#x0396</div></li>
-            </tt>
-          </ul>
-          <p>この記事を見ようとしている皆さんなら、もちろん一発で正解しましたよね？</p>
-          <p>
-            しかし、万が一間違えてしまった人でもゼータ関数のゼータは小文字を使うのでこの記事は読むことができます！安心してください
-          </p>
-          <p>
-            それでは、素数や円周率と関連のあるゼータ関数について見てみましょう！
-          </p>
-        </section>
-        <section id="section1">
-          <h2>前提知識</h2>
-          <ul>
-            <li>
-              <h3>虚数単位(i)</h3>
-              <p>
-                \(x^2=-1\)の解は実数では存在しない(全ての実数xは\(x^2\ge 0\)である)。
-              </p>
-              <p>
-                そこで、\(x^2=-1\)の解を新たに虚数単位iとした。
-              </p>
-              <h3>複素数</h3>
-              <p>
-                実数a,bと虚数単位iを用いて\(a+b\rm{i}\)と表される数。このとき、aを実部,bを虚部<small><span style="color: red;">※biでないことに注意</span></small>と呼ぶ。
-              </p>
-              <p>
-                また、x-y平面のxを実部に、yを虚部に対応させた平面を複素(数)平面(又はガウス平面)という。この平面の利点として、点の座標を一つの数で表すことができる(例:2-3iで(2,-3)を表せる)。
-              </p>
-            </li>
-          </ul>
-        </section>
-        <section id="section2">
-          <h2>ゼータ関数の式</h2>
-          <p>
-            実数の範囲では、ゼータ関数\(\zeta (x)\)は自然数のx乗の逆数和、つまり
-          </p>
-            $$ \zeta(x) = \sum_{n=1}^{\infty} \frac{1}{n^x} $$
-          <p>
-            で表されます。
-          </p>
-          <p>
-            とくに、\(x = 2\)のときはバーゼル問題と言われ、\(\frac{\pi^2}{6}\)に収束することが知られています。\(\sin x\)のテイラー展開や\(\frac{x^2}{4}\)をフーリエ級数展開することで求めることができます。
-          </p>
-        </section>
-        <section id="section3">
-          <h2>ゼータ関数の解析接続</h2>
-          <p>
-            先程紹介した式では、xが実数の時であり,収束する範囲は\(1 &#x003C x \)でした。これを複素数の範囲に広げる<b>解析接続</b>をしてみましょう。
-          </p>
-          
-        </section>
-        <!-- 他のセクションや toggle-content をここに追加 -->
-        <!-- 例： -->
-        <!--<button class="dropdown-toggle">▼ 詳細を見る</button>
-        <div class="dropdown-content">
-          <p>ここに数式や説明などを記述できます。</p>
-          $$ \zeta(s) = \sum_{n=1}^{\infty} \frac{1}{n^s} $$
-        </div>-->
-      </article>
+        </div>
+      </div>
 
       <aside class="sidebar">
         <section>
@@ -316,8 +205,6 @@
       </aside>
     </main>
 
-
-    
     <script>
       // スムーズスクロール（目次）
       document.querySelectorAll('.anchor').forEach(anchor => {
@@ -345,23 +232,6 @@
           }
         });
       });
-
-      let ansCount = 0;
-
-      function zetaQuiz(ans){
-        if(ans == 1){
-          alert('不正解──ゼータの神は遠くで沈黙を保っている。');
-          ansCount = 1;
-        } else {
-          if(ansCount == 0){
-            alert('正解です！ゼータの神は告げる──「その答え、しかと受け取った」');
-
-          } else {
-           alert('正解です が、ゼータの神は静かにこう告げました──「一度誤った者に、完全な理解はまだ早い」');
-          }
-        }
-      }
-      
     </script>
   </body>
 </html>
