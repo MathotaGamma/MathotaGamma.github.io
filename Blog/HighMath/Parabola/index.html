@@ -236,6 +236,7 @@
           <p>
             この式のグラフは下図のようになります。
           </p>
+          <canvas id="parabola1"></canvas>
           
         </section>
         
@@ -284,6 +285,17 @@
           }
         });
       });
+
+      window.addEventListener("DOMContentLoaded", () => {
+        const parabola1 = document.getElementById("parabola1");
+        parabola1.width = 300;
+        parabola1.height = 100;
+        const viewer = new CompVis.View(parabola1);
+        // Canvasにグラフを描く
+        viewer.addGraph((t) => {
+          return t**2-4*t-5
+        },-10,10, 1200,{autoScale: false});
+        viewer.renderAll
       
     </script>
   </body>
