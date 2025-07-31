@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Zeta | NeoTopazm</title>
+    <title>Parabola [HSM] | NeoTopazm</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
     <script src="https://mathotagamma.github.io/API/CompVisJS/latest.js"></script>
     <style>
@@ -179,7 +179,7 @@
   </head>
   <body>
     <header>
-      <div>Riemann-Zeta関数</div>
+      <div>二次関数</div>
       <nav>
         <a href="../">ホーム</a>
       </nav>
@@ -294,9 +294,9 @@
         // Canvasにグラフを描く
         viewer.addGraph((t) => {
           return t**2-4*t-5;
-        },-10,10, 1200,{autoScale: false});
+        },-10,10, 1200,{autoScale: false, showAxis: true, rangeX: [-20,20], rangeY: [-15, 150]});
         viewer.renderAll
-      }
+      })
     </script>
   </body>
 </html>
