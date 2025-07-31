@@ -293,7 +293,7 @@
         const viewer = new CompVis.View(parabola1);
         // Canvasにグラフを描く
         viewer.addGraph((t) => {
-          return t**2-4*t-5
+          return t**2-4*t-5;
         },-10,10, 1200,{autoScale: false});
         viewer.renderAll
       }
