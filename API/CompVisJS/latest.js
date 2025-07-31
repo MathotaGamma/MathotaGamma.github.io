@@ -1,6 +1,5 @@
-//変更点:グラフ描画機能のoptionの種類追加
+//変更点:グラフ描画機能のoptionの種類追加(rangeX,rangeY)
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
-
 class CompVis {
   constructor(k_real, k_imag) {
     this._real = k_real;
@@ -253,10 +252,13 @@ CompVis.View = class {
   }
 
   renderAll() {
+    let viewData = [];
     this.ctx.clearRect(0, 0, this.W, this.H);
     for (const graph of this.graphs) {
-      this.renderGraph(graph);
+      viewData.push(this.renderGraph(graph));
     }
+    //console.log(viewData);
+    return viewData;
   }
 
   update(graph) {
@@ -292,7 +294,16 @@ CompVis.View = class {
     let minX, maxX, minY, maxY;
 
     //scaleは、1px/グラフ上の1目盛り
+    //offsetはcanvas中央の点の座標
     let xScale, yScale, offsetX, offsetY;
+    
+    const viewData = {
+      minX: Math.min(...xs),
+      maxX: Math.max(...xs),
+      minY: Math.min(...ys),
+      maxY: Math.max(...ys),
+      graph: graph,
+    }
     
     if (autoScale) {
       minX = Math.min(...xs);
@@ -303,10 +314,13 @@ CompVis.View = class {
       xScale = (this.W - 10) / ((maxX - minX) || 1);
       yScale = (this.H - 10) / ((maxY - minY) || 1);
       
-      /*offsetX = -minX;
-      offsetY = -minY;*/
+      //5px分の余白を入れた端の座標
+      minX -= 5/xScale;
+      maxX += 5/xScale;
+      minY -= 5/yScale;
+      maxY += 5/yScale;
+      
       offsetX = 0;
-      //offsetY = -(maxY + minY) / 2;
       offsetY = 0;
     } else {
       minX = Math.min(rangeX[0], rangeX[1]);
@@ -314,20 +328,15 @@ CompVis.View = class {
       minY = Math.min(rangeY[0], rangeY[1]);
       maxY = Math.max(rangeY[0], rangeY[1]);
       
-      xScale = (this.W - 10) / (maxX - minX);
-      yScale = (this.H - 10) / (maxY - minY);
-      //xScale = yScale = 1;
-      /*offsetX = this.W/2;
-      offsetY = this.H/2;*/
+      xScale = this.W / (maxX - minX);
+      yScale = this.H / (maxY - minY);
+
+      
       offsetX = (rangeX[0] + rangeX[1]) / 2;
       offsetY = (rangeY[0] + rangeY[1]) / 2;
     }
     
-    //5px分の余白を入れた端の座標
-    minX -= 5/xScale;
-    maxX += 5/xScale;
-    minY -= 5/yScale;
-    maxY += 5/yScale;
+    
 
     const ctx = this.ctx;
     ctx.beginPath();
@@ -336,7 +345,7 @@ CompVis.View = class {
 
     for (let i = 0; i < points.length; i++) {
       const px = this.W / 2 + (points[i].x - offsetX) * xScale;
-      const py = this.H / 2 - (points[i].y + offsetY) * yScale;
+      const py = this.H / 2 - (points[i].y - offsetY) * yScale;
       if (i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
@@ -344,22 +353,24 @@ CompVis.View = class {
     ctx.stroke();
 
     if (showAxis) {
-      this.drawAxis(offsetX, offsetY);
+      this.drawAxis(offsetX, offsetY, xScale, yScale);
     }
+    
+    return viewData;
   }
 
-  drawAxis(offsetX, offsetY) {
+  drawAxis(offsetX, offsetY, xScale, yScale) {
     const ctx = this.ctx;
     ctx.save();
     ctx.beginPath();
     ctx.strokeStyle = "#888";
     ctx.lineWidth = 1;
 
-    ctx.moveTo(0, this.H / 2 + offsetY);
-    ctx.lineTo(this.W, this.H / 2 + offsetY);
+    ctx.moveTo(0, this.H / 2 + offsetY * yScale);
+    ctx.lineTo(this.W, this.H / 2 + offsetY * yScale);
     
-    ctx.moveTo(this.W / 2 + offsetX, 0);
-    ctx.lineTo(this.W / 2 + offsetX, this.H);
+    ctx.moveTo(this.W / 2 - offsetX * xScale, 0);
+    ctx.lineTo(this.W / 2 - offsetX * xScale, this.H);
 
     ctx.stroke();
     ctx.restore();
