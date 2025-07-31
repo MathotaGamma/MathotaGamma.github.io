@@ -1,4 +1,4 @@
-//変更点:viewを作成、いままでのグラフ描画機能削除
+//変更点:グラフ描画機能のoptionの種類追加
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 class CompVis {
   constructor(k_real, k_imag) {
@@ -7,7 +7,7 @@ class CompVis {
   }
   
   static ver = '1.03.02';
-  static time = '2025/1/28/21:34:00';
+  static time = '2025/7/19/15:30:00';
   
   //Methods that throw errors about functions whose arguments must be real numbers
   #Error_Argument_real(k){
@@ -229,16 +229,22 @@ CompVis.View = class {
     this.renderAll();
   }
 
-  addGraph(f, α, β, span, options = {}) {
+  addGraph(f, a, b, span, options = {}) {
     // optionsにautoScale, showAxisを含める
     const graph = {
       f,
-      α,
-      β,
+      a,
+      b,
       span,
       color : options.color !== undefined ? options.color : "0ff",
+      //自動でscaleやらrangeやらを調整する
       autoScale: options.autoScale !== undefined ? options.autoScale : false,
+      //軸を表示するか
       showAxis: options.showAxis !== undefined ? options.showAxis : false,
+      //左端と右端のx座標(初期値はpxに従った座標)
+      rangeX: options.rangeX !== undefined ? options.rangeX : [-this.W/2, this.W/2],
+      //上端と下端のy座標(初期値はpxに従った座標)
+      rangeY: options.rangeY !== undefined ? options.rangeY : [-this.H/2, this.H/2],
     };
     this.graphs.push(graph);
     this.renderGraph(graph);
@@ -257,11 +263,11 @@ CompVis.View = class {
   }
 
   renderGraph(graph) {
-    const { f, α, β, span, color, autoScale, showAxis } = graph;
+    const { f, a, b, span, color, autoScale, showAxis, rangeX, rangeY, center} = graph;
     const points = [];
 
     for (let i = 0; i <= span; i++) {
-      const t = α + (β - α) * i / span;
+      const t = a + (b - a) * i / span;
       let res;
       try {
         res = f(t);
@@ -279,22 +285,48 @@ CompVis.View = class {
 
     const xs = points.map(p => p.x);
     const ys = points.map(p => p.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
+    
+    //canvasの端の値
+    //5px分の余白を入れる
+    let minX, maxX, minY, maxY;
 
+    //scaleは、1px/グラフ上の1目盛り
     let xScale, yScale, offsetX, offsetY;
+    
     if (autoScale) {
-      xScale = this.W / ((maxX - minX) || 1);
-      yScale = this.H / ((maxY - minY) || 1);
-      offsetX = -minX;
-      offsetY = -minY;
+      minX = Math.min(...xs);
+      maxX = Math.max(...xs);
+      minY = Math.min(...ys);
+      maxY = Math.max(...ys);
+      
+      xScale = (this.W - 10) / ((maxX - minX) || 1);
+      yScale = (this.H - 10) / ((maxY - minY) || 1);
+      
+      /*offsetX = -minX;
+      offsetY = -minY;*/
+      offsetX = 0;
+      //offsetY = -(maxY + minY) / 2;
+      offsetY = 0;
     } else {
-      xScale = yScale = 1;
-      offsetX = this.W/2;
-      offsetY = this.H/2;
+      minX = Math.min(rangeX[0], rangeX[1]);
+      maxX = Math.max(rangeX[0], rangeX[1]);
+      minY = Math.min(rangeY[0], rangeY[1]);
+      maxY = Math.max(rangeY[0], rangeY[1]);
+      
+      xScale = (this.W - 10) / (maxX - minX);
+      yScale = (this.H - 10) / (maxY - minY);
+      //xScale = yScale = 1;
+      /*offsetX = this.W/2;
+      offsetY = this.H/2;*/
+      offsetX = (rangeX[0] + rangeX[1]) / 2;
+      offsetY = (rangeY[0] + rangeY[1]) / 2;
     }
+    
+    //5px分の余白を入れた端の座標
+    minX -= 5/xScale;
+    maxX += 5/xScale;
+    minY -= 5/yScale;
+    maxY += 5/yScale;
 
     const ctx = this.ctx;
     ctx.beginPath();
@@ -302,8 +334,8 @@ CompVis.View = class {
     ctx.lineWidth = 2;
 
     for (let i = 0; i < points.length; i++) {
-      const px = (points[i].x + offsetX) * xScale;
-      const py = this.H - (points[i].y + offsetY) * yScale;
+      const px = this.W / 2 + (points[i].x - offsetX) * xScale;
+      const py = this.H / 2 - (points[i].y + offsetY) * yScale;
       if (i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
@@ -311,28 +343,22 @@ CompVis.View = class {
     ctx.stroke();
 
     if (showAxis) {
-      this.drawAxis(minX, maxX, minY, maxY, xScale, yScale, offsetX, offsetY);
+      this.drawAxis(offsetX, offsetY);
     }
   }
 
-  drawAxis(minX, maxX, minY, maxY, xScale, yScale, offsetX, offsetY) {
+  drawAxis(offsetX, offsetY) {
     const ctx = this.ctx;
     ctx.save();
     ctx.beginPath();
     ctx.strokeStyle = "#888";
     ctx.lineWidth = 1;
 
-    if (minY < 0 && maxY > 0) {
-      const y0 = this.H - (0 + offsetY) * yScale;
-      ctx.moveTo(0, y0);
-      ctx.lineTo(this.W, y0);
-    }
-
-    if (minX < 0 && maxX > 0) {
-      const x0 = (0 + offsetX) * xScale;
-      ctx.moveTo(x0, 0);
-      ctx.lineTo(x0, this.H);
-    }
+    ctx.moveTo(0, this.H / 2 + offsetY);
+    ctx.lineTo(this.W, this.H / 2 + offsetY);
+    
+    ctx.moveTo(this.W / 2 + offsetX, 0);
+    ctx.lineTo(this.W / 2 + offsetX, this.H);
 
     ctx.stroke();
     ctx.restore();
