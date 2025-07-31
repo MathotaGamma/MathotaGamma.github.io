@@ -1,5 +1,6 @@
 //変更点:グラフ描画機能のoptionの種類追加
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
+
 class CompVis {
   constructor(k_real, k_imag) {
     this._real = k_real;
