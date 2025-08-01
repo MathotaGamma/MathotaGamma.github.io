@@ -48,7 +48,7 @@
   <header>
     <div id="dataDisplay"></div>
     <div>
-      データ数: <input type="range" id="dataSize" min="5" max="5000" value="100">
+      データ数: <input type="number" id="NumInput" value="100" placeholder="Num"><input type="button" value="OK" onclick="OK();"><input type="range" id="dataSize" min="5" max="5000" value="100">
       <span id="dataSizeLabel">100</span>
       間隔(ms): <input type="range" id="dtRange" min="1" max="500" value="1">
       <span id="dtLabel">1</span>
@@ -203,6 +203,19 @@
       dataSizeLabel.textContent = dataSize;
       generateData();
     });
+    
+    function OK() {
+      cancelOngoingSort();
+      dataSize = parseInt(document.getElementById("NumInput").value);
+      if(Number.isNaN(dataSize)){
+        alert('数値を代入してください。');
+        return;
+      }
+      dataSizeLabel.textContent = dataSize;
+      generateData();
+    }
+    
+    
 
     document.getElementById('randomizeBtn').addEventListener('click', () => {
       cancelOngoingSort();
