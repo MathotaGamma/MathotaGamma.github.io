@@ -71,7 +71,7 @@
       <button id="sortBtn">実行</button>
     </div>
     <div>
-      経過時間: <span id="timeElapsed">0.00</span>秒
+      計算: <span id="countView">0</span>回目 経過時間: <span id="timeElapsed">0.00</span>秒
     </div>
   </header>
 
@@ -100,11 +100,14 @@
     let dt = 1;
     let timerId = null;
     let cancelSort = false;
+    
+    let NUM = 0;
 
     const dataDisplay = document.getElementById('dataDisplay');
     const dataSizeInput = document.getElementById('dataSize');
     const dataSizeLabel = document.getElementById('dataSizeLabel');
     const timeElapsedDisplay = document.getElementById('timeElapsed');
+    const countDisplay = document.getElementById('countView');
     const dtRange = document.getElementById('dtRange');
     const dtLabel = document.getElementById('dtLabel');
 
@@ -174,6 +177,7 @@
 
 
     function updateTimeElapsed(startTime) {
+      countDisplay.textContent = String(NUM);
       const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
       timeElapsedDisplay.textContent = elapsed;
     }
@@ -194,7 +198,8 @@
     }
 
     function delay() {
-      return new Promise(r => setTimeout(r, dt))
+      NUM += 1;
+      return new Promise(r => setTimeout(r, dt));
     }
 
     dataSizeInput.addEventListener('input', () => {
@@ -225,7 +230,11 @@
     document.getElementById('sortBtn').addEventListener('click', async () => {
       cancelOngoingSort();
       await new Promise(r => setTimeout(r, 10));
+      
+      
       cancelSort = false;
+      
+      NUM = 0;
 
       const method = document.getElementById('sortSelect').value;
       const startTime = performance.now();
