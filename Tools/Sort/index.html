@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ソートとヒストグラム</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #000;
+      color: #ccc;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+    header {
+      background-color: #111;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 10;
+    }
+    header div {
+      margin: 5px;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    header select, header button, header input {
+      margin: 5px;
+      padding: 5px;
+      background-color: #222;
+      color: #ccc;
+      border: 1px solid #555;
+      border-radius: 5px;
+    }
+    canvas {
+      position: absolute;
+      top: 200px;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div id="dataDisplay"></div>
+    <div>
+      データ数: <input type="range" id="dataSize" min="5" max="5000" value="100">
+      <span id="dataSizeLabel">100</span>
+      間隔(ms): <input type="range" id="dtRange" min="1" max="500" value="1">
+      <span id="dtLabel">1</span>
+    </div>
+    <div>
+      <select id="sortSelect">
+        <option value="bubble">バブルソート</option>
+        <option value="quick">クイックソート</option>
+        <option value="aveQuick">クイックソート(平均値)</option>
+        <option value="merge">マージソート</option>
+        <option value="selection">選択ソート</option>
+        <option value="radix">基数ソート</option>
+        <option value="binaryRadix">バイナリー基数ソート</option>
+        <option value="gnome">ノームソート</option>
+        <option value="comb">コームソート</option>
+        <option value="bogo">ボゴソート</option>
+        <option value="shaker">シェーカーソート</option>
+      </select>
+      <button id="randomizeBtn">データランダム化</button>
+      <button id="sortBtn">実行</button>
+    </div>
+    <div>
+      経過時間: <span id="timeElapsed">0.00</span>秒
+    </div>
+  </header>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let width = window.innerWidth;
+    let height = window.innerHeight - 200;
+    canvas.width = width;
+    canvas.height = height;
+
+    window.addEventListener('resize', () => {
+      width = window.innerWidth;
+      height = window.innerHeight - 200;
+      canvas.width = width;
+      canvas.height = height;
+      drawHistogram();
+    });
+    
+    
+
+    let data = [];
+    let dataSize = 100;
+    let dt = 1;
+    let timerId = null;
+    let cancelSort = false;
+
+    const dataDisplay = document.getElementById('dataDisplay');
+    const dataSizeInput = document.getElementById('dataSize');
+    const dataSizeLabel = document.getElementById('dataSizeLabel');
+    const timeElapsedDisplay = document.getElementById('timeElapsed');
+    const dtRange = document.getElementById('dtRange');
+    const dtLabel = document.getElementById('dtLabel');
+
+    dtRange.addEventListener('input', () => {
+      dt = parseInt(dtRange.value);
+      dtLabel.textContent = dt;
+    });
+
+    function generateData() {
+      data = Array.from({ length: dataSize }, (_, i) => i + 1);
+      randomizeData();
+    }
+
+    function randomizeData() {
+      for (let i = data.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [data[i], data[j]] = [data[j], data[i]];
+      }
+      updateDataDisplay();
+      drawHistogram();
+    }
+
+    function updateDataDisplay() {
+      dataDisplay.textContent = data.slice(0, 50).join(', ') + (data.length > 50 ? '...' : '');
+    }
+
+    function drawHistogram() {
+      ctx.clearRect(0, 0, width, height);
+      const barWidth = width / data.length;
+      const maxVal = Math.max(...data);
+      data.forEach((value, i) => {
+        const barHeight = (value / maxVal) * (height - 20);
+        ctx.fillStyle = 'cyan';
+        ctx.fillRect(i * barWidth, height - barHeight, barWidth, barHeight);
+      });
+    }
+
+    function drawHistogramWithHighlight(arr, highlightRanges = []) {
+      ctx.clearRect(0, 0, width, height);
+      const barWidth = width / arr.length;
+      const maxVal = Math.max(...arr);
+
+      arr.forEach((value, i) => {
+        const barHeight = (value / maxVal) * (height - 20);
+        let color = 'cyan';
+
+        let breakTf = false;
+        
+        for (const [col, Range] of Object.entries(highlightRanges)) {
+          for(let k = 0; k < Range.length; k+=2){
+            const range = [Range[k],Range[k+1]];
+            const [start, end] = range;
+            if(start > end) breakTf = true;
+            if (i >= start && i <= end) {
+              color = col;
+              breakTf = true;
+            }
+            if(breakTf) break;
+          }
+          if(breakTf) break;
+        }
+
+        ctx.fillStyle = color;
+        ctx.fillRect(i * barWidth, height - barHeight, barWidth, barHeight);
+      });
+    }
+
+
+    function updateTimeElapsed(startTime) {
+      const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+      timeElapsedDisplay.textContent = elapsed;
+    }
+
+    function startTimer(startTime) {
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(() => updateTimeElapsed(startTime), 50);
+    }
+
+    function stopTimer() {
+      clearInterval(timerId);
+      timerId = null;
+    }
+
+    function cancelOngoingSort() {
+      cancelSort = true;
+      stopTimer();
+    }
+
+    function delay() {
+      return new Promise(r => setTimeout(r, dt))
+    }
+
+    dataSizeInput.addEventListener('input', () => {
+      cancelOngoingSort();
+      dataSize = parseInt(dataSizeInput.value);
+      dataSizeLabel.textContent = dataSize;
+      generateData();
+    });
+
+    document.getElementById('randomizeBtn').addEventListener('click', () => {
+      cancelOngoingSort();
+      randomizeData();
+    });
+
+    document.getElementById('sortBtn').addEventListener('click', async () => {
+      cancelOngoingSort();
+      await new Promise(r => setTimeout(r, 10));
+      cancelSort = false;
+
+      const method = document.getElementById('sortSelect').value;
+      const startTime = performance.now();
+      startTimer(startTime);
+
+      if (method === 'bubble') {
+        await bubbleSort(data);
+      } else if (method === 'quick') {
+        await quickSort(data, 0, data.length - 1);
+      } else if (method === 'aveQuick') {
+        await aveQuickSort(data, 0, data.length - 1);
+      } else if (method === 'merge') {
+        data = await mergeSort(data);
+      } else if (method === 'selection') {
+        await selectionSort(data);
+      } else if (method === 'radix') {
+        await radixSort(data);
+      } else if (method === 'binaryRadix') {
+        await binaryRadixSort(data);
+      } else if (method === 'gnome') {
+        await gnomeSort(data);
+      } else if (method === 'comb') {
+        await combSort(data);
+      } else if (method === 'bogo') {
+        await bogoSort(data);
+      } else if (method === 'shaker') {
+        await cocktailShakerSort(data);
+      }
+
+      stopTimer();
+      updateTimeElapsed(startTime);
+      updateDataDisplay();
+      drawHistogram();
+    });
+
+    async function bubbleSort(arr) {
+      for (let i = 0; i < arr.length - 1; i++) {
+        for (let j = 0; j < arr.length - 1 - i; j++) {
+          if (cancelSort) return;
+          if (arr[j] > arr[j + 1]) {
+            [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+          }
+          
+          drawHistogramWithHighlight(arr, {red:[j,j+1]});
+          if(dt != 0) await delay();
+        }
+      }
+    }
+    
+    async function quickSort(arr, left, right) {
+      if (cancelSort) return;
+      if (left < right) {
+        const pivotIndex = await partition(arr, left, right);
+        await quickSort(arr, left, pivotIndex - 1);
+        await quickSort(arr, pivotIndex + 1, right);
+      }
+    }
+
+    async function partition(arr, left, right) {
+      const pivotIndex = selectPivotIndex(arr, left, right);
+      [arr[pivotIndex], arr[right]] = [arr[right], arr[pivotIndex]];
+      const pivot = arr[right];
+      let i = left - 1;
+      for (let j = left; j < right; j++) {
+        if (cancelSort) return right;
+        if (arr[j] < pivot) {
+          i++;
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        drawHistogramWithHighlight(arr, {red:[left,right]});
+        await delay();
+      }
+      [arr[i + 1], arr[right]] = [arr[right], arr[i + 1]];
+      drawHistogramWithHighlight(arr, {red:[left,right]});
+      return i + 1;
+    }
+
+    function selectPivotIndex(arr, left, right) {
+      let selectNum = 7;
+      const length = right - left + 1;
+      if (length < selectNum) return left + Math.floor(Math.random() * length);
+      const indices = [];
+      while (indices.length < selectNum) {
+        const idx = left + Math.floor(Math.random() * length);
+        if (!indices.includes(idx)) indices.push(idx);
+      }
+      
+      const values = indices.map(i => arr[i]).sort((a, b) => a - b);
+      const medianValue = values[Math.floor((selectNum-1)/2)];
+      return arr.indexOf(medianValue, left);
+    }
+
+    async function aveQuickSort(arr, left, right) {
+      if (cancelSort) return;
+      if (left < right) {
+       const pivotIndex = await avePartition(arr, left, right);
+       await aveQuickSort(arr, left, pivotIndex - 1);
+       await aveQuickSort(arr, pivotIndex, right); // pivotIndex から開始（等しい値もあるため）
+      }
+    }
+    
+    
+    function drawHorizontalLine(arr,value){
+      const maxVal = Math.max(...arr);
+      const lineHeight = height - (value / maxVal) * (height - 20);
+      ctx.strokeStyle = 'blue';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, lineHeight);
+      ctx.lineTo(width, lineHeight);
+      ctx.stroke();
+    }
+    
+
+    async function avePartition(arr, left, right) {
+      const avg = selectAverageValue(arr, left, right);
+
+      let i = left;
+
+      for (let j = left; j <= right; j++) {
+        if (cancelSort) return j;
+        drawHistogramWithHighlight(arr, { red: [left,right]});
+        drawHorizontalLine(arr,avg);
+        await delay();
+        if (arr[j] < avg) {
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+          i++;
+          drawHistogramWithHighlight(arr, { red:[left,right]});
+          drawHorizontalLine(arr,avg);
+          await delay();
+        }
+      }
+
+      return i;
+    }
+
+
+    function selectAverageValue(arr, left, right, selectNum = 7) {
+      const length = right - left + 1;
+      const indices = [];
+
+      while (indices.length < Math.min(selectNum, length)) {
+        const idx = left + Math.floor(Math.random() * length);
+        if (!indices.includes(idx)) indices.push(idx);
+      }
+
+      const values = indices.map(i => arr[i]);
+      return values.reduce((a, b) => a + b, 0) / values.length;
+    }
+
+
+    async function mergeSort(arr) {
+      async function recursiveSort(array) {
+        if (cancelSort) return [];
+        if (array.length <= 1) return array;
+        const mid = Math.floor(array.length / 2);
+        const left = await recursiveSort(array.slice(0, mid));
+        const right = await recursiveSort(array.slice(mid));
+        return await merge(left, right);
+      }
+
+      const result = await recursiveSort(arr);
+      if (cancelSort) return arr;
+      for (let i = 0; i < data.length; i++) data[i] = result[i];
+      return result;
+    }
+
+    async function merge(left, right) {
+      const result = [];
+      let i = 0, j = 0;
+
+      while (i < left.length && j < right.length) {
+        if (cancelSort) return result;
+        if (left[i] < right[j]) {
+          result.push(left[i++]);
+        } else {
+          result.push(right[j++]);
+        }
+        drawHistogramWithHighlight(result.concat(left.slice(i)).concat(right.slice(j)));
+        await delay();
+      }
+
+      while (i < left.length) {
+        if (cancelSort) return result;
+        result.push(left[i++]);
+        drawHistogramWithHighlight(result.concat(left.slice(i)).concat(right.slice(j)));
+        await delay();
+      }
+
+      while (j < right.length) {
+        if (cancelSort) return result;
+        result.push(right[j++]);
+        drawHistogramWithHighlight(result.concat(left.slice(i)).concat(right.slice(j)));
+        await delay();
+      }
+
+      return result;
+    }
+    
+    async function selectionSort(arr) {
+      const n = arr.length;
+      for (let i = n - 1; i > 0; i--) {
+        if (cancelSort) return arr;
+        let maxIndex = i;
+        for (let j = 0; j < i; j++) {
+          if (cancelSort) return arr;
+          if (arr[j] > arr[maxIndex]) maxIndex = j;
+          drawHistogramWithHighlight(arr, {red:[maxIndex,maxIndex],orange:[j,j]});
+          
+          await delay();
+        }
+        if (maxIndex !== i) {
+          [arr[i], arr[maxIndex]] = [arr[maxIndex], arr[i]];
+          drawHistogramWithHighlight(arr, {red:[maxIndex,maxIndex]});
+          await delay();
+        }
+      }
+      return arr;
+    }
+    
+    async function radixSort(arr) {
+      const maxVal = Math.max(...arr);
+      let exp = 1;
+
+      
+      while (Math.floor(maxVal / exp) > 0) {
+        if (cancelSort) return result;
+        await countingSortByDigit(arr, exp);
+        exp *= 10;
+      }
+  
+      return arr;
+    }
+
+    async function countingSortByDigit(arr, exp) {
+      const n = arr.length;
+      let output = new Array(n); // 出力用配列
+      let count = new Array(10).fill(0); // 0から9までのカウント用配列
+
+      // 現在の桁（exp）に基づいて数える
+      for (let i = 0; i < n; i++) {
+        let digit = Math.floor(arr[i] / exp) % 10; // 対象桁を抽出
+        count[digit]++;
+        if (cancelSort) return output;
+      }
+
+      // 累積計算：各数字が出現した位置を決定
+      for (let i = 1; i < 10; i++) {
+        count[i] += count[i - 1];
+        if (cancelSort) return output;
+      }
+
+      // 出力配列を作成
+      for (let i = n - 1; i >= 0; i--) {
+        let digit = Math.floor(arr[i] / exp) % 10; // 対象桁を抽出
+        output[count[digit] - 1] = arr[i]; // 逆順にして安定ソート
+        count[digit]--;
+        if (cancelSort) return output;
+      }
+
+      // 出力配列を元の配列に戻す
+      for (let i = 0; i < n; i++) {
+        arr[i] = output[i];
+        drawHistogramWithHighlight(arr, { red: [i, i] });
+        await delay();
+        if (cancelSort) return output;
+      }
+    }
+    
+    async function binaryRadixSort(arr) {
+      const maxVal = Math.max(...arr);
+      let exp = 1;
+
+      
+      while (Math.floor(maxVal / exp) > 0) {
+        if (cancelSort) return result;
+        await binaryCountingSortByDigit(arr, exp);
+        exp *= 2;
+      }
+  
+      return arr;
+    }
+
+    async function binaryCountingSortByDigit(arr, exp) {
+      const n = arr.length;
+      let output = new Array(n); // 出力用配列
+      let count = new Array(2).fill(0);
+
+      // 現在の桁（exp）に基づいて数える
+      for (let i = 0; i < n; i++) {
+        let digit = Math.floor(arr[i] / exp) % 2;
+        count[digit]++;
+        if (cancelSort) return output;
+      }
+
+      // 累積計算：各数字が出現した位置を決定
+      for (let i = 1; i < 2; i++) {
+        count[i] += count[i - 1];
+        if (cancelSort) return output;
+      }
+
+      // 出力配列を作成
+      for (let i = n - 1; i >= 0; i--) {
+        let digit = Math.floor(arr[i] / exp) % 2;
+        output[count[digit] - 1] = arr[i];
+        count[digit]--;
+        if (cancelSort) return output;
+      }
+
+      // 出力配列を元の配列に戻す
+      for (let i = 0; i < n; i++) {
+        arr[i] = output[i];
+        drawHistogramWithHighlight(arr, { red: [i, i] });
+        await delay();
+        if (cancelSort) return output;
+      }
+    }
+
+    async function gnomeSort(arr) {
+      let i = 0;
+      const n = arr.length;
+  
+      while (i < n) {
+        if (cancelSort) return arr;
+
+        if (i === 0 || arr[i] >= arr[i - 1]) {
+          i++;
+        } else {
+          [arr[i], arr[i - 1]] = [arr[i - 1], arr[i]];
+          drawHistogramWithHighlight(arr, {red:[i-1,i-1],yellow:[i,i]});
+          await delay();
+          i--;
+        }
+
+        drawHistogramWithHighlight(arr, { red:[i,i],orange:[i-1,i-1]});
+        await delay();
+      }
+
+      return arr;
+    }
+
+    async function combSort(arr) {
+      const n = arr.length;
+      let gap = n;
+      const shrink = 1.3;
+      let sorted = false;
+
+      while (!sorted) {
+        if (cancelSort) return arr;
+
+        gap = Math.floor(gap / shrink);
+        if (gap <= 1) {
+          gap = 1;
+          sorted = true;
+        }
+
+        for (let i = 0; i + gap < n; i++) {
+          if (cancelSort) return arr;
+
+          const j = i + gap;
+
+          drawHistogramWithHighlight(arr, { red: [i,i,j,j],aquamarine:[i,j]});
+          await delay();
+
+          if (arr[i] > arr[j]) {
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+            drawHistogramWithHighlight(arr, { orange: [i,i,j,j],aquamarine:[i,j]});
+            await delay();
+            sorted = false;
+          }
+        }
+      }
+
+      return arr;
+    }
+
+
+    async function bogoSort(arr) {
+      while (!isSorted(arr)) {
+        if (cancelSort) return arr;
+        shuffle(arr);
+        drawHistogramWithHighlight(arr);
+        await delay();
+      }
+      return arr;
+    }
+
+    function isSorted(arr) {
+      for (let i = 1; i < arr.length; i++) {
+        if (arr[i - 1] > arr[i]) return false;
+      }
+      return true;
+    }
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+    
+    async function cocktailShakerSort(arr) {
+      let start = 0;
+      let end = arr.length - 1;
+      let swapped = true;
+
+      while (swapped) {
+        swapped = false;
+        for (let i = start; i < end; i++) {
+          if (cancelSort) return arr;
+          if (arr[i] > arr[i + 1]) {
+            [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
+            swapped = true;
+          }
+          drawHistogramWithHighlight(arr, { red: [i, i + 1] });
+          await delay();
+        }
+        end--;
+
+        for (let i = end; i > start; i--) {
+          if (cancelSort) return arr;
+          if (arr[i - 1] > arr[i]) {
+            [arr[i], arr[i - 1]] = [arr[i - 1], arr[i]];
+            swapped = true;
+          }
+          drawHistogramWithHighlight(arr, { red: [i-1, i] });
+          await delay();
+        }
+        start++;
+      }
+
+      return arr;
+    }
+
+
+
+    generateData();
+  </script>
+</body>
+</html>
