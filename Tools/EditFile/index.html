@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ファイル読み込み・保存</title>
+  <style>
+    body {
+      background: #eef2f5;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 600px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      font-size: 1.6em;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-top: 15px;
+      margin-bottom: 5px;
+      color: #555;
+    }
+
+    input[type="text"],
+    textarea,
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      height: 200px;
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 20px;
+      width: 100%;
+      background: #4a90e2;
+      color: white;
+      font-size: 1em;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #357bd8;
+    }
+
+    .note {
+      font-size: 0.85em;
+      color: #888;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ファイル読み込み & 保存</h1>
+
+    <label for="fileInput">ファイルを読み込む</label>
+    <input type="file" id="fileInput">
+
+    <label for="filename">保存するファイル名</label>
+    <input type="text" id="filename" placeholder="例: script.js">
+
+    <label for="content">内容</label>
+    <textarea id="content" placeholder="ここに内容が表示・編集されます..."></textarea>
+
+    <button onclick="downloadFile()">ダウンロード</button>
+
+    <p class="note">ファイルをインポートするとtextareaに表示されます。</p>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const textarea = document.getElementById('content');
+
+    fileInput.addEventListener('change', function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        textarea.value = e.target.result;
+      };
+      reader.readAsText(file);
+    });
+
+    function getMimeType(extension) {
+      const map = {
+        'txt': 'text/plain',
+        'html': 'text/html',
+        'css': 'text/css',
+        'js': 'application/javascript',
+        'json': 'application/json',
+        'md': 'text/markdown',
+        'csv': 'text/csv',
+        'xml': 'application/xml',
+        'svg': 'image/svg+xml',
+        'tsv': 'text/tab-separated-values'
+      };
+      return map[extension.toLowerCase()] || 'application/octet-stream';
+    }
+
+    function downloadFile() {
+      const filename = document.getElementById('filename').value.trim();
+      const content = document.getElementById('content').value;
+
+      if (!filename) {
+        alert("ファイル名を入力してください。");
+        return;
+      }
+
+      const extension = filename.includes('.') ? filename.split('.').pop() : '';
+      const mimeType = getMimeType(extension);
+
+      const blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+  </script>
+</body>
+</html>
