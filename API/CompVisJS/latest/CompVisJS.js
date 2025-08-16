@@ -1,4 +1,4 @@
-//変更点:グラフ描画機能のoptionの種類追加(rangeX,rangeY)
+//変更点:グラフ描画機能のGridのアップデート、パン、ピンチイン・アウト、原点に戻る機能追加(3本指タッチで帰還)
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 class CompVis {
   constructor(k_real, k_imag) {
