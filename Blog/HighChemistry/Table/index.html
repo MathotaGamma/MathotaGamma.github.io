@@ -197,7 +197,7 @@
   </head>
   <body>
     <header>
-      <div>元素周期表</div>
+      <div>元素周期表と各元素の分類</div>
       <nav>
         <a href="../">ホーム</a>
       </nav>
@@ -372,7 +372,7 @@
               <td id="Lr">Lr</td>
             </tr>
           </table>
-
+          <div id="explain"></div>
         </section>
         <!-- 他のセクションや toggle-content をここに追加 -->
         <!-- 例： -->
@@ -511,7 +511,7 @@
   "Og": [118, 294.0, "オガネソン"]
 }
       
-      // 典型=1／遷移=2
+// 典型=1／遷移=2
 const Type = [
   1,                                1,
   1,1,                    1,1,1,1,1,1,
@@ -624,7 +624,7 @@ const Metal = [
                 <div style="font-size: ${20*s}px;">${text}</div>
                 <div style="font-size: ${13*s}px;">${data[1]}</div>
               `
-              
+              td.setAttribute('onclick', 'explain("'+text+'");');
             }
           }
         }
