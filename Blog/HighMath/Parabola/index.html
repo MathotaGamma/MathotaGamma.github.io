@@ -288,14 +288,14 @@
 
       window.onload = () => {
         const canvas = document.getElementById("canvas");
-        parabola1.width = 200;
-        parabola1.height = 300;
+        canvas.width = 200;
+        canvas.height = 300;
         const viewer = new CompVis.View(canvas, {
-          mode: "dynamic",
-          autoScale: false,
+          mode: "static",
+          autoScale: true,
           showAxis: true,
-          rangeX: [-2, 4],
-          rangeY: [-10, 9],
+          /*rangeX: [-2, 4],
+          rangeY: [-10, 9],*/
         });
 
         viewer.addGraph(
