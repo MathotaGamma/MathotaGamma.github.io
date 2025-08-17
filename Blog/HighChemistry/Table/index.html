@@ -667,41 +667,43 @@ const Metal = [
       }
       
 
-
-
-      window.onload = () => {
-        tableView('state');
-
+      function textView() {
         const form = document.getElementById('selectForm');
         const textDiv = document.getElementById('text');
 
         const colorSpan = (color, label) => `<span style="display:inline-block;width:15px;height:15px;background:${color};margin-right:5px;border:1px solid #999;"></span>${label}`;
 
+        const option = form.elements['select'].value;
+        tableView(option);
+
+        let desc = '';
+        switch(option){
+          case '':
+            desc = 'Default: 元素の基本表示です。';
+            break;
+          case 'type':
+            desc = `Type: ${colorSpan('#FF9999','典型元素')} ${colorSpan('#FFCC66','遷移元素')} ${colorSpan('#FFCC99','2022年の学習指導要領の変更により追加された遷移元素')} ${colorSpan('#99CCFF','ランタノイド/アクチノイド')} ${colorSpan('#ddd','不明')}`;
+            break;
+          case 'state':
+            desc = `State: ${colorSpan('#FFD580','固体')} ${colorSpan('#ADD8E6','液体')} ${colorSpan('#C2E0C6','気体')} ${colorSpan('#ddd','不明')}`;
+            break;
+          case 'metal':
+            desc = `Metal: ${colorSpan('#FFD700','金属')} ${colorSpan('#87CEFA','非金属')} ${colorSpan('#ddd','不明')}`;
+            break;
+        }
+        textDiv.innerHTML = desc;
+      }
+
+
+      window.onload = () => {
+        const form = document.getElementById('selectForm');
+        
         form.addEventListener('change', () => {
-          const option = form.elements['select'].value;
-          tableView(option);
-
-          let desc = '';
-          switch(option){
-            case '':
-              desc = 'Default: 元素の基本表示です。';
-              break;
-            case 'type':
-              desc = `Type: ${colorSpan('#FF9999','典型元素')} ${colorSpan('#FFCC66','遷移元素')} ${colorSpan('#FFCC99','2022年の学習指導要領の変更により追加された遷移元素')} ${colorSpan('#99CCFF','ランタノイド/アクチノイド')} ${colorSpan('#ddd','不明')}`;
-              break;
-            case 'state':
-              desc = `State: ${colorSpan('#FFD580','固体')} ${colorSpan('#ADD8E6','液体')} ${colorSpan('#C2E0C6','気体')} ${colorSpan('#ddd','不明')}`;
-              break;
-            case 'metal':
-              desc = `Metal: ${colorSpan('#FFD700','金属')} ${colorSpan('#87CEFA','非金属')} ${colorSpan('#ddd','不明')}`;
-              break;
-          }
-
-          textDiv.innerHTML = desc;
+          textView();
         });
 
         // ページロード時の初期説明表示
-        textDiv.textContent = `State: ${colorSpan('#FFD580','固体')} ${colorSpan('#ADD8E6','液体')} ${colorSpan('#C2E0C6','気体')} ${colorSpan('#ddd','不明')}`;
+        textView();
       };
 
     </script>
