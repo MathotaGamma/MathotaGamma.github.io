@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Table of the Elements | NeoTopazm</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+    <script src="https://mathotagamma.github.io/API/CompVisJS/latest/CompVisJS.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        height: 100%;
+        font-family: 'Meiryo UI', sans-serif;
+        background: #fff;
+        color: #222;
+        -webkit-user-select: none;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        background: #f8f9fa;
+        padding: 1rem 2rem;
+        font-size: 1.5rem;
+        font-weight: bold;
+        box-shadow: 0 2px 5px #0008;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      header nav a {
+        color: #1f2951;
+        text-decoration: none;
+        margin-left: 1rem;
+      }
+      header nav a:hover {
+        color: #f7931e;
+      }
+      main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+      .toc-wrapper {
+        width: 220px;
+        background: #f3f4f6;
+        padding: 1rem 1.5rem;
+        overflow-y: auto;
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+      .toc-wrapper h2 {
+        color: #f7931e;
+        font-size: 1.2rem;
+        margin-bottom: 0.8rem;
+      }
+      .toc-wrapper ul {
+        list-style: none;
+      }
+      .toc-wrapper li {
+        margin-bottom: 0.5rem;
+      }
+      .toc-wrapper a {
+        color: #1f2951;
+        text-decoration: none;
+      }
+      .toc-wrapper a:hover {
+        text-decoration: underline;
+        color: #ffb933;
+      }
+      .toc-toggle {
+        display: none;
+        background: #f3f4f6;
+        padding: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      article.article {
+        flex: 1;
+        padding: 2rem 3rem;
+        overflow-y: auto;
+        font-size: 1.1rem;
+        line-height: 1.7;
+      }
+      article.article h1 {
+        font-size: 2.2rem;
+        color: #f7931e;
+      }
+      article.article h2 {
+        font-size: 1.6rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #bbb;
+        color: #008080;
+      }
+      article.article p {
+        margin-bottom: 1.2rem;
+      }
+      aside.sidebar {
+        width: 280px;
+        background: #f3f4f6;
+        padding: 1rem 1.5rem;
+        border-left: 1px solid #ddd;
+        font-size: 0.9rem;
+      }
+      aside.sidebar h3 {
+        color: #f7931e;
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+      }
+      aside.sidebar a {
+        text-decoration: none;
+        color: #1f2951;
+      }
+      aside.sidebar a:hover {
+        color: #f7931e;
+      }
+      canvas {
+        display: block;
+        margin: 1rem auto;
+        border: 1px solid black;
+      }
+      .dropdown-toggle {
+        padding: 10px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        color: #fff;
+        background-color: #007ACC;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, box-shadow 0.2s ease;
+        margin-top: 1rem;
+      }
+      .dropdown-toggle:hover {
+        background-color: #005f99;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+      .dropdown-toggle:active {
+        background-color: #004f80;
+        transform: translateY(1px);
+      }
+      .dropdown-content {
+        display: none;
+        border: 1px solid black;
+        padding: 1rem;
+        margin-top: 0.5rem;
+      }
+      @media (max-width: 768px) {
+        main {
+          flex-direction: column;
+        }
+        .toc-wrapper {
+          width: 100%;
+          display: none;
+        }
+        .toc-wrapper.active {
+          display: block;
+        }
+        .toc-toggle {
+          display: block;
+        }
+        aside.sidebar {
+          width: 100%;
+          border-left: none;
+          border-top: 1px solid #ddd;
+        }
+      }
+      
+      table {
+        padding: 0;
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      td {
+        font-size: 1.5vw;
+        width: 3vw;
+        text-align: center;
+        border: 1px solid #999;
+      }
+
+      .empty {
+        border: none;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>元素周期表</div>
+      <nav>
+        <a href="../">ホーム</a>
+      </nav>
+    </header>
+    
+    <main>
+
+      <article class="article">
+        <h1>周期表と分類</h1>
+        <p>
+          難易度☆(低)
+        </p>
+        <section id="section0">
+          <form id="selectForm">
+            <label><input type="radio" name="select" value="" checked>Default</label>
+            <label><input type="radio" name="select" value="type">Type</label>
+            <label><input type="radio" name="select" value="state">State</label>
+            <label><input type="radio" name="select" value="metal">Metal</label>
+          </form>
+          <div id="text"></div>
+          <table id="elem-table">
+            <tr>
+              <td id="H">H</td>
+              <td class="empty"></td>
+              <td class="empty" colspan="15"></td>
+              <td id="He">He</td>
+            </tr>
+            <tr>
+              <td id="Li">Li</td>
+              <td id="Be">Be</td>
+              <td class="empty" colspan="10"></td>
+              <td id="B">B</td>
+              <td id="C">C</td>
+              <td id="N">N</td>
+              <td id="O">O</td>
+              <td id="F">F</td>
+              <td id="Ne">Ne</td>
+            </tr>
+            <tr>
+              <td id="Na">Na</td>
+              <td id="Mg">Mg</td>
+              <td class="empty" colspan="10"></td>
+              <td id="Al">Al</td>
+              <td id="Si">Si</td>
+              <td id="P">P</td>
+              <td id="S">S</td>
+              <td id="Cl">Cl</td>
+              <td id="Ar">Ar</td>
+            </tr>
+            <tr>
+              <td id="K">K</td>
+              <td id="Ca">Ca</td>
+              <td id="Sc">Sc</td>
+              <td id="Ti">Ti</td>
+              <td id="V">V</td>
+              <td id="Cr">Cr</td>
+              <td id="Mn">Mn</td>
+              <td id="Fe">Fe</td>
+              <td id="Co">Co</td>
+              <td id="Ni">Ni</td>
+              <td id="Cu">Cu</td>
+              <td id="Zn">Zn</td>
+              <td id="Ga">Ga</td>
+              <td id="Ge">Ge</td>
+              <td id="As">As</td>
+              <td id="Se">Se</td>
+              <td id="Br">Br</td>
+              <td id="Kr">Kr</td>
+            </tr>
+            <tr>
+              <td id="Rb">Rb</td>
+              <td id="Sr">Sr</td>
+              <td id="Y">Y</td>
+              <td id="Zr">Zr</td>
+              <td id="Nb">Nb</td>
+              <td id="Mo">Mo</td>
+              <td id="Tc">Tc</td>
+              <td id="Ru">Ru</td>
+              <td id="Rh">Rh</td>
+              <td id="Pd">Pd</td>
+              <td id="Ag">Ag</td>
+              <td id="Cd">Cd</td>
+              <td id="In">In</td>
+              <td id="Sn">Sn</td>
+              <td id="Sb">Sb</td>
+              <td id="Te">Te</td>
+              <td id="I">I</td>
+              <td id="Xe">Xe</td>
+            </tr>
+            <tr>
+              <td id="Cs">Cs</td>
+              <td id="Ba">Ba</td>
+              <td style="font-size: 1vw;">ランタノイド</td>
+              <td id="Hf">Hf</td>
+              <td id="Ta">Ta</td>
+              <td id="W">W</td>
+              <td id="Re">Re</td>
+              <td id="Os">Os</td>
+              <td id="Ir">Ir</td>
+              <td id="Pt">Pt</td>
+              <td id="Au">Au</td>
+              <td id="Hg">Hg</td>
+              <td id="Tl">Tl</td>
+              <td id="Pb">Pb</td>
+              <td id="Bi">Bi</td>
+              <td id="Po">Po</td>
+              <td id="At">At</td>
+              <td id="Rn">Rn</td>
+            </tr>
+            <tr>
+              <td id="Fr">Fr</td>
+              <td id="Ra">Ra</td>
+              <td style="font-size: 1vw;">アクチノイド</td>
+              <td id="Rf">Rf</td>
+              <td id="Db">Db</td>
+              <td id="Sg">Sg</td>
+              <td id="Bh">Bh</td>
+              <td id="Hs">Hs</td>
+              <td id="Mt">Mt</td>
+              <td id="Ds">Ds</td>
+              <td id="Rg">Rg</td>
+              <td id="Cn">Cn</td>
+              <td id="Nh">Nh</td>
+              <td id="Fl">Fl</td>
+              <td id="Mc">Mc</td>
+              <td id="Lv">Lv</td>
+              <td id="Ts">Ts</td>
+              <td id="Og">Og</td>
+            </tr>
+            <tr>
+              <td class="empty" colspan="18" style="height: 8px;"></td>
+            </tr>
+            <tr>
+              <td class="empty" colspan="2"></td>
+              <td style="font-size: 1vw;">ランタノイド</td>
+              <td id="La">La</td>
+              <td id="Ce">Ce</td>
+              <td id="Pr">Pr</td>
+              <td id="Nd">Nd</td>
+              <td id="Pm">Pm</td>
+              <td id="Sm">Sm</td>
+              <td id="Eu">Eu</td>
+              <td id="Gd">Gd</td>
+              <td id="Tb">Tb</td>
+              <td id="Dy">Dy</td>
+              <td id="Ho">Ho</td>
+              <td id="Er">Er</td>
+              <td id="Tm">Tm</td>
+              <td id="Yb">Yb</td>
+              <td id="Lu">Lu</td>
+            </tr>
+            <tr>
+              <td class="empty" colspan="18" style="height: 8px;"></td>
+            </tr>
+            <tr>
+              <td class="empty" colspan="2"></td>
+              <td style="font-size: 1vw;">アクチノイド</td>
+              <td id="Ac">Ac</td>
+              <td id="Th">Th</td>
+              <td id="Pa">Pa</td>
+              <td id="U">U</td>
+              <td id="Np">Np</td>
+              <td id="Pu">Pu</td>
+              <td id="Am">Am</td>
+              <td id="Cm">Cm</td>
+              <td id="Bk">Bk</td>
+              <td id="Cf">Cf</td>
+              <td id="Es">Es</td>
+              <td id="Fm">Fm</td>
+              <td id="Md">Md</td>
+              <td id="No">No</td>
+              <td id="Lr">Lr</td>
+            </tr>
+          </table>
+
+        </section>
+        <!-- 他のセクションや toggle-content をここに追加 -->
+        <!-- 例： -->
+        <!--<button class="dropdown-toggle">▼ 詳細を見る</button>
+        <div class="dropdown-content">
+          <p>ここに数式や説明などを記述できます。</p>
+          $$ \zeta(s) = \sum_{n=1}^{\infty} \frac{1}{n^s} $$
+        </div>-->
+      </article>
+
+      <!--<aside class="sidebar">
+        
+      </aside>-->
+    </main>
+
+    
+    <script>
+      const elementData = {
+  "H": [1, 1.01, "水素"],
+  "He": [2, 4.00, "ヘリウム"],
+  "Li": [3, 6.94, "リチウム"],
+  "Be": [4, 9.01, "ベリリウム"],
+  "B": [5, 10.8, "ホウ素"],
+  "C": [6, 12.0, "炭素"],
+  "N": [7, 14.0, "窒素"],
+  "O": [8, 16.0, "酸素"],
+  "F": [9, 19.0, "フッ素"],
+  "Ne": [10, 20.2, "ネオン"],
+  "Na": [11, 23.0, "ナトリウム"],
+  "Mg": [12, 24.3, "マグネシウム"],
+  "Al": [13, 27.0, "アルミニウム"],
+  "Si": [14, 28.1, "ケイ素"],
+  "P": [15, 31.0, "リン"],
+  "S": [16, 32.1, "硫黄"],
+  "Cl": [17, 35.5, "塩素"],
+  "Ar": [18, 39.9, "アルゴン"],
+  "K": [19, 39.1, "カリウム"],
+  "Ca": [20, 40.1, "カルシウム"],
+  "Sc": [21, 44.9, "スカンジウム"],
+  "Ti": [22, 47.9, "チタン"],
+  "V": [23, 50.9, "バナジウム"],
+  "Cr": [24, 52.0, "クロム"],
+  "Mn": [25, 54.9, "マンガン"],
+  "Fe": [26, 55.8, "鉄"],
+  "Co": [27, 58.9, "コバルト"],
+  "Ni": [28, 58.7, "ニッケル"],
+  "Cu": [29, 63.5, "銅"],
+  "Zn": [30, 65.4, "亜鉛"],
+  "Ga": [31, 69.7, "ガリウム"],
+  "Ge": [32, 72.6, "ゲルマニウム"],
+  "As": [33, 74.9, "ヒ素"],
+  "Se": [34, 79.0, "セレン"],
+  "Br": [35, 79.9, "臭素"],
+  "Kr": [36, 83.8, "クリプトン"],
+  "Rb": [37, 85.5, "ルビジウム"],
+  "Sr": [38, 87.6, "ストロンチウム"],
+  "Y": [39, 88.9, "イットリウム"],
+  "Zr": [40, 91.2, "ジルコニウム"],
+  "Nb": [41, 92.9, "ニオブ"],
+  "Mo": [42, 95.9, "モリブデン"],
+  "Tc": [43, 98.0, "テクネチウム"],
+  "Ru": [44, 101.1, "ルテニウム"],
+  "Rh": [45, 102.9, "ロジウム"],
+  "Pd": [46, 106.4, "パラジウム"],
+  "Ag": [47, 107.9, "銀"],
+  "Cd": [48, 112.0, "カドミウム"],
+  "In": [49, 114.8, "インジウム"],
+  "Sn": [50, 118.7, "スズ"],
+  "Sb": [51, 121.8, "アンチモン"],
+  "Te": [52, 127.6, "テルル"],
+  "I": [53, 126.9, "ヨウ素"],
+  "Xe": [54, 131.3, "キセノン"],
+  "Cs": [55, 132.9, "セシウム"],
+  "Ba": [56, 137.3, "バリウム"],
+  "La": [57, 138.9, "ランタン"],
+  "Ce": [58, 140.1, "セリウム"],
+  "Pr": [59, 140.9, "プラセオジム"],
+  "Nd": [60, 144.2, "ネオジム"],
+  "Pm": [61, 145.0, "プロメチウム"],
+  "Sm": [62, 150.4, "サマリウム"],
+  "Eu": [63, 152.0, "ユウロピウム"],
+  "Gd": [64, 157.3, "ガドリニウム"],
+  "Tb": [65, 158.9, "テルビウム"],
+  "Dy": [66, 162.5, "ジスプロシウム"],
+  "Ho": [67, 164.9, "ホルミウム"],
+  "Er": [68, 167.3, "エルビウム"],
+  "Tm": [69, 168.9, "ツリウム"],
+  "Yb": [70, 173.0, "イッテルビウム"],
+  "Lu": [71, 175.0, "ルテチウム"],
+  "Hf": [72, 178.5, "ハフニウム"],
+  "Ta": [73, 180.9, "タンタル"],
+  "W": [74, 183.8, "タングステン"],
+  "Re": [75, 186.2, "レニウム"],
+  "Os": [76, 190.2, "オスミウム"],
+  "Ir": [77, 192.2, "イリジウム"],
+  "Pt": [78, 195.1, "白金"],
+  "Au": [79, 197.0, "金"],
+  "Hg": [80, 200.6, "水銀"],
+  "Tl": [81, 204.4, "タリウム"],
+  "Pb": [82, 207.2, "鉛"],
+  "Bi": [83, 209.0, "ビスマス"],
+  "Po": [84, 209.0, "ポロニウム"],
+  "At": [85, 210.0, "アスタチン"],
+  "Rn": [86, 222.0, "ラドン"],
+  "Fr": [87, 223.0, "フランシウム"],
+  "Ra": [88, 226.0, "ラジウム"],
+  "Ac": [89, 227.0, "アクチニウム"],
+  "Th": [90, 232.0, "トリウム"],
+  "Pa": [91, 231.0, "プロトアクチニウム"],
+  "U": [92, 238.0, "ウラン"],
+  "Np": [93, 237.0, "ネプツニウム"],
+  "Pu": [94, 244.0, "プルトニウム"],
+  "Am": [95, 243.0, "アメリシウム"],
+  "Cm": [96, 247.0, "キュリウム"],
+  "Bk": [97, 247.0, "バークリウム"],
+  "Cf": [98, 251.0, "カリホルニウム"],
+  "Es": [99, 252.0, "アインスタイニウム"],
+  "Fm": [100, 257.0, "フェルミウム"],
+  "Md": [101, 258.0, "メンデレビウム"],
+  "No": [102, 259.0, "ノーベリウム"],
+  "Lr": [103, 262.0, "ローレンシウム"],
+  "Rf": [104, 267.0, "ラザフォージウム"],
+  "Db": [105, 270.0, "ダームスタチウム"],
+  "Sg": [106, 271.0, "シーボーギウム"],
+  "Bh": [107, 270.0, "ボーリウム"],
+  "Hs": [108, 277.0, "ハッシウム"],
+  "Mt": [109, 276.0, "マイトナーウム"],
+  "Ds": [110, 281.0, "ダームスタチウム"],
+  "Rg": [111, 282.0, "レントゲニウム"],
+  "Cn": [112, 285.0, "コペルニシウム"],
+  "Nh": [113, 286.0, "ニホニウム"],
+  "Fl": [114, 289.0, "フレロビウム"],
+  "Mc": [115, 288.0, "モスコビウム"],
+  "Lv": [116, 293.0, "リバモリウム"],
+  "Ts": [117, 294.0, "テネシン"],
+  "Og": [118, 294.0, "オガネソン"]
+}
+      
+      // 典型=1／遷移=2
+const Type = [
+  1,                                1,
+  1,1,                    1,1,1,1,1,1,
+  1,1,                    1,1,1,1,1,1,
+  1,1,2,2,2,2,2,2,2,2,2,3,1,1,1,1,1,1,
+  1,1,2,2,2,2,2,2,2,2,2,3,1,1,1,1,1,1,
+  1,1,
+        4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
+        2,2,2,2,2,2,2,2,3,1,1,1,1,1,1,
+  1,1,
+        4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+];
+
+// 常温常圧での状態：固体=1,液体=2,気体=3
+const State = [
+  3,                                3,
+  1,1,                    1,1,3,3,3,3,
+  1,1,                    1,1,1,1,3,3,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,3,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,
+  1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,2,1,1,1,1,1,3,
+  1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+];
+
+// 金属=1、非金属=2
+const Metal = [
+  2,                                2,
+  1,1,                    2,2,2,2,2,2,
+  1,1,                    1,2,2,2,2,2,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,
+  1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,
+  1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+];
+
+      
+      function tableView(option='') {
+        const elemTable = document.getElementById('elem-table');
+        const vw = window.innerWidth;
+        const scale = vw / 1200; // 基準幅 1200px を想定、調整可能
+        const s = Math.max(0.4, Math.min(2.0, scale)); // 最小0.6倍〜最大2倍
+        for (let i = 0; i < elemTable.rows.length; i++) {
+          const row = elemTable.rows[i]; // 行
+          for (let j = 0; j < row.cells.length; j++) {
+            const td = row.cells[j]; // td要素
+            const text = td.id; // tdのid
+            
+            if(Object.keys(elementData).includes(text)){
+              const data = elementData[text];
+              let color = "white";
+              if(option == 'type') {
+                switch (Type[data[0]-1]) {
+                  case 1:
+                    color = '#FF9999';
+                    break;
+                  case 2:
+                    color = '#FFCC66';
+                    break;
+                  case 3:
+                    color = '#FFCC99';
+                    break;
+                  case 4:
+                    color = '#99CCFF';
+                    break;
+                  case 0:
+                    color = '#ddd';
+                    break;
+                }
+              } else if(option == 'state') {
+                switch (State[data[0]-1]) {
+                  case 1:
+                    color = "#FFD580";
+                    break;
+                  case 2:
+                    color = "#ADD8E6";
+                    break;
+                  case 3:
+                    color = "#C2E0C6";
+                    break;
+                  case 0:
+                    color = "#ddd";
+                }
+              } else if(option == "metal") {
+                switch (Metal[data[0]-1]) {
+                  case 1:
+                    color = "#FFD700";
+                    break;
+                  case 2:
+                    color = "#87CEFA";
+                    break;
+                  case 0:
+                    color = "#ddd";
+                    break;
+                }
+              }
+              
+              td.style.background = color;
+              
+              td.innerHTML = `
+                <div style="height: 15px; font-size: ${17*s}px;">${data[0]}</div>
+                <div style="font-size: ${25*s}px;">${text}</div>
+                <div style="font-size: ${13*s}px;">${data[1]}</div>
+              `
+              
+            }
+          }
+        }
+      }
+      
+
+
+
+      window.onload = () => {
+        tableView();
+
+        const form = document.getElementById('selectForm');
+        const textDiv = document.getElementById('text');
+
+        const colorSpan = (color, label) => `<span style="display:inline-block;width:15px;height:15px;background:${color};margin-right:5px;border:1px solid #999;"></span>${label}`;
+
+        form.addEventListener('change', () => {
+          const option = form.elements['select'].value;
+          tableView(option);
+
+          let desc = '';
+          switch(option){
+            case '':
+              desc = 'Default: 元素の基本表示です。';
+              break;
+            case 'type':
+              desc = `Type: ${colorSpan('#FF9999','典型元素')} ${colorSpan('#FFCC66','遷移元素')} ${colorSpan('#FFCC99','2022年の学習指導要領の変更により追加された遷移元素')} ${colorSpan('#99CCFF','ランタノイド/アクチノイド')} ${colorSpan('#ddd','不明')}`;
+              break;
+            case 'state':
+              desc = `State: ${colorSpan('#FFD580','固体')} ${colorSpan('#ADD8E6','液体')} ${colorSpan('#C2E0C6','気体')} ${colorSpan('#ddd','不明')}`;
+              break;
+            case 'metal':
+              desc = `Metal: ${colorSpan('#FFD700','金属')} ${colorSpan('#87CEFA','非金属')} ${colorSpan('#ddd','不明')}`;
+              break;
+          }
+
+          textDiv.innerHTML = desc;
+        });
+
+        // ページロード時の初期説明表示
+        textDiv.textContent = 'Default: 元素の基本表示です。色付けはされません。';
+      };
+
+    </script>
+  </body>
+</html>
