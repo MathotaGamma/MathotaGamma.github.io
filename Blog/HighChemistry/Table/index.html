@@ -290,7 +290,7 @@
             <tr>
               <td id="Cs">Cs</td>
               <td id="Ba">Ba</td>
-              <td style="font-size: 1vw;">ランタノイド</td>
+              <td id="ランタノイド" style="font-size: 1vw;">ランタノイド</td>
               <td id="Hf">Hf</td>
               <td id="Ta">Ta</td>
               <td id="W">W</td>
@@ -310,7 +310,7 @@
             <tr>
               <td id="Fr">Fr</td>
               <td id="Ra">Ra</td>
-              <td style="font-size: 1vw;">アクチノイド</td>
+              <td id="アクチノイド" style="font-size: 1vw;">アクチノイド</td>
               <td id="Rf">Rf</td>
               <td id="Db">Db</td>
               <td id="Sg">Sg</td>
@@ -332,7 +332,7 @@
             </tr>
             <tr>
               <td class="empty" colspan="2"></td>
-              <td style="font-size: 1vw;">ランタノイド</td>
+              <td id="ランタノイド2" style="font-size: 1vw;">ランタノイド</td>
               <td id="La">La</td>
               <td id="Ce">Ce</td>
               <td id="Pr">Pr</td>
@@ -354,7 +354,7 @@
             </tr>
             <tr>
               <td class="empty" colspan="2"></td>
-              <td style="font-size: 1vw;">アクチノイド</td>
+              <td id="アクチノイド2" style="font-size: 1vw;">アクチノイド</td>
               <td id="Ac">Ac</td>
               <td id="Th">Th</td>
               <td id="Pa">Pa</td>
@@ -555,6 +555,19 @@ const Metal = [
         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 ];
+      
+      
+      
+      function explain(elemName) {
+        const explainDiv = document.getElementById("explain");
+        if(Object.keys(elementData).includes(elemName)){
+          const data = elementData[elemName];
+          explainDiv.innerHTML = `
+            ${elemName} ${data[2]}<br>
+            原子番号:${data[0]} 原子量:${data[1]}
+          `
+        }
+      }
 
       
       function tableView(option='') {
@@ -566,10 +579,10 @@ const Metal = [
           const row = elemTable.rows[i]; // 行
           for (let j = 0; j < row.cells.length; j++) {
             const td = row.cells[j]; // td要素
-            const text = td.id; // tdのid
+            const elemName = td.id; // tdのid
             
-            if(Object.keys(elementData).includes(text)){
-              const data = elementData[text];
+            if(Object.keys(elementData).includes(elemName)){
+              const data = elementData[elemName];
               let color = "white";
               if(option == 'type') {
                 switch (Type[data[0]-1]) {
@@ -621,10 +634,12 @@ const Metal = [
               
               td.innerHTML = `
                 <div style="height: 15px; font-size: ${17*s}px;">${data[0]}</div>
-                <div style="font-size: ${20*s}px;">${text}</div>
+                <div style="font-size: ${20*s}px;">${elemName}</div>
                 <div style="font-size: ${13*s}px;">${data[1]}</div>
               `
-              td.setAttribute('onclick', 'explain("'+text+'");');
+              td.setAttribute('onclick', 'explain("'+elemName+'");');
+            } else if(elemName == "ランタノイド" || elemName == "ランタノイド2" || elemName == "アクチノイド" || elemName == "アクチノイド2") {
+              td.setAttribute('onclick', 'explain("'+elemName+'");');
             }
           }
         }
