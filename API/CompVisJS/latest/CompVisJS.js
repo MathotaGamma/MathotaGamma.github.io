@@ -299,7 +299,7 @@ CompVis.View = class {
       isParametric: options.isParametric !== undefined ? options.isParametric : false,
     };
     this.graphs.push(graph);
-    this.renderAll();
+    //this.renderAll();
     return graph;
   }
 
