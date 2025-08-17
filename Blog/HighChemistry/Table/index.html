@@ -562,10 +562,18 @@ const Metal = [
         const explainDiv = document.getElementById("explain");
         if(Object.keys(elementData).includes(elemName)){
           const data = elementData[elemName];
-          explainDiv.innerHTML = `
-            ${elemName} ${data[2]}<br>
-            原子番号:${data[0]} 原子量:${data[1]}
-          `
+          if(data[3]) {
+            explainDiv.innerHTML = `
+              ${elemName} ${data[2]}<br>
+              原子番号:${data[0]} 原子量:${data[1]}
+              放射性同位体しか存在しない。
+            `
+          } else {
+            explainDiv.innerHTML = `
+              ${elemName} ${data[2]}<br>
+              原子番号:${data[0]} 原子量:${data[1]}
+            `
+          }
         } else if(elemName == "ランタノイド" || elemName == "アクチノイド"){
           explainDiv.innerHTML = elemName;
         }
