@@ -566,6 +566,8 @@ const Metal = [
             ${elemName} ${data[2]}<br>
             原子番号:${data[0]} 原子量:${data[1]}
           `
+        } else if(elemName == "ランタノイド" || elemName == "アクチノイド"){
+          explainDiv.innerHTML = elemName;
         }
       }
 
@@ -638,8 +640,10 @@ const Metal = [
                 <div style="font-size: ${13*s}px;">${data[1]}</div>
               `
               td.setAttribute('onclick', 'explain("'+elemName+'");');
-            } else if(elemName == "ランタノイド" || elemName == "ランタノイド2" || elemName == "アクチノイド" || elemName == "アクチノイド2") {
-              td.setAttribute('onclick', 'explain("'+elemName+'");');
+            } else if(elemName == "ランタノイド" || elemName == "ランタノイド2"){
+              td.setAttribute('onclick', 'explain("ランタノイド");');
+            } else if(elemName == "アクチノイド" || elemName == "アクチノイド2") {
+              td.setAttribute('onclick', 'explain("アクチノイド");');
             }
           }
         }
