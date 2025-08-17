@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>高校数学 | NeoTopazm</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+    <script src="https://mathotagamma.github.io/API/CompVisJS/latest.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        height: 100%;
+        font-family: 'Meiryo UI', sans-serif;
+        background: #fff;
+        color: #222;
+        -webkit-user-select: none;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        background: #f8f9fa;
+        padding: 1rem 2rem;
+        font-size: 1.5rem;
+        font-weight: bold;
+        box-shadow: 0 2px 5px #0008;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      header nav a {
+        color: #1f2951;
+        text-decoration: none;
+        margin-left: 1rem;
+      }
+      header nav a:hover {
+        color: #f7931e;
+      }
+      main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+      .block {
+        display: flex;
+        flex-direction: column;
+      }
+      .toc-wrapper {
+        width: 220px;
+        background: #f3f4f6;
+        padding: 1rem 1.5rem;
+        overflow-y: auto;
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+      .toc-wrapper h2 {
+        color: #f7931e;
+        font-size: 1.2rem;
+        margin-bottom: 0.8rem;
+      }
+      .toc-wrapper ul {
+        list-style: none;
+      }
+      .toc-wrapper li {
+        margin-bottom: 0.5rem;
+      }
+      .toc-wrapper a {
+        color: #1f2951;
+        text-decoration: none;
+      }
+      .toc-wrapper a:hover {
+        text-decoration: underline;
+        color: #ffb933;
+      }
+      .toc-toggle {
+        display: none;
+        background: #f3f4f6;
+        padding: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      article.article {
+        flex: 1;
+        padding: 2rem 3rem;
+        overflow-y: auto;
+        font-size: 1.1rem;
+        line-height: 1.7;
+      }
+      article.article h1 {
+        font-size: 2.2rem;
+        color: #f7931e;
+      }
+      article.article h2 {
+        font-size: 1.6rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #bbb;
+        color: #008080;
+      }
+      article.article p {
+        margin-bottom: 1.2rem;
+      }
+      aside.sidebar {
+        width: 280px;
+        background: #f3f4f6;
+        padding: 1rem 1.5rem;
+        border-left: 1px solid #ddd;
+        font-size: 0.9rem;
+      }
+      aside.sidebar h3 {
+        color: #f7931e;
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+      }
+      aside.sidebar a {
+        text-decoration: none;
+        color: #1f2951;
+      }
+      aside.sidebar a:hover {
+        color: #f7931e;
+      }
+      canvas {
+        display: block;
+        margin: 1rem auto;
+        border: 1px solid black;
+      }
+      .dropdown-toggle {
+        padding: 10px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        color: #fff;
+        background-color: #007ACC;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, box-shadow 0.2s ease;
+        margin-top: 1rem;
+      }
+      .dropdown-toggle:hover {
+        background-color: #005f99;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+      .dropdown-toggle:active {
+        background-color: #004f80;
+        transform: translateY(1px);
+      }
+      .dropdown-content {
+        display: none;
+        border: 1px solid black;
+        padding: 1rem;
+        margin-top: 0.5rem;
+      }
+      @media (max-width: 768px) {
+        main {
+          flex-direction: column;
+        }
+        .toc-wrapper {
+          width: 100%;
+          display: none;
+        }
+        .toc-wrapper.active {
+          display: block;
+        }
+        .toc-toggle {
+          display: block;
+        }
+        aside.sidebar {
+          width: 100%;
+          border-left: none;
+          border-top: 1px solid #ddd;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>高校数学</div>
+      <nav>
+        <a href="../">ホーム</a>
+      </nav>
+    </header>
+    <div class="toc-toggle">📑 目次を表示</div>
+    <main>
+      <nav class="toc-wrapper" aria-label="記事一覧">
+        <h2>記事一覧</h2>
+        <ul>
+          <li><a href="#parabola" class="anchor">Table</a></li>
+          
+        </ul>
+      </nav>
+      <article class="article">
+        <div style="padding: 1rem 2rem; font-size: 1rem; background: #fcfcfc; border-bottom: 1px solid #ddd;">
+          このサイトでは高校化学の重要単元を図や数式を交えて直感的に学ぶことができます。基本から応用まで、段階的に理解を深めていきましょう。
+        </div>
+        <div id="contents">
+          <div class="block" id="Table">
+            <div>
+              <img src="./Table/Table.png" alt="Table of the Elements" width="100px">
+            </div>
+            <a href="./Table/">二次関数・放物線</a>
+          </div>
+          <div class="block">
+          
+          </div>
+        </div>
+      </article>
+
+      <aside class="sidebar">
+        <section>
+          <h3>おすすめ記事</h3>
+          <!-- おすすめリンクなど -->
+        </section>
+      </aside>
+    </main>
+
+    <script>
+      // スムーズスクロール（目次）
+      document.querySelectorAll('.anchor').forEach(anchor => {
+        anchor.addEventListener('click', e => {
+          e.preventDefault();
+          const target = document.getElementById(anchor.getAttribute('href').slice(1));
+          const container = document.querySelector('article.article');
+          if (target && container) {
+            container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
+          }
+        });
+      });
+
+      // モバイル用目次トグル
+      document.querySelector('.toc-toggle').addEventListener('click', () => {
+        document.querySelector('.toc-wrapper').classList.toggle('active');
+      });
+
+      // ドロップダウン展開処理
+      document.querySelectorAll('.dropdown-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const content = btn.nextElementSibling;
+          if (content && content.classList.contains('dropdown-content')) {
+            content.style.display = (content.style.display === 'block') ? 'none' : 'block';
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
