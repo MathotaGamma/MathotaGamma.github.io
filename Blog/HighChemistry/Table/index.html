@@ -670,7 +670,7 @@ const Metal = [
 
 
       window.onload = () => {
-        tableView();
+        tableView('state');
 
         const form = document.getElementById('selectForm');
         const textDiv = document.getElementById('text');
@@ -701,7 +701,7 @@ const Metal = [
         });
 
         // ページロード時の初期説明表示
-        textDiv.textContent = 'Default: 元素の基本表示です。';
+        textDiv.textContent = `State: ${colorSpan('#FFD580','固体')} ${colorSpan('#ADD8E6','液体')} ${colorSpan('#C2E0C6','気体')} ${colorSpan('#ddd','不明')}`;
       };
 
     </script>
