@@ -286,7 +286,28 @@
         });
       });
 
-      window.addEventListener("DOMContentLoaded", () => {
+      window.onload = () => {
+        const canvas = document.getElementById("canvas");
+        parabola1.width = 200;
+        parabola1.height = 300;
+        const viewer = new CompVis.View(canvas, {
+          mode: "dynamic",
+          autoScale: false,
+          showAxis: true,
+          rangeX: [-2, 4],
+          rangeY: [-10, 9],
+        });
+
+        viewer.addGraph(
+          (t) => {
+            return t**2 - 4*t - 5
+          },-3,7,1200,{color: "#00aaff",}
+        );
+        //console.log(viewer)
+        viewer.renderAll();
+      };
+
+      /*window.addEventListener("DOMContentLoaded", () => {
         const parabola1 = document.getElementById("parabola1");
         parabola1.width = 200;
         parabola1.height = 300;
@@ -296,7 +317,7 @@
           return t**2-4*t-5;
         },-3,7, 1200,{autoScale: false, showAxis: true, rangeX: [-3,7], rangeY: [-10, 9]});
         viewer.renderAll();
-      })
+      })*/
     </script>
   </body>
 </html>
