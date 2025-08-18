@@ -17,7 +17,7 @@
         font-family: 'Meiryo UI', sans-serif;
         background: #fff;
         color: #222;
-        -webkit-user-select: none;
+        /*-webkit-user-select: none;*/
       }
       body {
         display: flex;
@@ -563,22 +563,80 @@ const Metal = [
       let maxNeg = 3.98;
       
       
+      function processExplain(elemName) {
+        const AN = elementData[elemName][0];
+        let ret = [];
+        switch (Type[AN-1]) {
+          case 1:
+            ret.push("典型");
+            break;
+          case 2:
+            ret.push("遷移");
+            break;
+          case 3:
+            ret.push("2022年の学習指導要領の変更により追加された遷移元素");
+            break;
+          case 4:
+            ret.push("ランタノイド/アクチノイド");
+            break;
+          case 0:
+            ret.push("不明");
+            break;
+        }
+        switch (State[AN-1]) {
+          case 1:
+            ret.push("固体");
+            break;
+          case 2:
+            ret.push("液体");
+            break;
+          case 3:
+            ret.push("気体");
+            break;
+          case 0:
+            ret.push("不明");
+            break;
+        }
+        switch (Metal[AN-1]) {
+          case 1:
+            ret.push("金属");
+            break;
+          case 2:
+            ret.push("非金属");
+            break;
+          case 3: 
+            ret.push("不明");
+            break;
+          case 0:
+            ret.push("両性金属");
+            break;
+        }
+        ret.push(elementData[elemName][3].neg);
+        return ret;
+      }
       
       
       function explain(elemName) {
         const explainDiv = document.getElementById("explain");
         if(Object.keys(elementData).includes(elemName)){
           const data = elementData[elemName];
+          let metalText = "";
+          
+          const expl = processExplain(elemName);
+          
           if(data[3].radio) {
             explainDiv.innerHTML = `
               ${elemName} ${data[2]}<br>
-              原子番号:${data[0]} 原子量:${data[1]}
-              放射性同位体しか存在しない。
+              原子番号:${data[0]} 原子量:${data[1]} 放射性同位体しか存在しない。<br>
+              Type:${expl[0]} State:${expl[1]} Metal:${expl[2]}<br>
+              電気陰性度:${expl[3]}
             `
           } else {
             explainDiv.innerHTML = `
               ${elemName} ${data[2]}<br>
-              原子番号:${data[0]} 原子量:${data[1]}
+              原子番号:${data[0]} 原子量:${data[1]}<br>
+              Type:${expl[0]} State:${expl[1]} Metal:${expl[2]}<br>
+              電気陰性度:${expl[3]}
             `
           }
         } else if(elemName == "ランタノイド" || elemName == "アクチノイド"){
@@ -633,6 +691,7 @@ const Metal = [
                     break;
                   case 0:
                     color = "#ddd";
+                    break;
                 }
               } else if(option == "metal") {
                 switch (Metal[data[0]-1]) {
@@ -653,16 +712,25 @@ const Metal = [
               } else if(option == "neg") {
                 const neg = data[3].neg;
                 
-                if(neg){
+                if(neg != false){
                   
                   const k = (neg-minNeg)/(maxNeg-minNeg);
                   color = "rgb("+String(255-125*k)+","+String(220+25*k)+",0)";
+                } else {
+                  color = "#ddd";
                 }
               }
               
               td.style.background = color;
-
-              if(data[3].radio){ // 放射性物質
+              
+              if(option == "neg") {
+                const neg = data[3].neg;
+                td.innerHTML = `
+                  <div style="height: 15px; font-size: ${17*s}px;">${data[0]}</div>
+                  <div style="font-size: ${20*s}px; color: ${textColor};">${elemName}</div>
+                  <div style="font-size: ${13*s}px; color: ${neg != false ? "#DD3333" : "black"};">${neg != false ? neg : "ー"}</div>
+                `
+              } else if(data[3].radio){ // 放射性物質
                 td.innerHTML = `
                   <div style="height: 15px; font-size: ${17*s}px;">${data[0]}</div>
                   <div style="font-size: ${20*s}px; color: ${textColor};">${elemName}</div>
@@ -710,6 +778,10 @@ const Metal = [
           case 'metal':
             desc = `Metal: ${colorSpan('#FFD700','金属')} ${colorSpan('#87CEFA','非金属')} ${colorSpan('#ddd','不明')}<br><span style="color: #DD3333;">赤字</span>:両性金属`;
             break;
+          case 'neg':
+    desc = `Electronegativity (電気陰性度): 値が大きいほど共有電子対を引き付けやすい性質を表します。<br>
+            ${colorSpan('rgb(255,220,0)','低い')} → ${colorSpan('rgb(130,245,0)','高い')} ${colorSpan('#ddd','データなし')}`;
+    break;
         }
         textDiv.innerHTML = desc;
       }
