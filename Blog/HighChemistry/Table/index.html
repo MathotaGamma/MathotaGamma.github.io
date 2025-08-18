@@ -216,6 +216,7 @@
             <label><input type="radio" name="select" value="type">Type</label>
             <label><input type="radio" name="select" value="state" checked>State</label>
             <label><input type="radio" name="select" value="metal">Metal</label>
+            <label><input type="radio" name="select" value="neg">電気陰性度</label>
           </form>
           <div id="text"></div>
           <table id="elem-table">
@@ -391,125 +392,127 @@
     
     <script>
       const elementData = {
-  "H": [1, 1.01, "水素"],
-  "He": [2, 4.00, "ヘリウム"],
-  "Li": [3, 6.94, "リチウム"],
-  "Be": [4, 9.01, "ベリリウム"],
-  "B": [5, 10.8, "ホウ素"],
-  "C": [6, 12.0, "炭素"],
-  "N": [7, 14.0, "窒素"],
-  "O": [8, 16.0, "酸素"],
-  "F": [9, 19.0, "フッ素"],
-  "Ne": [10, 20.2, "ネオン"],
-  "Na": [11, 23.0, "ナトリウム"],
-  "Mg": [12, 24.3, "マグネシウム"],
-  "Al": [13, 27.0, "アルミニウム"],
-  "Si": [14, 28.1, "ケイ素"],
-  "P": [15, 31.0, "リン"],
-  "S": [16, 32.1, "硫黄"],
-  "Cl": [17, 35.5, "塩素"],
-  "Ar": [18, 39.9, "アルゴン"],
-  "K": [19, 39.1, "カリウム"],
-  "Ca": [20, 40.1, "カルシウム"],
-  "Sc": [21, 44.9, "スカンジウム"],
-  "Ti": [22, 47.9, "チタン"],
-  "V": [23, 50.9, "バナジウム"],
-  "Cr": [24, 52.0, "クロム"],
-  "Mn": [25, 54.9, "マンガン"],
-  "Fe": [26, 55.8, "鉄"],
-  "Co": [27, 58.9, "コバルト"],
-  "Ni": [28, 58.7, "ニッケル"],
-  "Cu": [29, 63.5, "銅"],
-  "Zn": [30, 65.4, "亜鉛"],
-  "Ga": [31, 69.7, "ガリウム"],
-  "Ge": [32, 72.6, "ゲルマニウム"],
-  "As": [33, 74.9, "ヒ素"],
-  "Se": [34, 79.0, "セレン"],
-  "Br": [35, 79.9, "臭素"],
-  "Kr": [36, 83.8, "クリプトン"],
-  "Rb": [37, 85.5, "ルビジウム"],
-  "Sr": [38, 87.6, "ストロンチウム"],
-  "Y": [39, 88.9, "イットリウム"],
-  "Zr": [40, 91.2, "ジルコニウム"],
-  "Nb": [41, 92.9, "ニオブ"],
-  "Mo": [42, 95.9, "モリブデン"],
-  "Tc": [43, 98.0, "テクネチウム", true],
-  "Ru": [44, 101.1, "ルテニウム"],
-  "Rh": [45, 102.9, "ロジウム"],
-  "Pd": [46, 106.4, "パラジウム"],
-  "Ag": [47, 107.9, "銀"],
-  "Cd": [48, 112.0, "カドミウム"],
-  "In": [49, 114.8, "インジウム"],
-  "Sn": [50, 118.7, "スズ"],
-  "Sb": [51, 121.8, "アンチモン"],
-  "Te": [52, 127.6, "テルル"],
-  "I": [53, 126.9, "ヨウ素"],
-  "Xe": [54, 131.3, "キセノン"],
-  "Cs": [55, 132.9, "セシウム"],
-  "Ba": [56, 137.3, "バリウム"],
-  "La": [57, 138.9, "ランタン"],
-  "Ce": [58, 140.1, "セリウム"],
-  "Pr": [59, 140.9, "プラセオジム"],
-  "Nd": [60, 144.2, "ネオジム"],
-  "Pm": [61, 145.0, "プロメチウム", true],
-  "Sm": [62, 150.4, "サマリウム"],
-  "Eu": [63, 152.0, "ユウロピウム"],
-  "Gd": [64, 157.3, "ガドリニウム"],
-  "Tb": [65, 158.9, "テルビウム"],
-  "Dy": [66, 162.5, "ジスプロシウム"],
-  "Ho": [67, 164.9, "ホルミウム"],
-  "Er": [68, 167.3, "エルビウム"],
-  "Tm": [69, 168.9, "ツリウム"],
-  "Yb": [70, 173.0, "イッテルビウム"],
-  "Lu": [71, 175.0, "ルテチウム"],
-  "Hf": [72, 178.5, "ハフニウム"],
-  "Ta": [73, 180.9, "タンタル"],
-  "W": [74, 183.8, "タングステン"],
-  "Re": [75, 186.2, "レニウム"],
-  "Os": [76, 190.2, "オスミウム"],
-  "Ir": [77, 192.2, "イリジウム"],
-  "Pt": [78, 195.1, "白金"],
-  "Au": [79, 197.0, "金"],
-  "Hg": [80, 200.6, "水銀"],
-  "Tl": [81, 204.4, "タリウム"],
-  "Pb": [82, 207.2, "鉛"],
-  "Bi": [83, 209.0, "ビスマス"],
-  "Po": [84, 209.0, "ポロニウム", true],
-  "At": [85, 210.0, "アスタチン", true],
-  "Rn": [86, 222.0, "ラドン", true],
-  "Fr": [87, 223.0, "フランシウム", true],
-  "Ra": [88, 226.0, "ラジウム", true],
-  "Ac": [89, 227.0, "アクチニウム", true],
-  "Th": [90, 232.0, "トリウム"],
-  "Pa": [91, 231.0, "プロトアクチニウム"],
-  "U": [92, 238.0, "ウラン"],
-  "Np": [93, 237.0, "ネプツニウム", true],
-  "Pu": [94, 244.0, "プルトニウム", true],
-  "Am": [95, 243.0, "アメリシウム", true],
-  "Cm": [96, 247.0, "キュリウム", true],
-  "Bk": [97, 247.0, "バークリウム", true],
-  "Cf": [98, 251.0, "カリホルニウム", true],
-  "Es": [99, 252.0, "アインスタイニウム", true],
-  "Fm": [100, 257.0, "フェルミウム", true],
-  "Md": [101, 258.0, "メンデレビウム", true],
-  "No": [102, 259.0, "ノーベリウム", true],
-  "Lr": [103, 262.0, "ローレンシウム", true],
-  "Rf": [104, 267.0, "ラザフォージウム", true],
-  "Db": [105, 270.0, "ダームスタチウム", true],
-  "Sg": [106, 271.0, "シーボーギウム", true],
-  "Bh": [107, 270.0, "ボーリウム", true],
-  "Hs": [108, 277.0, "ハッシウム", true],
-  "Mt": [109, 276.0, "マイトナーウム", true],
-  "Ds": [110, 281.0, "ダームスタチウム", true],
-  "Rg": [111, 282.0, "レントゲニウム", true],
-  "Cn": [112, 285.0, "コペルニシウム", true],
-  "Nh": [113, 286.0, "ニホニウム", true],
-  "Fl": [114, 289.0, "フレロビウム", true],
-  "Mc": [115, 288.0, "モスコビウム", true],
-  "Lv": [116, 293.0, "リバモリウム", true],
-  "Ts": [117, 294.0, "テネシン", true],
-  "Og": [118, 294.0, "オガネソン", true]
-}
+        "H": [1, 1.01, "水素", {radio: false, neg: 2.2}],
+        "He": [2, 4.00, "ヘリウム", {radio: false, neg: false}],
+        "Li": [3, 6.94, "リチウム", {radio: false, neg: 0.98}],
+        "Be": [4, 9.01, "ベリリウム", {radio: false, neg: 1.57}],
+        "B": [5, 10.8, "ホウ素", {radio: false, neg: 2.04}],
+        "C": [6, 12.0, "炭素", {radio: false, neg: 2.55}],
+        "N": [7, 14.0, "窒素", {radio: false, neg: 3.04}],
+        "O": [8, 16.0, "酸素", {radio: false, neg: 3.44}],
+        "F": [9, 19.0, "フッ素", {radio: false, neg: 3.98}],
+        "Ne": [10, 20.2, "ネオン", {radio: false, neg: false}],
+        "Na": [11, 23.0, "ナトリウム", {radio: false, neg: 0.93}],
+        "Mg": [12, 24.3, "マグネシウム", {radio: false, neg: 1.31}],
+        "Al": [13, 27.0, "アルミニウム", {radio: false, neg: 1.61}],
+        "Si": [14, 28.1, "ケイ素", {radio: false, neg: 1.9}],
+        "P": [15, 31.0, "リン", {radio: false, neg: 2.19}],
+        "S": [16, 32.1, "硫黄", {radio: false, neg: 2.58}],
+        "Cl": [17, 35.5, "塩素", {radio: false, neg: 3.16}],
+        "Ar": [18, 39.9, "アルゴン", {radio: false, neg: false}],
+        "K": [19, 39.1, "カリウム", {radio: false, neg: 0.82}],
+        "Ca": [20, 40.1, "カルシウム", {radio: false, neg: 1}],
+        "Sc": [21, 44.9, "スカンジウム", {radio: false, neg: 1.36}],
+        "Ti": [22, 47.9, "チタン", {radio: false, neg: 1.54}],
+        "V": [23, 50.9, "バナジウム", {radio: false, neg: 1.63}],
+        "Cr": [24, 52.0, "クロム", {radio: false, neg: 1.66}],
+        "Mn": [25, 54.9, "マンガン", {radio: false, neg: 1.55}],
+        "Fe": [26, 55.8, "鉄", {radio: false, neg: 1.83}],
+        "Co": [27, 58.9, "コバルト", {radio: false, neg: 1.88}],
+        "Ni": [28, 58.7, "ニッケル", {radio: false, neg: 1.91}],
+        "Cu": [29, 63.5, "銅", {radio: false, neg: 1.9}],
+        "Zn": [30, 65.4, "亜鉛", {radio: false, neg: 1.65}],
+        "Ga": [31, 69.7, "ガリウム", {radio: false, neg: 1.81}],
+        "Ge": [32, 72.6, "ゲルマニウム", {radio: false, neg: 2.01}],
+        "As": [33, 74.9, "ヒ素", {radio: false, neg: 2.18}],
+        "Se": [34, 79.0, "セレン", {radio: false, neg: 2.55}],
+        "Br": [35, 79.9, "臭素", {radio: false, neg: 2.96}],
+        "Kr": [36, 83.8, "クリプトン", {radio: false, neg: 3}],
+        "Rb": [37, 85.5, "ルビジウム", {radio: false, neg: 0.82}],
+        "Sr": [38, 87.6, "ストロンチウム", {radio: false, neg: 0.95}],
+        "Y": [39, 88.9, "イットリウム", {radio: false, neg: 1.22}],
+        "Zr": [40, 91.2, "ジルコニウム", {radio: false, neg: 1.33}],
+        "Nb": [41, 92.9, "ニオブ", {radio: false, neg: 1.6}],
+        "Mo": [42, 95.9, "モリブデン", {radio: false, neg: 2.16}],
+        "Tc": [43, 98.0, "テクネチウム", {radio: true, neg: 1.9}],
+        "Ru": [44, 101.1, "ルテニウム", {radio: false, neg: 2.2}],
+        "Rh": [45, 102.9, "ロジウム", {radio: false, neg: 2.28}],
+        "Pd": [46, 106.4, "パラジウム", {radio: false, neg: 2.2}],
+        "Ag": [47, 107.9, "銀", {radio: false, neg: 1.93}],
+        "Cd": [48, 112.0, "カドミウム", {radio: false, neg: 1.69}],
+        "In": [49, 114.8, "インジウム", {radio: false, neg: 1.78}],
+        "Sn": [50, 118.7, "スズ", {radio: false, neg: 1.96}],
+        "Sb": [51, 121.8, "アンチモン", {radio: false, neg: 2.05}],
+        "Te": [52, 127.6, "テルル", {radio: false, neg: 2.1}],
+        "I": [53, 126.9, "ヨウ素", {radio: false, neg: 2.66}],
+        "Xe": [54, 131.3, "キセノン", {radio: false, neg: 2.6}],
+        "Cs": [55, 132.9, "セシウム", {radio: false, neg: 0.79}],
+        "Ba": [56, 137.3, "バリウム", {radio: false, neg: 0.89}],
+        "La": [57, 138.9, "ランタン", {radio: false, neg: 1.1}],
+        "Ce": [58, 140.1, "セリウム", {radio: false, neg: 1.12}],
+        "Pr": [59, 140.9, "プラセオジム", {radio: false, neg: 1.13}],
+        "Nd": [60, 144.2, "ネオジム", {radio: false, neg: 1.14}],
+        "Pm": [61, 145.0, "プロメチウム", {radio: true, neg: false}],
+        "Sm": [62, 150.4, "サマリウム", {radio: false, neg: 1.17}],
+        "Eu": [63, 152.0, "ユウロピウム", {radio: false, neg: false}],
+        "Gd": [64, 157.3, "ガドリニウム", {radio: false, neg: 1.2}],
+        "Tb": [65, 158.9, "テルビウム", {radio: false, neg: false}],
+        "Dy": [66, 162.5, "ジスプロシウム", {radio: false, neg: 1.22}],
+        "Ho": [67, 164.9, "ホルミウム", {radio: false, neg: 1.23}],
+        "Er": [68, 167.3, "エルビウム", {radio: false, neg: 1.24}],
+        "Tm": [69, 168.9, "ツリウム", {radio: false, neg: 1.25}],
+        "Yb": [70, 173.0, "イッテルビウム", {radio: false, neg: false}],
+        "Lu": [71, 175.0, "ルテチウム", {radio: false, neg: 1.27}],
+        "Hf": [72, 178.5, "ハフニウム", {radio: false, neg: 1.3}],
+        "Ta": [73, 180.9, "タンタル", {radio: false, neg: 1.5}],
+        "W": [74, 183.8, "タングステン", {radio: false, neg: 2.36}],
+        "Re": [75, 186.2, "レニウム", {radio: false, neg: 1.9}],
+        "Os": [76, 190.2, "オスミウム", {radio: false, neg: 2.2}],
+        "Ir": [77, 192.2, "イリジウム", {radio: false, neg: 2.2}],
+        "Pt": [78, 195.1, "白金", {radio: false, neg: 2.28}],
+        "Au": [79, 197.0, "金", {radio: false, neg: 2.54}],
+        "Hg": [80, 200.6, "水銀", {radio: false, neg: 2}],
+        "Tl": [81, 204.4, "タリウム", {radio: false, neg: 1.62}],
+        "Pb": [82, 207.2, "鉛", {radio: false, neg: 2.33}],
+        "Bi": [83, 209.0, "ビスマス", {radio: false, neg: 2.02}],
+        "Po": [84, 209.0, "ポロニウム", {radio: true, neg: 2}],
+        "At": [85, 210.0, "アスタチン", {radio: true, neg: 2.2}],
+        "Rn": [86, 222.0, "ラドン", {radio: true, neg: false}],
+        "Fr": [87, 223.0, "フランシウム", {radio: true, neg: 0.7}],
+        "Ra": [88, 226.0, "ラジウム", {radio: true, neg: 0.9}],
+        "Ac": [89, 227.0, "アクチニウム", {radio: true, neg: 1.1}],
+        "Th": [90, 232.0, "トリウム", {radio: false, neg: 1.3}],
+        "Pa": [91, 231.0, "プロトアクチニウム", {radio: false, neg: 1.5}],
+        "U": [92, 238.0, "ウラン", {radio: false, neg: 1.38}],
+        "Np": [93, 237.0, "ネプツニウム", {radio: true, neg: 1.36}],
+        "Pu": [94, 244.0, "プルトニウム", {radio: true, neg: 1.28}],
+        "Am": [95, 243.0, "アメリシウム", {radio: true, neg: 1.3}],
+        "Cm": [96, 247.0, "キュリウム", {radio: true, neg: 1.3}],
+        "Bk": [97, 247.0, "バークリウム", {radio: true, neg: 1.3}],
+        "Cf": [98, 251.0, "カリホルニウム", {radio: true, neg: 1.3}],
+        "Es": [99, 252.0, "アインスタイニウム", {radio: true, neg: 1.3}],
+        "Fm": [100, 257.0, "フェルミウム", {radio: true, neg: 1.3}],
+        "Md": [101, 258.0, "メンデレビウム", {radio: true, neg: 1.3}],
+        "No": [102, 259.0, "ノーベリウム", {radio: true, neg: 1.3}],
+        "Lr": [103, 262.0, "ローレンシウム", {radio: true, neg: false}],
+        "Rf": [104, 267.0, "ラザフォージウム", {radio: true, neg: false}],
+        "Db": [105, 270.0, "ダームスタチウム", {radio: true, neg: false}],
+        "Sg": [106, 271.0, "シーボーギウム", {radio: true, neg: false}],
+        "Bh": [107, 270.0, "ボーリウム", {radio: true, neg: false}],
+        "Hs": [108, 277.0, "ハッシウム", {radio: true, neg: false}],
+        "Mt": [109, 276.0, "マイトナーウム", {radio: true, neg: false}],
+        "Ds": [110, 281.0, "ダームスタチウム", {radio: true, neg: false}],
+        "Rg": [111, 282.0, "レントゲニウム", {radio: true, neg: false}],
+        "Cn": [112, 285.0, "コペルニシウム", {radio: true, neg: false}],
+        "Nh": [113, 286.0, "ニホニウム", {radio: true, neg: false}],
+        "Fl": [114, 289.0, "フレロビウム", {radio: true, neg: false}],
+        "Mc": [115, 288.0, "モスコビウム", {radio: true, neg: false}],
+        "Lv": [116, 293.0, "リバモリウム", {radio: true, neg: false}],
+        "Ts": [117, 294.0, "テネシン", {radio: true, neg: false}],
+        "Og": [118, 294.0, "オガネソン", {radio: true, neg: false}]
+      };
+
+
       
 // 典型=1／遷移=2
 const Type = [
@@ -541,20 +544,24 @@ const State = [
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 ];
 
-// 金属=1、非金属=2
+// 金属=1、非金属=2、両性金属=3
 const Metal = [
   2,                                2,
   1,1,                    2,2,2,2,2,2,
-  1,1,                    1,2,2,2,2,2,
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,
+  1,1,                    3,2,2,2,2,2,
+  1,1,1,1,1,1,1,1,1,1,1,3,1,1,2,2,2,2,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,3,1,2,2,2,
   1,1,
         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,
+        1,1,1,1,1,1,1,1,1,1,3,1,1,2,2,
   1,1,
         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 ];
+      
+      let minNeg = 0.7;
+      let maxNeg = 3.98;
+      
       
       
       
@@ -562,7 +569,7 @@ const Metal = [
         const explainDiv = document.getElementById("explain");
         if(Object.keys(elementData).includes(elemName)){
           const data = elementData[elemName];
-          if(data[3]) {
+          if(data[3].radio) {
             explainDiv.innerHTML = `
               ${elemName} ${data[2]}<br>
               原子番号:${data[0]} 原子量:${data[1]}
@@ -594,6 +601,7 @@ const Metal = [
             if(Object.keys(elementData).includes(elemName)){
               const data = elementData[elemName];
               let color = "white";
+              let textColor = "black";
               if(option == 'type') {
                 switch (Type[data[0]-1]) {
                   case 1:
@@ -634,24 +642,36 @@ const Metal = [
                   case 2:
                     color = "#87CEFA";
                     break;
+                  case 3: 
+                    textColor = "#DD3333";
+                    color = "#FFD700";
+                    break;
                   case 0:
                     color = "#ddd";
                     break;
+                }
+              } else if(option == "neg") {
+                const neg = data[3].neg;
+                
+                if(neg){
+                  
+                  const k = (neg-minNeg)/(maxNeg-minNeg);
+                  color = "rgb("+String(255-125*k)+","+String(220+25*k)+",0)";
                 }
               }
               
               td.style.background = color;
 
-              if(data[3]){ // 放射性物質
+              if(data[3].radio){ // 放射性物質
                 td.innerHTML = `
                   <div style="height: 15px; font-size: ${17*s}px;">${data[0]}</div>
-                  <div style="font-size: ${20*s}px;">${elemName}</div>
+                  <div style="font-size: ${20*s}px; color: ${textColor};">${elemName}</div>
                   <div style="font-size: ${13*s}px;">(${data[1]})</div>
                 `
               } else {
                 td.innerHTML = `
                   <div style="height: 15px; font-size: ${17*s}px;">${data[0]}</div>
-                  <div style="font-size: ${20*s}px;">${elemName}</div>
+                  <div style="font-size: ${20*s}px; color: ${textColor};">${elemName}</div>
                   <div style="font-size: ${13*s}px;">${data[1]}</div>
                 `
               }
@@ -688,7 +708,7 @@ const Metal = [
             desc = `State: ${colorSpan('#FFD580','固体')} ${colorSpan('#ADD8E6','液体')} ${colorSpan('#C2E0C6','気体')} ${colorSpan('#ddd','不明')}`;
             break;
           case 'metal':
-            desc = `Metal: ${colorSpan('#FFD700','金属')} ${colorSpan('#87CEFA','非金属')} ${colorSpan('#ddd','不明')}`;
+            desc = `Metal: ${colorSpan('#FFD700','金属')} ${colorSpan('#87CEFA','非金属')} ${colorSpan('#ddd','不明')}<br><span style="color: #DD3333;">赤字</span>:両性金属`;
             break;
         }
         textDiv.innerHTML = desc;
