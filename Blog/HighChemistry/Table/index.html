@@ -574,7 +574,7 @@ const Metal = [
             ret.push("遷移");
             break;
           case 3:
-            ret.push("2022年の学習指導要領の変更により追加された遷移元素");
+            ret.push("2022年に追加された遷移元素");
             break;
           case 4:
             ret.push("ランタノイド/アクチノイド");
@@ -605,13 +605,18 @@ const Metal = [
             ret.push("非金属");
             break;
           case 3: 
-            ret.push("不明");
-            break;
-          case 0:
             ret.push("両性金属");
             break;
+          case 0:
+            ret.push("不明");
+            break;
         }
-        ret.push(elementData[elemName][3].neg);
+        const neg = elementData[elemName][3].neg;
+        if(neg != false) {
+          ret.push(neg);
+        } else {
+          ret.push("不明")
+        }
         return ret;
       }
       
