@@ -7,7 +7,7 @@
   <meta name="description" content="Fourier変換をわかりやすく解説。視覚的に理解できるエピサイクルや離散フーリエ変換の体感も">
   <title>Fourier変換 | NeoTopazm</title>
   <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"></script>
-  <script type="text/javascript" src="https://mathotagamma.github.io/API/CompVisJS/latest.js"></script>
+  <script type="text/javascript" src="https://mathotagamma.github.io/API/CompVisJS/latest/CompVisJS.js"></script>
   
   <script async custom-element="amp-auto-ads"
     src="https://cdn.ampproject.org/v0/amp-auto-ads-0.1.js">
@@ -709,13 +709,13 @@
     const square = document.getElementById("square");
     square.width = 300;
     square.height = 100;
-    const viewer = new CompVis.View(square,{mode: "static', autoScale: false});
+    const viewer = new CompVis.View(square,{mode: "static", autoScale: false});
     // Canvasにグラフを描く
     viewer.addGraph((t) => {
-      if((t+150) % 30 <= 15) return -40;
+      if((t+150) % 120 <= 60) return -40;
       return 40;
     },-150,150, 1200);
-    viewer.renderAll
+    viewer.renderAll()
 
     const square2 = document.getElementById("square2");
     square2.width = 300;
@@ -766,7 +766,8 @@
     numSlider.addEventListener('input',()=>{
       sumCount = parseInt(numSlider.value);
       document.getElementById("showSliderNum").innerText = numSlider.value.padStart(3,"0")+":";
-      viewerSum.update(fseGraph)
+      //viewerSum.update(fseGraph)
+      viewerSum.renderAll()
     })
   });
 
