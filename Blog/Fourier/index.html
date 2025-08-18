@@ -709,12 +709,12 @@
     const square = document.getElementById("square");
     square.width = 300;
     square.height = 100;
-    const viewer = new CompVis.View(square);
+    const viewer = new CompVis.View(square,{mode: "static', autoScale: false});
     // Canvasにグラフを描く
     viewer.addGraph((t) => {
       if((t+150) % 30 <= 15) return -40;
       return 40;
-    },-150,150, 1200,{autoScale: false});
+    },-150,150, 1200);
     viewer.renderAll
 
     const square2 = document.getElementById("square2");
@@ -749,19 +749,19 @@
     
     squareSum.width = 300;
     squareSum.height = 300;
-    const viewerSum = new CompVis.View(squareSum);
+    const viewerSum = new CompVis.View(squareSum,{mode: "static", autoScale: false});
     // Canvasにグラフを描く
     viewerSum.addGraph((t) => {
       if((t+150) % 150 <= 75) return -100;
       return 100;
-    },-150,150, 1200,{autoScale: false,color:"#000"});
+    },-150,150, 1200,{color:"#000"});
     const fseGraph = viewerSum.addGraph((t) => {
       let returnNum = 0;
       for(let k = 1; k < sumCount; k++){
         returnNum += 200/(k*Math.PI)*((-1)**k-1)*Math.sin(k*Math.PI*t/75);
       }
       return returnNum;
-    },-150,150, 1200,{autoScale: false,color:"#f00"});
+    },-150,150, 1200,{color:"#f00"});
     
     numSlider.addEventListener('input',()=>{
       sumCount = parseInt(numSlider.value);
