@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>ZIP / Directory ツリービューア</title>
+    <title>ZIP / Directory</title>
     <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.58/dist/zip.min.js"></script>
     <style>
       body {
@@ -108,6 +108,8 @@
         });
       });
 
+      
+
       // ZIP処理
       zipInput.addEventListener("change", async e => {
         const file = e.target.files[0];
@@ -129,7 +131,9 @@
         renderTree(tree, treeEl);
       });
 
-      // パスをツリー構造に
+
+      
+      // ツリー構造
       function buildTree(entries) {
         const root = {};
         for (const ent of entries) {
