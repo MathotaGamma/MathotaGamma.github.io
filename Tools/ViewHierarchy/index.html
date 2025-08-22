@@ -1,1 +1,225 @@
 <!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ZIP / Directory ツリービューア</title>
+    <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.58/dist/zip.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        background: #0f172a;
+        color: #e5e7eb;
+      }
+      header {
+        padding: 10px;
+        border-bottom: 1px solid #1f2937;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      main {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        height: calc(100vh - 50px);
+      }
+      .tree {
+        overflow: auto;
+        border-right: 1px solid #1f2937;
+        padding: 8px;
+      }
+      .tree ul {
+        list-style: none;
+        padding-left: 16px;
+        margin: 0;
+      }
+      .tree li {
+        margin: 2px 0;
+        cursor: pointer;
+      }
+      .tree li.folder::before {
+        content: "📁 ";
+      }
+      .tree li.file::before {
+        content: "📄 ";
+      }
+      .tree li span {
+        padding: 2px 4px;
+        border-radius: 4px;
+        display: inline-block;
+      }
+      .tree li span:hover {
+        background: rgba(255,255,255,.1);
+      }
+      .tree li.active > span {
+        background: rgba(56,189,248,.2);
+      }
+      .collapsed > ul {
+        display: none;
+      }
+      .content {
+        padding: 8px;
+        overflow: auto;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: monospace;
+      }
+      img {
+        max-width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <label><input type="radio" name="mode" value="zip" checked> ZIP</label>
+      <label><input type="radio" name="mode" value="dir"> directly</label>
+      <input id="zipInput" type="file" accept=".zip" />
+      <input id="dirInput" type="file" webkitdirectory directory multiple style="display:none" />
+    </header>
+    <main>
+      <div id="tree" class="tree"></div>
+      <div id="viewer" class="content">ファイルを選択してください</div>
+    </main>
+
+    <script>
+      const zipInput = document.getElementById("zipInput");
+      const dirInput = document.getElementById("dirInput");
+      const treeEl = document.getElementById("tree");
+      const viewer = document.getElementById("viewer");
+      const textLike = /\.(txt|md|js|json|html?|css|csv|xml|yml|yaml|py|java|c|cpp|h|hpp)$/i;
+      const imageLike = /\.(png|jpe?g|gif|webp|svg)$/i;
+
+      let mode = "zip";
+      document.querySelectorAll("input[name=mode]").forEach(r => {
+        r.addEventListener("change", e => {
+          mode = e.target.value;
+          if (mode === "zip") {
+            zipInput.style.display = "inline";
+            dirInput.style.display = "none";
+          } else {
+            zipInput.style.display = "none";
+            dirInput.style.display = "inline";
+          }
+          treeEl.innerHTML = "";
+          viewer.textContent = "ファイルを選択してください";
+        });
+      });
+
+      // ZIP処理
+      zipInput.addEventListener("change", async e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new zip.ZipReader(new zip.BlobReader(file));
+        const entries = await reader.getEntries();
+        const tree = buildTree(entries.map(ent => ({
+          path: ent.filename,
+          entry: ent
+        })));
+        renderTree(tree, treeEl);
+      });
+
+      // Directory処理
+      dirInput.addEventListener("change", e => {
+        const files = Array.from(e.target.files);
+        const entries = files.map(f => ({ path: f.webkitRelativePath, file: f }));
+        const tree = buildTree(entries);
+        renderTree(tree, treeEl);
+      });
+
+      // パスをツリー構造に
+      function buildTree(entries) {
+        const root = {};
+        for (const ent of entries) {
+          const parts = ent.path.split("/").filter(p => p);
+          let cur = root;
+          parts.forEach((part, i) => {
+            if (!cur[part]) {
+              cur[part] = { __children: {} };
+            }
+            if (i === parts.length - 1) {
+              cur[part].__data = ent;
+            }
+            cur = cur[part].__children;
+          });
+        }
+        return root;
+      }
+
+      function renderTree(tree, container) {
+        container.innerHTML = "";
+        const ul = document.createElement("ul");
+        container.appendChild(ul);
+        addNodes(tree, ul);
+      }
+
+      function addNodes(obj, parentEl) {
+        Object.keys(obj).forEach(name => {
+          const item = obj[name];
+          const li = document.createElement("li");
+          const span = document.createElement("span");
+          span.textContent = name;
+          li.appendChild(span);
+          parentEl.appendChild(li);
+
+          if (item.__data?.entry?.directory) {
+            li.classList.add("folder", "collapsed");
+          } else if (item.__children && Object.keys(item.__children).length) {
+            li.classList.add("folder", "collapsed");
+          } else {
+            li.classList.add("file");
+          }
+
+          if (item.__children && Object.keys(item.__children).length) {
+            const ul = document.createElement("ul");
+            li.appendChild(ul);
+            addNodes(item.__children, ul);
+            span.addEventListener("click", e => {
+              li.classList.toggle("collapsed");
+              e.stopPropagation();
+            });
+          }
+
+          if (item.__data && !item.__data.entry?.directory) {
+            span.addEventListener("click", async e => {
+              $$(".active", parentEl).forEach(n => n.classList.remove("active"));
+              li.classList.add("active");
+              await showFile(item.__data);
+              e.stopPropagation();
+            });
+          }
+        });
+      }
+
+      async function showFile(ent) {
+        if (ent.entry) {
+          const blob = await ent.entry.getData(new zip.BlobWriter());
+          renderBlob(ent.path, blob);
+        } else if (ent.file) {
+          renderBlob(ent.path, ent.file);
+        }
+      }
+
+      function renderBlob(name, blob) {
+        viewer.innerHTML = "";
+        if (textLike.test(name)) {
+          blob.text().then(t => {
+            const pre = document.createElement("pre");
+            pre.textContent = t;
+            viewer.appendChild(pre);
+          });
+        } else if (imageLike.test(name)) {
+          const img = document.createElement("img");
+          img.src = URL.createObjectURL(blob);
+          viewer.appendChild(img);
+        } else {
+          viewer.textContent = "プレビュー未対応: " + name;
+        }
+      }
+
+      function $$(sel, el=document){return Array.from(el.querySelectorAll(sel));}
+    </script>
+  </body>
+</html>
