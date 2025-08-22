@@ -50,6 +50,8 @@
     <div>
       データ数: <input type="number" id="NumInput" value="100" placeholder="Num"><input type="button" value="OK" onclick="OK();"><input type="range" id="dataSize" min="5" max="5000" value="100">
       <span id="dataSizeLabel">100</span>
+    </div>
+    <div>
       間隔(ms): <input type="range" id="dtRange" min="1" max="500" value="1">
       <span id="dtLabel">1</span>
     </div>
@@ -205,6 +207,7 @@
     dataSizeInput.addEventListener('input', () => {
       cancelOngoingSort();
       dataSize = parseInt(dataSizeInput.value);
+      document.getElementById("NumInput").value = dataSize;
       dataSizeLabel.textContent = dataSize;
       generateData();
     });
@@ -216,6 +219,7 @@
         alert('数値を代入してください。');
         return;
       }
+      dataSizeInput.value = dataSize;
       dataSizeLabel.textContent = dataSize;
       generateData();
     }
