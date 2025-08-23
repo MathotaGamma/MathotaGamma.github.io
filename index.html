@@ -289,7 +289,7 @@
     }
 
     // 雷のクラス強化
-    class LightningBolt {
+    /*class LightningBolt {
       constructor(startX, startY, endX, endY) {
         this.startX = startX;
         this.startY = startY;
@@ -357,7 +357,7 @@
     function addLightningToPoint(x, y) {
       const startPos = randomEdgePosition();
       lightnings.push(new LightningBolt(startPos.x, startPos.y, x, y));
-    }
+    }*/
 
     // 立方体に力を加える関数
     function reactToTouch(clientX, clientY) {
@@ -386,13 +386,13 @@
 
     // マウス・タッチイベント設定
     window.addEventListener('mousedown', e => {
-      addLightningToPoint(e.clientX, e.clientY);
+      //addLightningToPoint(e.clientX, e.clientY);
       reactToTouch(e.clientX, e.clientY);
     });
 
     window.addEventListener('touchstart', e => {
       for (const t of e.touches) {
-        addLightningToPoint(t.clientX, t.clientY);
+        //addLightningToPoint(t.clientX, t.clientY);
         reactToTouch(t.clientX, t.clientY);
       }
     }, { passive: false });
@@ -418,12 +418,12 @@
       ctx.clearRect(0, 0, w, h);
 
       // 雷更新・描画
-      for (let i = lightnings.length -1; i >= 0; i--) {
+      /*for (let i = lightnings.length -1; i >= 0; i--) {
         const bolt = lightnings[i];
         bolt.draw(ctx);
         bolt.update();
         if (bolt.isDead()) lightnings.splice(i,1);
-      }
+      }*/
 
       updateCubes();
       renderer.render(scene, camera);
