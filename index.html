@@ -5,8 +5,9 @@
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-8LX6SFM3DB"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
+      function gtag() { dataLayer.push(arguments); }
       gtag('js', new Date());
+
       gtag('config', 'G-8LX6SFM3DB');
     </script>
     <meta charset="UTF-8" />
@@ -120,7 +121,6 @@
   </head>
   <body>
     <header>
-      <!--<div>Icon</div>-->
       <div><a href="./contact" class="link">ContactUs</a></div>
       <div style="z-index: 49;"><a href="./Blog/" class="link">Blog</a></div>
       <div><a href="./Tools/" class="link">Tools</a></div>
@@ -139,151 +139,206 @@
       </p>
       <p style="margin-bottom: 1000px;"></p>
     </main>
-    <script>
-      const canvas = document.getElementById('sparkCanvas');
-      const ctx = canvas.getContext('2d');
-      let w = window.innerWidth;
-      let h = window.innerHeight;
-      canvas.width = w;
-      canvas.height = h;
+    <script type="module">
+      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
 
-      // === Spark クラス ===
-      class Spark {
-        constructor(x, y) {
-          this.x = x;
-          this.y = y;
-          this.life = Math.random() * 20 + 10;
-          this.vx = (Math.random() - 0.5) * 4;
-          this.vy = (Math.random() - 0.5) * 4;
-          this.alpha = 1;
-        }
-        update() {
-          this.x += this.vx;
-          this.y += this.vy;
-          this.life--;
-          this.alpha = this.life / 30;
-        }
-        draw(ctx) {
-          ctx.save();
-          ctx.globalAlpha = this.alpha;
-          ctx.strokeStyle = 'rgba(173,216,230,0.8)';
-          ctx.beginPath();
-          ctx.moveTo(this.x, this.y);
-          ctx.lineTo(this.x + this.vx * 2, this.y + this.vy * 2);
-          ctx.stroke();
-          ctx.restore();
-        }
-        isDead() {
-          return this.life <= 0;
-        }
+      const canvas2d = document.getElementById('canvas');
+      const ctx = canvas2d.getContext('2d');
+      let w, h;
+
+      function resize() {
+        w = canvas2d.width = window.innerWidth;
+        h = canvas2d.height = window.innerHeight;
       }
+      window.addEventListener('resize', resize);
+      resize();
 
-      // === 管理用 ===
-      const sparks = [];
-      function addSpark(x, y) {
-        for (let i = 0; i < 3; i++) {
-          sparks.push(new Spark(x, y));
-        }
-      }
+      const CUBE_NUM = 75;
 
-      function reactToTouch(x, y) {
-        addSpark(x, y);
-      }
-
-      // === フラグ管理 ===
-      let isTouching = false;
-      let lastTouchX = 0, lastTouchY = 0;
-
-      // === イベント ===
-      window.addEventListener('mousedown', e => {
-        isTouching = true;
-        lastTouchX = e.clientX;
-        lastTouchY = e.clientY;
-        reactToTouch(lastTouchX, lastTouchY);
-      });
-
-      window.addEventListener('mouseup', () => {
-        isTouching = false;
-      });
-
-      window.addEventListener('mousemove', e => {
-        if (isTouching) {
-          lastTouchX = e.clientX;
-          lastTouchY = e.clientY;
-          reactToTouch(lastTouchX, lastTouchY);
-        }
-      });
-
-      window.addEventListener('touchstart', e => {
-        isTouching = true;
-        const t = e.touches[0];
-        lastTouchX = t.clientX;
-        lastTouchY = t.clientY;
-        reactToTouch(lastTouchX, lastTouchY);
-      }, { passive: false });
-
-      window.addEventListener('touchend', () => {
-        isTouching = false;
-      });
-
-      window.addEventListener('touchmove', e => {
-        if (isTouching) {
-          const t = e.touches[0];
-          lastTouchX = t.clientX;
-          lastTouchY = t.clientY;
-          reactToTouch(lastTouchX, lastTouchY);
-        }
-      }, { passive: false });
-
-      // === Three.js ===
+      // three.js setup
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
-      const renderer = new THREE.WebGLRenderer({ alpha: true });
+      const camera = new THREE.PerspectiveCamera(45, w / h, 1, 2000);
+      camera.position.set(0, 0, 300);
+
+      const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
       renderer.setSize(w, h);
+      renderer.setClearColor(0x000000, 0);
+      renderer.domElement.style.position = 'fixed';
+      renderer.domElement.style.top = '0';
+      renderer.domElement.style.left = '0';
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
+      renderer.domElement.style.pointerEvents = 'none';
+      renderer.domElement.style.zIndex = '0';
       document.body.appendChild(renderer.domElement);
 
-      const cubes = [];
-      const geometry = new THREE.BoxGeometry();
-      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(1, 1, 1);
+      scene.add(dirLight);
 
-      for (let i = 0; i < 10; i++) {
-        const cube = new THREE.Mesh(geometry, material);
-        cube.position.x = (Math.random() - 0.5) * 10;
-        cube.position.y = (Math.random() - 0.5) * 10;
-        cube.position.z = (Math.random() - 0.5) * 10;
+      const cubes = [];
+      const velocities = [];
+      const CUBE_SIZE = 25;
+      let BOUND_X, BOUND_Y, BOUND_Z;
+
+      function getRandomColor() { return new THREE.Color(Math.random(), Math.random(), Math.random()); }
+
+      function updateBounds() {
+        BOUND_X = window.innerWidth / 4;
+        BOUND_Y = window.innerHeight / 4;
+        BOUND_Z = 100;
+      }
+      updateBounds();
+
+      for (let i = 0; i < CUBE_NUM; i++) {
+        const geo = new THREE.BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE);
+        const mat = new THREE.MeshStandardMaterial({ color: getRandomColor() });
+        const cube = new THREE.Mesh(geo, mat);
+        cube.position.set(
+          (Math.random() - 0.5) * BOUND_X * 2,
+          (Math.random() - 0.5) * BOUND_Y * 2,
+          (Math.random() - 0.5) * BOUND_Z * 2
+        );
         scene.add(cube);
         cubes.push(cube);
+        velocities.push(new THREE.Vector3(
+          (Math.random() - 0.5) * 0.3,
+          (Math.random() - 0.5) * 0.3,
+          (Math.random() - 0.5) * 0.3
+        ));
       }
 
-      camera.position.z = 5;
+      window.addEventListener('resize', () => {
+        w = window.innerWidth;
+        h = window.innerHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        canvas2d.width = w;
+        canvas2d.height = h;
+        updateBounds();
+      });
 
       function updateCubes() {
-        cubes.forEach(cube => {
-          cube.rotation.x += 0.01;
-          cube.rotation.y += 0.01;
+        for (let i = 0; i < cubes.length; i++) {
+          const cube = cubes[i];
+          const v = velocities[i];
+          cube.position.add(v);
+          ['x','y','z'].forEach(axis => {
+            const limit = axis==='x'?BOUND_X:(axis==='y'?BOUND_Y:BOUND_Z);
+            if(cube.position[axis]<-limit){cube.position[axis]=-limit;v[axis]=-v[axis];}
+            else if(cube.position[axis]>limit){cube.position[axis]=limit;v[axis]=-v[axis];}
+          });
+          v.multiplyScalar(0.995);
+        }
+
+        const RESTITUTION=0.8;
+        const radius=CUBE_SIZE*Math.sqrt(3)/2;
+        for(let i=0;i<cubes.length;i++){
+          for(let j=i+1;j<cubes.length;j++){
+            const c1=cubes[i],c2=cubes[j];
+            const dist=c1.position.distanceTo(c2.position);
+            if(dist<radius*2){
+              const v1=velocities[i],v2=velocities[j];
+              const normal=new THREE.Vector3().subVectors(c2.position,c1.position).normalize();
+              const relativeVelocity=new THREE.Vector3().subVectors(v2,v1);
+              const velocityAlongNormal=relativeVelocity.dot(normal);
+              if(velocityAlongNormal>0) continue;
+              const impulse=(-(1+RESTITUTION)*velocityAlongNormal)/2;
+              const impulseVector=normal.clone().multiplyScalar(impulse);
+              v1.sub(impulseVector);
+              v2.add(impulseVector);
+              const overlap=radius*2-dist;
+              const correction=normal.clone().multiplyScalar(overlap/2);
+              c1.position.add(correction.clone().negate());
+              c2.position.add(correction);
+            }
+          }
+        }
+      }
+
+      function reactToTouch(clientX, clientY){
+        const mouse=new THREE.Vector2((clientX/w)*2-1,-(clientY/h)*2+1);
+        const raycaster=new THREE.Raycaster();
+        raycaster.setFromCamera(mouse,camera);
+        const intersects=raycaster.intersectObjects(cubes);
+        intersects.forEach(intersect=>{
+          const idx=cubes.indexOf(intersect.object);
+          if(idx!==-1){
+            const cube=cubes[idx];
+            const v=velocities[idx];
+            const point=intersect.point;
+            const dir=new THREE.Vector3().subVectors(cube.position,point).normalize();
+            const force=5+Math.random()*2;
+            v.addScaledVector(dir,force);
+          }
         });
       }
 
-      // === アニメーションループ ===
-      function animate() {
+      // 触ってて楽しいエフェクト
+      const effects=[];
+      let currentTouch=null;
+
+      function spawnEffect(x,y){
+        const num=8+Math.floor(Math.random()*8);
+        for(let i=0;i<num;i++){
+          effects.push({
+            x:x, y:y,
+            vx:(Math.random()-0.5)*3,
+            vy:(Math.random()-0.5)*3,
+            size:2+Math.random()*3,
+            life:5+Math.floor(Math.random()*5),
+            color:`hsl(${Math.random()*360},80%,70%)`
+          });
+        }
+      }
+
+      window.addEventListener('mousedown',e=>{currentTouch={x:e.clientX,y:e.clientY}; reactToTouch(e.clientX,e.clientY);});
+      window.addEventListener('mousemove',e=>{if(currentTouch){currentTouch.x=e.clientX;currentTouch.y=e.clientY;}});
+      window.addEventListener('mouseup',()=>{currentTouch=null;});
+
+      window.addEventListener('touchstart',e=>{const t=e.touches[0]; currentTouch={x:t.clientX,y:t.clientY}; reactToTouch(t.clientX,t.clientY);},{passive:false});
+      window.addEventListener('touchmove',e=>{const t=e.touches[0]; if(currentTouch){currentTouch.x=t.clientX;currentTouch.y=t.clientY;}},{passive:false});
+      window.addEventListener('touchend',()=>{currentTouch=null;});
+
+      function handleEffects(){
+        if(currentTouch){spawnEffect(currentTouch.x,currentTouch.y);}
+        for(let i=effects.length-1;i>=0;i--){
+          const e=effects[i];
+          e.x+=e.vx; e.y+=e.vy;
+          ctx.fillStyle=e.color;
+          ctx.beginPath();
+          ctx.arc(e.x,e.y,e.size,0,Math.PI*2);
+          ctx.fill();
+          e.life--;
+          if(e.life<=0) effects.splice(i,1);
+        }
+      }
+
+      const titleText='NeoTopazm';
+      const titleElem=document.getElementById('title');
+      function animateTitle(){
+        titleElem.innerHTML='';
+        for(let i=0;i<titleText.length;i++){
+          const span=document.createElement('span');
+          span.textContent=titleText[i];
+          span.className='title-char';
+          span.style.animationDelay=(i*0.15)+'s';
+          titleElem.appendChild(span);
+        }
+      }
+      animateTitle();
+
+      function animate(){
         requestAnimationFrame(animate);
-        ctx.clearRect(0, 0, w, h);
-
-        for (let i = sparks.length - 1; i >= 0; i--) {
-          const s = sparks[i];
-          s.draw(ctx);
-          s.update();
-          if (s.isDead()) sparks.splice(i, 1);
-        }
-
-        if (isTouching) {
-          addSpark(lastTouchX, lastTouchY);
-        }
-
+        ctx.clearRect(0,0,w,h);
+        handleEffects();
         updateCubes();
-        renderer.render(scene, camera);
+        renderer.render(scene,camera);
       }
       animate();
+
     </script>
   </body>
 </html>
