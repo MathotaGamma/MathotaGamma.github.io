@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-8LX6SFM3DB"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8LX6SFM3DB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
 
-    gtag('config', 'G-8LX6SFM3DB');
-  </script>
-  <meta charset="UTF-8" />
-  <meta name="keywords" content="Blog,NeoTopazm">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NeoTopazm</title>
-  <style>
-    html, body {
-      margin: 0; padding: 0;
-      width: 100%; height: 100%;
-      background: black;
+      gtag('config', 'G-8LX6SFM3DB');
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="keywords" content="Blog,NeoTopazm">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NeoTopazm</title>
+    <style>
+      html, body {
+        margin: 0; padding: 0;
+        width: 100%; height: 100%;
+        background: black;
       color: white;
       font-family: sans-serif;
       -webkit-touch-callout:none;
@@ -140,295 +140,151 @@
     </p>
     <p style="margin-bottom: 1000px;"></p>
   </main>
-  <script type="module">
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
+      <script>
+      const canvas = document.getElementById('sparkCanvas');
+      const ctx = canvas.getContext('2d');
+      let w = window.innerWidth;
+      let h = window.innerHeight;
+      canvas.width = w;
+      canvas.height = h;
 
-    const canvas2d = document.getElementById('canvas');
-    const ctx = canvas2d.getContext('2d');
-    let w, h;
-
-    function resize() {
-      w = canvas2d.width = window.innerWidth;
-      h = canvas2d.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
-    
-    const CUBE_NUM = 75;
-
-    // three.js setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, w / h, 1, 2000);
-    camera.position.set(0, 0, 300);
-
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(w, h);
-    renderer.setClearColor(0x000000, 0);
-    renderer.domElement.style.position = 'fixed';
-    renderer.domElement.style.top = '0';
-    renderer.domElement.style.left = '0';
-    renderer.domElement.style.width = '100%';
-    renderer.domElement.style.height = '100%';
-    renderer.domElement.style.pointerEvents = 'none';
-    renderer.domElement.style.zIndex = '0';
-    document.body.appendChild(renderer.domElement);
-
-    // Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(1, 1, 1);
-    scene.add(dirLight);
-
-    // Cubes
-    const cubes = [];
-    const velocities = [];
-    const CUBE_SIZE = 25;
-    let BOUND_X, BOUND_Y, BOUND_Z;
-
-    function getRandomColor() {
-      return new THREE.Color(Math.random(), Math.random(), Math.random());
-      
-    }
-
-    function updateBounds() {
-      BOUND_X = window.innerWidth / 4;   // X軸の半分幅を少し狭め
-      BOUND_Y = window.innerHeight / 4;  // Y軸の半分高さを少し狭め
-      BOUND_Z = 100;                     // Z軸は控えめに
-    }
-    updateBounds();
-
-    for (let i = 0; i < CUBE_NUM; i++) {
-      const geo = new THREE.BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE);
-      const mat = new THREE.MeshStandardMaterial({ color: getRandomColor() });
-      const cube = new THREE.Mesh(geo, mat);
-      cube.position.set(
-        (Math.random() - 0.5) * BOUND_X * 2,
-        (Math.random() - 0.5) * BOUND_Y * 2,
-        (Math.random() - 0.5) * BOUND_Z * 2
-      );
-      scene.add(cube);
-      cubes.push(cube);
-      velocities.push(new THREE.Vector3(
-        (Math.random() - 0.5) * 0.3,
-        (Math.random() - 0.5) * 0.3,
-        (Math.random() - 0.5) * 0.3
-      ));
-    }
-
-    window.addEventListener('resize', () => {
-      w = window.innerWidth;
-      h = window.innerHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-      canvas2d.width = w;
-      canvas2d.height = h;
-      updateBounds();
-    });
-
-    // 立方体の更新と衝突判定
-    function updateCubes() {
-      // 位置更新・境界反転
-      for (let i = 0; i < cubes.length; i++) {
-        const cube = cubes[i];
-        const v = velocities[i];
-        cube.position.add(v);
-        ['x', 'y', 'z'].forEach(axis => {
-          const limit = axis === 'x' ? BOUND_X : (axis === 'y' ? BOUND_Y : BOUND_Z);
-          if (cube.position[axis] < -limit) {
-            cube.position[axis] = -limit;
-            v[axis] = -v[axis];
-          } else if (cube.position[axis] > limit) {
-            cube.position[axis] = limit;
-            v[axis] = -v[axis];
-          }
-        });
-        v.multiplyScalar(0.995);
-      }
-      // 衝突判定（球近似）
-      const RESTITUTION = 0.8; // 反発係数（0〜1）
-      
-      const radius = CUBE_SIZE * Math.sqrt(3) / 2;
-      for (let i = 0; i < cubes.length; i++) {
-        for (let j = i + 1; j < cubes.length; j++) {
-          const c1 = cubes[i];
-          const c2 = cubes[j];
-          const dist = c1.position.distanceTo(c2.position);
-          if (dist < radius * 2) {
-            const v1 = velocities[i];
-            const v2 = velocities[j];
-
-            const normal = new THREE.Vector3().subVectors(c2.position, c1.position).normalize();
-
-            // 相対速度
-            const relativeVelocity = new THREE.Vector3().subVectors(v2, v1);
-
-            // 法線方向の速度成分
-            const velocityAlongNormal = relativeVelocity.dot(normal);
-
-            if (velocityAlongNormal > 0) continue; // 離れているなら衝突無視
-
-            // 衝突時インパルス（簡易計算）
-            const impulse = (-(1 + RESTITUTION) * velocityAlongNormal) / 2;
-
-            const impulseVector = normal.clone().multiplyScalar(impulse);
-
-            // 速度を更新
-            v1.sub(impulseVector);
-            v2.add(impulseVector);
-
-            // オーバーラップ補正
-            const overlap = radius * 2 - dist;
-            const correction = normal.clone().multiplyScalar(overlap / 2);
-            c1.position.add(correction.clone().negate());
-           c2.position.add(correction);
-          }
+      // === Spark クラス ===
+      class Spark {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          this.life = Math.random() * 20 + 10;
+          this.vx = (Math.random() - 0.5) * 4;
+          this.vy = (Math.random() - 0.5) * 4;
+          this.alpha = 1;
+        }
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.life--;
+          this.alpha = this.life / 30;
+        }
+        draw(ctx) {
+          ctx.save();
+          ctx.globalAlpha = this.alpha;
+          ctx.strokeStyle = 'rgba(173,216,230,0.8)';
+          ctx.beginPath();
+          ctx.moveTo(this.x, this.y);
+          ctx.lineTo(this.x + this.vx * 2, this.y + this.vy * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+        isDead() {
+          return this.life <= 0;
         }
       }
 
-    }
-
-    // 雷のクラス強化
-    /*class LightningBolt {
-      constructor(startX, startY, endX, endY) {
-        this.startX = startX;
-        this.startY = startY;
-        this.endX = endX;
-        this.endY = endY;
-        this.life = 30;
-        this.segments = [];
-        this.createSegments();
-      }
-      createSegments() {
-        const segmentCount = 30; // セグメント増やし詳細化
-        const segmentLengthX = (this.endX - this.startX) / segmentCount;
-        const segmentLengthY = (this.endY - this.startY) / segmentCount;
-        let currentX = this.startX;
-        let currentY = this.startY;
-        for (let i = 0; i < segmentCount; i++) {
-          const nextX = currentX + segmentLengthX + (Math.random() - 0.5) * 6;
-          const nextY = currentY + segmentLengthY + (Math.random() - 0.5) * 6;
-          this.segments.push({ x1: currentX, y1: currentY, x2: nextX, y2: nextY });
-          currentX = nextX;
-          currentY = nextY;
+      // === 管理用 ===
+      const sparks = [];
+      function addSpark(x, y) {
+        for (let i = 0; i < 3; i++) {
+          sparks.push(new Spark(x, y));
         }
       }
-      update() {
-        this.life--;
+
+      function reactToTouch(x, y) {
+        addSpark(x, y);
       }
-      draw(ctx) {
-        ctx.save();
-        ctx.lineWidth = 3;
-        const alpha = this.life / 30;
-        // 線のグラデーション風（白→黄色）
-        const grad = ctx.createLinearGradient(this.startX, this.startY, this.endX, this.endY);
-        grad.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
-        grad.addColorStop(0.5, `rgba(255, 255, 150, ${alpha})`);
-        grad.addColorStop(1, `rgba(255, 255, 50, ${alpha})`);
-        ctx.strokeStyle = grad;
-        ctx.shadowColor = 'rgba(255, 255, 200, ' + alpha + ')';
-        ctx.shadowBlur = 20 * alpha;
-        ctx.beginPath();
-        for (const seg of this.segments) {
-          ctx.moveTo(seg.x1, seg.y1);
-          ctx.lineTo(seg.x2, seg.y2);
-        }
-        ctx.stroke();
-        ctx.restore();
-      }
-      isDead() {
-        return this.life <= 0;
-      }
-    }
 
-    // 画面端からの落雷開始位置ランダム取得
-    function randomEdgePosition() {
-      const edge = Math.floor(Math.random() * 4);
-      switch (edge) {
-        case 0: return { x: 0, y: Math.random() * h };           // 左端
-        case 1: return { x: w, y: Math.random() * h };           // 右端
-        case 2: return { x: Math.random() * w, y: 0 };           // 上端
-        case 3: return { x: Math.random() * w, y: h };           // 下端
-      }
-    }
+      // === フラグ管理 ===
+      let isTouching = false;
+      let lastTouchX = 0, lastTouchY = 0;
 
-    // 雷を追加
-    const lightnings = [];
-    function addLightningToPoint(x, y) {
-      const startPos = randomEdgePosition();
-      lightnings.push(new LightningBolt(startPos.x, startPos.y, x, y));
-    }*/
+      // === イベント ===
+      window.addEventListener('mousedown', e => {
+        isTouching = true;
+        lastTouchX = e.clientX;
+        lastTouchY = e.clientY;
+        reactToTouch(lastTouchX, lastTouchY);
+      });
 
-    // 立方体に力を加える関数
-    function reactToTouch(clientX, clientY) {
-      const mouse = new THREE.Vector2(
-        (clientX / w) * 2 - 1,
-        -(clientY / h) * 2 + 1
-      );
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(cubes);
+      window.addEventListener('mouseup', () => {
+        isTouching = false;
+      });
 
-      intersects.forEach(intersect => {
-        const idx = cubes.indexOf(intersect.object);
-        if (idx !== -1) {
-          const cube = cubes[idx];
-          const v = velocities[idx];
-          const point = intersect.point;
-
-          // タッチ位置から立方体中心への方向ベクトル
-          const dir = new THREE.Vector3().subVectors(cube.position, point).normalize();
-          const force = 5 + Math.random() * 2; // 力を少し強めに
-          v.addScaledVector(dir, force);
+      window.addEventListener('mousemove', e => {
+        if (isTouching) {
+          lastTouchX = e.clientX;
+          lastTouchY = e.clientY;
+          reactToTouch(lastTouchX, lastTouchY);
         }
       });
-    }
 
-    // マウス・タッチイベント設定
-    window.addEventListener('mousedown', e => {
-      //addLightningToPoint(e.clientX, e.clientY);
-      reactToTouch(e.clientX, e.clientY);
-    });
+      window.addEventListener('touchstart', e => {
+        isTouching = true;
+        const t = e.touches[0];
+        lastTouchX = t.clientX;
+        lastTouchY = t.clientY;
+        reactToTouch(lastTouchX, lastTouchY);
+      }, { passive: false });
 
-    window.addEventListener('touchstart', e => {
-      for (const t of e.touches) {
-        //addLightningToPoint(t.clientX, t.clientY);
-        reactToTouch(t.clientX, t.clientY);
+      window.addEventListener('touchend', () => {
+        isTouching = false;
+      });
+
+      window.addEventListener('touchmove', e => {
+        if (isTouching) {
+          const t = e.touches[0];
+          lastTouchX = t.clientX;
+          lastTouchY = t.clientY;
+          reactToTouch(lastTouchX, lastTouchY);
+        }
+      }, { passive: false });
+
+      // === Three.js ===
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({ alpha: true });
+      renderer.setSize(w, h);
+      document.body.appendChild(renderer.domElement);
+
+      const cubes = [];
+      const geometry = new THREE.BoxGeometry();
+      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+
+      for (let i = 0; i < 10; i++) {
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.x = (Math.random() - 0.5) * 10;
+        cube.position.y = (Math.random() - 0.5) * 10;
+        cube.position.z = (Math.random() - 0.5) * 10;
+        scene.add(cube);
+        cubes.push(cube);
       }
-    }, { passive: false });
 
-    // タイトル文字アニメーション
-    const titleText = 'NeoTopazm';
-    const titleElem = document.getElementById('title');
-    function animateTitle() {
-      titleElem.innerHTML = '';
-      for (let i = 0; i < titleText.length; i++) {
-        const span = document.createElement('span');
-        span.textContent = titleText[i];
-        span.className = 'title-char';
-        span.style.animationDelay = (i * 0.15) + 's';
-        titleElem.appendChild(span);
+      camera.position.z = 5;
+
+      function updateCubes() {
+        cubes.forEach(cube => {
+          cube.rotation.x += 0.01;
+          cube.rotation.y += 0.01;
+        });
       }
-    }
-    animateTitle();
 
-    // アニメーションループ
-    function animate() {
-      requestAnimationFrame(animate);
-      ctx.clearRect(0, 0, w, h);
+      // === アニメーションループ ===
+      function animate() {
+        requestAnimationFrame(animate);
+        ctx.clearRect(0, 0, w, h);
 
-      // 雷更新・描画
-      /*for (let i = lightnings.length -1; i >= 0; i--) {
-        const bolt = lightnings[i];
-        bolt.draw(ctx);
-        bolt.update();
-        if (bolt.isDead()) lightnings.splice(i,1);
-      }*/
+        for (let i = sparks.length - 1; i >= 0; i--) {
+          const s = sparks[i];
+          s.draw(ctx);
+          s.update();
+          if (s.isDead()) sparks.splice(i, 1);
+        }
 
-      updateCubes();
-      renderer.render(scene, camera);
-    }
-    animate();
-  </script>
-</body>
+        if (isTouching) {
+          addSpark(lastTouchX, lastTouchY);
+        }
+
+        updateCubes();
+        renderer.render(scene, camera);
+      }
+      animate();
+    </script>
+  </body>
 </html>
