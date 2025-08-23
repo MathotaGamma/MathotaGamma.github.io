@@ -7,7 +7,6 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-8LX6SFM3DB');
     </script>
     <meta charset="UTF-8" />
@@ -19,128 +18,128 @@
         margin: 0; padding: 0;
         width: 100%; height: 100%;
         background: black;
-      color: white;
-      font-family: sans-serif;
-      -webkit-touch-callout:none;
-      -webkit-user-select:none;
-      overflow:hidden;
-    }
-    body {
-      overflow-y: scroll;
-      position: relative;
-    }
-    header {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 100%;
-      height: 50px;
-      background: rgba(0,0,0,0.6);
-      color: white;
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      padding: 0 20px;
-      gap: 20px;
-      z-index: 500;
-      font-weight: bold;
-    }
-    #title {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 48px;
-      font-weight: bold;
-      color: #ffb933;
-      font-family: sans-serif;
-      pointer-events: none;
-      display: flex;
-      gap: 5px;
-      z-index: 10;
-    }
-    .title-char {
-      opacity: 1;
-      animation-name: flameFlicker;
-      animation-duration: 1.5s;
-      animation-iteration-count: infinite;
-      animation-timing-function: ease-in-out;
-      animation-direction: alternate;
-      filter: drop-shadow(0 0 12px #ffb933) drop-shadow(0 0 20px #ff6b00);
-      display: inline-block;
-      vertical-align: middle;
-      line-height: 1;
-      transform: translateY(-2px);
-    }
-    @keyframes flameFlicker {
-      0% {
-        filter: drop-shadow(0 0 15px #ffd633) drop-shadow(0 0 30px #ff7f00);
-        transform: translateY(0) scale(1);
-        color: #ffcc33;
-        text-shadow: 0 0 10px #ffcc33, 0 0 20px #ff6600;
+        color: white;
+        font-family: sans-serif;
+        -webkit-touch-callout:none;
+        -webkit-user-select:none;
+        overflow:hidden;
       }
-      50% {
-        filter: drop-shadow(0 0 25px #fff85c) drop-shadow(0 0 40px #ff8000);
-        transform: translateY(-3px) scale(1.05);
-        color: #fff85c;
-        text-shadow: 0 0 15px #fff85c, 0 0 30px #ff9900;
+      body {
+        overflow-y: scroll;
+        position: relative;
       }
-      100% {
-        filter: drop-shadow(0 0 15px #ffd633) drop-shadow(0 0 30px #ff7f00);
-        transform: translateY(0) scale(1);
-        color: #ffcc33;
-        text-shadow: 0 0 10px #ffcc33, 0 0 20px #ff6600;
+      header {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 100%;
+        height: 50px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 0 20px;
+        gap: 20px;
+        z-index: 500;
+        font-weight: bold;
       }
-    }
-    canvas {
-      display: block;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: 1;
-    }
-    main {
-      margin-top: 60px;
-      padding: 20px;
-      z-index: 1;
-      position: relative;
-      overflow: scroll;
-    }
-    .link {
-      color: white;
-      text-decoration: underline;
-      text-decoration-style: wavy;
-      text-decoration-color: white;
-    }
-    .link:hover {
-      text-decoration-style: double;
-      text-decoration-color: red;
-    }
-  </style>
-  <meta name="google-site-verification" content="cZm1sI9kSs1pR93g9D6fHY9t2Nw1nGDDhe0SPMMtNpE" />
-</head>
-<body>
-  <header>
-    <!--<div>Icon</div>-->
-    <div><a href="./contact" class="link">ContactUs</a></div>
-    <div style="z-index: 49;"><a href="./Blog/" class="link">Blog</a></div>
-    <div><a href="./Tools/" class="link">Tools</a></div>
-    <div><a class="link" href="./Info/">Info</a></div>
-  </header>
-  <div id="title"></div>
-  <canvas id="canvas"></canvas>
-  <main>
-    <p>
-      このブログでは、数学や物理などの一見難しそうな話題を、
-      専門的な前提知識がなくても楽しめるように解説していきます。
-    </p>
-    <p>
-      難解な概念も、わかりやすく・美しく・直感的に伝えることを目指しています。
-      数式や理論の背後にある「アイデアの美しさ」に触れていただけたら嬉しいです。
-    </p>
-    <p style="margin-bottom: 1000px;"></p>
-  </main>
-      <script>
+      #title {
+        position: fixed;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 48px;
+        font-weight: bold;
+        color: #ffb933;
+        font-family: sans-serif;
+        pointer-events: none;
+        display: flex;
+        gap: 5px;
+        z-index: 10;
+      }
+      .title-char {
+        opacity: 1;
+        animation-name: flameFlicker;
+        animation-duration: 1.5s;
+        animation-iteration-count: infinite;
+        animation-timing-function: ease-in-out;
+        animation-direction: alternate;
+        filter: drop-shadow(0 0 12px #ffb933) drop-shadow(0 0 20px #ff6b00);
+        display: inline-block;
+        vertical-align: middle;
+        line-height: 1;
+        transform: translateY(-2px);
+      }
+      @keyframes flameFlicker {
+        0% {
+          filter: drop-shadow(0 0 15px #ffd633) drop-shadow(0 0 30px #ff7f00);
+          transform: translateY(0) scale(1);
+          color: #ffcc33;
+          text-shadow: 0 0 10px #ffcc33, 0 0 20px #ff6600;
+        }
+        50% {
+          filter: drop-shadow(0 0 25px #fff85c) drop-shadow(0 0 40px #ff8000);
+          transform: translateY(-3px) scale(1.05);
+          color: #fff85c;
+          text-shadow: 0 0 15px #fff85c, 0 0 30px #ff9900;
+        }
+        100% {
+          filter: drop-shadow(0 0 15px #ffd633) drop-shadow(0 0 30px #ff7f00);
+          transform: translateY(0) scale(1);
+          color: #ffcc33;
+          text-shadow: 0 0 10px #ffcc33, 0 0 20px #ff6600;
+        }
+      }
+      canvas {
+        display: block;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        pointer-events: none;
+        z-index: 1;
+      }
+      main {
+        margin-top: 60px;
+        padding: 20px;
+        z-index: 1;
+        position: relative;
+        overflow: scroll;
+      }
+      .link {
+        color: white;
+        text-decoration: underline;
+        text-decoration-style: wavy;
+        text-decoration-color: white;
+      }
+      .link:hover {
+        text-decoration-style: double;
+        text-decoration-color: red;
+      }
+    </style>
+    <meta name="google-site-verification" content="cZm1sI9kSs1pR93g9D6fHY9t2Nw1nGDDhe0SPMMtNpE" />
+  </head>
+  <body>
+    <header>
+      <!--<div>Icon</div>-->
+      <div><a href="./contact" class="link">ContactUs</a></div>
+      <div style="z-index: 49;"><a href="./Blog/" class="link">Blog</a></div>
+      <div><a href="./Tools/" class="link">Tools</a></div>
+      <div><a class="link" href="./Info/">Info</a></div>
+    </header>
+    <div id="title"></div>
+    <canvas id="canvas"></canvas>
+    <main>
+      <p>
+        このブログでは、数学や物理などの一見難しそうな話題を、
+        専門的な前提知識がなくても楽しめるように解説していきます。
+      </p>
+      <p>
+        難解な概念も、わかりやすく・美しく・直感的に伝えることを目指しています。
+        数式や理論の背後にある「アイデアの美しさ」に触れていただけたら嬉しいです。
+      </p>
+      <p style="margin-bottom: 1000px;"></p>
+    </main>
+    <script>
       const canvas = document.getElementById('sparkCanvas');
       const ctx = canvas.getContext('2d');
       let w = window.innerWidth;
