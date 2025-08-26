@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Three.js Minimal Example</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.141.0/build/three.module.js",
+        "GLTFLoader": "https://unpkg.com/three@0.141.0/examples/jsm/loaders/GLTFLoader.js",
+        "OrbitControls": "https://unpkg.com/three@0.139.2/examples/jsm/controls/OrbitControls.js",
+        "EffectComposer": "https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js",
+        "RenderPass": "https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js",
+        "OutlinePass": "https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/OutlinePass.js"
+      }
+    }
+  </script>
+  <style>
+    :root {
+      /*必ずpxで指定*/
+      --size: 200px;
+      
+      --pointer-size: 20px;
+      --pointer-color: white;
+    }
+
+    html, body {
+      margin: 0;
+      -webkit-touch-callout:none;
+      -webkit-user-select:none;
+      overflow:hidden;
+      touch-action: none;
+    }
+    
+    #sight-button {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      
+    }
+    
+    #textDiv {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.5);
+    }
+    
+    #move-out {
+      display: none;
+      position: absolute;
+      bottom: 100px;
+      left: 50px;
+      
+      /*rootで指定*/
+      
+      width: var(--size);
+      height: var(--size);
+      border-radius: calc(var(--size) / 2);
+      transform: translate(-50%, 50%);
+      background: rgba(0, 255, 122, 0.4);
+      
+    }
+    
+    #move-in {
+      position: absolute;
+      width: calc(var(--size) / 3);
+      height: calc(var(--size) / 3);
+      transform: translate(calc(var(--size) / 2 - 50%), calc(var(--size) / 2 - 50%));
+      border-radius: calc(var(--size) / 6);
+      background: rgba(255, 0, 122, 0.4);
+    }
+    
+    #pointer {
+      display: none;
+      position: absolute;
+      
+      /*rootで指定*/
+      width: var(--pointer-size);
+      height: var(--pointer-size);
+      transform: translate(-50%, -50%);
+      
+      left: 50vw;
+      top: 50vh;
+    }
+ 
+    #pointer::before, #pointer::after { /* 共通設定 */
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 2px; /* 棒の幅（太さ） */
+      height: var(--pointer-size); /* 棒の高さ */
+      background: var(--pointer-color);
+    }
+ 
+    #pointer::before {
+      transform: translate(-50%,-50%) rotate(45deg);
+    }
+ 
+    #pointer::after {
+      transform: translate(-50%,-50%) rotate(-45deg);
+    }
+    
+    #gauge-out {
+      display: none;
+      position: absolute;
+      top: 30px;
+      left: 50vw;
+      transform: translate(-50%, 0);
+      width: 100px;
+      height: 10px;
+      background: grey;
+      border: none;
+    }
+    
+    #gauge-in {
+      width: 50%;
+      height: 100%;
+      background: #44CC44;
+    }
+    
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <input type="button" id="sight-button" onclick="Sight();" value="sight">
+  <div id="textDiv">---</div>
+  <div id="move-out"><div id="move-in"></div></div>
+  
+  <div id="pointer"></div>
+  
+  <div id="gauge-out"><div id="gauge-in"></div></div>
+  
+  <!-- canvas -->
+  <canvas id="three-canvas"></canvas>
+
+  <script type="module" src="../../Statics/LIFESHAVE/script.js"></script>
+</body>
+</html>
