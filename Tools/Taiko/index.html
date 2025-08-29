@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>Taiko</title>
+    <style>
+      * {
+        margin: 0px;
+        padding: 0px;
+        width: 100%;
+        height: 100%;
+      }
+
+      #head {
+        width: 100%;
+        height: auto;
+      }
+
+      button {
+        width: 100px;
+        height: 50px;
+      }
+
+      #L_label {
+        width: 300px;
+        height: 50px;
+      }
+
+      #L {
+        width: 300px;
+        height: 50px;
+      }
+
+      #Random {
+        height: 15px;
+        width: 50px;
+      }
+
+      #Random_but {
+        height: 15px;
+        width: 120px;
+      }
+
+      #Select {
+        width: 150px;
+        height: 50px;
+      }
+
+      option {
+        width: 300px;
+        height: 50px;
+      }
+
+      .inp {
+        width: 300px;
+        height: 20px;
+      }
+
+      .text {
+        font-size: 20px;
+        width: 100%;
+        height: 80%;
+        margin: 0;
+        padding: 0;
+        display: block;
+      }
+
+
+      /*その他の設定*/
+      .dropdown {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+        height: auto;
+      }
+      .dropdown:hover .dropdown-random {
+        display: block;
+      }
+      .dropdown:hover .dropdown-tja {
+        display: block;
+      }
+      
+
+      /*第二層目*/
+      .dropdown-random {
+        display: none;
+        position: relative;
+        background-color: #f9f9f9;
+        height: auto;
+        z-index: 2;
+      }
+      .dropdown-tja {
+        display: none;
+        position: relative;
+        background-color: #f9f9f9;
+        height: auto;
+        z-index: 2;
+      }
+
+      .dropdown-pitch {
+        display: none;
+        position: relative;
+        background-color: #f9f9f9;
+        height: auto;
+        z-index: 2;
+      }
+
+      .dropdown-random:hover .random-content {
+        display: block;
+      }
+      .dropdown-random:hover .dropdown-tja {
+        display: none;
+      }
+      .dropdown-tja:hover .tja-content {
+        display: block;
+      }
+
+
+      /*第三層目*/
+      .random-content {
+        display: none;
+        position: absolute;
+        background-color: #f9f9f9;
+        min-width: 160px;
+        height: auto;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        z-index: 3;
+      }
+      .tja-content {
+        display: none;
+        position: absolute;
+        background-color: #f9f9f9;
+        min-width: 160px;
+        height: auto;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        z-index: 3;
+      }
+      
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js"></script>
+  </head>
+  <body>
+    <header id="head">
+      <div class="file_inp"><input class="inp" id="file" type="file" /></div>
+      <div class="fin_inp"><button type="button" onclick="ok();">FINISH</button></div>
+      <div class="dropdown">
+        <button>その他のツール</button>
+        <div class="dropdown-random">
+          <button>Random生成の設定</button>
+          <div class="random-content">
+            <label id="L_label">長さ:060秒</label><input type="range" id="L" value="60" min="1" max="300" step="1" />
+            <br><input type="text" id="Random" placeholder="小節の分割数,小節数" value="16,4">
+            <br><input type="button" onclick="Random();" id="Random_but" value="Random生成">
+          </div>
+        </div>
+        <div class="dropdown-tja">
+          <button style="z-index: 2;position: relative;">TJAの中身を確認</button>
+          <div class="tja-content">
+            <input id="tja" id="file" type="file" />
+          </div>
+        </div>
+        <div class="dropdown-pitch">
+          <label for="speed">倍速倍率:</label>
+          <input type="number" id="speed" value="1" step="0.1" min="0.1">
+          <button type="button" onclick="applySpeed();">適用</button>
+        </div>
+
+      </div>
+      <div class="select"><label for="Select">選択してください</label>
+        <select id="Select">
+          <option value="user" selected>User</option>
+          <option value="Silent">無音ファイル</option>
+        </select>
+      </div>
+    </header>
+    <textarea id="text" class="text"></textarea>
+    <script>
+      
+      const text_id = document.getElementById('text');
+      //document.getElementById('generate').addEventListener('click', generateSilentMp3);
+      let L = document.getElementById('L');
+      L.addEventListener('input',() => {
+        document.getElementById('L_label').innerText = '長さ:'+L.value.padStart(3,'0')+'秒';
+      });
+
+      function Random(){
+        let Inp = document.getElementById('Random').value.split(',');
+        let t_k = "";
+
+        for(let k = 0; k < parseInt(Inp[1]); k++){
+          for(let k0 = 0; k0 < parseInt(Inp[0]); k0++){
+            t_k += Math.floor(Math.random()*5);
+          }
+          t_k += ',\n';
+        }
+
+        alert(t_k);
+
+      }
+
+      document.getElementById('tja').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+
+        if (file) {
+            const reader = new FileReader();
+
+            // ファイルをUTF-8で読み込む
+            reader.readAsText(file, 'UTF-8');
+
+            // 読み込み完了後に実行される
+            reader.onload = function() {
+              const fileContent = reader.result;
+              alert(fileContent); // ファイルの内容をalertで表示
+              if(confirm('置き換えますか？')){
+                
+                text_id.value = fileContent;
+              }
+            };
+
+            // 読み込みエラー処理
+            reader.onerror = function() {
+                alert('ファイルの読み込み中にエラーが発生しました');
+            };
+        } else {
+            alert('ファイルが選択されていません');
+        }
+      });
+
+      async function generateSilentMp3() {
+
+
+        // 1. Web Audio APIで無音の音声を生成
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = 44100; // サンプルレート
+        const duration = parseInt(L.value); // 秒
+        const numOfChannels = 1; // モノラル
+        const frameCount = sampleRate * duration;
+
+        // 無音のオーディオバッファを作成
+        const silentBuffer = audioContext.createBuffer(numOfChannels, frameCount, sampleRate);
+
+        // 2. オーディオバッファをWAVデータに変換
+        const buffer = silentBuffer.getChannelData(0);
+        const mp3Encoder = new lamejs.Mp3Encoder(numOfChannels, sampleRate, 128); // 128 kbps MP3 エンコーディング
+
+        const mp3Data = [];
+        const maxSamples = 1152;
+
+        for (let i = 0; i < buffer.length; i += maxSamples) {
+          const samples = buffer.subarray(i, i + maxSamples);
+          const mp3buf = mp3Encoder.encodeBuffer(samples);
+          if (mp3buf.length > 0) {
+            mp3Data.push(mp3buf);
+          }
+        }
+
+        const endBuf = mp3Encoder.flush();
+        if (endBuf.length > 0) {
+          mp3Data.push(endBuf);
+        }
+
+        // 3. バッファをMP3 Blobに変換
+        const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+        alert(blob);
+        return blob
+
+        /*
+        const url = URL.createObjectURL(blob);
+
+        // 4. ダウンロードリンクを作成してクリック
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'silent.mp3';
+        link.click();
+        */
+      }
+
+
+      
+
+text_id.value = `TITLE:??
+SUBTITLE:??
+BPM:??
+WAVE:??
+OFFSET:??
+SONGVOL:100
+SEVOL:100
+DEMOSTART:??
+SCOREMODE:1
+
+COURSE:Oni
+LEVEL:??
+BALOON:??
+SCOREINIT:440
+SCOREDIFF:120
+
+#START
+
+#END
+`;
+
+let t = localStorage.getItem('text');
+
+if(t != null){
+  if(confirm('復元しますか？')){
+    text_id.value = t;
+  }
+}
+
+
+text_id.addEventListener('input',()=>{
+  localStorage.setItem('text',text_id.value);
+});
+
+function ok(){
+  let select_k = document.getElementById('Select').value;
+  if(select_k == 'user'){
+    user();
+  } else {
+    silent();
+  }
+}
+
+function user(){
+  //1. Blobオブジェクトを作成する
+  const blob = new Blob([text_id.value],{type:"tja/plain"});
+
+  let file_id = document.getElementById('file');
+
+  let zip = new JSZip();
+  zip.file(text_id.value.split('\n')[0].slice(6)+'.tja',blob)
+  let wave = "";
+  text_id.value.split('\n').forEach((k) => {
+    if(k.length >= 6){
+      if(k.slice(0,5) == 'WAVE:'){
+        wave += k.slice(5,k.length);
+      }
+    }
+
+  });
+
+  zip.file(wave,file_id.files[0]);
+
+  zip
+    .generateAsync({type: 'blob'})
+    .then((content) => saveAs(content,text_id.value.split('\n')[0].slice(6)+'.zip'));
+
+  //alert(zip)
+
+
+  //2. HTMLのa要素を生成
+  const link = document.createElement('a');
+
+  //3. BlobオブジェクトをURLに変換
+  link.href = URL.createObjectURL(zip);
+
+
+  //4. ファイル名を指定する
+  link.download = text_id.value.split('\n')[0].slice(6)+'.tja';
+
+  //5. a要素をクリックする処理を行う
+  link.click();
+};
+
+
+
+
+function silent(){
+  //1. Blobオブジェクトを作成する
+  const blob = new Blob([text_id.value],{type:"tja/plain"});
+  const file = generateSilentMp3();
+
+  //let file_id = document.getElementById('file');
+
+  let zip = new JSZip();
+  zip.file(text_id.value.split('\n')[0].slice(6)+'.tja',blob);
+  let wave = "";
+  text_id.value.split('\n').forEach((k) => {
+    if(k.length >= 6){
+      if(k.slice(0,5) == 'WAVE:'){
+        wave = k.slice(5,k.length);
+        let wave_k = wave.split('.');
+        if(wave_k.length == 1){
+          wave += ".mp3";
+        } else {
+          wave = wave_k.slice(0,wave_k.length-1).join('.')+'.mp3';
+        }
+      }
+    }
+
+  });
+
+  async function applySpeed() {
+  const rate = parseFloat(document.getElementById('speed').value);
+  if(isNaN(rate) || rate <= 0){
+    alert("倍率は正の数で入力してください");
+    return;
+  }
+
+  // --- TJA内の数値を倍率倍 ---
+  let lines = text_id.value.split('\n');
+  for(let i = 0; i < lines.length; i++){
+    if(lines[i].startsWith("BPM:")){
+      let bpm = parseFloat(lines[i].slice(4));
+      if(!isNaN(bpm)){
+        lines[i] = "BPM:" + (bpm * rate);
+      }
+    }
+    if(lines[i].startsWith("#BPMCHANGE")){
+      let bpmc = parseFloat(lines[i].slice(10));
+      if(!isNaN(bpmc)){
+        lines[i] = "#BPMCHANGE " + (bpmc * rate);
+      }
+    }
+  }
+  text_id.value = lines.join("\n");
+
+  // --- 音源を倍速処理 ---
+  let file_id = document.getElementById('file');
+  if(file_id.files.length > 0){
+    const file = file_id.files[0];
+    const arrayBuffer = await file.arrayBuffer();
+
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+    // 新しい長さ（逆数倍）
+    const newLength = Math.floor(audioBuffer.length / rate);
+    const newBuffer = audioContext.createBuffer(audioBuffer.numberOfChannels, newLength, audioBuffer.sampleRate);
+
+    for(let ch = 0; ch < audioBuffer.numberOfChannels; ch++){
+      const oldData = audioBuffer.getChannelData(ch);
+      const newData = newBuffer.getChannelData(ch);
+      for(let i = 0; i < newLength; i++){
+        // 線形補間でサンプリング
+        let oldIndex = i * rate;
+        let i0 = Math.floor(oldIndex);
+        let i1 = Math.min(i0+1, oldData.length-1);
+        let frac = oldIndex - i0;
+        newData[i] = oldData[i0]*(1-frac) + oldData[i1]*frac;
+      }
+    }
+
+    // WAV形式に変換
+    const wavBlob = bufferToWave(newBuffer, newBuffer.length);
+    // 元の file オブジェクトを置き換え
+    file_id.files = new DataTransfer().files; // 空にする
+    const newFile = new File([wavBlob], file.name.replace(/\.(mp3|ogg)$/i,".wav"), {type: "audio/wav"});
+    const dt = new DataTransfer();
+    dt.items.add(newFile);
+    file_id.files = dt.files;
+
+    alert("TJAと音源を " + rate + " 倍にしました。");
+  } else {
+    alert("音源ファイルが選択されていないため、TJAのみ処理しました。");
+  }
+}
+
+// WAVエクスポート関数
+function bufferToWave(abuffer, len) {
+  const numOfChan = abuffer.numberOfChannels,
+        length = len * numOfChan * 2 + 44,
+        buffer = new ArrayBuffer(length),
+        view = new DataView(buffer),
+        channels = [],
+        sampleRate = abuffer.sampleRate;
+  let offset = 0;
+  let pos = 0;
+
+  // helper function
+  function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+  function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+
+  // RIFF identifier
+  setUint32(0x46464952);
+  // file length minus RIFF identifier length and file description length = fileSize-8
+  setUint32(length - 8);
+  // RIFF type
+  setUint32(0x45564157);
+
+  // format chunk identifier
+  setUint32(0x20746d66);
+  // format chunk length
+  setUint32(16);
+  // sample format (raw)
+  setUint16(1);
+  // channel count
+  setUint16(numOfChan);
+  // sample rate
+  setUint32(sampleRate);
+  // byte rate (sample rate * block align)
+  setUint32(sampleRate * 2 * numOfChan);
+  // block align (channel count * bytes per sample)
+  setUint16(numOfChan * 2);
+  // bits per sample
+  setUint16(16);
+  // data chunk identifier
+  setUint32(0x61746164);
+  // data chunk length
+  setUint32(length - pos - 4);
+
+  for(let i = 0; i < abuffer.numberOfChannels; i++)
+    channels.push(abuffer.getChannelData(i));
+
+  while(pos < length) {
+    for(let i = 0; i < numOfChan; i++) { // interleave channels
+      let sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+      view.setInt16(pos, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      pos += 2;
+    }
+    offset++;
+  }
+
+  return new Blob([buffer], {type: "audio/wav"});
+}
+
+
+
+
+  zip.file(wave,file);
+
+  zip
+    .generateAsync({type: 'blob'})
+    .then((content) => saveAs(content,text_id.value.split('\n')[0].slice(6)+'.zip'));
+
+  //alert(zip)
+
+
+  //2. HTMLのa要素を生成
+  const link = document.createElement('a');
+
+  //3. BlobオブジェクトをURLに変換
+  link.href = URL.createObjectURL(zip);
+
+
+  //4. ファイル名を指定する
+  link.download = text_id.value.split('\n')[0].slice(6)+'.tja';
+
+  //5. a要素をクリックする処理を行う
+  link.click();
+}
+    </script>
+  </body>
+</html>
