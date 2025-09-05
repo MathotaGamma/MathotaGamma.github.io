@@ -1,152 +1,156 @@
 <!DOCTYPE html>
- <html lang="ja">
-   <head>
-     <meta charset="UTF-8">
-     <title>three.js Tutorial Editor</title>
-     <style>
-       html, body {
-         margin: 0;
-         display: flex;
-         height: 100%;
-         overflow: hidden;
-         font-family: sans-serif;
-       }
-       #editor-container {
-         width: 50%;
-         height: 100vh;
-         display: flex;
-         flex-direction: column;
-         border-right: 4px solid #aaa;
-         box-sizing: border-box;
-         position: relative;
-         transition: width 0.2s;
-       }
-       #resize-bar {
-         width: 8px;
-         cursor: ew-resize;
-         background: #aaa;
-         position: absolute;
-         top: 0;
-         right: -4px;
-         bottom: 0;
-         z-index: 10;
-         touch-action: none;
-         transition: opacity 0.2s;
-       }
-       #controls {
-         padding: 6px;
-         background: #f7f7f7;
-         border-bottom: 1px solid #ccc;
-         display: flex;
-         flex-wrap: wrap;
-         gap: 6px;
-         align-items: center;
-       }
-       #controls select, #controls button {
-         font-size: 14px;
-         padding: 4px 8px;
-         border-radius: 4px;
-         border: 1px solid #888;
-         background: #fff;
-         cursor: pointer;
-         transition: 0.2s;
-       }
-       #controls button:hover {
-         background: #e0e0e0;
-       }
-       #code {
-         flex: 1;
-         width: 100%;
-         font-family: monospace;
-         font-size: 14px;
-         padding: 8px;
-         box-sizing: border-box;
-         border: none;
-         outline: none;
-         resize: none;
-         line-height: 1.4em;
-         white-space: pre;
-         overflow: auto;
-       }
-       #canvas-container {
-         width: 50%;
-         height: 100%;
-         position: relative;
-         display: flex;
-         flex-direction: column;
-         transition: width 0.2s;
-       }
-       #canvas-controls {
-         padding: 6px;
-         background: #f7f7f7;
-         border-bottom: 1px solid #ccc;
-         display: flex;
-         gap: 6px;
-         z-index: 5;
-       }
-       #canvas-controls button {
-         font-size: 14px;
-         padding: 4px 8px;
-         border-radius: 4px;
-         border: 1px solid #888;
-         background: #fff;
-         cursor: pointer;
-         transition: 0.2s;
-       }
-       #canvas-controls button:hover {
-         background: #e0e0e0;
-       }
-       #preview {
-         width: 100%;
-         flex: 1;
-         border: none;
-         background: grey;
-         transition: opacity 0.2s;
-       }
-       #console {
-         height: 150px;
-         overflow-y: auto;
-         background: #111;
-         color: #0f0;
-         font-family: monospace;
-         font-size: 13px;
-         padding: 4px;
-         border-top: 1px solid #444;
-       }
-       #expand-button {
-         position: fixed;
-         top: 10px;
-         right: 10px;
-         z-index: 999;
-         display: none;
-         font-size: 14px;
-         padding: 6px 12px;
-         border-radius: 5px;
-         border: 1px solid #888;
-         background: #fff;
-         cursor: pointer;
-         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-         transition: 0.2s;
-       }
-       #expand-button:hover {
-         background: #e0e0e0;
-       }
-     </style>
-   </head>
-   <body>
-     <div id="editor-container">
-       <div id="controls">
-         インデント:
-         <select id="indent-size">
-           <option value="2">2</option>
-           <option value="4">4</option>
-           <option value="8">8</option>
-           <option value="tab">Tab</option>
-         </select>
-         <button id="run">▶ 実行</button>
-         <button id="clear">🗑 クリア</button>
-       </div>
-       <textarea id="code">import * as THREE from "three";
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <title>three.js Tutorial Editor</title>
+    <style>
+      html, body {
+        width: 100vw;
+        margin: 0;
+        display: flex;
+        height: 100%;
+        overflow: hidden;
+        font-family: sans-serif;
+      }
+      #editor-container {
+        width: 50%;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        border-right: 4px solid #aaa;
+        box-sizing: border-box;
+        position: relative;
+        transition: width 0.2s;
+      }
+      #resize-bar {
+        width: 8px;
+        cursor: ew-resize;
+        background: #aaa;
+        position: absolute;
+        top: 0;
+        right: -4px;
+        bottom: 0;
+        z-index: 10;
+        touch-action: none;
+        transition: opacity 0.2s;
+      }
+      #controls {
+        padding: 6px;
+        background: #f7f7f7;
+        border-bottom: 1px solid #ccc;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      #controls select, #controls button {
+        font-size: 14px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #888;
+        background: #fff;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      #controls button:hover {
+        background: #e0e0e0;
+      }
+      #code {
+        flex: 1;
+        width: 100%;
+        font-family: monospace;
+        font-size: 14px;
+        padding: 8px;
+        box-sizing: border-box;
+        border: none;
+        outline: none;
+        resize: none;
+        line-height: 1.4em;
+        white-space: pre;
+        overflow: auto;
+      }
+      #canvas-container {
+        width: 50%;
+        height: 100%;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        transition: width 0.2s;
+      }
+      #canvas-controls {
+        padding: 6px;
+        background: #f7f7f7;
+        border-bottom: 1px solid #ccc;
+        display: flex;
+        gap: 6px;
+        z-index: 5;
+      }
+      #canvas-controls button {
+        font-size: 14px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #888;
+        background: #fff;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      #canvas-controls button:hover {
+        background: #e0e0e0;
+      }
+      #preview {
+        width: 100%;
+        flex: 1;
+        border: none;
+        background: grey;
+        transition: opacity 0.2s;
+      }
+      #console {
+        height: 150px;
+        overflow-y: auto;
+        background: #111;
+        color: #0f0;
+        font-family: monospace;
+        font-size: 13px;
+        padding: 4px;
+        border-top: 1px solid #444;
+      }
+      #expand-button {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 999;
+        display: none;
+        font-size: 14px;
+        padding: 6px 12px;
+        border-radius: 5px;
+        border: 1px solid #888;
+        background: #fff;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        transition: 0.2s;
+      }
+      #expand-button:hover {
+        background: #e0e0e0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="editor-container">
+      <div id="controls">
+        インデント:
+        <select id="indent-size">
+          <option value="2">2</option>
+          <option value="4">4</option>
+          <option value="8">8</option>
+          <option value="tab">Tab</option>
+        </select>
+        <button id="run">▶ 実行</button>
+        <button id="clear">🗑 クリア</button>
+        <button id="copy">📋 コピー</button>
+        <button id="save">💾 保存</button>
+        <button id="load">📂 呼び出し</button>
+      </div>
+      <textarea id="code">import * as THREE from "three";
 
 // ここにthree.jsのコードを書いてください
 
@@ -156,7 +160,7 @@ scene.background = new THREE.Color(0x202020);
 
 // カメラ作成
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(3, 3, 5);
+camera.position.set(0, 3, 10);
 camera.lookAt(0, 0, 0);
 
 // レンダラー作成
@@ -165,11 +169,11 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // 光源
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // 全体の柔らかい光
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(5, 10, 7.5); // 光の方向
+directionalLight.position.set(5, 10, 7.5);
 scene.add(directionalLight);
 
 // Box作成
@@ -197,214 +201,265 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });</textarea>
-       <div id="resize-bar"></div>
-       <div id="console"></div>
-     </div>
+      <div id="resize-bar"></div>
+      <div id="console"></div>
+    </div>
 
-     <div id="canvas-container">
-       <div id="canvas-controls">
-         <button id="toggle-canvas">折りたたむ</button>
-         <button id="fullscreen-canvas">全画面表示</button>
-       </div>
-       <iframe id="preview"></iframe>
-     </div>
-     <button id="expand-button">展開</button>
+    <div id="canvas-container">
+      <div id="canvas-controls">
+        <button id="toggle-canvas">折りたたむ</button>
+        <button id="fullscreen-canvas">全画面表示</button>
+      </div>
+      <iframe id="preview"></iframe>
+    </div>
+    <button id="expand-button">展開</button>
 
-     <script>
-       const textarea = document.getElementById("code");
-       const runBtn = document.getElementById("run");
-       const clearBtn = document.getElementById("clear");
-       const preview = document.getElementById("preview");
-       const consoleDiv = document.getElementById("console");
-       const indentSelect = document.getElementById("indent-size");
-       const editorContainer = document.getElementById("editor-container");
-       const resizeBar = document.getElementById("resize-bar");
-       const canvasContainer = document.getElementById("canvas-container");
-       const toggleCanvasBtn = document.getElementById("toggle-canvas");
-       const fullscreenCanvasBtn = document.getElementById("fullscreen-canvas");
-       const expandBtn = document.getElementById("expand-button");
+    <script>
+      const textarea = document.getElementById("code");
+      const runBtn = document.getElementById("run");
+      const clearBtn = document.getElementById("clear");
+      const copyBtn = document.getElementById("copy");
+      const saveBtn = document.getElementById("save");
+      const loadBtn = document.getElementById("load");
+      const preview = document.getElementById("preview");
+      const consoleDiv = document.getElementById("console");
+      const indentSelect = document.getElementById("indent-size");
+      const editorContainer = document.getElementById("editor-container");
+      const resizeBar = document.getElementById("resize-bar");
+      const canvasContainer = document.getElementById("canvas-container");
+      const toggleCanvasBtn = document.getElementById("toggle-canvas");
+      const fullscreenCanvasBtn = document.getElementById("fullscreen-canvas");
+      const expandBtn = document.getElementById("expand-button");
 
-       let isResizing = false;
-       let startX = 0;
-       let startWidth = 0;
-       let canvasHidden = false;
+      let isResizing = false;
+      let startX = 0;
+      let startWidth = 0;
+      let canvasHidden = false;
 
-       function getIndent() {
-         const val = indentSelect.value;
-         if (val === "tab") return "\t";
-         return " ".repeat(parseInt(val, 10));
-       }
+      function getIndent() {
+        const val = indentSelect.value;
+        if (val === "tab") return "\t";
+        return " ".repeat(parseInt(val, 10));
+      }
 
-       // Enter時インデント
-       textarea.addEventListener("keydown", (e) => {
-         if (e.key === "Enter") {
-           e.preventDefault();
-           const start = textarea.selectionStart;
-           const end = textarea.selectionEnd;
-           const before = textarea.value.substring(0, start);
-           const after = textarea.value.substring(end);
-           const lineStart = before.lastIndexOf("\n") + 1;
-           const currentLine = before.substring(lineStart);
-           const baseIndent = currentLine.match(/^\s*/)[0] || "";
-           let extraIndent = "";
-           const trimmed = currentLine.trimEnd();
-           if (trimmed.endsWith("{") || trimmed.endsWith("(")) {
-             extraIndent = getIndent();
-           }
-           const insert = "\n" + baseIndent + extraIndent;
-           textarea.value = before + insert + after;
-           const pos = start + insert.length;
-           textarea.selectionStart = textarea.selectionEnd = pos;
-         }
-       });
+      // Enter時インデント（閉じ括弧で減らす）
+      textarea.addEventListener("keydown", (e) => {
+        if (e.key === ")" || e.key === "}" || e.key === "]") {
+          e.preventDefault();
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const before = textarea.value.substring(0, start);
+          const after = textarea.value.substring(end);
+          const lineStart = before.lastIndexOf("\n") + 1;
+          const currentLine = before.substring(lineStart);
+          let baseIndent = currentLine.match(/^\s*/)[0] || "";
+          
+          if (/^[\t ]*$/.test(currentLine)) {
+            textarea.value = before.slice(0, -getIndent().length) + e.key + after;
+            const pos = start - getIndent().length + 1;
+            textarea.selectionStart = textarea.selectionEnd = pos;
+          } else {
+            textarea.value = before + e.key + after;
+            const pos = start + 1;
+            textarea.selectionStart = textarea.selectionEnd = pos;
+          }
+          
 
-       // Paste時インデント調整
-       textarea.addEventListener("paste", (e) => {
-         e.preventDefault();
-         const pasteText = (e.clipboardData || window.clipboardData).getData('text');
-         const start = textarea.selectionStart;
-         const end = textarea.selectionEnd;
-         const before = textarea.value.substring(0, start);
-         const after = textarea.value.substring(end);
-         const lineStart = before.lastIndexOf("\n") + 1;
-         const currentLine = before.substring(lineStart);
-         const baseIndent = currentLine.match(/^\s*/)[0] || "";
+          
+        }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const before = textarea.value.substring(0, start);
+          const after = textarea.value.substring(end);
+          const lineStart = before.lastIndexOf("\n") + 1;
+          const currentLine = before.substring(lineStart);
+          let baseIndent = currentLine.match(/^\s*/)[0] || "";
+          let extraIndent = "";
 
-         const lines = pasteText.split("\n");
-         let minIndent = Infinity;
-         lines.forEach(line => {
-           const m = line.match(/^(\s*)\S/);
-           if (m) minIndent = Math.min(minIndent, m[1].length);
-         });
-         if (!isFinite(minIndent)) minIndent = 0;
+          const trimmed = currentLine.trimEnd();
+          if (trimmed.endsWith("{") || trimmed.endsWith("(") || trimmed.endsWith("[")) {
+            extraIndent = getIndent();
+          }
 
-         const newLines = lines.map((line, i) => {
-           if (i === 0) return line;
-           return baseIndent + line.substring(minIndent);
-         });
+          const insert = "\n" + baseIndent + extraIndent;
+          textarea.value = before + insert + after;
+          const pos = start + insert.length;
+          textarea.selectionStart = textarea.selectionEnd = pos;
+        }
+      });
 
-         const insertText = newLines.join("\n");
-         textarea.value = before + insertText + after;
-         const pos = start + insertText.length;
-         textarea.selectionStart = textarea.selectionEnd = pos;
-       });
+      // Paste時インデント調整
+      textarea.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const before = textarea.value.substring(0, start);
+        const after = textarea.value.substring(end);
+        const lineStart = before.lastIndexOf("\n") + 1;
+        const currentLine = before.substring(lineStart);
+        const baseIndent = currentLine.match(/^\s*/)[0] || "";
 
-       // ドラッグ幅調整
-       const startResize = (clientX) => {
-         isResizing = true;
-         startX = clientX;
-         startWidth = editorContainer.offsetWidth;
-         document.body.style.cursor = "ew-resize";
-       };
-       resizeBar.addEventListener("mousedown", (e) => startResize(e.clientX));
-       resizeBar.addEventListener("touchstart", (e) => startResize(e.touches[0].clientX));
+        const lines = pasteText.split("\n");
+        let minIndent = Infinity;
+        lines.forEach(line => {
+          const m = line.match(/^(\s*)\S/);
+          if (m) minIndent = Math.min(minIndent, m[1].length);
+        });
+        if (!isFinite(minIndent)) minIndent = 0;
 
-       const doResize = (clientX) => {
-         if (!isResizing) return;
-         let newWidth = startWidth + (clientX - startX);
-         if (newWidth < 100) newWidth = 100;
-         if (newWidth > window.innerWidth - 100) newWidth = window.innerWidth - 100;
-         editorContainer.style.width = newWidth + "px";
-         canvasContainer.style.width = (window.innerWidth - newWidth) + "px";
-         //run();
-       };
-       document.addEventListener("mousemove", (e) => doResize(e.clientX));
-       document.addEventListener("touchmove", (e) => doResize(e.touches[0].clientX));
-       const stopResize = () => {
-         isResizing = false;
-         document.body.style.cursor = "default";
-       };
-       document.addEventListener("mouseup", stopResize);
-       document.addEventListener("touchend", stopResize);
+        const newLines = lines.map((line, i) => {
+          if (i === 0) return line;
+          return baseIndent + line.substring(minIndent);
+        });
 
-       function run(){
-         consoleDiv.textContent = "";
-         const userCode = textarea.value;
-         const iframeDoc = preview.contentDocument || preview.contentWindow.document;
-         iframeDoc.open();
-         iframeDoc.write(`
-           <!DOCTYPE html>
-           <html>
-           <head>
-             <meta charset="UTF-8">
-             <style>body{margin:0;overflow:hidden;}</style>
-           </head>
-           <body>
-             <script type="importmap">
-             {
-               "imports": {
-                 "three": "https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.module.js"
-               }
-             }
-             <\/script>
-             <script>
-               (function(){
-                 const log = (...args) => parent.postMessage({type:"log", msg: args.join(" ")}, "*");
-                 const error = (...args) => parent.postMessage({type:"error", msg: args.join(" ")}, "*");
-                 console.log = log;
-                 console.error = error;
-                 console.warn = log;
-                 console.info = log;
-                 window.onerror = (m,s,l,c,e) => {
-                   parent.postMessage({type:"error", msg: m + " ("+s+":"+l+")"}, "*");
-                 };
-               })();
-             <\/script>
-             <script type="module">
-               ${userCode}
-             <\/script>
-           </body>
-           </html>
-         `);
-         iframeDoc.close();
-       }
+        const insertText = newLines.join("\n");
+        textarea.value = before + insertText + after;
+        const pos = start + insertText.length;
+        textarea.selectionStart = textarea.selectionEnd = pos;
+      });
 
-       runBtn.addEventListener("click", run);
-       clearBtn.addEventListener("click", () => { consoleDiv.textContent = ""; });
-       window.addEventListener("message", (e) => {
-         if (e.data.type === "log") consoleDiv.textContent += e.data.msg + "\n";
-         if (e.data.type === "error") consoleDiv.textContent += "[エラー] " + e.data.msg + "\n";
-         consoleDiv.scrollTop = consoleDiv.scrollHeight;
-       });
+      // コピー
+      copyBtn.addEventListener("click", () => {
+        textarea.select();
+        document.execCommand("copy");
+        alert("コードをコピーしました");
+      });
 
-       // 折りたたみ
-       toggleCanvasBtn.addEventListener("click", () => {
-         canvasHidden = true;
-         editorContainer.style.width = "100%";
-         canvasContainer.style.width = "0";
-         resizeBar.style.opacity = 0;
-         expandBtn.style.display = "block";
-       });
+      // 保存
+      saveBtn.addEventListener("click", () => {
+        localStorage.setItem("threejs-editor-code", textarea.value);
+        alert("コードを保存しました");
+      });
 
-       // 展開
-       expandBtn.addEventListener("click", () => {
-         canvasHidden = false;
-         expandBtn.style.display = "none";
-         resizeBar.style.opacity = 1;
-         editorContainer.style.width = "50%";
-         canvasContainer.style.width = "50%";
+      // 呼び出し
+      loadBtn.addEventListener("click", () => {
+        const saved = localStorage.getItem("threejs-editor-code");
+        if (saved !== null) {
+          textarea.value = saved;
+          alert("保存したコードを読み込みました");
+        } else {
+          alert("保存されたコードはありません");
+        }
+      });
 
-         const onTransitionEnd = (e) => {
-           if (e.propertyName === "width") {
-             run();
-             editorContainer.removeEventListener("transitionend", onTransitionEnd);
-           }
-         };
-         editorContainer.addEventListener("transitionend", onTransitionEnd);
-       });
+      // ドラッグ幅調整
+      const startResize = (clientX) => {
+        isResizing = true;
+        startX = clientX;
+        startWidth = editorContainer.offsetWidth;
+        document.body.style.cursor = "ew-resize";
+      };
+      resizeBar.addEventListener("mousedown", (e) => startResize(e.clientX));
+      resizeBar.addEventListener("touchstart", (e) => startResize(e.touches[0].clientX));
 
-       // 全画面
-       fullscreenCanvasBtn.addEventListener("click", () => {
-         if (preview.requestFullscreen) preview.requestFullscreen();
-         else if (preview.webkitRequestFullscreen) preview.webkitRequestFullscreen();
-         else if (preview.msRequestFullscreen) preview.msRequestFullscreen();
-         run();
-       });
+      const doResize = (clientX) => {
+        if (!isResizing) return;
+        let newWidth = startWidth + (clientX - startX);
+        if (newWidth < 100) newWidth = 100;
+        if (newWidth > window.innerWidth - 100) newWidth = window.innerWidth - 100;
+        editorContainer.style.width = newWidth + "px";
+        canvasContainer.style.width = (window.innerWidth - newWidth) + "px";
+      };
+      document.addEventListener("mousemove", (e) => doResize(e.clientX));
+      document.addEventListener("touchmove", (e) => doResize(e.touches[0].clientX));
+      const stopResize = () => {
+        isResizing = false;
+        document.body.style.cursor = "default";
+      };
+      document.addEventListener("mouseup", stopResize);
+      document.addEventListener("touchend", stopResize);
 
-       // リサイズ時も再実行
-       window.addEventListener("resize", () => { run(); });
+      function run(){
+        consoleDiv.textContent = "";
+        const userCode = textarea.value;
+        const iframeDoc = preview.contentDocument || preview.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>body{margin:0;overflow:hidden;}</style>
+          </head>
+          <body>
+            <script type="importmap">
+            {
+              "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.module.js"
+              }
+            }
+            <\/script>
+            <script>
+              (function(){
+                const log = (...args) => parent.postMessage({type:"log", msg: args.join(" ")}, "*");
+                const error = (...args) => parent.postMessage({type:"error", msg: args.join(" ")}, "*");
+                console.log = log;
+                console.error = error;
+                console.warn = log;
+                console.info = log;
+                window.onerror = (m,s,l,c,e) => {
+                  parent.postMessage({type:"error", msg: m + " ("+s+":"+l+")"}, "*");
+                };
+              })();
+            <\/script>
+            <script type="module">
+              ${userCode}
+            <\/script>
+          </body>
+          </html>
+        `);
+        iframeDoc.close();
+      }
 
-       run();
-     </script>
-   </body>
- </html>
+      runBtn.addEventListener("click", run);
+      clearBtn.addEventListener("click", () => { consoleDiv.textContent = ""; });
+      window.addEventListener("message", (e) => {
+        if (e.data.type === "log") consoleDiv.textContent += e.data.msg + "\n";
+        if (e.data.type === "error") consoleDiv.textContent += "[エラー] " + e.data.msg + "\n";
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+      });
+
+      // 折りたたみ
+      toggleCanvasBtn.addEventListener("click", () => {
+        canvasHidden = true;
+        editorContainer.style.width = "100%";
+        canvasContainer.style.width = "0";
+        resizeBar.style.opacity = 0;
+        expandBtn.style.display = "block";
+      });
+
+      // 展開
+      expandBtn.addEventListener("click", () => {
+        canvasHidden = false;
+        expandBtn.style.display = "none";
+        resizeBar.style.opacity = 1;
+        editorContainer.style.width = "50%";
+        canvasContainer.style.width = "50%";
+
+        const onTransitionEnd = (e) => {
+          if (e.propertyName === "width") {
+            run();
+            editorContainer.removeEventListener("transitionend", onTransitionEnd);
+          }
+        };
+        editorContainer.addEventListener("transitionend", onTransitionEnd);
+      });
+
+      // 全画面
+      fullscreenCanvasBtn.addEventListener("click", () => {
+        if (preview.requestFullscreen) preview.requestFullscreen();
+        else if (preview.webkitRequestFullscreen) preview.webkitRequestFullscreen();
+        else if (preview.msRequestFullscreen) preview.msRequestFullscreen();
+        run();
+      });
+
+      // リサイズ時も再実行
+      window.addEventListener("resize", () => { run(); });
+
+      run();
+    </script>
+  </body>
+</html>
