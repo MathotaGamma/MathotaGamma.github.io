@@ -45,14 +45,14 @@
       };
 
       // QR コード生成
-      function showQR(text){ QRCode.toCanvas(document.getElementById('qrcode'), text, {width:300}); }
+      function showQR(text){ QRCode.toCanvas(document.getElementById('qrcode'), text, {width:300, errorCorrectionLevel:"L"}); }
 
       // Webカメラ読み取り
       let html5QrcodeScanner = new Html5Qrcode("video");
       function scanQR(callback){
         html5QrcodeScanner.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: 250 },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
           (decoded)=>{
             callback(decoded);
             html5QrcodeScanner.stop();
