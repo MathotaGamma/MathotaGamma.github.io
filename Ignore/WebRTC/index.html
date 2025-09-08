@@ -10,7 +10,7 @@
       #log { white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   </head>
   <body>
     <h2>WebRTC QR P2P RTT</h2>
@@ -19,7 +19,7 @@
     <button id="createAnswer">Answer 作成</button>
     <button id="sendTime">Time 送信</button>
 
-    <div id="qrcode"></div>
+    <canvas id="qrcode"></canvas>
     <div id="video" style="width:300px;height:200px;"></div>
 
     <div id="log"></div>
