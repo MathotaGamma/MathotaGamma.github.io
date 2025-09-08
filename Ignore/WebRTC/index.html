@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <title>WebRTC Latency Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 20px;
+      }
+      textarea {
+        width: 100%;
+        height: 100px;
+      }
+      button {
+        margin-top: 5px;
+      }
+      #log {
+        margin-top: 10px;
+        white-space: pre-wrap;
+        border: 1px solid #ccc;
+        padding: 10px;
+        height: 200px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>WebRTC Latency Test (P2P)</h2>
+    <div>
+      <button id="createOffer">Offer 作成</button>
+      <button id="createAnswer">Answer 作成</button>
+      <button id="setRemote">Remote 設定</button>
+    </div>
+    <textarea id="localSDP" placeholder="ここに SDP が表示されます"></textarea>
+    <textarea id="remoteSDP" placeholder="ここに相手の SDP を貼り付けます"></textarea>
+    <div>
+      <button id="sendTime">Time 送信</button>
+    </div>
+    <div id="log"></div>
+
+    <script>
+      const logEl = document.getElementById('log');
+      const localSDP = document.getElementById('localSDP');
+      const remoteSDP = document.getElementById('remoteSDP');
+      const sendBtn = document.getElementById('sendTime');
+
+      let pc = new RTCPeerConnection();
+      let channel;
+
+      function log(msg) {
+        logEl.textContent += msg + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      // DataChannel 作成
+      channel = pc.createDataChannel('timeChannel');
+      channel.onopen = () => log('DataChannel open');
+      channel.onmessage = (e) => {
+        const recv = JSON.parse(e.data);
+        if (recv.type === 'time') {
+          const now = Date.now();
+          const rtt = now - recv.timestamp;
+          log(`遅延 (RTT) : ${rtt} ms`);
+        }
+      };
+
+      // Offer 作成
+      document.getElementById('createOffer').onclick = async () => {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        localSDP.value = JSON.stringify(pc.localDescription);
+        log('Offer 作成完了');
+      };
+
+      // Answer 作成
+      pc.ondatachannel = (event) => {
+        channel = event.channel;
+        channel.onopen = () => log('DataChannel open (受信側)');
+        channel.onmessage = (e) => {
+          const recv = JSON.parse(e.data);
+          if (recv.type === 'time') {
+            const now = Date.now();
+            const rtt = now - recv.timestamp;
+            log(`遅延 (RTT) : ${rtt} ms`);
+          }
+        };
+      };
+
+      document.getElementById('createAnswer').onclick = async () => {
+        const offerDesc = JSON.parse(remoteSDP.value);
+        await pc.setRemoteDescription(offerDesc);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        localSDP.value = JSON.stringify(pc.localDescription);
+        log('Answer 作成完了');
+      };
+
+      // Remote 設定
+      document.getElementById('setRemote').onclick = async () => {
+        const remoteDesc = JSON.parse(remoteSDP.value);
+        await pc.setRemoteDescription(remoteDesc);
+        log('Remote Description 設定完了');
+      };
+
+      // Time 送信
+      sendBtn.onclick = () => {
+        if (channel && channel.readyState === 'open') {
+          channel.send(JSON.stringify({ type: 'time', timestamp: Date.now() }));
+          log('Time 送信完了');
+        } else {
+          log('DataChannel が未接続');
+        }
+      };
+    </script>
+  </body>
+</html>
