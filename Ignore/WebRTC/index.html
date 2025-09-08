@@ -1,102 +1,240 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8">
-    <title>WebRTC QR P2P RTT</title>
+<head>
+    <title>WebRTC P2P Chat with QR & Manual Signaling</title>
     <style>
-      body { font-family: sans-serif; margin: 20px; }
-      #qrcode, #video { border: 1px solid #ccc; margin: 10px 0; }
-      textarea { width: 100%; height: 100px; }
-      #log { white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; text-align: center; margin: 20px; }
+        .container { max-width: 600px; width: 100%; }
+        #qr-container { margin: 20px 0; }
+        #chat-area { border: 1px solid #ccc; padding: 10px; margin-top: 20px; text-align: left; height: 200px; overflow-y: scroll; }
+        input[type="text"] { width: calc(100% - 70px); padding: 5px; }
+        button { padding: 8px 15px; cursor: pointer; }
+        .hidden { display: none; }
+        textarea { width: 100%; height: 100px; margin-top: 10px; padding: 5px; box-sizing: border-box; }
+        .flex-container { display: flex; flex-direction: column; gap: 15px; }
     </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebRTC P2P Chat</h1>
+        <p>シグナリングサーバーなしでWebRTCのP2P通信を行います。QRコードと手動（テキスト）の両方で接続情報を交換できます。</p>
+
+        <div id="start-screen">
+            <button id="createOfferBtn">オファーを作成</button>
+            <button id="receiveSdpBtn">接続情報を受け取る</button>
+        </div>
+
+        <div id="offerer-screen" class="hidden">
+            <p id="offerer-status"></p>
+            <h3>オファーを相手に渡す</h3>
+            <div id="qr-container">
+                <canvas id="qr-canvas-offer"></canvas>
+            </div>
+            <textarea id="localSdpText" readonly></textarea>
+            
+            <hr>
+            
+            <h3>相手のアンサーを受け取る</h3>
+            <button id="scanAnswerBtn">QRコードをスキャン</button>
+            <p>または、以下のテキストエリアに貼り付け</p>
+            <textarea id="remoteAnswerText" placeholder="相手のアンサーをここに貼り付け..."></textarea>
+            <button id="addAnswerBtn">アンサーをセット</button>
+        </div>
+
+        <div id="answerer-screen" class="hidden">
+            <p id="answerer-status"></p>
+            <h3>オファーを受け取る</h3>
+            <div class="flex-container">
+                <button id="scanOfferBtn">QRコードをスキャン</button>
+                <h3>または、以下のテキストエリアに貼り付け</h3>
+                <textarea id="remoteOfferText" placeholder="相手のオファーをここに貼り付け..."></textarea>
+                <button id="addOfferBtn">オファーをセット</button>
+            </div>
+        </div>
+
+        <div id="chat-container" class="hidden">
+            <h2>チャット</h2>
+            <div id="chat-area"></div>
+            <input type="text" id="message-input" placeholder="メッセージを入力...">
+            <button id="sendBtn">送信</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.0.0/dist/jsQR.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-  </head>
-  <body>
-    <h2>WebRTC QR P2P RTT</h2>
-
-    <button id="createOffer">Offer 作成</button>
-    <button id="createAnswer">Answer 作成</button>
-    <button id="sendTime">Time 送信</button>
-
-    <canvas id="qrcode"></canvas>
-    <div id="video" style="width:300px;height:200px;"></div>
-
-    <div id="log"></div>
 
     <script>
-      const logEl = document.getElementById('log');
-      function log(msg){ logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+        const startScreen = document.getElementById('start-screen');
+        const createOfferBtn = document.getElementById('createOfferBtn');
+        const receiveSdpBtn = document.getElementById('receiveSdpBtn');
+        const offererScreen = document.getElementById('offerer-screen');
+        const offererStatus = document.getElementById('offerer-status');
+        const qrCanvasOffer = document.getElementById('qr-canvas-offer');
+        const localSdpText = document.getElementById('localSdpText');
+        const scanAnswerBtn = document.getElementById('scanAnswerBtn');
+        const remoteAnswerText = document.getElementById('remoteAnswerText');
+        const addAnswerBtn = document.getElementById('addAnswerBtn');
+        const answererScreen = document.getElementById('answerer-screen');
+        const answererStatus = document.getElementById('answerer-status');
+        const scanOfferBtn = document.getElementById('scanOfferBtn');
+        const remoteOfferText = document.getElementById('remoteOfferText');
+        const addOfferBtn = document.getElementById('addOfferBtn');
+        const chatContainer = document.getElementById('chat-container');
+        const chatArea = document.getElementById('chat-area');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('sendBtn');
+        
+        let pc;
+        let dataChannel;
 
-      let pc = new RTCPeerConnection();
-      let channel;
-
-      // DataChannel 受信設定
-      pc.ondatachannel = (e)=>{
-        channel = e.channel;
-        channel.onopen = ()=>log('DataChannel open (受信側)');
-        channel.onmessage = (msg)=>{
-          const recv = JSON.parse(msg.data);
-          if(recv.type==='time'){
-            const rtt = Date.now()-recv.timestamp;
-            log(`遅延(RTT): ${rtt} ms`);
-          }
+        const show = (element) => element.classList.remove('hidden');
+        const hide = (element) => element.classList.add('hidden');
+        const appendMessage = (sender, message) => {
+            const p = document.createElement('p');
+            p.textContent = `[${sender}] ${message}`;
+            chatArea.appendChild(p);
+            chatArea.scrollTop = chatArea.scrollHeight;
         };
-      };
 
-      // QR コード生成
-      function showQR(text){ QRCode.toCanvas(document.getElementById('qrcode'), text, {width:300, errorCorrectionLevel:"L"}); }
-
-      // Webカメラ読み取り
-      let html5QrcodeScanner = new Html5Qrcode("video");
-      function scanQR(callback){
-        html5QrcodeScanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decoded)=>{
-            callback(decoded);
-            html5QrcodeScanner.stop();
-          },
-          (err)=>{}
-        );
-      }
-
-      // Offer 作成
-      document.getElementById('createOffer').onclick = async ()=>{
-        channel = pc.createDataChannel('timeChannel');
-        channel.onopen = ()=>log('DataChannel open (作成側)');
-        channel.onmessage = (msg)=>{
-          const recv = JSON.parse(msg.data);
-          if(recv.type==='time'){
-            const rtt = Date.now()-recv.timestamp;
-            log(`遅延(RTT): ${rtt} ms`);
-          }
+        const initializePeerConnection = () => {
+            if (pc) return;
+            pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            pc.oniceconnectionstatechange = () => {
+                if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                    hide(startScreen);
+                    hide(offererScreen);
+                    hide(answererScreen);
+                    show(chatContainer);
+                    appendMessage('System', '接続完了！チャットを開始できます。');
+                }
+            };
+            pc.ondatachannel = (event) => {
+                dataChannel = event.channel;
+                setupDataChannelListeners();
+            };
         };
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        showQR(JSON.stringify(pc.localDescription));
-        log('Offer 作成完了。QR を相手に読ませてください。');
-      };
 
-      // Answer 作成
-      document.getElementById('createAnswer').onclick = async ()=>{
-        log('相手の QR を読み取ります...');
-        scanQR(async (decoded)=>{
-          await pc.setRemoteDescription(JSON.parse(decoded));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          showQR(JSON.stringify(pc.localDescription));
-          log('Answer 作成完了。QR を相手に読ませてください。');
+        const setupDataChannelListeners = () => {
+            dataChannel.onmessage = (event) => appendMessage('Peer:', event.data);
+            dataChannel.onopen = () => appendMessage('System:', 'ピアに接続しました！');
+            dataChannel.onclose = () => appendMessage('System:', '切断されました。');
+        };
+
+        const handleSdp = async (sdpString, isOfferer) => {
+            try {
+                const sdp = JSON.parse(sdpString);
+                if (sdp.type === 'offer' && !isOfferer) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
+                    
+                    const answerSdp = JSON.stringify(pc.localDescription);
+                    hide(answererScreen);
+                    show(offererScreen);
+                    offererStatus.textContent = 'アンサーが生成されました。相手に渡してください。';
+                    localSdpText.value = JSON.stringify(pc.localDescription, null, 2);
+                    
+                    await QRCode.toCanvas(qrCanvasOffer, answerSdp, { width: 500, errorCorrectionLevel: 'H' });
+                } else if (sdp.type === 'answer' && isOfferer) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                } else {
+                    throw new Error('無効なSDPタイプです。');
+                }
+            } catch (err) {
+                alert('無効なSDPです。エラー: ' + err.message);
+                console.error(err);
+            }
+        };
+
+        const scanQrCode = async (onScanComplete) => {
+            const video = document.createElement('video');
+            const canvas = document.createElement('canvas');
+            const videoContainer = document.createElement('div');
+            videoContainer.appendChild(video);
+            document.body.appendChild(videoContainer);
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true);
+                video.play();
+                requestAnimationFrame(tick);
+            } catch (err) {
+                alert('カメラへのアクセスが拒否されました。');
+                console.error(err);
+                videoContainer.remove();
+                return;
+            }
+
+            function tick() {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const code = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+
+                    if (code) {
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                        videoContainer.remove();
+                        onScanComplete(code.data);
+                        return;
+                    }
+                }
+                requestAnimationFrame(tick);
+            }
+        };
+
+        createOfferBtn.addEventListener('click', async () => {
+            initializePeerConnection();
+            dataChannel = pc.createDataChannel('chat');
+            setupDataChannelListeners();
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            
+            const offerSdp = JSON.stringify(pc.localDescription);
+            localSdpText.value = JSON.stringify(pc.localDescription, null, 2);
+            
+            await QRCode.toCanvas(qrCanvasOffer, offerSdp, { width: 500, errorCorrectionLevel: 'H' });
+            
+            offererStatus.textContent = 'オファーが生成されました。相手にQRコードをスキャンさせるか、テキストをコピーして渡してください。';
+            hide(startScreen);
+            show(offererScreen);
         });
-      };
 
-      // Time 送信
-      document.getElementById('sendTime').onclick = ()=>{
-        if(channel && channel.readyState==='open'){
-          channel.send(JSON.stringify({type:'time', timestamp: Date.now()}));
-          log('Time 送信完了');
-        } else log('DataChannel が未接続');
-      };
+        receiveSdpBtn.addEventListener('click', () => {
+            initializePeerConnection();
+            hide(startScreen);
+            show(answererScreen);
+            answererStatus.textContent = '以下のどちらかの方法で相手の接続情報を受け取ってください。';
+        });
+
+        scanOfferBtn.addEventListener('click', () => {
+            scanQrCode((code) => handleSdp(code, false));
+        });
+        
+        addOfferBtn.addEventListener('click', () => handleSdp(remoteOfferText.value, false));
+        
+        scanAnswerBtn.addEventListener('click', () => {
+            scanQrCode((code) => handleSdp(code, true));
+        });
+        
+        addAnswerBtn.addEventListener('click', () => handleSdp(remoteAnswerText.value, true));
+        
+        sendBtn.addEventListener('click', () => {
+            const message = messageInput.value;
+            if (message && dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(message);
+                appendMessage('You:', message);
+                messageInput.value = '';
+            }
+        });
+
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendBtn.click();
+            }
+        });
     </script>
-  </body>
+</body>
 </html>
