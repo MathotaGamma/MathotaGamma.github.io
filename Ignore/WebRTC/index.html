@@ -2,115 +2,100 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8">
-    <title>WebRTC Latency Test</title>
+    <title>WebRTC QR P2P RTT</title>
     <style>
-      body {
-        font-family: sans-serif;
-        margin: 20px;
-      }
-      textarea {
-        width: 100%;
-        height: 100px;
-      }
-      button {
-        margin-top: 5px;
-      }
-      #log {
-        margin-top: 10px;
-        white-space: pre-wrap;
-        border: 1px solid #ccc;
-        padding: 10px;
-        height: 200px;
-        overflow-y: auto;
-      }
+      body { font-family: sans-serif; margin: 20px; }
+      #qrcode, #video { border: 1px solid #ccc; margin: 10px 0; }
+      textarea { width: 100%; height: 100px; }
+      #log { white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; height: 150px; overflow-y: auto; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
   </head>
   <body>
-    <h2>WebRTC Latency Test (P2P)</h2>
-    <div>
-      <button id="createOffer">Offer 作成</button>
-      <button id="createAnswer">Answer 作成</button>
-      <button id="setRemote">Remote 設定</button>
-    </div>
-    <textarea id="localSDP" placeholder="ここに SDP が表示されます"></textarea>
-    <textarea id="remoteSDP" placeholder="ここに相手の SDP を貼り付けます"></textarea>
-    <div>
-      <button id="sendTime">Time 送信</button>
-    </div>
+    <h2>WebRTC QR P2P RTT</h2>
+
+    <button id="createOffer">Offer 作成</button>
+    <button id="createAnswer">Answer 作成</button>
+    <button id="sendTime">Time 送信</button>
+
+    <div id="qrcode"></div>
+    <div id="video" style="width:300px;height:200px;"></div>
+
     <div id="log"></div>
 
     <script>
       const logEl = document.getElementById('log');
-      const localSDP = document.getElementById('localSDP');
-      const remoteSDP = document.getElementById('remoteSDP');
-      const sendBtn = document.getElementById('sendTime');
+      function log(msg){ logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
 
       let pc = new RTCPeerConnection();
       let channel;
 
-      function log(msg) {
-        logEl.textContent += msg + "\n";
-        logEl.scrollTop = logEl.scrollHeight;
-      }
-
-      // DataChannel 作成
-      channel = pc.createDataChannel('timeChannel');
-      channel.onopen = () => log('DataChannel open');
-      channel.onmessage = (e) => {
-        const recv = JSON.parse(e.data);
-        if (recv.type === 'time') {
-          const now = Date.now();
-          const rtt = now - recv.timestamp;
-          log(`遅延 (RTT) : ${rtt} ms`);
-        }
-      };
-
-      // Offer 作成
-      document.getElementById('createOffer').onclick = async () => {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        localSDP.value = JSON.stringify(pc.localDescription);
-        log('Offer 作成完了');
-      };
-
-      // Answer 作成
-      pc.ondatachannel = (event) => {
-        channel = event.channel;
-        channel.onopen = () => log('DataChannel open (受信側)');
-        channel.onmessage = (e) => {
-          const recv = JSON.parse(e.data);
-          if (recv.type === 'time') {
-            const now = Date.now();
-            const rtt = now - recv.timestamp;
-            log(`遅延 (RTT) : ${rtt} ms`);
+      // DataChannel 受信設定
+      pc.ondatachannel = (e)=>{
+        channel = e.channel;
+        channel.onopen = ()=>log('DataChannel open (受信側)');
+        channel.onmessage = (msg)=>{
+          const recv = JSON.parse(msg.data);
+          if(recv.type==='time'){
+            const rtt = Date.now()-recv.timestamp;
+            log(`遅延(RTT): ${rtt} ms`);
           }
         };
       };
 
-      document.getElementById('createAnswer').onclick = async () => {
-        const offerDesc = JSON.parse(remoteSDP.value);
-        await pc.setRemoteDescription(offerDesc);
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        localSDP.value = JSON.stringify(pc.localDescription);
-        log('Answer 作成完了');
+      // QR コード生成
+      function showQR(text){ QRCode.toCanvas(document.getElementById('qrcode'), text, {width:300}); }
+
+      // Webカメラ読み取り
+      let html5QrcodeScanner = new Html5Qrcode("video");
+      function scanQR(callback){
+        html5QrcodeScanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          (decoded)=>{
+            callback(decoded);
+            html5QrcodeScanner.stop();
+          },
+          (err)=>{}
+        );
+      }
+
+      // Offer 作成
+      document.getElementById('createOffer').onclick = async ()=>{
+        channel = pc.createDataChannel('timeChannel');
+        channel.onopen = ()=>log('DataChannel open (作成側)');
+        channel.onmessage = (msg)=>{
+          const recv = JSON.parse(msg.data);
+          if(recv.type==='time'){
+            const rtt = Date.now()-recv.timestamp;
+            log(`遅延(RTT): ${rtt} ms`);
+          }
+        };
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        showQR(JSON.stringify(pc.localDescription));
+        log('Offer 作成完了。QR を相手に読ませてください。');
       };
 
-      // Remote 設定
-      document.getElementById('setRemote').onclick = async () => {
-        const remoteDesc = JSON.parse(remoteSDP.value);
-        await pc.setRemoteDescription(remoteDesc);
-        log('Remote Description 設定完了');
+      // Answer 作成
+      document.getElementById('createAnswer').onclick = async ()=>{
+        log('相手の QR を読み取ります...');
+        scanQR(async (decoded)=>{
+          await pc.setRemoteDescription(JSON.parse(decoded));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          showQR(JSON.stringify(pc.localDescription));
+          log('Answer 作成完了。QR を相手に読ませてください。');
+        });
       };
 
       // Time 送信
-      sendBtn.onclick = () => {
-        if (channel && channel.readyState === 'open') {
-          channel.send(JSON.stringify({ type: 'time', timestamp: Date.now() }));
+      document.getElementById('sendTime').onclick = ()=>{
+        if(channel && channel.readyState==='open'){
+          channel.send(JSON.stringify({type:'time', timestamp: Date.now()}));
           log('Time 送信完了');
-        } else {
-          log('DataChannel が未接続');
-        }
+        } else log('DataChannel が未接続');
       };
     </script>
   </body>
