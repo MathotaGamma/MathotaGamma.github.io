@@ -250,6 +250,7 @@
         let map = [];
         let validList = [];
         let assist = true;
+        let extinct = false; // 3人以上の場合に、誰かの石を無くすことができるか
         
         // 何人か
         let user = 3;
@@ -303,6 +304,12 @@
           else assist = false;
           view();
         });
+
+        document.getElementById("extinct").addEventListener("change", (e) => {
+          if(e.target.value == "あり") extinct = true;
+          else extinct = false;
+          view();
+        });
         
         function set(x, y, dir) {
           map[y][x] = player;
@@ -343,10 +350,17 @@
               ny += dy[k];
             }
           }
-          
-          for(let k = 1; k <= user; k++){
-            if(k == player) continue;
-            if(user >= 3 && map.flat().filter(num => num === k).length == stonesToFlip.filter(num => map[num[1]][num[0]] === k).length) return "player"+String(k)+"の石が無くなるため配置できません。";
+
+          if(!extinct) {
+            for(let k = 1; k <= user; k++){
+              if(k == player) continue;
+              if(
+                user >= 3
+                && map.flat().filter(num => num === k).length
+                  ==
+                stonesToFlip.filter(num => map[num[1]][num[0]] === k).length
+              ) return "player"+String(k)+"の石が無くなるため配置できません。";
+            }
           }
 
           if(stonesToFlip.length == 0) return "返す石がないため配置できません。";
