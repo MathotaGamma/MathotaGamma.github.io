@@ -123,10 +123,10 @@
           <option>あり</option>
           <option>なし</option>
         </select>
-        <span class="label">全取り:</span>
+        <span class="label">全滅:</span>
         <select id="extinct">
           <option>あり</option>
-          <option>なし</option>
+          <option selected>なし</option>
         </select>
         <input type="button" value="新規開始" onclick="start();">
       </div>
@@ -141,8 +141,8 @@
       <div id="overlay-area">
         <div id="overlay-text">
           ようこそ!<br>
-          3・4人用でプレイする場合は、<br>
-          ヘッダーの「遊び方」をご参照ください。
+          <span style="color: red;">※3・4人用でプレイする場合は、<br>
+          ヘッダーの「遊び方」をご参照ください。</span>
         </div>
         <input type="button" id="overlay-button" value="OK" onclick="closeOverlay()">
       </div>
@@ -237,7 +237,7 @@
           showOverlay(`このゲームは2～4人で遊べるオセロ風ゲームです。<br>
 ・プレイヤーは順番に空きマスに自分の石を置き、縦・横・斜めで相手の石を挟むと自分の色に変えられます。<br>
   ・<span style="color: #700">3人以上でのプレイでは、置いた結果、他プレイヤーの石がなくなる場所には置けません。</span><br>
-  ・置ける場所がない場合は手番がスキップされます。<br>
+  ・「全滅」を"なし"にした場合、置ける場所がない場合は手番がスキップされます。<br>
   ・全員が置ける場所を失した時点でゲームは終了し、石の数が最も多いプレイヤーが勝利です。`);
         }
         
@@ -308,6 +308,7 @@
         document.getElementById("extinct").addEventListener("change", (e) => {
           if(e.target.value == "あり") extinct = true;
           else extinct = false;
+          validList = hasValidMove(player);
           view();
         });
         
