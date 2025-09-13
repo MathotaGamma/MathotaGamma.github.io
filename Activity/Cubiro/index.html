@@ -307,8 +307,25 @@
       let preTime = null;
       let deltaTime = 0;
       let ignoreTouchList = [];
+      
+      /*
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+      */
 
-      const data = [
+      const Data = [ // 新しい種類のブロックを作る時の主な変更するべき関数
+        //makeCube, check, isFall, rollValid
         {
           start: {x: 0, y: 1, z: 6},
           timeLimit: null,
@@ -376,6 +393,82 @@
           ]
         },
         {
+          start: {x: 0, y: 3, z: 0},
+          timeLimit: null,
+          needKeys: 1,
+          setting: {
+            radius: 5,
+            yaw: 0,
+            pitch: -0.5,
+          },
+          // stage---0:空,1:普通のブロック(灰色),2:死のブロック(赤色),3:ツルツルのブロック(水色),4:Goal
+          stage: [ // data[stage数].stage[yInd][zInd][xInd]で取得！
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,2,1,0,0,1,0,0,0,0,0],
+              [0,0,0,0,0,1,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ],
+            [
+              [0,2,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,5,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ],
+            [
+              [4,0,1,0,0,1,0,0,0,0,0,0,0],
+              [0,1,0,0,1,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,2,1,0,0,0,0,0,0],
+              [0,0,0,0,0,0,3,0,0,0,0,0,0],
+              [0,0,0,0,0,1,1,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ],
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,3,2,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ],
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,3,0,1,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ],
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,2,0,0,0,0,0],
+              [0,0,0,0,0,3,1,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ],
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ]
+          ]
+        },
+        {
           start: {x: 0, y: 1, z: 0},
           timeLimit: null,
           setting: {
@@ -405,8 +498,10 @@
               [0,0,0,0,0,0,0,0,0,0]
             ]
           ]
-        }
+        },
       ];
+      
+      let data = structuredClone(Data);
       
       const g = 6;
       
@@ -424,6 +519,9 @@
         deadCount: {all: 0, stage: 0},
         moveCount: {all: 0, stage: 0, lately: 0},
         timeCount: {all: 0, stage: 0, lately: 0},
+        
+        keys: {data: [], count: 0},
+        goals: [],
       }
 
       function nextStage() {
@@ -471,8 +569,8 @@
         return moveDir;
       }
       
-      function makeOneCube(color, pos) {
-        let geometry = new THREE.BoxGeometry(1, 1, 1);// 立方体
+      function makeOneCube(color, pos, size=1) {
+        let geometry = new THREE.BoxGeometry(size, size, size);// 立方体
         let material = new THREE.MeshLambertMaterial({color: color});
         //let material = new THREE.MeshBasicMaterial({color: 0xcccccc});
         const cube = new THREE.Mesh(geometry, material);// それらをまとめて3Dオブジェクトにします
@@ -497,7 +595,17 @@
         } else if(kind == 3) {
           return makeOneCube(0x8888dd, pos);
         } else if(kind == 4) {
-          return makeOneCube(0xcccc00, pos);
+          if(data[stage].needKeys >= 1) {
+            const cube4 = makeOneCube(0x5555000, pos);
+            me.goals.push(cube4);
+            return cube4;
+          } else {
+            return makeOneCube(0xcccc00, pos);
+          }
+        } else if(kind == 5) {
+          const cube5 = makeOneCube(0xff8888, pos, 0.5);
+          me.keys.data.push([cube5, pos]);
+          return cube5;
         }
       }
       
@@ -525,11 +633,14 @@
         me.deadCount.stage = 0;
         me.moveCount.stage = 0;
         me.timeCount.stage = 0;
+        
+        me.keys = {data: [], count: 0};
         callStage();
       }
       
       
       function callStage() {
+        data = structuredClone(Data);
         // シーンから既存のオブジェクトを削除
         for (let i = scene.children.length - 1; i >= 0; i--) {
           const obj = scene.children[i];
@@ -555,6 +666,9 @@
         me.deadCount.lately = 0;
         me.moveCount.lately = 0;
         me.timeCount.lately = 0;
+        
+        me.keys = {data: [], count: 0};
+        me.goals = [];
         
         preTime = null;
         
@@ -585,6 +699,7 @@
       }
       
       function goal() {
+        if(data[stage].needKeys > me.keys.count) return;
         me.goal = true;
         me.goalStart = Date.now();
         me.goalParticles = createGoalParticles(me.model.position.clone());
@@ -600,6 +715,45 @@
       
       function check() {
         if(me.rolling || me.falling) return;
+        
+        if(getCubeKind(me.pos) == 5) {
+          me.keys.count += 1;
+          if(me.keys.count >= data[stage].needKeys) {
+            for(let k of me.goals) k.material.color.set(0xcccc00);
+          }
+          for(let k = 0; k < me.keys.data.length; k++) {
+            const model = me.keys.data[k][0];
+            const posK = me.keys.data[k][1];
+
+            if(me.pos.x == posK.x && me.pos.y == posK.y && me.pos.z == posK.z) {
+              console.log(posK)
+              // シーンから削除
+              if(model.parent) {
+                model.parent.remove(model);
+              }
+
+              // メモリ解放（必要に応じて）
+              model.traverse(obj => {
+                if(obj.isMesh) {
+                  if(obj.geometry) obj.geometry.dispose();
+                  if(obj.material) {
+                    if(Array.isArray(obj.material)) {
+                      obj.material.forEach(m => m.dispose());
+                    } else {
+                      obj.material.dispose();
+                    }
+                  }
+                }
+              });
+
+              // 配列から削除
+              me.keys.data.splice(k, 1);
+              data[stage].stage[posK.y][posK.z][posK.x] = 0;
+              k--;
+            }
+          }
+        }
+
         
         const surrounding = checkSurrounding(me.pos);
         
@@ -624,7 +778,7 @@
         const surrounding = checkSurrounding(me.pos);
         
         for(let k = 0; k < surrounding.length; k++) {
-          if(surrounding[k].kind != 0 && surrounding[k].kind != 3) return; 
+          if(surrounding[k].kind != 0 && surrounding[k].kind != 3 && surrounding[k].kind != 5) return; 
         }
         
         me.falling = true;
@@ -683,9 +837,9 @@
         let k2 = vectorSum(me.pos, dire);
         let d0 = vectorSum(me.pos, {x: -direAsp.x, y: -direAsp.y, z: -direAsp.z});
         
-        if(getCubeKind(k2) != 0) return false;
-        if(getCubeKind(d0) == 0) return false;
-        if(getCubeKind(k0) != 0 || getCubeKind(k1) != 0) return false;
+        if(getCubeKind(k2) != 0 && getCubeKind(k2) != 5) return false;
+        if(getCubeKind(d0) == 0 && getCubeKind(d0) != 5) return false;
+        if((getCubeKind(k0) != 0 || getCubeKind(k1) != 0) && getCubeKind(k1) != 5) return false;
         
         return true;
       }
@@ -725,7 +879,8 @@
             me.pos.x = rollStartPos.x;
             me.pos.y = rollStartPos.y;
           }
-          if(checkSurrounding(me.pos).length == 0) {
+          const surrounding = checkSurrounding(me.pos);
+          if(surrounding.length == 0 || surrounding.every(v => v.kind === 5)) {
             rollCube([rollDireAsp[0], -rollDireAsp[1]], rollDire, true);
           } else {
             me.rolling = false;
@@ -1176,8 +1331,7 @@
           me.timeCount.stage += deltaTime;
           me.timeCount.lately += deltaTime;
         }
-        
-        textDiv.innerHTML = `Stage : ${stage}<br>
+        textDiv.innerHTML = `${data[stage].needKeys >= 1 ? (me.keys.count >= data[stage].needKeys ? '<span style="color: #66dd66;">' : '<span style="color: #dd6666;">') : ''}Keys : ${me.keys.count} / ${data[stage].needKeys ?? 0}${data[stage].needKeys >= 1 ? '</span>' : ''}<br>Stage : ${stage}<br>
 Time : ${(me.timeCount.lately/1000).toFixed(1)}秒 / ${(me.timeCount.stage/1000).toFixed(1)}秒<br>
 Move : ${me.moveCount.lately}回 / ${me.moveCount.stage}回<br>
 Fail : ${me.deadCount.stage}回`;
