@@ -51,6 +51,44 @@
         height: 40px;
         color: white;
         z-index: 999;
+        font-family: monospace;
+      }
+      
+      #overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 1000;
+      }
+      
+      #message {
+        background: white;
+        color: black;
+        padding: 20px 40px;
+        font-size: 24px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      
+      .button-group {
+        display: flex;
+        gap: 20px;
+      }
+      
+      .overlay-button {
+        padding: 10px 20px;
+        font-size: 18px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
       }
       
       canvas {
@@ -65,7 +103,11 @@
       <div>3D Athletic</div>
       <div class="button" id="retry">Retry</div>
     </header>
-    <div id="text">--</div>
+    <div id="overlay" style="display:none;">
+      <div id="message"></div>
+      <div class="button-group" id="buttonGroup"></div>
+    </div>
+    <div id="text"></div>
     <canvas id="canvas"></canvas>
     
     
@@ -73,7 +115,61 @@
       import * as THREE from "three";
       const headerHeight = 40;
       
-      const header = document.querySelector("header");
+      const header = document.getElementsByTagName("header")[0];
+      
+      const overlay = document.getElementById("overlay");
+      const messageDiv = document.getElementById("message");
+      const buttonGroup = document.getElementById("buttonGroup");
+
+      /*
+       * テロップを表示する
+       * @param {string} text - 表示するテキスト
+       * @param {Object} options - オプション
+       *   mode: "ok" | "yesno"  ボタンの種類
+       *   onOk: function        OK押下時の処理
+       *   onYes: function       YES押下時の処理
+       *   onNo: function        NO押下時の処理
+       */
+      function showOverlay(text, options = {}) {
+        messageDiv.textContent = text;
+        buttonGroup.innerHTML = ""; // ボタンをクリア
+
+        if (options.mode === "yesno") {
+          const yesBtn = document.createElement("button");
+          yesBtn.textContent = "YES";
+          yesBtn.className = "overlay-button";
+          yesBtn.onclick = () => {
+            overlay.style.display = "none";
+            if (options.onYes) options.onYes();
+          };
+
+          const noBtn = document.createElement("button");
+          noBtn.textContent = "NO";
+          noBtn.className = "overlay-button";
+          noBtn.onclick = () => {
+            overlay.style.display = "none";
+            if (options.onNo) options.onNo();
+          };
+
+          buttonGroup.appendChild(yesBtn);
+          buttonGroup.appendChild(noBtn);
+
+        } else {
+          const okBtn = document.createElement("button");
+          okBtn.textContent = "OK";
+          okBtn.className = "overlay-button";
+          okBtn.onclick = () => {
+            overlay.style.display = "none";
+            overlay.style.width = "0px";
+            if (options.onOk) options.onOk();
+          };
+          buttonGroup.appendChild(okBtn);
+        }
+
+        overlay.style.display = "flex";
+      }
+
+      showOverlay("Cubiroへようこそ！\nチュートリアルを行いますか？", {mode: "yesno", onYes: () => {stage = 0; init();}, onNo: () => {stage = 1; init();}})
       
       const setting = {
         shadow: true,
@@ -146,17 +242,89 @@
       let radius = 5;
       let radiusMax = 10;
       let radiusMin = 1.5;
-      let yaw = 0; // 水平角
+      let yaw = -Math.PI/2; // 水平角
       let pitch = -0.3; // 垂直角
       
+      let preTime = null;
+      let deltaTime = 0;
       let ignoreTouchList = [];
 
       const data = [
         {
+          start: {x: 0, y: 1, z: 6},
+          timeLimit: null,
+          setting: {
+            radius: 5,
+            yaw: 0,
+            pitch: -0.5,
+          },
+          // stage---0:空,1:普通のブロック(灰色),2:死のブロック(赤色),3:ツルツルのブロック(水色),4:Goal
+          stage: [ // data[stage数].stage[yInd][zInd][xInd]で取得！
+            [
+              [0,0,0,0,3,0,0,0,0,0,0,0,0],
+              [1,1,1,0,1,0,1,1,1,0,0,0,0],
+              [1,0,0,0,1,1,3,0,0,0,0,0,0],
+              [1,0,0,0,0,0,0,0,0,0,0,0,0],
+              [1,2,0,0,0,0,0,0,0,0,0,0,0],
+              [1,0,0,0,0,0,0,1,0,0,0,0,0],
+              [1,0,0,0,0,0,1,1,0,0,0,0,0],
+            ],
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,2,0,0,0,1,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,1,0,0,0,0,0,0],
+            ],
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,1,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,4,1,1,0,0,0,0,0,0,0,0],
+            ],
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,1,0,0,0,0],
+              [0,0,0,0,0,0,0,0,1,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ],
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,1,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ],
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,1,1,0,0,0,0],
+              [0,0,0,0,0,0,0,3,0,0,0,0,0],
+              [0,0,0,0,0,0,0,3,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ]
+          ]
+        },
+        {
           start: {x: 0, y: 1, z: 0},
           timeLimit: null,
-          // stage---0:空,1:普通のブロック(灰色),2:死のブロック(赤色),3:ツルツルのブロック(水色)
-          stage: [ // data[⚪︎].stage[yInd][zInd][xInd]で取得！
+          setting: {
+            radius: 5,
+            yaw: 0,
+            pitch: -0.5,
+          },
+          stage: [
             [
               [1,1,3,1,1,1,0,0,0,0],
               [0,0,1,0,0,0,0,0,0,0],
@@ -194,19 +362,16 @@
         rolling: false,
         falling: false,
         
-        allDeadCount: 0,
-        deadCount: 0,
-        allMoveCount: 0,
-        moveCount: 0,
-        allTimeCount: 0,
-        timeCount: 0,
+        deadCount: {all: 0, stage: 0},
+        moveCount: {all: 0, stage: 0, lately: 0},
+        timeCount: {all: 0, stage: 0, lately: 0},
       }
 
       function nextStage() {
         stage += 1;
-        me.deadCount = 0;
-        me.moveCount = 0;
-        me.timeCount = 0;
+        me.deadCount.stage = 0;
+        me.moveCount.stage = 0;
+        me.timeCount.stage = 0;
         callStage();
       }
       
@@ -295,8 +460,12 @@
       }
       
       function init() {
-        stage = 0;
-        me.allStartTime = Date.now();
+        me.deadCount.all = 0;
+        me.moveCount.all = 0;
+        me.timeCount.all = 0;
+        me.deadCount.stage = 0;
+        me.moveCount.stage = 0;
+        me.timeCount.stage = 0;
         callStage();
       }
       
@@ -323,12 +492,22 @@
         me.rotation = {x:0, y:0, z:0};
         me.pos = structuredClone(data[stage].start);
         me.model = null;
-
+        
+        me.deadCount.lately = 0;
+        me.moveCount.lately = 0;
+        me.timeCount.lately = 0;
+        
         preTime = null;
         
-        radius = 5;
-        yaw = 0; // 水平角
-        pitch = -0.3; // 垂直角
+        if(Object.keys(data[stage]).includes("setting")) {
+          radius = data[stage].setting.radius ?? 5;
+          yaw = data[stage].setting.yaw ?? Math.PI/2; // 水平角
+          pitch = data[stage].setting.pitch ?? -0.5; // 垂直角
+        } else {
+          radius = 5;
+          yaw = Math.PI/2;
+          pitch = -0.5;
+        }
 
         createStageAndMe(stage);
       }
@@ -355,8 +534,8 @@
       function dead() {
         me.dead = true;
         me.deadStart = Date.now();
-        me.allDeadCount += 1;
-        me.deadCount += 1;
+        me.deadCount.all += 1;
+        me.deadCount.stage += 1;
       }
 
       
@@ -364,10 +543,16 @@
         if(me.rolling || me.falling) return;
         
         const surrounding = checkSurrounding(me.pos);
+        
         for(let k of surrounding) {
-          if(k.kind == 2) dead();
-          else if(k.kind == 4) goal();
-          return;
+          //console.log(k)
+          if(k.kind == 2) {
+            dead();
+            return;
+          } else if(k.kind == 4) {
+            goal();
+            return;
+          }
         }
       }
       
@@ -453,6 +638,13 @@
         rollStartPos = structuredClone(me.pos);
         rollDire = dire;
         rollDireAsp = direAsp;
+        
+        if(!tf) {
+          me.moveCount.all += 1;
+          me.moveCount.stage += 1;
+          me.moveCount.lately += 1;
+        }
+        
         me.rolling = true;
       }
       
@@ -750,11 +942,6 @@
       });
 
 
-
-
-
-      
-      
       
       window.addEventListener('resize', () => {
         w = innerWidth;
@@ -764,8 +951,7 @@
         renderer.setSize(w, h);
       });
       
-      let preTime = null;
-      let deltaTime = 0;
+      
       
       // パーティクル生成関数
       function createGoalParticles(position) {
@@ -803,6 +989,13 @@
       
       function animate() {
         requestAnimationFrame(animate);
+        
+        /*me.timeCount.all = (Date.now() - me.timeStart.all)/1000;
+        if(!me.goal) me.timeCount.stage = (Date.now() - me.timeStart.stage)/1000;
+        if(!me.dead && !me.goal) me.timeCount.lately = (Date.now() - me.timeStart.lately)/1000;*/
+        
+        
+        
         // もし死亡中ならアニメーション
         if (me.dead) {
           const elapsed = Date.now() - me.deadStart;
@@ -918,9 +1111,17 @@
         }
         deltaTime = Date.now() - preTime;
         preTime = Date.now();
-
-        me.timeCount = (Date.now() - me.startTime)/1000;
-        me.allTimeCount = (Date.now() - me.allStartTime)/1000;
+        
+        if(!me.dead && !me.goal) {
+          me.timeCount.all += deltaTime;
+          me.timeCount.stage += deltaTime;
+          me.timeCount.lately += deltaTime;
+        }
+        
+        textDiv.innerHTML = `Stage : ${stage}<br>
+Time : ${(me.timeCount.lately/1000).toFixed(1)}秒 / ${(me.timeCount.stage/1000).toFixed(1)}秒<br>
+Move : ${me.moveCount.lately}回 / ${me.moveCount.stage}回<br>
+Fail : ${me.deadCount.stage}回`;
         
         updateRoll();
         updateMe();
@@ -929,7 +1130,6 @@
         check();
         updateCamera();
         renderer.render(scene, camera);
-        textDiv.textContent = String(me.timeCount)+"秒/"+String(me.allTimeCount)+"秒";
       }
 
       animate();
