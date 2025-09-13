@@ -143,7 +143,7 @@
       let stage = 0;
       
       // カメラ制御用パラメータ
-      let radius = 3;
+      let radius = 5;
       let radiusMax = 10;
       let radiusMin = 1.5;
       let yaw = 0; // 水平角
@@ -193,6 +193,21 @@
         fallStartPos: {x: 0, y: 0, z: 0},
         rolling: false,
         falling: false,
+        
+        allDeadCount: 0,
+        deadCount: 0,
+        allMoveCount: 0,
+        moveCount: 0,
+        allTimeCount: 0,
+        timeCount: 0,
+      }
+
+      function nextStage() {
+        stage += 1;
+        me.deadCount = 0;
+        me.moveCount = 0;
+        me.timeCount = 0;
+        callStage();
       }
       
       function getCubeKind(pos) {
@@ -281,6 +296,7 @@
       
       function init() {
         stage = 0;
+        me.allStartTime = Date.now();
         callStage();
       }
       
@@ -307,8 +323,10 @@
         me.rotation = {x:0, y:0, z:0};
         me.pos = structuredClone(data[stage].start);
         me.model = null;
+
+        preTime = null;
         
-        radius = 3;
+        radius = 5;
         yaw = 0; // 水平角
         pitch = -0.3; // 垂直角
 
@@ -337,6 +355,8 @@
       function dead() {
         me.dead = true;
         me.deadStart = Date.now();
+        me.allDeadCount += 1;
+        me.deadCount += 1;
       }
 
       
@@ -512,12 +532,6 @@
 
       
       
-      
-
-      // マウス・タッチ操作用
-      /*let isDragging = false;
-      let lastX = 0;
-      let lastY = 0;*/
 
       function updateCamera() {
         if(me.falling) return;
@@ -754,110 +768,38 @@
       let deltaTime = 0;
       
       // パーティクル生成関数
-function createGoalParticles(position) {
-  const count = 100; // 粒の数
-  const geometry = new THREE.BufferGeometry();
-  const positions = [];
+      function createGoalParticles(position) {
+        const count = 100; // 粒の数
+        const geometry = new THREE.BufferGeometry();
+        const positions = [];
 
-  for (let i = 0; i < count; i++) {
-    positions.push(
-      position.x,
-      position.y,
-      position.z
-    );
-  }
+        for (let i = 0; i < count; i++) {
+          positions.push(
+            position.x,
+            position.y,
+            position.z
+          );
+        }
 
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(positions, 3)
-  );
+        geometry.setAttribute(
+          'position',
+          new THREE.Float32BufferAttribute(positions, 3)
+        );
 
-  const material = new THREE.PointsMaterial({
-    color: 0xffff00,
-    size: 0.1,
-    transparent: true,
-    opacity: 1
-  });
+        const material = new THREE.PointsMaterial({
+          color: 0xffff00,
+          size: 0.1,
+          transparent: true,
+          opacity: 1
+        });
 
-  const points = new THREE.Points(geometry, material);
-  scene.add(points);
+        const points = new THREE.Points(geometry, material);
+        scene.add(points);
 
-  return { points, geometry, material };
-}
-
-      function animateGoal() {
-        // ゴール時の処理
-        if (me.goal) {
-          const elapsed = Date.now() - me.goalStart;
-          const t = Math.min(elapsed / 2000, 1); // 2秒で0→1
-
-          // 初回のみ生成
-          if (!me.particles) {
-    const particleCount = 50;
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    const velocities = new Float32Array(particleCount * 3);
-
-    for (let i = 0; i < particleCount; i++) {
-      // 位置はキャラの周り
-      positions[i * 3] = (Math.random() - 0.5) * 0.5;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 0.5;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
-
-      // 上方向へ舞う
-      velocities[i * 3] = (Math.random() - 0.5) * 0.01;
-      velocities[i * 3 + 1] = Math.random() * 0.03 + 0.01;
-      velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.01;
-    }
-
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("velocity", new THREE.BufferAttribute(velocities, 3));
-
-    const material = new THREE.PointsMaterial({
-      color: 0xffffaa,
-      size: 0.05,
-      transparent: true,
-      opacity: 1,
-      depthWrite: false,
-    });
-
-    me.particles = new THREE.Points(geometry, material);
-
-    // モデルに付けずに直接シーンへ（干渉防止）
-    scene.add(me.particles);
-
-    // 位置をキャラの現在地に合わせる
-    me.particles.position.copy(me.model.position);
-  }
-
-  // パーティクル更新
-  const positions = me.particles.geometry.attributes.position.array;
-  const velocities = me.particles.geometry.attributes.velocity.array;
-
-  for (let i = 0; i < positions.length; i += 3) {
-    positions[i] += velocities[i];
-    positions[i + 1] += velocities[i + 1];
-    positions[i + 2] += velocities[i + 2];
-  }
-  me.particles.geometry.attributes.position.needsUpdate = true;
-
-  // 徐々に消える
-  me.particles.material.opacity = 1 - t;
-
-  if (t >= 1) {
-    // パーティクルを削除
-    scene.remove(me.particles);
-    me.particles.geometry.dispose();
-    me.particles.material.dispose();
-    me.particles = null;
-
-    me.goal = false;
-    callStage();
-  }
-}
-
-
+        return { points, geometry, material };
       }
+
+      
       
       function animate() {
         requestAnimationFrame(animate);
@@ -960,7 +902,8 @@ function createGoalParticles(position) {
             me.particles = null;
 
             me.goal = false;
-            callStage();
+
+            nextStage();
           }
           renderer.render(scene, camera);
           return;
@@ -969,9 +912,16 @@ function createGoalParticles(position) {
 
 
         
-        if(!preTime) preTime = Date.now();
+        if(!preTime) {
+          me.startTime = Date.now();
+          preTime = Date.now();
+        }
         deltaTime = Date.now() - preTime;
         preTime = Date.now();
+
+        me.timeCount = (Date.now() - me.startTime)/1000;
+        me.allTimeCount = (Date.now() - me.allStartTime)/1000;
+        
         updateRoll();
         updateMe();
         calcFalling();
@@ -979,6 +929,7 @@ function createGoalParticles(position) {
         check();
         updateCamera();
         renderer.render(scene, camera);
+        textDiv.textContent = String(me.timeCount)+"秒/"+String(me.allTimeCount)+"秒";
       }
 
       animate();
