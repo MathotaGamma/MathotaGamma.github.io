@@ -43,7 +43,7 @@
       
       #to-home-in-setting {
         background: rgba(40, 200, 40, 0.3);
-        width: fit-content;
+        width: 60px;
         border: 1px solid black;
         border-radius: 2px;
         padding: 2px;
@@ -231,12 +231,26 @@
       const settingDiv = document.getElementById("setting");
       
       playButtonDiv.addEventListener("click", () => {
+        const local = parseInt(localStorage.getItem("Cubiro_stage"));
         me.animate = true;
         
         homeDiv.style.display = "none";
         athleticsDiv.style.display = "block";
         headerAthletics.style.display = "contents";
-        setTimeout(tutorialConfirm, 100);
+        if(local !== null) {
+          showOverlay('既存のデータが残っています。\n<span style="color: #bb0000;">第'+local+"ステージ</span>から開始しますか？",{
+            mode: "yesno",
+            onYes: () => {
+              stage = local;
+              if(stage == 0) setTimeout(tutorialConfirm, 100);
+              else init();
+            },
+            onNo: () => {
+              stage = 0;
+              setTimeout(tutorialConfirm, 100);
+            }
+          });
+        }
       });
       
       settingButtonDiv.addEventListener("click", () => {
@@ -278,8 +292,8 @@
           }
         }
 
-        // --- ステージを再構築 ---
-        init();
+        /*// --- ステージを再構築 ---
+        init();*/
       }
 
       function toHome() {
@@ -418,7 +432,8 @@
               resolve();
             },
             onNo: () => {
-              stage = 1; init();
+              stage = 1;
+              init();
               resolve();
             }
           });
@@ -582,19 +597,19 @@
       
       
       /*
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
-        [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
       */
 
       const Data = [ // 新しい種類のブロックを作る時の主な変更するべき関数
@@ -660,6 +675,32 @@
               [0,0,0,0,0,0,0,1,1,0,0,0,0],
               [0,0,0,0,0,0,0,3,0,0,0,0,0],
               [0,0,0,0,0,0,0,3,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            ]
+          ]
+        },
+        {
+          start: {x: 6, y: 4, z: 6},
+          timeLimit: 10,
+          setting: {
+            radius: 5,
+            yaw: 0,
+            pitch: -0.5,
+          },
+          stage: [
+            [
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,3,0,4,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
+              [0,0,0,0,0,0,0,0,0,0,0,0,0],
               [0,0,0,0,0,0,0,0,0,0,0,0,0],
               [0,0,0,0,0,0,0,0,0,0,0,0,0],
             ]
@@ -899,31 +940,53 @@
       
       animate();
       
-      function init() {
+      async function init() {
         me.deadCount.all = 0;
         me.moveCount.all = 0;
         me.timeCount.all = 0;
         me.deadCount.stage = 0;
         me.moveCount.stage = 0;
         me.timeCount.stage = 0;
-        if(data[stage].needMiniCubes >= 1) showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。");
+        if(data[stage].needMiniCubes >= 1) await new Promise(resolve => {
+          showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。", {
+            onOk: resolve
+          });
+        });
+        if(data[stage].timeLimit != null) await new Promise(resolve => {
+          showOverlay("<span style='color: blue;'>"+String(data[stage].timeLimit)+"秒</span>以内にGoalする必要があります。", {
+            onOk: resolve
+          });
+        });
         me.miniCubes = {data: [], count: 0};
         me.preStart = false;
         me.actionValid = true;
+        localStorage.setItem("Cubiro_stage", stage);
+        
         callStage();
       }
       
-      function nextStage() {
+      async function nextStage() {
         stage += 1;
-        if(stage >= data.length) {
+        if(stage >= Data.length) {
+          alert(stage+':'+Data.length)
           complete();
           return;
         }
         me.deadCount.stage = 0;
         me.moveCount.stage = 0;
         me.timeCount.stage = 0;
-        if(data[stage].needMiniCubes >= 1) showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。");
+        if(data[stage].needMiniCubes >= 1) await new Promise(resolve => {
+          showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。", {
+            onOk: resolve
+          });
+        });
+        if(data[stage].timeLimit != null) await new Promise(resolve => {
+          showOverlay("<span style='color: blue;'>"+String(data[stage].timeLimit)+"秒</span>以内にGoalする必要があります。", {
+            onOk: resolve
+          });
+        });
         me.actionValid = true;
+        localStorage.setItem("Cubiro_stage", stage);
         callStage();
       }
       
@@ -1049,7 +1112,10 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
       
       function check() {
         if(me.rolling || me.falling) return;
-        
+        if(data[stage].timeLimit != null && me.timeCount.lately/1000 > data[stage].timeLimit) {
+          dead();
+          return;
+        }
         if(getCubeKind(me.pos) == 5) takeMiniCubes();
 
         
