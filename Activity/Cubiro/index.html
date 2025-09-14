@@ -419,7 +419,7 @@
               [1,0,0,0,0,0,0,0,0,0,0,0,0],
               [1,2,0,0,0,0,0,0,0,0,0,0,0],
               [1,0,0,0,0,0,0,1,0,0,0,0,0],
-              [1,4,0,0,0,0,1,1,0,0,0,0,0],
+              [1,0,0,0,0,0,1,1,0,0,0,0,0],
             ],
             [
               [1,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -599,6 +599,7 @@
         miniCubes: {data: [], count: 0},
         goals: [],
         complete: false,
+        actionValid: false,
       }
       
       function getCubeKind(pos) {
@@ -704,6 +705,7 @@
         me.timeCount.stage = 0;
         if(data[stage].needMiniCubes >= 1) showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。");
         me.miniCubes = {data: [], count: 0};
+        me.actionValid = true;
         callStage();
       }
       
@@ -717,6 +719,7 @@
         me.moveCount.stage = 0;
         me.timeCount.stage = 0;
         if(data[stage].needMiniCubes >= 1) showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。");
+        me.actionValid = true;
         callStage();
       }
       
@@ -781,6 +784,7 @@
       
       function complete() {
         me.complete = true;
+        me.actionValid = false;
         showOverlay(`<span style="color: #cccc33;">All Stage Clear!!</span>
 ClearTime : ${(me.timeCount.all/1000).toFixed(2)}秒<br>
 Move : ${me.moveCount.all}回<br>
@@ -1043,11 +1047,21 @@ Fail : ${me.deadCount.all}回`);
         me.model.rotation.set(me.rotation.x, me.rotation.y, me.rotation.z);
       }
       
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
       let isDragging = false;
       let lastX = 0, lastY = 0;
 
       window.addEventListener("mousedown", e => {
-        if(me.falling || me.rolling || (header && header.contains(e.target))) {
+        if(!me.actionValid || me.falling || me.rolling || (header && header.contains(e.target))) {
           ignoreTouchList.push("mouse");
         }
         isDragging = true;
@@ -1075,13 +1089,14 @@ Fail : ${me.deadCount.all}回`);
         pitch -= dy * 0.01 * setting.cameraSensitivity.pitch;
         pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, pitch));
       });
+
       window.addEventListener("wheel", e => {
-        if(me.rolling || me.falling) return;
+        if(!me.action.valid || me.rolling || me.falling) return;
         radius += e.deltaY * 0.01;
         radius = Math.max(radiusMin, Math.min(radiusMax, radius));
       });
       window.addEventListener("keydown", e => {
-        if(me.rolling || me.falling) return;
+        if(!me.actionValid || me.rolling || me.falling) return;
         if (["ArrowUp","w"].includes(e.key)) me.moveDirection.set(0,0,-1);
         if (["ArrowDown","s"].includes(e.key)) me.moveDirection.set(0,0, 1);
         if (["ArrowLeft","a"].includes(e.key)) me.moveDirection.set(-1,0,0);
@@ -1098,7 +1113,7 @@ Fail : ${me.deadCount.all}回`);
       let swipeStart = null;
 
       window.addEventListener("touchstart", e => {
-        if(me.falling || me.rolling || (header && header.contains(e.target))) {
+        if(!me.actionValid || me.falling || me.rolling || (header && header.contains(e.target))) {
           for (let touch of e.changedTouches) {
             ignoreTouchList.push(touch.identifier);
             continue;
@@ -1239,6 +1254,7 @@ Fail : ${me.deadCount.all}回`);
           swipeStart = null;
         }
       });
+
       document.getElementById("retry").addEventListener("click", (e) => {
         dead();
         e.preventDefault();
