@@ -407,7 +407,7 @@
         await wait(3000);
         
         await new Promise(resolve => {
-          showOverlay("動けなくなった場合や、やり直したい時は\n上部の「Retry」ボタンを押してください。", {
+          showOverlay("動けなくなった場合や、やり直したい時は\n上部にある「Retry」ボタンを押してください。", {
             onOk: resolve
           });
         });
@@ -1007,6 +1007,11 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
         
         for(let k = me.fallStartPos.y-2; k >= 0; k--) {
           if(getCubeKind({x: me.fallStartPos.x, y: k, z: me.fallStartPos.z}) != 0) {
+            if(me.fallStopY >= me.fallStartPos.y) {
+              me.falling = false;
+              console.warn("Warn: isFallで me.fallStopY >= me.fallStartPos.y になっている。");
+              return;
+            }
             me.fallStopY = k+1;
             me.fallStopTime = Date.now() + 1000 * Math.sqrt(2*(me.fallStartPos.y-k-1)/g);
             break;
@@ -1040,6 +1045,10 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
       function rollValid(moveDire, moveDireAsp) {
         // 移動後にブロックがなくてもvalidにしている！
         // (rollUpdateで、移動後のcheckSurrounfing.lengthが0なら追加でπさせるため(確実にブロックある))
+        if(moveDire[0] == moveDireAsp[1]) {
+          console.warn("Warn: rollValidで moveDire[0] == moveDireAsp[1] になっている。");
+          return false;
+        }
         const zeroVector = {x: 0, y: 0, z: 0};
         const dire = structuredClone(zeroVector);
         const direAsp = structuredClone(zeroVector);
@@ -1063,6 +1072,10 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
       
       function rollCube(dire, direAsp, tf=false) {
         if((me.rolling || me.falling) && !tf) return;
+        if(dire[0] == direAsp[1]) {
+          console.warn("Warn: rollCubeで dire[0] == direAsp[1] になっている。");
+          return;
+        }
         
         rollStartTime = Date.now();
         rollStartPos = structuredClone(me.pos);
