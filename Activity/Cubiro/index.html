@@ -33,6 +33,22 @@
         display: none;
       }
       
+      #setting {
+        display: none;
+        margin-top: 40px;
+        height: calc(100% - 40px);
+        width: 100%;
+        background: #f5deb3;
+      }
+      
+      #to-home-in-setting {
+        background: rgba(40, 200, 40, 0.3);
+        width: 60px;
+        border: 1px solid black;
+        border-radius: 2px;
+        padding: 2px;
+      }
+      
       header {
         box-sizing: border-box;
         position: absolute;
@@ -132,11 +148,11 @@
       }
       
       .diamond-container:nth-of-type(1) {
-        left: calc(50% - 150px);
+        left: calc(50% - 100px);
       }
       
       .diamond-container:nth-of-type(2) {
-        left: calc(50% + 150px);
+        left: calc(50% + 100px);
       }
       
       .diamond-child {
@@ -173,7 +189,24 @@
     <div class="container" id="athletics">
       <div id="text"></div>
       <canvas id="canvas"></canvas>
-    
+    </div>
+    <div id="setting">
+      <div id="to-home-in-setting">Homeへ</div><br>
+      <label>陰 : <input type="checkbox" id="shadow" /></label><br>
+      <label>
+        陰の細かさ : <select id="shadowMap">
+          <option>512</option>
+          <option>1024</option>
+          <option>2048</option>
+          <option selected>4096</option>
+          <option>8192</option>
+        </select>
+      </label><br>
+      <label>
+        camera感度<br>
+        &nbsp;- 水平 : <input type="range" id="camera-sensitivity-horizontal" value="1" min="0.2" max="2" step="0.1"/> | <span id="camera-sensitivity-horizontal-value">1</span><br>
+        &nbsp;- 垂直 : <input type="range" id="camera-sensitivity-vertical" value="1" min="0.2" max="2" step="0.1"/> | <span id="camera-sensitivity-vertical-value">1</span>
+      </label>
     </div>
     <script type="module">
       import * as THREE from "three";
@@ -188,15 +221,16 @@
       const audio = document.getElementById('audio');
       const toggleBtn = document.getElementById('toggle-sound');
       
-      const playDiv = document.getElementById("play-button");
-      const settingDiv = document.getElementById("setting-button");
+      const playButtonDiv = document.getElementById("play-button");
+      const settingButtonDiv = document.getElementById("setting-button");
       
       const headerAthletics = document.getElementById("header-athletics");
       
       const homeDiv = document.getElementById("home");
       const athleticsDiv = document.getElementById("athletics");
+      const settingDiv = document.getElementById("setting");
       
-      playDiv.addEventListener("click", () => {
+      playButtonDiv.addEventListener("click", () => {
         me.animate = true;
         
         homeDiv.style.display = "none";
@@ -205,7 +239,13 @@
         setTimeout(tutorialConfirm, 100);
       });
       
+      settingButtonDiv.addEventListener("click", () => {
+        homeDiv.style.display = "none";
+        settingDiv.style.display = "block";
+      });
+      
       const toHomeDiv = document.getElementById("to-home");
+      const toHomeSettingDiv = document.getElementById("to-home-in-setting");
       
       function reset() {
         me.animate = true;
@@ -251,6 +291,10 @@
 
 
       toHomeDiv.addEventListener("click", () => {
+        toHome();
+      });
+      
+      toHomeSettingDiv.addEventListener("click", () => {
         toHome();
       });
 
@@ -431,6 +475,42 @@
         },
         deadLineY: -5,
       }
+      
+      const shadowCheckbox = document.getElementById("shadow");
+      const shadowMapSelect = document.getElementById("shadowMap");
+      const sensYawRange = document.getElementById("camera-sensitivity-horizontal");
+      const sensYawValue = document.getElementById("camera-sensitivity-horizontal-value");
+      const sensPitchRange = document.getElementById("camera-sensitivity-vertical");
+      const sensPitchValue = document.getElementById("camera-sensitivity-vertical-value");
+
+      window.addEventListener("DOMContentLoaded", () => {
+        // 初期値反映
+        shadowCheckbox.checked = setting.shadow;
+        shadowMapSelect.value = String(setting.shadowMapSize);
+        sensYawRange.value = setting.cameraSensitivity.yaw;
+        sensYawValue.textContent = setting.cameraSensitivity.yaw;
+        sensPitchRange.value = setting.cameraSensitivity.pitch;
+        sensPitchValue.textContent = setting.cameraSensitivity.pitch;
+      });
+
+      // イベント設定
+      shadowCheckbox.addEventListener("change", () => {
+        setting.shadow = shadowCheckbox.checked;
+      });
+
+      shadowMapSelect.addEventListener("change", () => {
+        setting.shadowMapSize = parseInt(shadowMapSelect.value, 10);
+      });
+
+      sensYawRange.addEventListener("input", () => {
+        setting.cameraSensitivity.yaw = parseFloat(sensYawRange.value);
+        sensYawValue.textContent = setting.cameraSensitivity.yaw;
+      });
+
+      sensPitchRange.addEventListener("input", () => {
+        setting.cameraSensitivity.pitch = parseFloat(sensPitchRange.value);
+        sensPitchValue.textContent = setting.cameraSensitivity.pitch;
+      });
       
       let w = innerWidth;
       let h = innerHeight - headerHeight;
