@@ -40,8 +40,11 @@
       
       header .button {
         padding: 2px;
+        display: flex;
+        align-items: center;
         border: 1px solid white;
         border-radius: 2px;
+        height: 28px;
       }
       
       #text {
@@ -96,12 +99,22 @@
         top: 40px;
         left: 0px;
       }
+      
+      button, input {
+        margin: 10px 0;
+        padding: 8px 16px;
+        font-size: 16px;
+      }
     </style>
   </head>
   <body>
     <header>
       <div>3D Athletic</div>
       <div class="button" id="retry">Retry</div>
+      <audio id="audio" src="https://mathotagamma.github.io/Statics/Bgm/Cubiro/bgm.mp3" loop></audio>
+
+      <div class="button" id="toggle-sound">音再生</div><br>
+      
     </header>
     <div id="overlay" style="display:none;">
       <div id="message"></div>
@@ -120,6 +133,10 @@
       const overlay = document.getElementById("overlay");
       const messageDiv = document.getElementById("message");
       const buttonGroup = document.getElementById("buttonGroup");
+      
+      const audio = document.getElementById('audio');
+      const toggleBtn = document.getElementById('toggle-sound');
+      
 
       /*
        * テロップを表示する
@@ -167,8 +184,11 @@
 
         overlay.style.display = "flex";
       }
-
-      showOverlay("Cubiroへようこそ！\nチュートリアルを行いますか？", {mode: "yesno", onYes: () => {stage = 0; init();setTimeout(tutorial, 1000);}, onNo: () => {stage = 1; init();}})
+      
+     
+      
+      musicConfirm();
+      
       
       // 時間待ち（ms単位）
       function wait(ms) {
@@ -186,6 +206,62 @@
             }
           };
           check();
+        });
+      }
+      
+      
+      async function musicConfirm() {
+        let musicTf = false;
+        await new Promise(resolve => {
+          showOverlay("※音が流れます。", {
+            mode: "yesno",
+            onYes: () => {
+              musicTf = true;
+              resolve();
+            },
+            onNo: resolve
+          });
+        });
+        
+        
+        if(musicTf) {
+          audio.play();
+          toggleBtn.textContent = '音停止';
+        } else {
+          audio.pause();
+          toggleBtn.textContent = '音再生';
+        }
+        
+        tutorialConfirm();
+      }
+      
+      
+      // 再生/停止切り替え
+      toggleBtn.addEventListener('click', () => {
+        if (audio.paused) {
+          audio.play();
+          toggleBtn.textContent = '音停止';
+        } else {
+          audio.pause();
+          toggleBtn.textContent = '音再生';
+        }
+      });
+      
+      async function tutorialConfirm() {
+        await new Promise(resolve => {
+          showOverlay("Cubiroへようこそ！\nチュートリアルを行いますか？", {
+            mode: "yesno",
+            onYes: () => {
+              stage = 0;
+              init();
+              setTimeout(tutorial, 1000);
+              resolve();
+            },
+            onNo: () => {
+              stage = 1; init();
+              resolve();
+            }
+          });
         });
       }
       
