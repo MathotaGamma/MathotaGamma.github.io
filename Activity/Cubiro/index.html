@@ -502,7 +502,7 @@
         {
           start: {x: 0, y: 3, z: 0},
           timeLimit: null,
-          needKeys: 1,
+          needMiniCubes: 1,
           setting: {
             radius: 5,
             yaw: 0,
@@ -596,7 +596,7 @@
         moveCount: {all: 0, stage: 0, lately: 0},
         timeCount: {all: 0, stage: 0, lately: 0},
         
-        keys: {data: [], count: 0},
+        miniCubes: {data: [], count: 0},
         goals: [],
       }
 
@@ -605,7 +605,7 @@
         me.deadCount.stage = 0;
         me.moveCount.stage = 0;
         me.timeCount.stage = 0;
-        if(data[stage].needKeys >= 1) showOverlay("GoalするためにKeyが"+String(data[stage].needKeys)+"個必要です。");
+        if(data[stage].needMiniCubes >= 1) showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。");
         callStage();
       }
       
@@ -681,7 +681,7 @@
           }
         } else if(kind == 5) {
           const cube5 = makeOneCube(0xff8888, pos, 0.5);
-          me.keys.data.push([cube5, pos]);
+          me.miniCubes.data.push([cube5, pos]);
           return cube5;
         }
       }
@@ -710,8 +710,8 @@
         me.deadCount.stage = 0;
         me.moveCount.stage = 0;
         me.timeCount.stage = 0;
-        if(data[stage].needKeys >= 1) showOverlay("GoalするためにKeyが"+String(data[stage].needKeys)+"個必要です。");
-        me.keys = {data: [], count: 0};
+        if(data[stage].needMiniCubes >= 1) showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。");
+        me.miniCubes = {data: [], count: 0};
         callStage();
       }
       
@@ -744,7 +744,7 @@
         me.moveCount.lately = 0;
         me.timeCount.lately = 0;
         
-        me.keys = {data: [], count: 0};
+        me.miniCubes = {data: [], count: 0};
         me.goals = [];
         
         preTime = null;
@@ -776,7 +776,7 @@
       }
       
       function goal() {
-        if(data[stage].needKeys > me.keys.count) return;
+        if(data[stage].needMiniCubes > me.miniCubes.count) return;
         me.goal = true;
         me.goalStart = Date.now();
         me.goalParticles = createGoalParticles(me.model.position.clone());
@@ -794,22 +794,20 @@
         if(me.rolling || me.falling) return;
         
         if(getCubeKind(me.pos) == 5) {
-          me.keys.count += 1;
-          if(me.keys.count >= data[stage].needKeys) {
+          me.miniCubes.count += 1;
+          if(me.miniCubes.count >= data[stage].needminiCubes) {
             for(let k of me.goals) k.material.color.set(0xcccc00);
           }
-          for(let k = 0; k < me.keys.data.length; k++) {
-            const model = me.keys.data[k][0];
-            const posK = me.keys.data[k][1];
+          for(let k = 0; k < me.miniCubes.data.length; k++) {
+            const model = me.miniCubes.data[k][0];
+            const posK = me.miniCubes.data[k][1];
 
             if(me.pos.x == posK.x && me.pos.y == posK.y && me.pos.z == posK.z) {
-              console.log(posK)
               // シーンから削除
               if(model.parent) {
                 model.parent.remove(model);
               }
 
-              // メモリ解放（必要に応じて）
               model.traverse(obj => {
                 if(obj.isMesh) {
                   if(obj.geometry) obj.geometry.dispose();
@@ -824,7 +822,7 @@
               });
 
               // 配列から削除
-              me.keys.data.splice(k, 1);
+              me.miniCubes.data.splice(k, 1);
               data[stage].stage[posK.y][posK.z][posK.x] = 0;
               k--;
             }
@@ -1281,12 +1279,6 @@
       function animate() {
         requestAnimationFrame(animate);
         
-        /*me.timeCount.all = (Date.now() - me.timeStart.all)/1000;
-        if(!me.goal) me.timeCount.stage = (Date.now() - me.timeStart.stage)/1000;
-        if(!me.dead && !me.goal) me.timeCount.lately = (Date.now() - me.timeStart.lately)/1000;*/
-        
-        
-        
         // もし死亡中ならアニメーション
         if (me.dead) {
           const elapsed = Date.now() - me.deadStart;
@@ -1408,7 +1400,7 @@
           me.timeCount.stage += deltaTime;
           me.timeCount.lately += deltaTime;
         }
-        textDiv.innerHTML = `${data[stage].needKeys >= 1 ? (me.keys.count >= data[stage].needKeys ? '<span style="color: #66dd66;">' : '<span style="color: #dd6666;">') : ''}Keys : ${me.keys.count} / ${data[stage].needKeys ?? 0}${data[stage].needKeys >= 1 ? '</span>' : ''}<br>Stage : ${stage}<br>
+        textDiv.innerHTML = `${data[stage].needMiniCubes >= 1 ? (me.miniCubes.count >= data[stage].needMiniCubes ? '<span style="color: #66dd66;">' : '<span style="color: #dd6666;">') : ''}Keys : ${me.miniCubes.count} / ${data[stage].needMiniCubes ?? 0}${data[stage].needMiniCubes >= 1 ? '</span>' : ''}<br>Stage : ${stage}<br>
 Time : ${(me.timeCount.lately/1000).toFixed(1)}秒 / ${(me.timeCount.stage/1000).toFixed(1)}秒<br>
 Move : ${me.moveCount.lately}回 / ${me.moveCount.stage}回<br>
 Fail : ${me.deadCount.stage}回`;
