@@ -299,7 +299,7 @@
         await wait(3000);
         
         await new Promise(resolve => {
-          showOverlay("他にも、赤いブロックを触れると死亡判定となります。\n水色のブロックは滑りやすいです。\nこれらを踏まえて、ゴールの黄色いブロックを目指しましょう！", {
+          showOverlay("他にも、赤いブロックを触れると死亡判定となります。\n水色のブロックは滑り落ちやすいです。\nこれらを踏まえて、ゴールの黄色いブロックを目指しましょう！", {
             onOk: resolve
           });
         });
@@ -419,7 +419,7 @@
               [1,0,0,0,0,0,0,0,0,0,0,0,0],
               [1,2,0,0,0,0,0,0,0,0,0,0,0],
               [1,0,0,0,0,0,0,1,0,0,0,0,0],
-              [1,0,0,0,0,0,1,1,0,0,0,0,0],
+              [1,4,0,0,0,0,1,1,0,0,0,0,0],
             ],
             [
               [1,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -598,15 +598,7 @@
         
         miniCubes: {data: [], count: 0},
         goals: [],
-      }
-
-      function nextStage() {
-        stage += 1;
-        me.deadCount.stage = 0;
-        me.moveCount.stage = 0;
-        me.timeCount.stage = 0;
-        if(data[stage].needMiniCubes >= 1) showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。");
-        callStage();
+        complete: false,
       }
       
       function getCubeKind(pos) {
@@ -715,6 +707,18 @@
         callStage();
       }
       
+      function nextStage() {
+        stage += 1;
+        if(stage >= data.length) {
+          complete();
+          return;
+        }
+        me.deadCount.stage = 0;
+        me.moveCount.stage = 0;
+        me.timeCount.stage = 0;
+        if(data[stage].needMiniCubes >= 1) showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。");
+        callStage();
+      }
       
       function callStage() {
         data = structuredClone(Data);
@@ -775,8 +779,16 @@
         return {x: a.x+b.x, y: a.y+b.y, z: a.z+b.z};
       }
       
+      function complete() {
+        me.complete = true;
+        showOverlay(`<span style="color: #cccc33;">All Stage Clear!!</span>
+ClearTime : ${(me.timeCount.all/1000).toFixed(2)}秒<br>
+Move : ${me.moveCount.all}回<br>
+Fail : ${me.deadCount.all}回`);
+      }
+      
       function goal() {
-        if(data[stage].needMiniCubes > me.miniCubes.count) return;
+        if((data[stage].needMiniCubes ?? 0) > me.miniCubes.count) return;
         me.goal = true;
         me.goalStart = Date.now();
         me.goalParticles = createGoalParticles(me.model.position.clone());
@@ -789,13 +801,10 @@
         me.deadCount.stage += 1;
       }
 
-      
-      function check() {
-        if(me.rolling || me.falling) return;
-        
+      function takeMiniCubes() {
         if(getCubeKind(me.pos) == 5) {
           me.miniCubes.count += 1;
-          if(me.miniCubes.count >= data[stage].needminiCubes) {
+          if(me.miniCubes.count >= data[stage].needMiniCubes) {
             for(let k of me.goals) k.material.color.set(0xcccc00);
           }
           for(let k = 0; k < me.miniCubes.data.length; k++) {
@@ -828,6 +837,12 @@
             }
           }
         }
+      }
+      
+      function check() {
+        if(me.rolling || me.falling) return;
+        
+        if(getCubeKind(me.pos) == 5) takeMiniCubes();
 
         
         const surrounding = checkSurrounding(me.pos);
@@ -836,7 +851,7 @@
           if(k.kind == 2) {
             dead();
             return;
-          } else if(k.kind == 4 && me.miniCubes.count >= data[stage].needMiniCubes) {
+          } else if(k.kind == 4 && (data[stage].needMiniCubes ?? 0) <= me.miniCubes.count) {
             goal();
             return;
           }
@@ -1277,6 +1292,7 @@
       
       function animate() {
         requestAnimationFrame(animate);
+        if(me.complete) return;
         
         // もし死亡中ならアニメーション
         if (me.dead) {
