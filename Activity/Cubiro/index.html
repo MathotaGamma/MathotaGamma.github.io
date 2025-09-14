@@ -12,7 +12,7 @@
       }
     </script>
     <style>
-      html, body {
+      html, body, .container {
         width: 100%;
         height: 100%;
         padding: 0;
@@ -21,6 +21,16 @@
         -webkit-user-select: none;
         overflow: hidden;
         touch-action: none;
+      }
+      
+      
+      #home {
+        background: url("https://mathotagamma.github.io/Statics/Cubiro/Background/img.PNG") no-repeat center center fixed;
+        background-size: cover;
+      }
+      
+      #athletics {
+        display: none;
       }
       
       header {
@@ -45,6 +55,11 @@
         border: 1px solid white;
         border-radius: 2px;
         height: 28px;
+      }
+      
+      #header-athletics {
+        display: none;
+        /*display: contents;*/
       }
       
       #text {
@@ -105,25 +120,61 @@
         padding: 8px 16px;
         font-size: 16px;
       }
+      
+      .diamond-container {
+        position: absolute;
+        top: 50%;
+        width: 100px;
+        height: 100px;
+        font-size: 30px;
+        transform: translate(-50%, -50%) rotate(-45deg) skew(10deg, 10deg);
+        background: rgba(255, 30, 30, 0.6);
+      }
+      
+      .diamond-container:nth-of-type(1) {
+        left: calc(50% - 150px);
+      }
+      
+      .diamond-container:nth-of-type(2) {
+        left: calc(50% + 150px);
+      }
+      
+      .diamond-child {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        color: rgba(255, 255, 255, 0.7);
+        transform: translate(-50%, -50%) skew(-10deg, -10deg) rotate(45deg);
+      }
     </style>
   </head>
   <body>
     <header>
-      <div>3D Athletic</div>
-      <div class="button" id="retry">Retry</div>
-      <audio id="audio" src="https://mathotagamma.github.io/Statics/Bgm/Cubiro/bgm.mp3" loop></audio>
-
-      <div class="button" id="toggle-sound">音再生</div><br>
-      
+      <div>3D Athletics</div>
+      <audio id="audio" src="https://mathotagamma.github.io/Statics/Cubiro/Bgm/bgm.mp3" loop></audio>
+      <div class="button" id="toggle-sound">音再生</div>
+      <div id="header-athletics">
+        <div class="button" id="to-home">Homeへ</div>
+        <div class="button" id="retry">Retry</div>
+      </div>
     </header>
     <div id="overlay" style="display:none;">
       <div id="message"></div>
       <div class="button-group" id="buttonGroup"></div>
     </div>
-    <div id="text"></div>
-    <canvas id="canvas"></canvas>
+    <div class="container" id="home">
+      <div class="diamond-container">
+        <div class="diamond-child" id="play-button">Play</div>
+      </div>
+      <div class="diamond-container">
+        <div class="diamond-child" id="setting-button">Setting</div>
+      </div>
+    </div>
+    <div class="container" id="athletics">
+      <div id="text"></div>
+      <canvas id="canvas"></canvas>
     
-    
+    </div>
     <script type="module">
       import * as THREE from "three";
       const headerHeight = 40;
@@ -137,6 +188,72 @@
       const audio = document.getElementById('audio');
       const toggleBtn = document.getElementById('toggle-sound');
       
+      const playDiv = document.getElementById("play-button");
+      const settingDiv = document.getElementById("setting-button");
+      
+      const headerAthletics = document.getElementById("header-athletics");
+      
+      const homeDiv = document.getElementById("home");
+      const athleticsDiv = document.getElementById("athletics");
+      
+      playDiv.addEventListener("click", () => {
+        me.animate = true;
+        
+        homeDiv.style.display = "none";
+        athleticsDiv.style.display = "block";
+        headerAthletics.style.display = "contents";
+        setTimeout(tutorialConfirm, 100);
+      });
+      
+      const toHomeDiv = document.getElementById("to-home");
+      
+      function reset() {
+        me.animate = true;
+
+        // データ初期化
+        data = structuredClone(Data);
+        stage = 0;
+
+        me.pos = {x: 0, y: 0, z: 0};
+        me.rotation = {x: 0, y: 0, z: 0};
+        me.model = null;
+        me.moveDirection = new THREE.Vector3(0,0,0);
+        me.rolling = false;
+        me.falling = false;
+        me.deadCount = {all: 0, stage: 0};
+        me.moveCount = {all: 0, stage: 0, lately: 0};
+        me.timeCount = {all: 0, stage: 0, lately: 0};
+        me.miniCubes = {data: [], count: 0};
+        me.goals = [];
+        me.preStart = true;
+        me.complete = false;
+        me.actionValid = false;
+        me.mode = "home";
+
+        // --- ステージ用オブジェクトだけ削除 ---
+        for (let i = scene.children.length - 1; i >= 0; i--) {
+          const obj = scene.children[i];
+          if (!(obj instanceof THREE.Light) && obj.type !== "Camera") {
+            scene.remove(obj);
+          }
+        }
+
+        // --- ステージを再構築 ---
+        init();
+      }
+
+      function toHome() {
+        athleticsDiv.style.display = "none";
+        headerAthletics.style.display = "none";
+        homeDiv.style.display = "block";
+        reset();
+      }
+
+
+      toHomeDiv.addEventListener("click", () => {
+        toHome();
+      });
+
 
       /*
        * テロップを表示する
@@ -209,6 +326,7 @@
         });
       }
       
+      musicConfirm();
       
       async function musicConfirm() {
         let musicTf = false;
@@ -231,8 +349,6 @@
           audio.pause();
           toggleBtn.textContent = '音再生';
         }
-        
-        tutorialConfirm();
       }
       
       
@@ -383,6 +499,7 @@
       let preTime = null;
       let deltaTime = 0;
       let ignoreTouchList = [];
+      
       
       /*
         [0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -598,8 +715,12 @@
         
         miniCubes: {data: [], count: 0},
         goals: [],
+        preStart: true,
+        animate: true,
         complete: false,
         actionValid: false,
+        
+        mode: "home",
       }
       
       function getCubeKind(pos) {
@@ -696,6 +817,8 @@
         //makeCube(1, {x: 0, y: 0, z: 0})
       }
       
+      animate();
+      
       function init() {
         me.deadCount.all = 0;
         me.moveCount.all = 0;
@@ -705,6 +828,7 @@
         me.timeCount.stage = 0;
         if(data[stage].needMiniCubes >= 1) showOverlay("Goalするためには\nMiniCubeを<span style='color: blue;'>"+String(data[stage].needMiniCubes)+"</span>個集める必要があります。");
         me.miniCubes = {data: [], count: 0};
+        me.preStart = false;
         me.actionValid = true;
         callStage();
       }
@@ -770,7 +894,7 @@
       }
 
       
-      init();
+      //init();
       
       let rollStartPos = {x: 0, y: 0, z: 0};
       let rollStartTime = 0;
@@ -788,7 +912,7 @@
         showOverlay(`<span style="color: #cccc33;">All Stage Clear!!</span>
 ClearTime : ${(me.timeCount.all/1000).toFixed(2)}秒<br>
 Move : ${me.moveCount.all}回<br>
-Fail : ${me.deadCount.all}回`);
+Fail : ${me.deadCount.all}回`, {onOk: toHome});
       }
       
       function goal() {
@@ -1055,8 +1179,6 @@ Fail : ${me.deadCount.all}回`);
       
       
       
-      
-      
       let isDragging = false;
       let lastX = 0, lastY = 0;
 
@@ -1307,8 +1429,9 @@ Fail : ${me.deadCount.all}回`);
       
       
       function animate() {
+        if(!me.animate) return;
         requestAnimationFrame(animate);
-        if(me.complete) return;
+        if(me.preStart || me.complete) return;
         
         // もし死亡中ならアニメーション
         if (me.dead) {
@@ -1444,8 +1567,6 @@ Fail : ${me.deadCount.stage}回`;
         updateCamera();
         renderer.render(scene, camera);
       }
-
-      animate();
     </script>
   </body>
 </html>
