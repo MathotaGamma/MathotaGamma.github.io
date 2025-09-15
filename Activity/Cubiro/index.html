@@ -237,7 +237,7 @@
         homeDiv.style.display = "none";
         athleticsDiv.style.display = "block";
         headerAthletics.style.display = "contents";
-        if(local !== null) {
+        if(localStorage.hasOwnProperty("Cubiro_stage")) {
           showOverlay('既存のデータが残っています。\n<span style="color: #bb0000;">第'+local+"ステージ</span>から開始しますか？",{
             mode: "yesno",
             onYes: () => {
