@@ -223,7 +223,6 @@ CompVis.View = class {
     this.xScale = 100;
     this.yScale = 100;
 
-
     // 制限値
     this.MIN_SCALE = 1e-4;
     this.MAX_SCALE = 1e6;
@@ -236,8 +235,6 @@ CompVis.View = class {
     this.resize();
     window.addEventListener("resize", () => this.resize());
 
-
-
     //mode -> static : mainOption適用。
     //     -> dynamic: mainoption適用しない。
     this.mode = options.mode !== undefined ? options.mode : "static";
@@ -246,7 +243,7 @@ CompVis.View = class {
     this.rangeX = options.rangeX !== undefined ? options.rangeX : [-this.W / 2, this.W / 2];
     this.rangeY = options.rangeY !== undefined ? options.rangeY : [-this.H / 2, this.H / 2];
 
-    if (this.mode == "dynamic") {
+    if (this.mode === "dynamic") {
       // イベント登録
       this.canvas.addEventListener("wheel", e => this.onWheel(e));
       this.canvas.addEventListener("touchstart", e => this.onTouchStart(e), {
@@ -309,30 +306,16 @@ CompVis.View = class {
   //----------------
   renderAll() {
     this.ctx.clearRect(0, 0, this.W, this.H);
-  
-    // モードが"static"かつ自動スケールの場合、描画範囲を事前に計算
-    if (this.mode === "static" && this.autoScale) {
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    
+
+    // staticモードの場合のみスケールを計算
+    if (this.mode === "static") {
+      let minX = Infinity,
+        maxX = -Infinity,
+        minY = Infinity,
+        maxY = -Infinity;
+
       for (const graph of this.graphs) {
-        const { f, a, b, span, isParametric } = graph;
-        
-        const points = [];
-        for (let i = 0; i <= span; i++) {
-          const t = a + (b - a) * i / span;
-          let res;
-          try {
-            res = f(t);
-          } catch {
-            continue;
-          }
-          if (Array.isArray(res) && res.length >= 2) {
-            points.push({ x: res[0], y: res[1] });
-          } else if (typeof res === "number") {
-            points.push({ x: t, y: res });
-          }
-        }
-        
+        const points = this.getGraphPoints(graph);
         if (points.length > 0) {
           minX = Math.min(minX, ...points.map(p => p.x));
           maxX = Math.max(maxX, ...points.map(p => p.x));
@@ -340,46 +323,36 @@ CompVis.View = class {
           maxY = Math.max(maxY, ...points.map(p => p.y));
         }
       }
-      
-      if (minX !== Infinity) {
-        this.xScale = (this.W - 10) / ((maxX - minX) || 1);
-        this.yScale = (this.H - 10) / ((maxY - minY) || 1);
-        
-        let paddedMinX = minX - 5 / this.xScale;
-        let paddedMaxX = maxX + 5 / this.xScale;
-        let paddedMinY = minY - 5 / this.yScale;
-        let paddedMaxY = maxY + 5 / this.yScale;
-        
-        this.offsetX = (paddedMinX + paddedMaxX) / 2;
-        this.offsetY = (paddedMinY + paddedMaxY) / 2;
+      if (this.autoScale) {
+        this.xScale = (this.W - 20) / ((maxX - minX) || 1);
+        this.yScale = (this.H - 20) / ((maxY - minY) || 1);
+        this.offsetX = (minX + maxX) / 2;
+        this.offsetY = (minY + maxY) / 2;
+      } else {
+        const fixedMinX = Math.min(this.rangeX[0], this.rangeX[1]);
+        const fixedMaxX = Math.max(this.rangeX[0], this.rangeX[1]);
+        const fixedMinY = Math.min(this.rangeY[0], this.rangeY[1]);
+        const fixedMaxY = Math.max(this.rangeY[0], this.rangeY[1]);
+        this.xScale = this.W / (fixedMaxX - fixedMinX);
+        this.yScale = this.H / (fixedMaxY - fixedMinY);
+        this.offsetX = (this.rangeX[0] + this.rangeX[1]) / 2;
+        this.offsetY = (this.rangeY[0] + this.rangeY[1]) / 2;
       }
-    } else if (this.mode === "static" && !this.autoScale) {
-      const minX = Math.min(this.rangeX[0], this.rangeX[1]);
-      const maxX = Math.max(this.rangeX[0], this.rangeX[1]);
-      const minY = Math.min(this.rangeY[0], this.rangeY[1]);
-      const maxY = Math.max(this.rangeY[0], this.rangeY[1]);
-      
-      this.xScale = this.W / (maxX - minX);
-      this.yScale = this.H / (maxY - minY);
-      
-      this.offsetX = (this.rangeX[0] + this.rangeX[1]) / 2;
-      this.offsetY = (this.rangeY[0] + this.rangeY[1]) / 2;
     }
-  
-    // グリッドを描画
+
+    // グリッドを先に描画
     if (this.showAxis) {
       this.drawGrid();
     }
-    
+
     // グラフを描画
     const viewData = [];
     for (const graph of this.graphs) {
       viewData.push(this.renderGraph(graph));
     }
-    
+
     return viewData;
   }
-  
 
   calcRange() {
     let wid = this.W / (2 * this.xScale);
@@ -533,11 +506,18 @@ CompVis.View = class {
       color,
       isParametric
     } = graph;
-  
+
+    // dynamicモードで非パラメトリックの場合、描画範囲を現在のビューポートに合わせる
+    if (this.mode === "dynamic" && !isParametric) {
+      const k = this.calcRange();
+      a = k.a;
+      b = k.b;
+      span = this.W; // 画面幅に応じて描画点を調整
+    }
+
     const ctx = this.ctx;
     const points = [];
-  
-    // グラフの点を取得（普通のx,y座標）
+
     for (let i = 0; i <= span; i++) {
       const t = a + (b - a) * i / span;
       let res;
@@ -558,34 +538,27 @@ CompVis.View = class {
         });
       }
     }
-  
+
     if (points.length < 2) return;
-  
+
     ctx.beginPath();
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
-  
+
     for (let i = 0; i < points.length; i++) {
       const px = this.W / 2 + (points[i].x - this.offsetX) * this.xScale;
       const py = this.H / 2 - (points[i].y - this.offsetY) * this.yScale;
       if (i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
-  
+
     ctx.stroke();
-  
+
     return {
       isParametric,
-      // これらの値は`renderAll`で計算されるため、`renderGraph`では不要
-      // minX,
-      // maxX,
-      // minY,
-      // maxY,
       graph,
     };
   }
-
-
 
   //----------------
   // テキスト描画
@@ -600,10 +573,6 @@ CompVis.View = class {
     ctx.fillText(text, x, y);
     ctx.restore();
   }
-
-
-
-
 
   // ===== Wheel操作 =====
   onWheel(e) {
@@ -652,7 +621,6 @@ CompVis.View = class {
     this.isDragging = false;
   }
 
-  // ===== タッチ操作 =====
   onTouchStart(e) {
     if (e.touches.length === 1) {
       this.lastPanPos = {
@@ -684,14 +652,14 @@ CompVis.View = class {
   onTouchMove(e) {
     e.preventDefault();
 
-    if (e.touches.length === 2) {
+    // 最初にタッチの状態を厳密にチェック
+    // 2本指でのピンチ操作が意図されているか？
+    if (e.touches.length === 2 && this.lastTouchDist !== null && this.lastTouchCenter !== null) {
+      // 2本指でのピンチ操作
       const newDist = this.getDist(e.touches[0], e.touches[1]);
       const newCenter = this.getCenter(e.touches[0], e.touches[1]);
       const zoom = newDist / this.lastTouchDist;
 
-
-
-      // スケール更新
       if (this.lockAxis === 'x') this.xScale *= zoom;
       else if (this.lockAxis === 'y') this.yScale *= zoom;
       else {
@@ -699,21 +667,21 @@ CompVis.View = class {
         this.yScale *= zoom;
       }
 
-      // ピンチ開始時のワールド座標を基準に補正
-      this.offsetX = this.pinchWorldBeforeX - (newCenter.x - this.W / 2) / this.xScale;
-      this.offsetY = this.pinchWorldBeforeY + (newCenter.y - this.H / 2) / this.yScale;
+      // ズームとパンの複合計算
+      const panX = (newCenter.x - this.lastTouchCenter.x) / this.xScale;
+      const panY = (newCenter.y - this.lastTouchCenter.y) / this.yScale;
 
-      this.offsetX -= (newCenter.x - this.lastTouchCenter.x) / this.xScale;
-      this.offsetY += (newCenter.y - this.lastTouchCenter.y) / this.yScale;
+      this.offsetX -= panX;
+      this.offsetY += panY;
 
-      // 制限
       this.xScale = Math.min(Math.max(this.xScale, this.MIN_SCALE), this.MAX_SCALE);
       this.yScale = Math.min(Math.max(this.yScale, this.MIN_SCALE), this.MAX_SCALE);
 
       this.lastTouchDist = newDist;
       this.lastTouchCenter = newCenter;
 
-    } else if (e.touches.length === 1 && this.lastPanPos) {
+    } else if (e.touches.length === 1 && this.lastPanPos !== null) {
+      // 1本指でのパン操作
       const dx = e.touches[0].clientX - this.lastPanPos.x;
       const dy = e.touches[0].clientY - this.lastPanPos.y;
 
@@ -724,28 +692,41 @@ CompVis.View = class {
         x: e.touches[0].clientX,
         y: e.touches[0].clientY
       };
+    } else {
+      // 予期せぬ状態の場合、すべての状態をリセットして次の操作に備える
+      this.lastTouchDist = null;
+      this.lastTouchCenter = null;
+      this.lastPanPos = null;
+      this.pinchWorldBeforeX = null;
+      this.pinchWorldBeforeY = null;
+      this.lockAxis = null;
     }
 
     this.renderAll();
   }
 
   onTouchEnd(e) {
-    if (e.touches.length < 2) {
+    if (e.touches.length === 0) {
+      // すべての指が離れた場合
       this.lastTouchDist = null;
       this.lastTouchCenter = null;
       this.pinchWorldBeforeX = null;
       this.pinchWorldBeforeY = null;
       this.lockAxis = null;
-    }
-    if (e.touches.length === 0) {
       this.lastPanPos = null;
+    } else if (e.touches.length === 1) {
+      // 1本指になった場合（パン操作に備えて初期化）
+      this.lastTouchDist = null;
+      this.lastTouchCenter = null;
+      this.pinchWorldBeforeX = null;
+      this.pinchWorldBeforeY = null;
+      this.lockAxis = null;
+      this.lastPanPos = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY
+      };
     }
   }
-
-
-
-
-
 
   //----------------
   // タッチ距離取得
@@ -899,8 +880,3 @@ CompVis._list = [
   Object.getOwnPropertyNames(CompVis),
   Object.getOwnPropertyNames(Object.getPrototypeOf(new CompVis()))
 ];
-
-
-
-
-
