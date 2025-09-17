@@ -301,6 +301,27 @@ CompVis.View = class {
     return graph;
   }
 
+  getGraphPoints(graph) {
+    const points = [];
+    const { f, a, b, span } = graph;
+
+    for (let i = 0; i <= span; i++) {
+      const t = a + (b - a) * i / span;
+      let res;
+      try {
+        res = f(t);
+      } catch {
+        continue;
+      }
+      if (Array.isArray(res) && res.length >= 2) {
+        points.push({ x: res[0], y: res[1] });
+      } else if (typeof res === "number") {
+        points.push({ x: t, y: res });
+      }
+    }
+    return points;
+  }
+  
   //----------------
   // グラフ全体描画
   //----------------
