@@ -310,13 +310,12 @@ CompVis.View = class {
   renderAll() {
     this.ctx.clearRect(0, 0, this.W, this.H);
     // グリッド描画
+    if (this.showAxis) {
+      this.drawGrid();
+    }
     const viewData = [];
     for (const graph of this.graphs) {
       viewData.push(this.renderGraph(graph));
-    }
-
-    if (this.showAxis) {
-      this.drawGrid();
     }
 
     return viewData;
