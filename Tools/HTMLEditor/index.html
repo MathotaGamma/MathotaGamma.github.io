@@ -1,93 +1,366 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <title>安全なHTML実行エディタ</title>
-  <style>
-    body { margin: 0; font-family: monospace; display: flex; flex-direction: column; height: 100vh; }
-    textarea { height: 30vh; font-size: 14px; padding: 8px; border: none; resize: vertical; }
-    iframe { flex: 1; border: 1px solid #ccc; width: 100%; }
-    #console { height: 150px; background: #111; color: #0f0; overflow-y: auto; white-space: pre-wrap; padding: 8px; font-size: 13px; }
-  </style>
-</head>
-<body>
-  <textarea id="editor"><!DOCTYPE html>
-<html lang="ja">
   <head>
-    <meta charset="utf-8">
-    <title>None Title</title>
+    <meta charset="UTF-8" />
+    <title>HTML実行エディタ | TOOLS</title>
+    <style>
+      html, body {
+        margin: 0; padding: 0; height: 100%;
+        font-family: monospace;
+        overflow: hidden;
+      }
+      body {
+        display: flex;
+        height: 100vh;
+        user-select: none;
+      }
+      #editor-container {
+        width: 50%;
+        display: flex;
+        flex-direction: column;
+        border-right: 3px solid #aaa;
+        box-sizing: border-box;
+        position: relative;
+        user-select: text;
+      }
+      textarea#editor {
+        flex: 1;
+        font-size: 14px;
+        padding: 8px;
+        border: none;
+        resize: none;
+        outline: none;
+        line-height: 1.4em;
+        white-space: pre;
+        font-family: monospace;
+      }
+      #resize-bar {
+        position: absolute;
+        top: 0; right: 0; bottom: 0;
+        width: 6px;
+        cursor: ew-resize;
+        background: #aaa;
+        user-select: none;
+        transition: background-color 0.2s;
+        z-index: 10;
+      }
+      #resize-bar:hover {
+        background: #666;
+      }
+      #preview-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        user-select: text;
+      }
+      iframe#preview {
+        flex: 1;
+        border: none;
+        width: 100%;
+        background: #fff;
+      }
+      #console {
+        height: 150px;
+        background: #111;
+        color: #0f0;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        padding: 8px;
+        font-size: 13px;
+        border-top: 1px solid #444;
+        font-family: monospace;
+      }
+      #controls {
+        padding: 6px 8px;
+        background: #f7f7f7;
+        border-bottom: 1px solid #ccc;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        user-select: none;
+        flex-wrap: wrap;
+      }
+      #controls button {
+        font-size: 14px;
+        padding: 4px 12px;
+        border-radius: 4px;
+        border: 1px solid #888;
+        background: #fff;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      #controls button:hover {
+        background: #e0e0e0;
+      }
+    </style>
   </head>
   <body>
-    <h1>Hello</h1>
-      <script>
-        
-      </script>
+    <div id="editor-container">
+      <div id="controls">
+        <button id="run">▶ 実行</button>
+        <button id="clear-console">🗑 コンソールクリア</button>
+        <button id="full-screen-btn">全画面表示</button>
+        <button id="copy-code">📋 コード全文コピー</button>
+        <button id="save-code">💾 保存</button>
+        <button id="load-code">📂 読み込み</button>
+      </div>
+      <textarea id="editor"><!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>テスト</title>
+  </head>
+  <body>
+    <h1>Hello World</h1>
+    <script>
+      console.log("ここにJavaScriptコードを書いてください");
+    </script>
   </body>
 </html></textarea>
+      <div id="resize-bar"></div>
+    </div>
 
-  <iframe id="preview"></iframe>
-  <div id="console">▼ ログとエラー出力</div>
+    <div id="preview-container">
+      <iframe id="preview" allowfullscreen></iframe>
+      <div id="console">▼ ログとエラー出力</div>
+    </div>
 
-  <script>
-    const editor = document.getElementById("editor");
-    const iframe = document.getElementById("preview");
-    const consoleDiv = document.getElementById("console");
+    <script>
+      const editor = document.getElementById("editor");
+      const preview = document.getElementById("preview");
+      const consoleDiv = document.getElementById("console");
+      const runBtn = document.getElementById("run");
+      const clearConsoleBtn = document.getElementById("clear-console");
+      const editorContainer = document.getElementById("editor-container");
+      const previewContainer = document.getElementById("preview-container");
+      const resizeBar = document.getElementById("resize-bar");
+      const fullscreenBtn = document.getElementById("full-screen-btn");
+      const copyCodeBtn = document.getElementById("copy-code");
+      const saveBtn = document.getElementById("save-code");
+      const loadBtn = document.getElementById("load-code");
 
-    function injectDebugTools(html) {
-      const debugScript = `
+      const STORAGE_KEY = "HTMLEditor_code";
+
+      // 保存
+      saveBtn.addEventListener("click", () => {
+        localStorage.setItem(STORAGE_KEY, editor.value);
+        alert("コードを保存しました");
+      });
+
+      // 読み込み
+      loadBtn.addEventListener("click", () => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          editor.value = saved;
+          alert("保存されたコードを読み込みました");
+          run();
+        } else {
+          alert("保存されたコードはありません");
+        }
+      });
+
+      copyCodeBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(editor.value).then(() => {
+          alert("コードをコピーしました");
+        });
+      });
+
+      fullscreenBtn.addEventListener("click", () => {
+        run();
+        if (preview.requestFullscreen) {
+          preview.requestFullscreen();
+        } else if (preview.webkitRequestFullscreen) {
+          preview.webkitRequestFullscreen();
+        } else if (preview.msRequestFullscreen) {
+          preview.msRequestFullscreen();
+        }
+      });
+
+      const INDENT = "    ";
+
+      editor.addEventListener("keydown", (e) => {
+        const val = editor.value;
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+
+        if (e.key === ")" || e.key === "}" || e.key === "]") {
+          e.preventDefault();
+          const before = val.substring(0, start);
+          const after = val.substring(end);
+
+          const lineStart = before.lastIndexOf("\n") + 1;
+          const currentLine = before.substring(lineStart);
+          let baseIndent = currentLine.match(/^\s*/)[0] || "";
+
+          if (/^[\t ]*$/.test(currentLine)) {
+            if (baseIndent.length >= INDENT.length) {
+              editor.value = before.slice(0, -INDENT.length) + e.key + after;
+              const pos = start - INDENT.length + 1;
+              editor.selectionStart = editor.selectionEnd = pos;
+              return;
+            }
+          }
+          editor.value = before + e.key + after;
+          editor.selectionStart = editor.selectionEnd = start + 1;
+          return;
+        }
+
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const before = val.substring(0, start);
+          const after = val.substring(end);
+
+          const lineStart = before.lastIndexOf("\n") + 1;
+          const currentLine = before.substring(lineStart);
+          let baseIndent = currentLine.match(/^\s*/)[0] || "";
+          let extraIndent = "";
+
+          if (currentLine.trimEnd().endsWith("{") ||
+              currentLine.trimEnd().endsWith("(") ||
+              currentLine.trimEnd().endsWith("[")) {
+            extraIndent = INDENT;
+          }
+
+          const insertText = "\n" + baseIndent + extraIndent;
+          editor.value = before + insertText + after;
+          const pos = start + insertText.length;
+          editor.selectionStart = editor.selectionEnd = pos;
+          return;
+        }
+      });
+
+      editor.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const pasteText = (e.clipboardData || window.clipboardData).getData("text");
+        const val = editor.value;
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+
+        const before = val.substring(0, start);
+        const after = val.substring(end);
+
+        const lineStart = before.lastIndexOf("\n") + 1;
+        const currentLine = before.substring(lineStart);
+        const baseIndent = currentLine.match(/^\s*/)[0] || "";
+
+        const lines = pasteText.split("\n");
+
+        let minIndent = Infinity;
+        lines.forEach(line => {
+          const m = line.match(/^(\s*)\S/);
+          if (m) minIndent = Math.min(minIndent, m[1].length);
+        });
+        if (!isFinite(minIndent)) minIndent = 0;
+
+        const newLines = lines.map((line, idx) => {
+          if (idx === 0) return line;
+          return baseIndent + line.substring(minIndent);
+        });
+
+        const insertText = newLines.join("\n");
+        editor.value = before + insertText + after;
+        const pos = start + insertText.length;
+        editor.selectionStart = editor.selectionEnd = pos;
+      });
+
+      function run() {
+        consoleDiv.textContent = "▼ ログとエラー出力";
+        const userHTML = editor.value;
+
+        const debugScript = `
 <script>
-(function(){
-  window.onerror = function(msg, src, line, col, err) {
-    parent.postMessage({
-      type: "error",
-      message: msg,
-      line: line,
-      col: col,
-      stack: err && err.stack
-    }, "*");
-  };
-  const origLog = console.log;
-  console.log = function(...args) {
-    parent.postMessage({ type: "log", message: args.join(" ") }, "*");
-    origLog(...args);
-  };
-})();
+  (function(){
+    window.onerror = function(msg, src, line, col, err) {
+      parent.postMessage({ type: "error", message: msg, line, col, stack: err && err.stack }, "*");
+    };
+    const origLog = console.log;
+    console.log = function(...args) {
+      parent.postMessage({ type: "log", message: args.join(" ") }, "*");
+      origLog(...args);
+    };
+  })();
 <\/script>`.trim();
 
-      // head や body がなければ自動補完
-      let output = html;
-      
-      output = debugScript + output;
-      
-      console.log(output)
-      return output;
-    }
-
-    function updateIframe() {
-      const userHTML = editor.value;
-      const fullHTML = injectDebugTools(userHTML);
-
-      const blob = new Blob([fullHTML], { type: "text/html" });
-      const blobURL = URL.createObjectURL(blob);
-      iframe.src = blobURL;
-    }
-
-    // メッセージ受信
-    window.addEventListener("message", e => {
-      if (e.data?.type === "log") {
-        consoleDiv.textContent += `\n[LOG] ${e.data.message}`;
-      } else if (e.data?.type === "error") {
-        consoleDiv.textContent += `\n[ERROR] ${e.data.message}`;
-        if (e.data.line !== undefined) {
-          consoleDiv.textContent += ` (line ${e.data.line-17}, col ${e.data.col})`;
+        let output = userHTML;
+        if (output.match(/<head[^>]*>/i)) {
+          output = output.replace(/<head[^>]*>/i, match => match + debugScript);
+        } else {
+          output = debugScript + output;
         }
-        
-      }
-      consoleDiv.scrollTop = consoleDiv.scrollHeight;
-    });
 
-    editor.addEventListener("input", updateIframe);
-    updateIframe();
-  </script>
-</body>
+        preview.srcdoc = output;
+      }
+
+      runBtn.addEventListener("click", run);
+      clearConsoleBtn.addEventListener("click", () => {
+        consoleDiv.textContent = "▼ ログとエラー出力";
+      });
+
+      window.addEventListener("message", e => {
+        if (!e.data) return;
+        if (e.data.type === "log") {
+          consoleDiv.textContent += `\n[LOG] ${e.data.message}`;
+        } else if (e.data.type === "error") {
+          consoleDiv.textContent += `\n[ERROR] ${e.data.message}`;
+          if (e.data.line !== undefined) {
+            consoleDiv.textContent += ` (line ${e.data.line}, col ${e.data.col})`;
+          }
+        }
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+      });
+
+      let isResizing = false;
+      let startX = 0;
+      let startWidth = 0;
+      resizeBar.addEventListener("mousedown", e => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = editorContainer.offsetWidth;
+        document.body.style.cursor = "ew-resize";
+        e.preventDefault();
+      });
+      resizeBar.addEventListener("touchstart", e => {
+        isResizing = true;
+        startX = e.touches[0].clientX;
+        startWidth = editorContainer.offsetWidth;
+        document.body.style.cursor = "ew-resize";
+        e.preventDefault();
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (isResizing) {
+          isResizing = false;
+          document.body.style.cursor = "";
+        }
+      });
+      window.addEventListener("touchend", () => {
+        if (isResizing) {
+          isResizing = false;
+          document.body.style.cursor = "";
+        }
+      });
+
+      window.addEventListener("mousemove", e => {
+        if (!isResizing) return;
+        let newWidth = startWidth + (e.clientX - startX);
+        const minWidth = 200;
+        const maxWidth = window.innerWidth - 200;
+        newWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+        editorContainer.style.width = newWidth + "px";
+        previewContainer.style.width = (window.innerWidth - newWidth) + "px";
+      });
+      window.addEventListener("touchmove", e => {
+        if (!isResizing) return;
+        let newWidth = startWidth + (e.touches[0].clientX - startX);
+        const minWidth = 200;
+        const maxWidth = window.innerWidth - 200;
+        newWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+        editorContainer.style.width = newWidth + "px";
+        previewContainer.style.width = (window.innerWidth - newWidth) + "px";
+      });
+
+      run(); // 初期実行
+    </script>
+  </body>
 </html>
