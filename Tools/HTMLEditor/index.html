@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>安全なHTML実行エディタ</title>
+  <style>
+    body { margin: 0; font-family: monospace; display: flex; flex-direction: column; height: 100vh; }
+    textarea { height: 30vh; font-size: 14px; padding: 8px; border: none; resize: vertical; }
+    iframe { flex: 1; border: 1px solid #ccc; width: 100%; }
+    #console { height: 150px; background: #111; color: #0f0; overflow-y: auto; white-space: pre-wrap; padding: 8px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <textarea id="editor"><!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>None Title</title>
+  </head>
+  <body>
+    <h1>Hello</h1>
+      <script>
+        
+      </script>
+  </body>
+</html></textarea>
+
+  <iframe id="preview"></iframe>
+  <div id="console">▼ ログとエラー出力</div>
+
+  <script>
+    const editor = document.getElementById("editor");
+    const iframe = document.getElementById("preview");
+    const consoleDiv = document.getElementById("console");
+
+    function injectDebugTools(html) {
+      const debugScript = `
+<script>
+(function(){
+  window.onerror = function(msg, src, line, col, err) {
+    parent.postMessage({
+      type: "error",
+      message: msg,
+      line: line,
+      col: col,
+      stack: err && err.stack
+    }, "*");
+  };
+  const origLog = console.log;
+  console.log = function(...args) {
+    parent.postMessage({ type: "log", message: args.join(" ") }, "*");
+    origLog(...args);
+  };
+})();
+<\/script>`.trim();
+
+      // head や body がなければ自動補完
+      let output = html;
+      
+      output = debugScript + output;
+      
+      console.log(output)
+      return output;
+    }
+
+    function updateIframe() {
+      const userHTML = editor.value;
+      const fullHTML = injectDebugTools(userHTML);
+
+      const blob = new Blob([fullHTML], { type: "text/html" });
+      const blobURL = URL.createObjectURL(blob);
+      iframe.src = blobURL;
+    }
+
+    // メッセージ受信
+    window.addEventListener("message", e => {
+      if (e.data?.type === "log") {
+        consoleDiv.textContent += `\n[LOG] ${e.data.message}`;
+      } else if (e.data?.type === "error") {
+        consoleDiv.textContent += `\n[ERROR] ${e.data.message}`;
+        if (e.data.line !== undefined) {
+          consoleDiv.textContent += ` (line ${e.data.line-17}, col ${e.data.col})`;
+        }
+        
+      }
+      consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    });
+
+    editor.addEventListener("input", updateIframe);
+    updateIframe();
+  </script>
+</body>
+</html>
