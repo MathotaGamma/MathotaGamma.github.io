@@ -651,8 +651,6 @@ CompVis.View = class {
     } else if (e.touches.length === 2) {
       this.lastTouchDist = this.getDist(e.touches[0], e.touches[1]);
       this.lastTouchCenter = this.getCenter(e.touches[0], e.touches[1]);
-
-      console.log(this.lastTouchDist)
       // 2本指の方向ベクトルで軸ロック
       if (this.lastTouchDist > 20) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -661,7 +659,6 @@ CompVis.View = class {
 
         if (Math.abs(dx) > Math.abs(dy) * 2) this.lockAxis = 'x';
         else if (Math.abs(dy) > Math.abs(dx) * 2) this.lockAxis = 'y';
-        console.log(this.lockAxis)
       }
 
       // ピンチ開始時のワールド座標を保存
