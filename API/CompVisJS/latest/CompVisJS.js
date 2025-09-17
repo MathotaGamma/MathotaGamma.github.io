@@ -1,4 +1,4 @@
-//変更点:グラフ描画機能のGridのアップデート、パン、ピンチイン・アウト、原点に戻る機能追加(3本指タッチで帰還)
+//変更点:グラフ描画機能のrenderAllのコード変更(drawGridを先に実行し、それに伴う変数の計算のコードを追加)、renderGraphの動作変更(drawGridに必要だった変数の計算処理を削除)
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
 class CompVis {
@@ -8,7 +8,7 @@ class CompVis {
   }
   
   static ver = '1.03.02';
-  static time = '2025/7/19/15:30:00';
+  static time = '2025/9/17/18:30';
   
   //Methods that throw errors about functions whose arguments must be real numbers
   #Error_Argument_real(k){
@@ -305,21 +305,81 @@ CompVis.View = class {
   }
 
   //----------------
-  // 一括描画
+  // グラフ全体描画
   //----------------
   renderAll() {
     this.ctx.clearRect(0, 0, this.W, this.H);
-    // グリッド描画
+  
+    // モードが"static"かつ自動スケールの場合、描画範囲を事前に計算
+    if (this.mode === "static" && this.autoScale) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    
+      for (const graph of this.graphs) {
+        const { f, a, b, span, isParametric } = graph;
+        
+        const points = [];
+        for (let i = 0; i <= span; i++) {
+          const t = a + (b - a) * i / span;
+          let res;
+          try {
+            res = f(t);
+          } catch {
+            continue;
+          }
+          if (Array.isArray(res) && res.length >= 2) {
+            points.push({ x: res[0], y: res[1] });
+          } else if (typeof res === "number") {
+            points.push({ x: t, y: res });
+          }
+        }
+        
+        if (points.length > 0) {
+          minX = Math.min(minX, ...points.map(p => p.x));
+          maxX = Math.max(maxX, ...points.map(p => p.x));
+          minY = Math.min(minY, ...points.map(p => p.y));
+          maxY = Math.max(maxY, ...points.map(p => p.y));
+        }
+      }
+      
+      if (minX !== Infinity) {
+        this.xScale = (this.W - 10) / ((maxX - minX) || 1);
+        this.yScale = (this.H - 10) / ((maxY - minY) || 1);
+        
+        let paddedMinX = minX - 5 / this.xScale;
+        let paddedMaxX = maxX + 5 / this.xScale;
+        let paddedMinY = minY - 5 / this.yScale;
+        let paddedMaxY = maxY + 5 / this.yScale;
+        
+        this.offsetX = (paddedMinX + paddedMaxX) / 2;
+        this.offsetY = (paddedMinY + paddedMaxY) / 2;
+      }
+    } else if (this.mode === "static" && !this.autoScale) {
+      const minX = Math.min(this.rangeX[0], this.rangeX[1]);
+      const maxX = Math.max(this.rangeX[0], this.rangeX[1]);
+      const minY = Math.min(this.rangeY[0], this.rangeY[1]);
+      const maxY = Math.max(this.rangeY[0], this.rangeY[1]);
+      
+      this.xScale = this.W / (maxX - minX);
+      this.yScale = this.H / (maxY - minY);
+      
+      this.offsetX = (this.rangeX[0] + this.rangeX[1]) / 2;
+      this.offsetY = (this.rangeY[0] + this.rangeY[1]) / 2;
+    }
+  
+    // グリッドを描画
     if (this.showAxis) {
       this.drawGrid();
     }
+    
+    // グラフを描画
     const viewData = [];
     for (const graph of this.graphs) {
       viewData.push(this.renderGraph(graph));
     }
-
+    
     return viewData;
   }
+  
 
   calcRange() {
     let wid = this.W / (2 * this.xScale);
@@ -465,7 +525,6 @@ CompVis.View = class {
   // グラフ描画
   //----------------
   renderGraph(graph) {
-
     let {
       f,
       a,
@@ -474,26 +533,11 @@ CompVis.View = class {
       color,
       isParametric
     } = graph;
-    if (this.mode == "dynamic" && !isParametric) {
-      let k = this.calcRange();
-      a = k.a;
-      b = k.b;
-    }
-
-    const rangeX = this.rangeX;
-    const rangeY = this.rangeY;
+  
     const ctx = this.ctx;
-    const spacing = this.calcSpacing();
-    const spacingPx = spacing * this.scale;
-    const originX = this.W / 2 + this.offsetX;
-    const originY = this.H / 2 + this.offsetY;
-    const oriX = this.offsetX;
-    const oriY = this.offsetY;
     const points = [];
-
-
-
-    //グラフの点を取得(普通のx,y座標)
+  
+    // グラフの点を取得（普通のx,y座標）
     for (let i = 0; i <= span; i++) {
       const t = a + (b - a) * i / span;
       let res;
@@ -514,76 +558,29 @@ CompVis.View = class {
         });
       }
     }
-
+  
     if (points.length < 2) return;
-
-
-    const xs = points.map(p => p.x);
-    const ys = points.map(p => p.y);
-
-    let minX, maxX, minY, maxY;
-    minX = Math.min(...xs);
-    maxX = Math.max(...xs);
-    minY = Math.min(...ys);
-    maxY = Math.max(...ys);
-
-    //1pxを何単位にするか決定する。(scaleとoffset決定)
-    if (this.mode == "static") {
-
-
-      if (this.autoScale) {
-        minX = Math.min(...xs);
-        maxX = Math.max(...xs);
-        minY = Math.min(...ys);
-        maxY = Math.max(...ys);
-
-        this.xScale = (this.W - 10) / ((maxX - minX) || 1);
-        this.yScale = (this.H - 10) / ((maxY - minY) || 1);
-
-        minX -= 5 / this.xScale;
-        maxX += 5 / this.xScale;
-        minY -= 5 / this.yScale;
-        maxY += 5 / this.yScale;
-
-        this.offsetX = (minX + maxX) / 2;
-        this.offsetY = (minY + maxY) / 2;
-      } else {
-        minX = Math.min(rangeX[0], rangeX[1]);
-        maxX = Math.max(rangeX[0], rangeX[1]);
-        minY = Math.min(rangeY[0], rangeY[1]);
-        maxY = Math.max(rangeY[0], rangeY[1]);
-
-
-        this.xScale = this.W / (maxX - minX);
-        this.yScale = this.H / (maxY - minY);
-
-        this.offsetX = (rangeX[0] + rangeX[1]) / 2;
-        this.offsetY = (rangeY[0] + rangeY[1]) / 2;
-      }
-    }
-
-
+  
     ctx.beginPath();
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
-
+  
     for (let i = 0; i < points.length; i++) {
       const px = this.W / 2 + (points[i].x - this.offsetX) * this.xScale;
       const py = this.H / 2 - (points[i].y - this.offsetY) * this.yScale;
       if (i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
-
+  
     ctx.stroke();
-
-
-
+  
     return {
       isParametric,
-      minX,
-      maxX,
-      minY,
-      maxY,
+      // これらの値は`renderAll`で計算されるため、`renderGraph`では不要
+      // minX,
+      // maxX,
+      // minY,
+      // maxY,
       graph,
     };
   }
