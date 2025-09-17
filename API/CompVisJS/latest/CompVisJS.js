@@ -7,7 +7,7 @@ class CompVis {
     this._imag = k_imag;
   }
   
-  static ver = '1.03.02';
+  static ver = '1.01.02';
   static time = '2025/9/17/18:30';
   
   //Methods that throw errors about functions whose arguments must be real numbers
