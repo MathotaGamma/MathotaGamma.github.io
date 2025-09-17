@@ -1,4 +1,19 @@
 //変更点:グラフ描画機能のrenderAllのコード変更(drawGridを先に実行し、それに伴う変数の計算のコードを追加)、renderGraphの動作変更(drawGridに必要だった変数の計算処理を削除)
+//注意点
+/*
+例:
+viewer.addGraph(
+  (t) => 
+    {
+      return t**2 - 4*t + 5;
+    }
+  ,-3,5,1200,{color: "#00aaff",}
+);
+
+必ずアロー関数は
+(変数) => { return ~~~ ;}
+で書くこと。('{}','return',';'必須)
+*/
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
 class CompVis {
