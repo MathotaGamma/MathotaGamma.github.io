@@ -894,18 +894,19 @@ CompVis.ViewThree = class {
     const THREE = this.modules.three;
     const OrbitControls = this.modules.OrbitControls;
     const CSS2DRenderer = this.modules.CSS2DRenderer;
-    
-    
+
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
     this.camera.position.set(10, 10, 10);
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    //this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     
     this.labelRenderer = new CSS2DRenderer();
-    this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    //this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    this.labelRenderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
     this.labelRenderer.domElement.style.position = "absolute";
     this.labelRenderer.domElement.style.top = "0px";
     document.body.appendChild(this.labelRenderer.domElement);
