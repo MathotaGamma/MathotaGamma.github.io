@@ -48,6 +48,10 @@ view.addGraph(t => [Math.cos(t), Math.sin(t), t/2], 0, Math.PI*6, 400, { color:0
 
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js";
+import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js";
+
 class CompVis {
   constructor(k_real, k_imag) {
     this._real = k_real;
