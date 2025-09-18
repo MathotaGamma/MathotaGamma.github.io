@@ -302,8 +302,6 @@ CompVis.View = class {
       });
       this.canvas.addEventListener("touchend", e => this.onTouchEnd(e));
     }
-
-    init();
   }
 
   //----------------
@@ -845,29 +843,20 @@ CompVis.ViewThree = class {
     if (!res.ok) throw new Error("Failed to fetch " + url + " : " + res.status);
     let src = await res.text();
 
-    // --- 1: 'import { ... } from "three";' を THREE 注入へ置換 ---
-    // 複数形式に対応するざっくり置換（主に examples の典型パターンを想定）
     src = src.replace(/import\s+\{([^}]+)\}\s+from\s+['"]three['"];?/g, (m, p1) => {
-      // p1 は "EventDispatcher, MOUSE, ..." のような文字列
       return `const { ${p1.trim()} } = THREE;`;
     });
 
-    // --- 2: その他の import 文は削除または警告 ---
-    // 例外的な import が残ると実行時にエラーになるため基本は削除
     src = src.replace(/import\s+[^;]+;?/g, (m) => {
-      // 保守のため一行コメントにしておく
       return `// ${m.replace(/\n/g,'')}`;
     });
 
-    // --- 3: export { A, B }; を exports.A = A; に変換 ---
     src = src.replace(/export\s*\{\s*([^}]+)\s*\}\s*;?/g, (m, p1) => {
       return p1.split(',').map(s => s.trim()).filter(Boolean).map(name => `exports.${name} = ${name};`).join('\n');
     });
 
-    // --- 4: export default ... を exports.default = ... に ---
     src = src.replace(/export\s+default\s+/g, "exports.default = ");
 
-    // --- 5: export class NAME / export function NAME を class/function に変換し末尾で exports に追加 ---
     const exportedAdded = [];
     src = src.replace(/export\s+class\s+([A-Za-z0-9_]+)/g, (m, name) => {
       exportedAdded.push(name);
@@ -878,11 +867,9 @@ CompVis.ViewThree = class {
       return `function ${name}`;
     });
 
-    // --- 6: 包装して実行可能な関数を作る ---
     const postfix = exportedAdded.map(n => `exports.${n} = ${n};`).join('\n') + '\nreturn exports;';
     const wrappedSrc = `${src}\n${postfix}`;
 
-    // new Function を使って隔離実行（exports, THREE を引数に渡す）
     try {
       const moduleFactory = new Function('exports', 'THREE', wrappedSrc);
       const exports = {};
@@ -893,7 +880,6 @@ CompVis.ViewThree = class {
     }
   };
 
-  // 3) OrbitControls / CSS2DRenderer を fetch+transform で読み込む
   try {
     const orbitModule = await loadJSMWithInjectedThree(urls.OrbitControls);
     this.modules.OrbitControls = orbitModule.OrbitControls || orbitModule.default || orbitModule;
@@ -903,14 +889,13 @@ CompVis.ViewThree = class {
 
   try {
     const css2dModule = await loadJSMWithInjectedThree(urls.CSS2DRenderer);
-    // CSS2DRenderer モジュールは名前付き export の場合が多い
     this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer || css2dModule.default || css2dModule;
     this.modules.CSS2DObject = css2dModule.CSS2DObject || null;
   } catch (err) {
     throw err;
   }
 
-  this.initScene(); // 例: モジュール読み込み完了後に初期化実行
+  this.initScene();
 }
 
 
