@@ -818,14 +818,111 @@ CompVis.ViewThree = class {
   constructor(canvas, options = {}) {
     this.canvas = canvas;
     this.mode = options.mode || "static";
+    
+    this.labelDown = options.labelDown || 0; // どれだけ細かくするか
+    // calcのときに+2してる(それがちょうどいい)
 
     this.modules = {};
-    init();
+    this.ready = this.init();
+  }
 
+  async init() {
+  const urls = {
+    three: "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
+    OrbitControls: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
+    CSS2DRenderer: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
+  };
+
+  
+  try {
+    this.modules.three = await import(urls.three);
+  } catch (err) {
+    throw err;
+  }
+
+  const loadJSMWithInjectedThree = async (url) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch " + url + " : " + res.status);
+    let src = await res.text();
+
+    // --- 1: 'import { ... } from "three";' を THREE 注入へ置換 ---
+    // 複数形式に対応するざっくり置換（主に examples の典型パターンを想定）
+    src = src.replace(/import\s+\{([^}]+)\}\s+from\s+['"]three['"];?/g, (m, p1) => {
+      // p1 は "EventDispatcher, MOUSE, ..." のような文字列
+      return `const { ${p1.trim()} } = THREE;`;
+    });
+
+    // --- 2: その他の import 文は削除または警告 ---
+    // 例外的な import が残ると実行時にエラーになるため基本は削除
+    src = src.replace(/import\s+[^;]+;?/g, (m) => {
+      // 保守のため一行コメントにしておく
+      return `// ${m.replace(/\n/g,'')}`;
+    });
+
+    // --- 3: export { A, B }; を exports.A = A; に変換 ---
+    src = src.replace(/export\s*\{\s*([^}]+)\s*\}\s*;?/g, (m, p1) => {
+      return p1.split(',').map(s => s.trim()).filter(Boolean).map(name => `exports.${name} = ${name};`).join('\n');
+    });
+
+    // --- 4: export default ... を exports.default = ... に ---
+    src = src.replace(/export\s+default\s+/g, "exports.default = ");
+
+    // --- 5: export class NAME / export function NAME を class/function に変換し末尾で exports に追加 ---
+    const exportedAdded = [];
+    src = src.replace(/export\s+class\s+([A-Za-z0-9_]+)/g, (m, name) => {
+      exportedAdded.push(name);
+      return `class ${name}`;
+    });
+    src = src.replace(/export\s+function\s+([A-Za-z0-9_]+)/g, (m, name) => {
+      exportedAdded.push(name);
+      return `function ${name}`;
+    });
+
+    // --- 6: 包装して実行可能な関数を作る ---
+    const postfix = exportedAdded.map(n => `exports.${n} = ${n};`).join('\n') + '\nreturn exports;';
+    const wrappedSrc = `${src}\n${postfix}`;
+
+    // new Function を使って隔離実行（exports, THREE を引数に渡す）
+    try {
+      const moduleFactory = new Function('exports', 'THREE', wrappedSrc);
+      const exports = {};
+      const mod = moduleFactory(exports, this.modules.three);
+      return mod;
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  // 3) OrbitControls / CSS2DRenderer を fetch+transform で読み込む
+  try {
+    const orbitModule = await loadJSMWithInjectedThree(urls.OrbitControls);
+    this.modules.OrbitControls = orbitModule.OrbitControls || orbitModule.default || orbitModule;
+  } catch (err) {
+    throw err;
+  }
+
+  try {
+    const css2dModule = await loadJSMWithInjectedThree(urls.CSS2DRenderer);
+    // CSS2DRenderer モジュールは名前付き export の場合が多い
+    this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer || css2dModule.default || css2dModule;
+    this.modules.CSS2DObject = css2dModule.CSS2DObject || null;
+  } catch (err) {
+    throw err;
+  }
+
+  this.initScene(); // 例: モジュール読み込み完了後に初期化実行
+}
+
+
+
+
+  
+  initScene() {
     const THREE = this.modules.three;
     const OrbitControls = this.modules.OrbitControls;
     const CSS2DRenderer = this.modules.CSS2DRenderer;
-
+    
+    
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
     this.camera.position.set(10, 10, 10);
@@ -833,7 +930,7 @@ CompVis.ViewThree = class {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
-
+    
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
     this.labelRenderer.domElement.style.position = "absolute";
@@ -857,19 +954,6 @@ CompVis.ViewThree = class {
     this.animate();
   }
 
-  async init() {
-    const urls = {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
-      "OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
-      "CSS2DRenderer": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
-    };
-
-    // THREE本体
-    this.modules.THREE = await import(urls.three);
-    this.modules.OrbitControls = (await import(urls.OrbitControls)).OrbitControls;
-    this.modules.CSS2DRenderer = (await import(urls.CSS2DRenderer)).CSS2DRenderer;
-  }
-
   onResize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
@@ -878,7 +962,7 @@ CompVis.ViewThree = class {
   }
 
   makeLabel(text) {
-    const CSS2DRenderer = this.modules.CSS2DRenderer;
+    const CSS2DObject = this.modules.CSS2DObject;
     const div = document.createElement("div");
     div.className = "label";
     div.style.color = "white";
@@ -890,14 +974,33 @@ CompVis.ViewThree = class {
 
   calcNiceStep(maxDistance) {
     if (maxDistance === 0) return 1;
-    const exponent = Math.floor(Math.log10(maxDistance));
+    let exponent = Math.floor(Math.log10(maxDistance));
     const fraction = maxDistance / Math.pow(10, exponent);
     let niceFraction;
-    if (fraction <= 1) niceFraction = 1;
+    let niceInd
+    /*if (fraction <= 1) niceFraction = 1;
     else if (fraction <= 2) niceFraction = 2;
     else if (fraction <= 5) niceFraction = 5;
-    else niceFraction = 10;
-    return niceFraction * Math.pow(10, exponent) / 4;
+    else niceFraction = 10;*/
+    if (fraction <= 1) niceInd = 0;
+    else if (fraction <= 2) niceInd = 1;
+    else if (fraction <= 5) niceInd = 2;
+    else niceInd = 3;
+    
+    const niceFractions = [1,2,5,10];
+    
+    // どれだけ細かくするか
+    //※ +2入れてるので、初期値は2
+    niceInd -= (this.labelDown + 2);
+    
+    while(niceInd < 0) {
+      niceInd += 4;
+      exponent -= 1;
+    }
+    
+    niceFraction = niceFractions[niceInd];
+    
+    return niceFraction * Math.pow(10, exponent);
   }
 
   create2DGrid(size, step, plane) {
@@ -957,6 +1060,7 @@ CompVis.ViewThree = class {
 
     // 端を nice step に丸める
     const maxD = Math.ceil(this.globalMaxDistance / step) * step;
+    
 
     const axes = [
       { from: new THREE.Vector3(-maxD, 0, 0), to: new THREE.Vector3(maxD, 0, 0), color: 0xff0000, name: "X" },
@@ -976,8 +1080,20 @@ CompVis.ViewThree = class {
       // 数値ラベル
       for (let i = -Math.ceil(maxD / step); i <= Math.ceil(maxD / step); i++) {
         const v = i * step;
-        if (Math.abs(v) < 1e-6) continue;
-        const lbl = this.makeLabel(v.toString());
+        const absV = Math.abs(v);
+        let strV;
+
+        if(absV == 0) {
+          strV = "0";
+        } else if (absV >= 1e4 || absV <= 1e-3) {
+          // 大きすぎる/小さすぎる数は指数表記
+          strV =  v.toExponential(2); // 2桁精度
+        } else {
+          // それ以外は小数点以下を丸め
+          strV =  parseFloat(v.toFixed(6)).toString(); 
+          // ← 小数点以下6桁までで丸め、無駄な0は消える
+        }
+        const lbl = this.makeLabel(strV);
         switch (ax.name) {
           case "X": lbl.position.set(v, 0, 0); break;
           case "Y": lbl.position.set(0, v, 0); break;
