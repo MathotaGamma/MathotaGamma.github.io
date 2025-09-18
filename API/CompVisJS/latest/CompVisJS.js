@@ -305,6 +305,8 @@ CompVis.View = class {
       });
       this.canvas.addEventListener("touchend", e => this.onTouchEnd(e));
     }
+
+    init();
   }
 
   //----------------
@@ -820,6 +822,13 @@ CompVis.ViewThree = class {
     this.canvas = canvas;
     this.mode = options.mode || "static";
 
+    this.modules = {};
+    init();
+
+    const THREE = this.modules.three;
+    const OrbitControls = this.modules.OrbitControls;
+    const CSS2DRenderer = this.modules.CSS2DRenderer;
+
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
     this.camera.position.set(10, 10, 10);
@@ -851,6 +860,19 @@ CompVis.ViewThree = class {
     this.animate();
   }
 
+  async init() {
+    const urls = {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
+      "OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
+      "CSS2DRenderer": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
+    };
+
+    // THREE本体
+    this.modules.THREE = await import(urls.three);
+    this.modules.OrbitControls = (await import(urls.OrbitControls)).OrbitControls;
+    this.modules.CSS2DRenderer = (await import(urls.CSS2DRenderer)).CSS2DRenderer;
+  }
+
   onResize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
@@ -859,6 +881,7 @@ CompVis.ViewThree = class {
   }
 
   makeLabel(text) {
+    const CSS2DRenderer = this.modules.CSS2DRenderer;
     const div = document.createElement("div");
     div.className = "label";
     div.style.color = "white";
@@ -881,6 +904,8 @@ CompVis.ViewThree = class {
   }
 
   create2DGrid(size, step, plane) {
+    const THREE = this.modules.three;
+    
     const gridGroup = new THREE.Group();
     const material = new THREE.LineBasicMaterial({ color: 0x444444 });
     const n = Math.ceil(size / step);
@@ -928,6 +953,8 @@ CompVis.ViewThree = class {
   }
 
   updateAxesAndGrid() {
+    const THREE = this.modules.three;
+    
     this.axisGroup.clear();
     const step = this.calcNiceStep(this.globalMaxDistance);
 
@@ -969,6 +996,8 @@ CompVis.ViewThree = class {
   }
 
   addGraph(f, a, b, span = 100, options = {}) {
+    const THREE = this.modules.three;
+    
     const points = [];
     let localMaxDistance = 0;
 
@@ -1029,7 +1058,6 @@ CompVis.Matrix = class {
       
     }
   }
-  
   
   get matrix(){
     return this._matrix
