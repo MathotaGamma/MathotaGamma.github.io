@@ -1,4 +1,4 @@
-//変更点:グラフ描画機能のrenderAllのコード変更(drawGridを先に実行し、それに伴う変数の計算のコードを追加)、renderGraphの動作変更(drawGridに必要だった変数の計算処理を削除)
+//変更点:グラフ描画機能のrenderAllのコード変更(drawGridを先に実行し、それに伴う変数の計算のコードを追加)、renderGraphの動作変更(drawGridに必要だった変数の計算処理を削除)、ViewThree(3Dグラフ描画機能)追加
 //注意点
 /*
 例:
@@ -14,6 +14,37 @@ viewer.addGraph(
 (変数) => { return ~~~ ;}
 で書くこと。('{}','return',';'必須)
 */
+
+/*
+CompVis.ViewThreeを使う場合は、
+
+import * as THREE from "three";
+import { OrbitControls } from "OrbitControls";
+import { CSS2DRenderer, CSS2DObject } from "CSS2DRenderer";
+
+で読み込む必要がある。
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
+      "OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
+      "CSS2DRenderer": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
+    }
+  }
+</script>
+
+に対応するように作った。
+
+const canvas = document.getElementById("three-canvas");
+const view = new CompVis.ViewThree(canvas, { mode:"dynamic" });
+
+view.addGraph(t => Math.sin(t), -Math.PI*2, Math.PI*2, 200, { color:0xff0000 });
+view.addGraph(t => [Math.cos(t), Math.sin(t), t/2], 0, Math.PI*6, 400, { color:0x00ffff });
+
+のように使ってください。
+*/
+
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
 class CompVis {
@@ -776,6 +807,206 @@ CompVis.View = class {
       x: (p1.clientX + p2.clientX) / 2,
       y: (p1.clientY + p2.clientY) / 2
     };
+  }
+};
+
+CompVis.ViewThree = class {
+  constructor(canvas, options = {}) {
+    this.canvas = canvas;
+    this.mode = options.mode || "static";
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(
+      45,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      5000
+    );
+    this.camera.position.set(10, 10, 10);
+
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+
+    this.labelRenderer = new CSS2DRenderer();
+    this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    this.labelRenderer.domElement.style.position = "absolute";
+    this.labelRenderer.domElement.style.top = "0px";
+    document.body.appendChild(this.labelRenderer.domElement);
+
+    this.controls = new OrbitControls(this.camera, this.labelRenderer.domElement);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(10, 10, 10);
+    this.scene.add(dirLight);
+    this.scene.add(new THREE.AmbientLight(0x666666));
+
+    this.graphs = [];
+    this.axisGroup = new THREE.Group();
+    this.scene.add(this.axisGroup);
+
+    this.globalMaxDistance = 0;
+
+    window.addEventListener("resize", () => this.onResize());
+    this.animate();
+  }
+
+  onResize() {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  makeLabel(text) {
+    const div = document.createElement("div");
+    div.className = "label";
+    div.style.color = "white";
+    div.style.fontSize = "12px";
+    div.style.userSelect = "none";
+    div.textContent = text;
+    return new CSS2DObject(div);
+  }
+
+  // 1,2,5 系列の nice step を計算
+  calcNiceStep(maxDistance) {
+    if (maxDistance === 0) return 1;
+    const exponent = Math.floor(Math.log10(maxDistance));
+    const fraction = maxDistance / Math.pow(10, exponent);
+    let niceFraction;
+    if (fraction <= 1) niceFraction = 1;
+    else if (fraction <= 2) niceFraction = 2;
+    else if (fraction <= 5) niceFraction = 5;
+    else niceFraction = 10;
+    return niceFraction * Math.pow(10, exponent) / 4;
+  }
+
+  create2DGrid(size, step, plane) {
+    const gridGroup = new THREE.Group();
+    const material = new THREE.LineBasicMaterial({ color: 0x444444 });
+    const n = Math.ceil(size / step);
+
+    for (let i = -n; i <= n; i++) {
+      const pos = i * step;
+      let line1, line2;
+      switch (plane) {
+        case "XZ":
+          line1 = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-size, 0, pos), new THREE.Vector3(size, 0, pos)]),
+            material
+          );
+          line2 = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(pos, 0, -size), new THREE.Vector3(pos, 0, size)]),
+            material
+          );
+          break;
+        case "XY":
+          line1 = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-size, pos, 0), new THREE.Vector3(size, pos, 0)]),
+            material
+          );
+          line2 = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(pos, -size, 0), new THREE.Vector3(pos, size, 0)]),
+            material
+          );
+          break;
+        case "YZ":
+          line1 = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -size, pos), new THREE.Vector3(0, size, pos)]),
+            material
+          );
+          line2 = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, pos, -size), new THREE.Vector3(0, pos, size)]),
+            material
+          );
+          break;
+      }
+      gridGroup.add(line1);
+      gridGroup.add(line2);
+    }
+
+    return gridGroup;
+  }
+
+  updateAxesAndGrid() {
+    this.axisGroup.clear();
+    const maxD = this.globalMaxDistance;
+    const step = this.calcNiceStep(maxD);
+
+    const axes = [
+      { from: new THREE.Vector3(-maxD, 0, 0), to: new THREE.Vector3(maxD, 0, 0), color: 0xff0000, name: "X" },
+      { from: new THREE.Vector3(0, -maxD, 0), to: new THREE.Vector3(0, maxD, 0), color: 0x00ff00, name: "Y" },
+      { from: new THREE.Vector3(0, 0, -maxD), to: new THREE.Vector3(0, 0, maxD), color: 0x0000ff, name: "Z" }
+    ];
+
+    for (let ax of axes) {
+      const geom = new THREE.BufferGeometry().setFromPoints([ax.from, ax.to]);
+      const mat = new THREE.LineBasicMaterial({ color: ax.color, linewidth: 2 });
+      this.axisGroup.add(new THREE.Line(geom, mat));
+
+      // 軸名ラベル（末端）
+      const nameLabel = this.makeLabel(ax.name);
+      nameLabel.position.copy(ax.to);
+      this.axisGroup.add(nameLabel);
+
+      // 数値ラベル
+      for (let i = -Math.ceil(maxD / step); i <= Math.ceil(maxD / step); i++) {
+        const v = i * step;
+        if (Math.abs(v) < 1e-6) continue;
+        const lbl = this.makeLabel(v.toString());
+        switch (ax.name) {
+          case "X": lbl.position.set(v, 0, 0); break;
+          case "Y": lbl.position.set(0, v, 0); break;
+          case "Z": lbl.position.set(0, 0, v); break;
+        }
+        this.axisGroup.add(lbl);
+      }
+    }
+
+    this.axisGroup.add(this.create2DGrid(maxD, step, "XZ"));
+    this.axisGroup.add(this.create2DGrid(maxD, step, "XY"));
+    this.axisGroup.add(this.create2DGrid(maxD, step, "YZ"));
+  }
+
+  addGraph(f, a, b, span = 100, options = {}) {
+    const points = [];
+    let localMaxDistance = 0;
+
+    for (let i = 0; i <= span; i++) {
+      const t = a + ((b - a) * i) / span;
+      let res;
+      try { res = f(t); } catch { continue; }
+
+      let vec;
+      if (Array.isArray(res) && res.length >= 3) vec = new THREE.Vector3(res[0], res[1], res[2]);
+      else if (typeof res === "number") vec = new THREE.Vector3(t, res, 0);
+
+      points.push(vec);
+      localMaxDistance = Math.max(localMaxDistance, Math.abs(vec.x), Math.abs(vec.y), Math.abs(vec.z));
+    }
+
+    const geom = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.LineBasicMaterial({ color: options.color || 0x00ffff, linewidth: 3 });
+    const line = new THREE.Line(geom, mat);
+    this.scene.add(line);
+    this.graphs.push(line);
+
+    this.globalMaxDistance = Math.max(this.globalMaxDistance, localMaxDistance);
+
+    if (this.mode === "dynamic") {
+      this.updateAxesAndGrid();
+      this.controls.target.set(0, 0, 0);
+      this.camera.position.set(this.globalMaxDistance + 5, this.globalMaxDistance + 5, this.globalMaxDistance + 5);
+    }
+
+    return line;
+  }
+
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+    this.labelRenderer.render(this.scene, this.camera);
   }
 };
 
