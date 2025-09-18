@@ -903,12 +903,15 @@ CompVis.ViewThree = class {
     //this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
+
+    const canvasRect = this.canvas.getBoundingClientRect();
     
     this.labelRenderer = new CSS2DRenderer();
     //this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
-    this.labelRenderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
-    this.labelRenderer.domElement.style.position = "absolute";
-    this.labelRenderer.domElement.style.top = "0px";
+    this.labelRenderer.setSize(canvasRect.width, canvasRect.height);
+    this.labelRenderer.domElement.style.position = "fixed";
+    this.labelRenderer.domElement.style.left = `${canvasRect.left}px`;
+    this.labelRenderer.domElement.style.top = `${canvasRect.top}px`;
     document.body.appendChild(this.labelRenderer.domElement);
 
     this.controls = new OrbitControls(this.camera, this.labelRenderer.domElement);
