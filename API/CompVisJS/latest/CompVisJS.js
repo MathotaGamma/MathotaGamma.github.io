@@ -17,32 +17,19 @@ viewer.addGraph(
 
 /*
 CompVis.ViewThreeはTHREE.jsを使用しています。
-これを使う場合は、
+THREE : "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
+OrbitControls : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
+CSS2DRenderer : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
 
-import * as THREE from "three";
-import { OrbitControls } from "OrbitControls";
-import { CSS2DRenderer, CSS2DObject } from "CSS2DRenderer";
-
-で読み込む必要がある。
-
-<script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
-      "OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
-      "CSS2DRenderer": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
-    }
-  }
-</script>
-
-に対応するように作った。
+使用例
 
 const canvas = document.getElementById("three-canvas");
-const view = new CompVis.ViewThree(canvas, { mode:"dynamic" });
+const view = new CompVis.ViewThree(canvas, { mode:"dynamic", labelDown: 2 });
 
-view.addGraph(t => Math.sin(t), -Math.PI*2, Math.PI*2, 200, { color:0xff0000 });
-view.addGraph(t => [Math.cos(t), Math.sin(t), t/2], 0, Math.PI*6, 400, { color:0x00ffff });
-
+view.ready.then(() => {
+  view.addGraph(t => Math.sin(t), -Math.PI*2, Math.PI*2, 200, { color:0xff0000 });
+  view.addGraph(t => [Math.cos(t), Math.sin(t), t/2], 0, Math.PI*6, 400, { color:0x00ffff });
+});
 のように使ってください。
 */
 
@@ -823,80 +810,81 @@ CompVis.ViewThree = class {
     this.modules = {};
     this.ready = this.init();
   }
+  
 
   async init() {
-  const urls = {
-    three: "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
-    OrbitControls: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
-    CSS2DRenderer: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
-  };
-
+    const urls = {
+      three: "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
+      OrbitControls: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
+      CSS2DRenderer: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
+    };
   
-  try {
-    this.modules.three = await import(urls.three);
-  } catch (err) {
-    throw err;
-  }
-
-  const loadJSMWithInjectedThree = async (url) => {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to fetch " + url + " : " + res.status);
-    let src = await res.text();
-
-    src = src.replace(/import\s+\{([^}]+)\}\s+from\s+['"]three['"];?/g, (m, p1) => {
-      return `const { ${p1.trim()} } = THREE;`;
-    });
-
-    src = src.replace(/import\s+[^;]+;?/g, (m) => {
-      return `// ${m.replace(/\n/g,'')}`;
-    });
-
-    src = src.replace(/export\s*\{\s*([^}]+)\s*\}\s*;?/g, (m, p1) => {
-      return p1.split(',').map(s => s.trim()).filter(Boolean).map(name => `exports.${name} = ${name};`).join('\n');
-    });
-
-    src = src.replace(/export\s+default\s+/g, "exports.default = ");
-
-    const exportedAdded = [];
-    src = src.replace(/export\s+class\s+([A-Za-z0-9_]+)/g, (m, name) => {
-      exportedAdded.push(name);
-      return `class ${name}`;
-    });
-    src = src.replace(/export\s+function\s+([A-Za-z0-9_]+)/g, (m, name) => {
-      exportedAdded.push(name);
-      return `function ${name}`;
-    });
-
-    const postfix = exportedAdded.map(n => `exports.${n} = ${n};`).join('\n') + '\nreturn exports;';
-    const wrappedSrc = `${src}\n${postfix}`;
-
+    
     try {
-      const moduleFactory = new Function('exports', 'THREE', wrappedSrc);
-      const exports = {};
-      const mod = moduleFactory(exports, this.modules.three);
-      return mod;
+      this.modules.three = await import(urls.three);
     } catch (err) {
       throw err;
     }
-  };
-
-  try {
-    const orbitModule = await loadJSMWithInjectedThree(urls.OrbitControls);
-    this.modules.OrbitControls = orbitModule.OrbitControls || orbitModule.default || orbitModule;
-  } catch (err) {
-    throw err;
+  
+    const loadJSMWithInjectedThree = async (url) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch " + url + " : " + res.status);
+      let src = await res.text();
+  
+      src = src.replace(/import\s+\{([^}]+)\}\s+from\s+['"]three['"];?/g, (m, p1) => {
+        return `const { ${p1.trim()} } = THREE;`;
+      });
+  
+      src = src.replace(/import\s+[^;]+;?/g, (m) => {
+        return `// ${m.replace(/\n/g,'')}`;
+      });
+  
+      src = src.replace(/export\s*\{\s*([^}]+)\s*\}\s*;?/g, (m, p1) => {
+        return p1.split(',').map(s => s.trim()).filter(Boolean).map(name => `exports.${name} = ${name};`).join('\n');
+      });
+  
+      src = src.replace(/export\s+default\s+/g, "exports.default = ");
+  
+      const exportedAdded = [];
+      src = src.replace(/export\s+class\s+([A-Za-z0-9_]+)/g, (m, name) => {
+        exportedAdded.push(name);
+        return `class ${name}`;
+      });
+      src = src.replace(/export\s+function\s+([A-Za-z0-9_]+)/g, (m, name) => {
+        exportedAdded.push(name);
+        return `function ${name}`;
+      });
+  
+      const postfix = exportedAdded.map(n => `exports.${n} = ${n};`).join('\n') + '\nreturn exports;';
+      const wrappedSrc = `${src}\n${postfix}`;
+  
+      try {
+        const moduleFactory = new Function('exports', 'THREE', wrappedSrc);
+        const exports = {};
+        const mod = moduleFactory(exports, this.modules.three);
+        return mod;
+      } catch (err) {
+        throw err;
+      }
+    };
+  
+    try {
+      const orbitModule = await loadJSMWithInjectedThree(urls.OrbitControls);
+      this.modules.OrbitControls = orbitModule.OrbitControls || orbitModule.default || orbitModule;
+    } catch (err) {
+      throw err;
+    }
+  
+    try {
+      const css2dModule = await loadJSMWithInjectedThree(urls.CSS2DRenderer);
+      this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer || css2dModule.default || css2dModule;
+      this.modules.CSS2DObject = css2dModule.CSS2DObject || null;
+    } catch (err) {
+      throw err;
+    }
+  
+    this.initScene();
   }
-
-  try {
-    const css2dModule = await loadJSMWithInjectedThree(urls.CSS2DRenderer);
-    this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer || css2dModule.default || css2dModule;
-    this.modules.CSS2DObject = css2dModule.CSS2DObject || null;
-  } catch (err) {
-    throw err;
-  }
-
-  this.initScene();
-}
 
 
 
