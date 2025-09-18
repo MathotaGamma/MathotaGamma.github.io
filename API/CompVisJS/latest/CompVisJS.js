@@ -16,7 +16,8 @@ viewer.addGraph(
 */
 
 /*
-CompVis.ViewThreeを使う場合は、
+CompVis.ViewThreeはTHREE.jsを使用しています。
+これを使う場合は、
 
 import * as THREE from "three";
 import { OrbitControls } from "OrbitControls";
@@ -816,12 +817,7 @@ CompVis.ViewThree = class {
     this.mode = options.mode || "static";
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(
-      45,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      5000
-    );
+    this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
     this.camera.position.set(10, 10, 10);
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
@@ -868,7 +864,6 @@ CompVis.ViewThree = class {
     return new CSS2DObject(div);
   }
 
-  // 1,2,5 系列の nice step を計算
   calcNiceStep(maxDistance) {
     if (maxDistance === 0) return 1;
     const exponent = Math.floor(Math.log10(maxDistance));
@@ -930,8 +925,10 @@ CompVis.ViewThree = class {
 
   updateAxesAndGrid() {
     this.axisGroup.clear();
-    const maxD = this.globalMaxDistance;
-    const step = this.calcNiceStep(maxD);
+    const step = this.calcNiceStep(this.globalMaxDistance);
+
+    // 端を nice step に丸める
+    const maxD = Math.ceil(this.globalMaxDistance / step) * step;
 
     const axes = [
       { from: new THREE.Vector3(-maxD, 0, 0), to: new THREE.Vector3(maxD, 0, 0), color: 0xff0000, name: "X" },
@@ -944,7 +941,6 @@ CompVis.ViewThree = class {
       const mat = new THREE.LineBasicMaterial({ color: ax.color, linewidth: 2 });
       this.axisGroup.add(new THREE.Line(geom, mat));
 
-      // 軸名ラベル（末端）
       const nameLabel = this.makeLabel(ax.name);
       nameLabel.position.copy(ax.to);
       this.axisGroup.add(nameLabel);
