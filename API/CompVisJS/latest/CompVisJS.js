@@ -35,7 +35,6 @@ view.ready.then(() => {
 
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
-
 class CompVis {
   constructor(k_real, k_imag) {
     this._real = k_real;
@@ -896,18 +895,16 @@ CompVis.ViewThree = class {
     const CSS2DRenderer = this.modules.CSS2DRenderer;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
+    this.camera = new THREE.PerspectiveCamera(45, this.canvas.clientWidth / this.canvas.clientHeight, 0.1, 5000);
     this.camera.position.set(10, 10, 10);
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-    //this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
 
     const canvasRect = this.canvas.getBoundingClientRect();
     
     this.labelRenderer = new CSS2DRenderer();
-    //this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
     this.labelRenderer.setSize(canvasRect.width, canvasRect.height);
     this.labelRenderer.domElement.style.position = "fixed";
     this.labelRenderer.domElement.style.left = `${canvasRect.left}px`;
@@ -927,15 +924,15 @@ CompVis.ViewThree = class {
 
     this.globalMaxDistance = 0;
 
-    window.addEventListener("resize", () => this.onResize());
+    this.canvas.addEventListener("resize", () => this.onResize());
     this.animate();
   }
 
   onResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.aspect = this.canvas.clientWidth / this.canvas.clientHeight;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
+    this.labelRenderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
   }
 
   makeLabel(text) {
