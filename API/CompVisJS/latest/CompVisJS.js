@@ -906,7 +906,7 @@ CompVis.ViewThree = class {
     
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.setSize(canvasRect.width, canvasRect.height);
-    this.labelRenderer.domElement.style.position = "fixed";
+    this.labelRenderer.domElement.style.position = "absolute";
     this.labelRenderer.domElement.style.left = `${canvasRect.left}px`;
     this.labelRenderer.domElement.style.top = `${canvasRect.top}px`;
     document.body.appendChild(this.labelRenderer.domElement);
