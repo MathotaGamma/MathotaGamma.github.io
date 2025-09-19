@@ -971,7 +971,6 @@
       async function nextStage() {
         stage += 1;
         if(stage >= Data.length) {
-          alert(stage+':'+Data.length)
           complete();
           return;
         }
@@ -1053,6 +1052,7 @@
       }
       
       function complete() {
+        localStorage.setItem("Cubiro_stage", null);
         me.complete = true;
         me.actionValid = false;
         showOverlay(`<span style="color: #cccc33;">All Stage Clear!!</span>
