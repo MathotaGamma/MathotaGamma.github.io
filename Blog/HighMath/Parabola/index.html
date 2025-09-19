@@ -195,7 +195,6 @@
           <li><a href="#section2" class="anchor">ゼータ関数について</a></li>
         </ul>
       </nav>
-
       <article class="article">
         <h1>二次関数・放物線</h1>
         <p>
@@ -213,33 +212,97 @@
         </section>
         <section id="section1">
           <h2>前提知識</h2>
-          基本的な展開、因数分解と二次方程式の解の公式が分かれば大丈夫です。
-          <ul>
-            <li>
-              <h3>二次方程式の解の公式</h3>
-              <p>実数a,b,cを用いて</p>
-              $$ax^2+bx+c=0$$
-              <p>と表される方程式のxの解は</p>
-              $$x=\frac{-b \pm \sqrt{b^2-4ac}}{2a}$$
-              <p>で求まる。</p>
-            </li>        
-          </ul>
+          基本的な展開、因数分解が分かれば大丈夫です。
         </section>
         <section id="section2">
-          <h2>二次関数の方程式とグラフ</h2>
+          <h2>二次方程式</h2>
           <p>
-            まず、二次関数のグラフは\(y=ax^2+bx+c\)という式で表されます。
+            二次方程式は
+            $$ax^2+bx+c = 0 \quad (a \neq 0)$$
+            と表されます。
           </p>
           <p>
-            例として、\(y=x^2-4x-5\)という式を考えてみましょう。
+            n次関数は最大でn個の実数解を持つため、この方程式の実数解は高々2個となります。
           </p>
           <p>
-            この式のグラフは下図のようになります。
+            では、方程式やその解は何を指しているのでしょうか？
+          </p>
+          <p>
+            \(ax^2+bx+c = 0\)とは、\(y = ax^2+bx+c\) と \(y = 0\)つまりx軸との交点に関する式です。
+          </p>
+          <p>
+            例えば、\(y=x^2-4x-5\)のグラフは下図のようになります。
           </p>
           <canvas id="parabola1"></canvas>
-          
+          <p>
+            \(x^2-4x-5 = 0\)のxの実数解とは交点のx座標のことであり、
+            グラフを見るとx軸と2点(-1,0),(5,0)で交わっていることが分かります。
+          </p>
+          <p>
+            よって、\(x^2-4x-5 = 0\)の実数解は2つあり、その解はx=-1, 5であることを示しています。
+          </p>
+          <p>
+            ちなみに、このグラフの形は物を投げた時の軌道であることから放物線とも呼ばれます。
+          </p>
         </section>
-        
+        <section id="section3">
+          <h2>二次方程式の解の種類</h2>
+          <p>
+            ここまで「実数解」という言葉を使ってきましたが、ただの「解」とは何が違うのでしょうか。
+          </p>
+          <p>
+            下のグラフを見てください。
+          </p>
+          <canvas id="parabola2"></canvas>
+          <p>
+            この放物線には解が無いように見えますが、実際には異なる解が2つ存在しています。
+          </p>
+          <p>
+            その2つの解は実数ではなく複素数<sup><a href="#annotation1" class="anchor">【1】</a></sup>であるため、x軸と交わっていないように見えています。
+          </p>
+          <p>
+            しかし、複素数解であっても\(y = 0\)と交わっていることには変わりありません。そのことを確認してみましょう。
+          </p>
+          <div id="hyperbolic-parabola" style="width: 90%; height: 350px;"></div>
+          <p>
+            赤のグラフは先ほどの放物線です。その頂点で接している水色の放物線は、\(y = ax^2 + bx + c\)のyが実数となるような複素数値x(虚部\(\neq0\))を入れたグラフです。
+          </p>
+          <p>
+            赤のグラフはxに実数を代入しているため、\(y = ax^2 + bx + c\)の値は必ず実数となります。
+          </p>
+          <p>
+            \(0\)は\(0+0i\)とも表せますから、yの値が実数値となるようなxの軌跡、つまり先ほどの赤または水色のグラフいずれかの上に必ず、yが0となる点が存在します(つまり、\(y=0\)となるには\(y\)の虚部が\(0\)であることが必要であり、その点の集合が上のグラフとなる)。
+          </p>
+          <p>
+            2次元ではy=0はx軸、つまり直線を表していましたが、3次元であればy=0は平面を表します。なので、y=0の平面は水色のグラフと交わり(黄色の円の部分)、その交点が解となります。
+          </p>
+          <p>
+            このことについては詳しく解説するページを作る<span style="color: red;">予定</span>ですのでお待ちください。
+          </p>
+          <p>
+            次のsectionでは、二次関数のグラフについて解説していきます。
+          </p>
+          <small id="annotation1">
+            (注)【1】複素数は実数を含んでいるため、正しくは「虚部が0でない複素数」。<br>
+            以下では、複素数解といった場合は虚部が0でない複素数の解とする。
+          </small>
+        </section>
+        <section>
+          <h2>二次関数とそのグラフ</h2>
+          <p>
+            二次関数\(y=ax^2+bx+c\)のグラフの形状は\(a\)の正負に最も影響を受けます。
+          </p>
+          <p>
+            \(a\)が正のとき、下側に突き出す形になります。このことを「下に凸」といいます。またこのとき、この放物線は最大値は持ちません(正の無限大)が最小値を持ちます。
+          </p>
+          <canvas id="parabola3"></canvas>
+          <p>
+            \(a\)が負であればその反対で、上側に突き出す「上に凸」<sup><a href="#annotation2" class="anchor">【2】</a></sup>な放物線となります。このとき最小値はありません(負の無限大)が最大値を持ちます。
+          </p>
+          <canvas id="parabola4"></canvas>
+          <small id="annotation2">
+            (注)【2】「上に凸な関数」を「凹関数」と呼ぶ場合もあります。
+          </small>
         </section>
         <!-- 他のセクションや toggle-content をここに追加 -->
         <!-- 例： -->
@@ -290,34 +353,97 @@
         const parabola1 = document.getElementById("parabola1");
         parabola1.width = 200;
         parabola1.height = 300;
-        const viewer = new CompVis.View(parabola1, {
+        const viewer1 = new CompVis.View(parabola1, {
           mode: "static",
-          autoScale: true,
+          autoScale: false,
           showAxis: true,
-          /*rangeX: [-2, 4],
-          rangeY: [-10, 9],*/
+          rangeX: [-3, 7],
+          rangeY: [-10, 9],
         });
 
-        viewer.addGraph(
+        viewer1.addGraph(
           (t) => {
             return t**2 - 4*t - 5
           },-3,7,1200,{color: "#00aaff",}
         );
-        //console.log(viewer)
-        viewer.renderAll();
+        viewer1.addGraph(
+          (t) => {
+            return 0
+          },-3,7,1,{color: "#ff0000",}
+        );
+        viewer1.renderAll();
+        
+        const parabola2 = document.getElementById("parabola2");
+        parabola2.width = 200;
+        parabola2.height = 200;
+        const viewer2 = new CompVis.View(parabola2, {
+          mode: "static",
+          autoScale: false,
+          showAxis: true,
+          rangeX: [-1.7,3.7],
+          rangeY: [-3, 9],
+        });
+        
+        viewer2.addGraph(
+          (t) => {
+            return t**2 - 2*t + 3
+          },-1.7,3.7,1200,{color: "#00aaff",}
+        );
+        viewer2.addGraph(
+          (t) => {
+            return 0
+          },-2,4,1,{color: "#ff0000",}
+        );
+        viewer2.renderAll();
+        
+        
+        const hyperbolicParabola = document.getElementById("hyperbolic-parabola");
+        const view = new CompVis.ViewThree(hyperbolicParabola);
+        
+        view.ready.then(() => {
+          view.addGraph(t => t**2-2*t+3, -1, 3, 200, { color:0xff0000 });
+          view.addGraph(t => [1, -(t**2) + 2, t], -2.5, 2.5, 400, { color:0x00ffff });
+          view.addGraph(t => [1+Math.cos(t)/6, 0, -Math.sqrt(2)+Math.sin(t)/6], 0, 2*Math.PI, 400, { color: 0xffff00 });
+          view.addGraph(t => [1+Math.cos(t)/6, 0, Math.sqrt(2)+Math.sin(t)/6], 0, 2*Math.PI, 400, { color: 0xffff00 });
+        });
+        
+        
+        const parabola3 = document.getElementById("parabola3");
+        parabola3.width = 200;
+        parabola3.height = 200;
+        const viewer3 = new CompVis.View(parabola3, {
+          mode: "static",
+          autoScale: false,
+          showAxis: false,
+          rangeX: [-2,2],
+          rangeY: [-1, 4],
+        });
+        
+        viewer3.addGraph(
+          (t) => {
+            return t**2
+          },-2,2,1200,{color: "#00aaff",}
+        );
+        viewer3.renderAll();
+        
+        const parabola4 = document.getElementById("parabola4");
+        parabola4.width = 200;
+        parabola4.height = 200;
+        const viewer4 = new CompVis.View(parabola4, {
+          mode: "static",
+          autoScale: false,
+          showAxis: false,
+          rangeX: [-2,2],
+          rangeY: [-4, 1],
+        });
+        
+        viewer4.addGraph(
+          (t) => {
+            return -(t**2)
+          },-2,2,1200,{color: "#00aaff",}
+        );
+        viewer4.renderAll();
       };
-
-      /*window.addEventListener("DOMContentLoaded", () => {
-        const parabola1 = document.getElementById("parabola1");
-        parabola1.width = 200;
-        parabola1.height = 300;
-        const viewer = new CompVis.View(parabola1);
-        // Canvasにグラフを描く
-        viewer.addGraph((t) => {
-          return t**2-4*t-5;
-        },-3,7, 1200,{autoScale: false, showAxis: true, rangeX: [-3,7], rangeY: [-10, 9]});
-        viewer.renderAll();
-      })*/
     </script>
   </body>
 </html>
