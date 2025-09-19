@@ -14,7 +14,6 @@ viewer.addGraph(
 (変数) => { return ~~~ ;}
 で書くこと。('{}','return',';'必須)
 */
-
 /*
 CompVis.ViewThreeはTHREE.jsを使用しています。
 THREE : "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
@@ -32,7 +31,6 @@ view.ready.then(() => {
 });
 のように使ってください。
 */
-
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
 class CompVis {
@@ -799,17 +797,29 @@ CompVis.View = class {
 };
 
 CompVis.ViewThree = class {
-  constructor(canvas, options = {}) {
-    this.canvas = canvas;
-    this.mode = options.mode || "static";
-    
-    this.labelDown = options.labelDown || 0; // どれだけ細かくするか
-    // calcのときに+2してる(それがちょうどいい)
+  constructor(container, options = {}) {
+    this.container = container; // divを受け取る
+
+    const computedStyle = window.getComputedStyle(this.container);
+    if (computedStyle.getPropertyValue("height") === "0px" && !(options.zeroHeight ?? false)) {
+      this.container.style.width = "300px";
+      this.container.style.height = "150px";
+    }
+
+    this.labelDown = options.labelDown || 0;
+    this.labelSize = options.labelSize || "8px";
+
+    // カメラ初期設定（optionsから指定可能）
+    this.initialCameraPosition = options.cameraPosition || { x: 10, y: 10, z: 10 };
+    this.initialCameraTarget = options.cameraTarget || { x: 0, y: 0, z: 0 };
+
+    // containerを重ね合わせ可能に
+    this.container.style.position = "relative";
+    this.container.style.overflow = "hidden";
 
     this.modules = {};
     this.ready = this.init();
   }
-  
 
   async init() {
     const urls = {
@@ -817,101 +827,109 @@ CompVis.ViewThree = class {
       OrbitControls: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
       CSS2DRenderer: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
     };
-  
-    
-    try {
-      this.modules.three = await import(urls.three);
-    } catch (err) {
-      throw err;
-    }
-  
+
+    this.modules.three = await import(urls.three);
+
     const loadJSMWithInjectedThree = async (url) => {
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch " + url + " : " + res.status);
       let src = await res.text();
-  
-      src = src.replace(/import\s+\{([^}]+)\}\s+from\s+['"]three['"];?/g, (m, p1) => {
-        return `const { ${p1.trim()} } = THREE;`;
-      });
-  
-      src = src.replace(/import\s+[^;]+;?/g, (m) => {
-        return `// ${m.replace(/\n/g,'')}`;
-      });
-  
-      src = src.replace(/export\s*\{\s*([^}]+)\s*\}\s*;?/g, (m, p1) => {
-        return p1.split(',').map(s => s.trim()).filter(Boolean).map(name => `exports.${name} = ${name};`).join('\n');
-      });
-  
+      src = src.replace(/import\s+\{([^}]+)\}\s+from\s+['"]three['"];?/g, (m, p1) => `const { ${p1.trim()} } = THREE;`);
+      src = src.replace(/import\s+[^;]+;?/g, (m) => `// ${m.replace(/\n/g, "")}`);
+      src = src.replace(/export\s*\{\s*([^}]+)\s*\}\s*;?/g, (m, p1) =>
+        p1.split(",").map(s => s.trim()).filter(Boolean).map(name => `exports.${name} = ${name};`).join("\n")
+      );
       src = src.replace(/export\s+default\s+/g, "exports.default = ");
-  
       const exportedAdded = [];
-      src = src.replace(/export\s+class\s+([A-Za-z0-9_]+)/g, (m, name) => {
-        exportedAdded.push(name);
-        return `class ${name}`;
-      });
-      src = src.replace(/export\s+function\s+([A-Za-z0-9_]+)/g, (m, name) => {
-        exportedAdded.push(name);
-        return `function ${name}`;
-      });
-  
-      const postfix = exportedAdded.map(n => `exports.${n} = ${n};`).join('\n') + '\nreturn exports;';
+      src = src.replace(/export\s+class\s+([A-Za-z0-9_]+)/g, (m, name) => { exportedAdded.push(name); return `class ${name}`; });
+      src = src.replace(/export\s+function\s+([A-Za-z0-9_]+)/g, (m, name) => { exportedAdded.push(name); return `function ${name}`; });
+      const postfix = exportedAdded.map(n => `exports.${n} = ${n};`).join("\n") + "\nreturn exports;";
       const wrappedSrc = `${src}\n${postfix}`;
-  
-      try {
-        const moduleFactory = new Function('exports', 'THREE', wrappedSrc);
-        const exports = {};
-        const mod = moduleFactory(exports, this.modules.three);
-        return mod;
-      } catch (err) {
-        throw err;
-      }
+      const moduleFactory = new Function("exports", "THREE", wrappedSrc);
+      const exports = {};
+      return moduleFactory(exports, this.modules.three);
     };
-  
-    try {
-      const orbitModule = await loadJSMWithInjectedThree(urls.OrbitControls);
-      this.modules.OrbitControls = orbitModule.OrbitControls || orbitModule.default || orbitModule;
-    } catch (err) {
-      throw err;
-    }
-  
-    try {
-      const css2dModule = await loadJSMWithInjectedThree(urls.CSS2DRenderer);
-      this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer || css2dModule.default || css2dModule;
-      this.modules.CSS2DObject = css2dModule.CSS2DObject || null;
-    } catch (err) {
-      throw err;
-    }
-  
+
+    const orbitModule = await loadJSMWithInjectedThree(urls.OrbitControls);
+    this.modules.OrbitControls = orbitModule.OrbitControls || orbitModule.default || orbitModule;
+
+    const css2dModule = await loadJSMWithInjectedThree(urls.CSS2DRenderer);
+    this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer || css2dModule.default || css2dModule;
+    this.modules.CSS2DObject = css2dModule.CSS2DObject || null;
+
     this.initScene();
   }
 
-
-
-
-  
   initScene() {
     const THREE = this.modules.three;
     const OrbitControls = this.modules.OrbitControls;
     const CSS2DRenderer = this.modules.CSS2DRenderer;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(45, this.canvas.clientWidth / this.canvas.clientHeight, 0.1, 5000);
-    this.camera.position.set(10, 10, 10);
+    this.camera = new THREE.PerspectiveCamera(
+      45,
+      Math.max(1, this.container.clientWidth) / Math.max(1, this.container.clientHeight),
+      0.1,
+      5000
+    );
+
+    // options で指定された初期位置にカメラを移動
+    this.camera.position.set(
+      this.initialCameraPosition.x,
+      this.initialCameraPosition.y,
+      this.initialCameraPosition.z
+    );
+
+    // 親 container を positioned に
+    const cs = getComputedStyle(this.container);
+    if (cs.position === "static") this.container.style.position = "relative";
+
+    // canvas 作成
+    this.canvas = document.createElement("canvas");
+    this.canvas.style.position = "absolute";
+    this.canvas.style.top = "0";
+    this.canvas.style.left = "0";
+    this.canvas.style.display = "block";
+    this.canvas.style.margin = "0";
+    this.canvas.style.padding = "0";
+    this.canvas.style.border = "0";
+    this.canvas.style.boxSizing = "border-box";
+    this.container.appendChild(this.canvas);
+
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.floor(this.container.clientWidth));
+    const h = Math.max(1, Math.floor(this.container.clientHeight));
+
+    this.canvas.width = Math.floor(w * dpr);
+    this.canvas.height = Math.floor(h * dpr);
+    this.canvas.style.width = w + "px";
+    this.canvas.style.height = h + "px";
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-    this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(w, h, false);
 
-    const canvasRect = this.canvas.getBoundingClientRect();
-    
     this.labelRenderer = new CSS2DRenderer();
-    this.labelRenderer.setSize(canvasRect.width, canvasRect.height);
-    this.labelRenderer.domElement.style.position = "absolute";
-    this.labelRenderer.domElement.style.left = `${canvasRect.left}px`;
-    this.labelRenderer.domElement.style.top = `${canvasRect.top}px`;
-    document.body.appendChild(this.labelRenderer.domElement);
+    this.labelRenderer.setSize(w, h);
+    const lr = this.labelRenderer.domElement;
+    lr.style.position = "absolute";
+    lr.style.top = "0";
+    lr.style.left = "0";
+    lr.style.width = w + "px";
+    lr.style.height = h + "px";
+    lr.style.margin = "0";
+    lr.style.padding = "0";
+    lr.style.border = "0";
+    lr.style.boxSizing = "border-box";
+    this.container.appendChild(lr);
 
-    this.controls = new OrbitControls(this.camera, this.labelRenderer.domElement);
+    this.controls = new OrbitControls(this.camera, lr);
+    this.controls.target.set(
+      this.initialCameraTarget.x,
+      this.initialCameraTarget.y,
+      this.initialCameraTarget.z
+    );
+    this.controls.update();
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 1);
     dirLight.position.set(10, 10, 10);
@@ -924,15 +942,30 @@ CompVis.ViewThree = class {
 
     this.globalMaxDistance = 0;
 
-    this.canvas.addEventListener("resize", () => this.onResize());
+    window.addEventListener("resize", () => this.onResize());
     this.animate();
   }
 
   onResize() {
-    this.camera.aspect = this.canvas.clientWidth / this.canvas.clientHeight;
+    const w = Math.max(1, Math.floor(this.container.clientWidth));
+    const h = Math.max(1, Math.floor(this.container.clientHeight));
+    const dpr = window.devicePixelRatio || 1;
+
+    this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
-    this.labelRenderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
+
+    this.canvas.width = Math.floor(w * dpr);
+    this.canvas.height = Math.floor(h * dpr);
+    this.canvas.style.width = w + "px";
+    this.canvas.style.height = h + "px";
+
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(w, h, false);
+
+    this.labelRenderer.setSize(w, h);
+    const lr = this.labelRenderer.domElement;
+    lr.style.width = w + "px";
+    lr.style.height = h + "px";
   }
 
   makeLabel(text) {
@@ -940,7 +973,7 @@ CompVis.ViewThree = class {
     const div = document.createElement("div");
     div.className = "label";
     div.style.color = "white";
-    div.style.fontSize = "12px";
+    div.style.fontSize = this.labelSize;
     div.style.userSelect = "none";
     div.textContent = text;
     return new CSS2DObject(div);
@@ -950,36 +983,27 @@ CompVis.ViewThree = class {
     if (maxDistance === 0) return 1;
     let exponent = Math.floor(Math.log10(maxDistance));
     const fraction = maxDistance / Math.pow(10, exponent);
-    let niceFraction;
-    let niceInd
-    /*if (fraction <= 1) niceFraction = 1;
-    else if (fraction <= 2) niceFraction = 2;
-    else if (fraction <= 5) niceFraction = 5;
-    else niceFraction = 10;*/
+    let niceInd;
     if (fraction <= 1) niceInd = 0;
     else if (fraction <= 2) niceInd = 1;
     else if (fraction <= 5) niceInd = 2;
     else niceInd = 3;
-    
-    const niceFractions = [1,2,5,10];
-    
-    // どれだけ細かくするか
-    //※ +2入れてるので、初期値は2
-    niceInd -= (this.labelDown + 2);
-    
-    while(niceInd < 0) {
+
+    const niceFractions = [1, 2, 5, 10];
+    niceInd -= this.labelDown + 2;
+
+    while (niceInd < 0) {
       niceInd += 4;
       exponent -= 1;
     }
-    
-    niceFraction = niceFractions[niceInd];
-    
+
+    const niceFraction = niceFractions[niceInd];
     return niceFraction * Math.pow(10, exponent);
   }
 
   create2DGrid(size, step, plane) {
     const THREE = this.modules.three;
-    
+
     const gridGroup = new THREE.Group();
     const material = new THREE.LineBasicMaterial({ color: 0x444444 });
     const n = Math.ceil(size / step);
@@ -1028,13 +1052,11 @@ CompVis.ViewThree = class {
 
   updateAxesAndGrid() {
     const THREE = this.modules.three;
-    
+
     this.axisGroup.clear();
     const step = this.calcNiceStep(this.globalMaxDistance);
 
-    // 端を nice step に丸める
     const maxD = Math.ceil(this.globalMaxDistance / step) * step;
-    
 
     const axes = [
       { from: new THREE.Vector3(-maxD, 0, 0), to: new THREE.Vector3(maxD, 0, 0), color: 0xff0000, name: "X" },
@@ -1051,22 +1073,14 @@ CompVis.ViewThree = class {
       nameLabel.position.copy(ax.to);
       this.axisGroup.add(nameLabel);
 
-      // 数値ラベル
       for (let i = -Math.ceil(maxD / step); i <= Math.ceil(maxD / step); i++) {
         const v = i * step;
         const absV = Math.abs(v);
         let strV;
+        if (absV == 0) strV = "0";
+        else if (absV >= 1e4 || absV <= 1e-3) strV = v.toExponential(2);
+        else strV = parseFloat(v.toFixed(6)).toString();
 
-        if(absV == 0) {
-          strV = "0";
-        } else if (absV >= 1e4 || absV <= 1e-3) {
-          // 大きすぎる/小さすぎる数は指数表記
-          strV =  v.toExponential(2); // 2桁精度
-        } else {
-          // それ以外は小数点以下を丸め
-          strV =  parseFloat(v.toFixed(6)).toString(); 
-          // ← 小数点以下6桁までで丸め、無駄な0は消える
-        }
         const lbl = this.makeLabel(strV);
         switch (ax.name) {
           case "X": lbl.position.set(v, 0, 0); break;
@@ -1084,7 +1098,7 @@ CompVis.ViewThree = class {
 
   addGraph(f, a, b, span = 100, options = {}) {
     const THREE = this.modules.three;
-    
+
     const points = [];
     let localMaxDistance = 0;
 
@@ -1109,11 +1123,13 @@ CompVis.ViewThree = class {
 
     this.globalMaxDistance = Math.max(this.globalMaxDistance, localMaxDistance);
 
-    if (this.mode === "dynamic") {
-      this.updateAxesAndGrid();
-      this.controls.target.set(0, 0, 0);
-      this.camera.position.set(this.globalMaxDistance + 5, this.globalMaxDistance + 5, this.globalMaxDistance + 5);
-    }
+    this.updateAxesAndGrid();
+    this.controls.target.set(0, 0, 0);
+    this.camera.position.set(
+      this.globalMaxDistance + 5,
+      this.globalMaxDistance + 5,
+      this.globalMaxDistance + 5
+    );
 
     return line;
   }
