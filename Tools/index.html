@@ -151,8 +151,7 @@
         card.className = "card";
         card.innerHTML = `
           <h3>${site.title}</h3>
-          <p>${site.title} のページへ移動します。</p>
-          <p>${site.explain ?? ""}</p>
+          <p>${site.explain ?? (site.title+"のページへ移動します。")}</p>
           <a href="${site.path}" class="btn">移動する</a>
         `;
         grid.appendChild(card);
