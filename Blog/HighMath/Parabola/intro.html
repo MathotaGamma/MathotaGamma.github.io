@@ -25,7 +25,8 @@
           <li><a href="#section1" class="anchor">前提知識</a></li>
           <li><a href="#section2" class="anchor">二次関数の式</a></li>
           <li><a href="#section3" class="anchor">一次関数と二次関数の違い</a></li>
-          <li><a href="#section4" class="anchor">まとめ</a></li>
+          <li><a href="#section4" class="anchor">二次関数のグラフ</a></li>
+          <li><a href="#section5" class="anchor">まとめ</a></li>
         </ul>
       </nav>
       <article class="article">
@@ -37,13 +38,15 @@
           <h2>はじめに</h2>
           <p>皆さんこんにちは！</p>
           <p>
-            この記事では二次関数についてのPart1となっています。
+            二次関数について&nbsp;のPart1<br>
+            この記事では、二次関数について/一次関数との違い/二次関数のグラフの形状<br>
+            の3本立てでお送りします。
           </p>
         </section>
         <section id="section1">
           <h2>前提知識</h2>
           <p>
-            一次関数と、基本的な展開、因数分解が分かれば大丈夫です。
+            一次関数と、基本的な展開・因数分解が分かれば大丈夫です。
           </p>
           <ul>
             <li>
@@ -88,10 +91,10 @@
             一次関数のグラフは直線であり、傾きが一定でした。
           </p>
           <p>
-            しかし、二次関数のグラフは直線ではなく、傾きがxの値に応じて変化していきます。
+            しかし、二次関数のグラフは直線ではなく、傾きが\(x\)の値に応じて変化していきます。
           </p>
           <p>
-            二次関数のグラフは物を投げた時の軌道のようになります(下図のように逆さの時もある)。そのため、放物線とも呼ばれます。
+            二次関数のグラフは物を投げた時の軌道のようになります(下図のように逆さの時もある)。そのため、放物線とも呼ばれます(後程詳しく説明します)。
           </p>
           <p>
             一次関数と二次関数のグラフを見比べてみましょう。
@@ -112,15 +115,34 @@
           </p>
         </section>
         <section id="section4">
+          <h2>二次関数のグラフ</h2>
+          <p>
+            二次関数\(y=ax^2+bx+c\)のグラフの形状は\(a\)の正負によって大きく異なります。
+          </p>
+          <p>
+            \(a\)が正のとき、下側に突き出す形になります。このことを「下に凸」といいます。またこのとき、この放物線は最大値を持ちません(正の無限大)が最小値を持ちます。
+          </p>
+          <canvas id="parabola2"></canvas>
+          <p>
+            \(a\)が負であればその反対で、上側に突き出す「上に凸」<sup><a href="#annotation2" class="anchor">【1】</a></sup>な放物線となります。このとき最小値はありません(負の無限大)が最大値を持ちます。
+          </p>
+          <canvas id="parabola3"></canvas>
+          <small id="annotation1">
+            (注)【2】「上に凸な関数」を「凹関数」と呼ぶ場合もあります。
+          </small>
+        </section>
+        <section id="section5">
           <h2>まとめ</h2>
           <ul>
             <li>二次関数は \(y=ax^2+bx+c\,(a\neq0)\) の形を持つ。</li>
             <li>一次関数と異なり、グラフは直線ではなく放物線になる。</li>
             <li>傾きはxに応じて変化する（一定ではない）。</li>
           </ul>
+          <h3>次回</h3>
           <p>
             次回は、二次方程式の解の種類（実数解・虚数解）や、判別式について解説します！
           </p>
+          <a href="./equation">Part2</a>
         </section>
         
       </article>
@@ -194,6 +216,43 @@
           },-5,5,1,{color: "#000000"}
         );
         viewer1.renderAll();
+
+        
+        const parabola2 = document.getElementById("parabola2");
+        parabola2.width = 200;
+        parabola2.height = 200;
+        const viewer2 = new CompVis.View(parabola2, {
+          mode: "static",
+          autoScale: false,
+          showAxis: false,
+          rangeX: [-2,2],
+          rangeY: [-1, 4],
+        });
+        
+        viewer2.addGraph(
+          (t) => {
+            return t**2
+          },-2,2,1200,{color: "#00aaff",}
+        );
+        viewer2.renderAll();
+        
+        const parabola3 = document.getElementById("parabola3");
+        parabola3.width = 200;
+        parabola3.height = 200;
+        const viewer3 = new CompVis.View(parabola3, {
+          mode: "static",
+          autoScale: false,
+          showAxis: false,
+          rangeX: [-2,2],
+          rangeY: [-4, 1],
+        });
+        
+        viewer3.addGraph(
+          (t) => {
+            return -(t**2)
+          },-2,2,1200,{color: "#00aaff",}
+        );
+        viewer3.renderAll();
       };
     </script>
   </body>
