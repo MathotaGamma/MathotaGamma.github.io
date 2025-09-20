@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Parabola [HSM] | NeoTopazm</title>
+    <title>二次方程式 | Parabola [HSM] | NeoTopazm</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
     <script src="https://mathotagamma.github.io/API/CompVisJS/latest/CompVisJS.js"></script>
     <link rel="stylesheet" href="/Blog/styleTemplate.css"></link>
@@ -52,13 +52,19 @@
             n次関数は最大でn個の実数解を持つため、この方程式の実数解は高々2個となります。
           </p>
           <p>
-            では、方程式やその解は何を指しているのでしょうか？
+            具体的な解を求めることはPart4で行いますが、ここでは方程式の解は何を指しているのか？を重点的に解説していきます。
           </p>
           <p>
-            \(ax^2+bx+c = 0\)とは、\(y = ax^2+bx+c\) と \(y = 0\)つまりx軸との交点に関する式です。
+            方程式\(ax^2+bx+c = 0\)とは、\(y = ax^2+bx+c\) と \(y = 0\)つまりx軸との交点に関する式です。
           </p>
+          <div class="block">
+            <p>
+              ※この考え方は<b>非常に</b>重要です。方程式は代数学であり、それが図形という幾何学と結びついています。<br>
+              このような分野の切り替えが非常にわかりにくく、思いつくことが困難であるものは「難しい問題」と認識されます。
+            </p>
+          </div>
           <p>
-            例えば、\(y=x^2-4x-5\)のグラフは下図のようになります。
+            具体的に見てみましょう。例えば\(y=x^2-4x-5\)のグラフは下図のようになります。
           </p>
           <canvas id="parabola1"></canvas>
           <p>
@@ -70,6 +76,9 @@
           </p>
           <p>
             ちなみに、このグラフの形は物を投げた時の軌道であることから放物線とも呼ばれます。
+          </p>
+          <p>
+            しかし、放物線とx軸が交わらないときもあります。そのとき、「実数解は存在しないが解は存在する」という状態になっています。次は解の種類について見ていきましょう。
           </p>
         </section>
         <section id="section3">
