@@ -200,3 +200,9 @@ canvas {
   margin: 30px 0px;
   height: 1px;
 }
+
+.block {
+  border:1px solid black;
+  border-radius: 5px;
+  padding: 3px;
+}
