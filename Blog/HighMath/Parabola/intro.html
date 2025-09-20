@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Parabola [HSM] | NeoTopazm</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+    <script src="https://mathotagamma.github.io/API/CompVisJS/latest/CompVisJS.js"></script>
+    <link rel="stylesheet" href="/Blog/styleTemplate.css"></link>
+  </head>
+  <body>
+    <header>
+      <div>導入 | 二次関数</div>
+      <nav>
+        <a href="../">ホーム</a>
+      </nav>
+    </header>
+
+    <div class="toc-toggle">📑 目次を表示</div>
+    <main>
+      <nav class="toc-wrapper" aria-label="目次">
+        <h2>目次</h2>
+        <ul>
+          <li><a href="#section0" class="anchor">はじめに</a></li>
+          <li><a href="#section1" class="anchor">前提知識</a></li>
+          <li><a href="#section2" class="anchor">二次関数の式</a></li>
+          <li><a href="#section3" class="anchor">一次関数と二次関数の違い</a></li>
+          <li><a href="#section4" class="anchor">まとめ</a></li>
+        </ul>
+      </nav>
+      <article class="article">
+        <h1>二次関数</h1>
+        <p>
+          難易度☆(低:基本的な展開、因数分解ができる程度の方)
+        </p>
+        <section id="section0">
+          <h2>はじめに</h2>
+          <p>皆さんこんにちは！</p>
+          <p>
+            この記事では二次関数についてのPart1となっています。
+          </p>
+        </section>
+        <section id="section1">
+          <h2>前提知識</h2>
+          <p>
+            一次関数と、基本的な展開、因数分解が分かれば大丈夫です。
+          </p>
+          <ul>
+            <li>
+              <h3>単項式</h3>
+              <p>
+                \(4\)や\(2x\),\(-5x^2y(z-1)\)のように一つの項で表される式。大まかには、数や文字が積または商のみで繋がった式。
+              </p>
+            </li>
+            <li>
+              <h3>多項式</h3>
+              <p>
+                単項式と対になるもの。
+              </p>
+              <p>
+                本来は、単項式の和または差で表された式のこと。しかし、単項式も多項式の一種として捉えられることも多い。
+              </p>
+              <p>
+                本サイトでも後者の意で用いる。
+              </p>
+            </li>
+          </ul>
+        </section>
+        <section id="section2">
+          <h2>二次関数の式</h2>
+          <p>
+            二次関数とは、xの多項式のうち最大の次数が2であるものを指します。
+          </p>
+          <p>
+            最大の次数が2ということは、二次関数は\(x^2\)の項を必ず持ち、\(x\)(一次)の項や定数項以外の項を持ちません。そのため、二次関数の式は下のようになります。
+          </p>
+          $$y=ax^2+bx+c\quad(a\neq0)$$
+          <p>
+            で表されるものの総称が二次関数です。
+          </p>
+          <p>
+            一次関数は\(y=ax+b\quad(a\neq0)\)で表されますが、二次関数と一次関数はどのように違うのでしょうか？次のsectionで見ていきましょう！
+          </p>
+        </section>
+        <section id="section3">
+          <h2>一次関数と二次関数の違い</h2>
+          <p>
+            一次関数のグラフは直線であり、傾きが一定でした。
+          </p>
+          <p>
+            しかし、二次関数のグラフは直線ではなく、傾きがxの値に応じて変化していきます。
+          </p>
+          <p>
+            二次関数のグラフは物を投げた時の軌道のようになります(下図のように逆さの時もある)。そのため、放物線とも呼ばれます。
+          </p>
+          <p>
+            一次関数と二次関数のグラフを見比べてみましょう。
+          </p>
+          <canvas id="linear-parabola"></canvas>
+          <p>
+            上図の一次関数のグラフは傾きが変わっていません。
+          </p>
+          <p>
+            しかし二次関数では、赤と緑の線から分かるように\(x\)の値に応じて傾きが異なります。
+          </p>
+          <p>
+            例えば\(x\)が「1から2」と「3から4」に変化した場合について考えてみましょう。
+          </p>
+          <p>
+            どちらも\(x\)の変化量は+1ですが、\(x^2\)では「1から4」と「9から16」に変化します。その変化量はそれぞれ「3」「7」となっています。
+            このように二次関数では、[\(x\)が同じだけ変化しても\(y\)の変化量は\(x\)の値に応じて異なる]性質を持っています。言い換えれば、二次関数の傾きは\(x\)に応じて変化するということです。
+          </p>
+        </section>
+        <section id="section4">
+          <h2>まとめ</h2>
+          <ul>
+            <li>二次関数は \(y=ax^2+bx+c\,(a\neq0)\) の形を持つ。</li>
+            <li>一次関数と異なり、グラフは直線ではなく放物線になる。</li>
+            <li>傾きはxに応じて変化する（一定ではない）。</li>
+          </ul>
+          <p>
+            次回は、二次方程式の解の種類（実数解・虚数解）や、判別式について解説します！
+          </p>
+        </section>
+        
+      </article>
+
+      <aside class="sidebar">
+        <section>
+          <h3>おすすめ記事</h3>
+          <!-- おすすめリンクなど -->
+        </section>
+      </aside>
+    </main>
+
+    <script>
+      // スムーズスクロール（目次）
+      document.querySelectorAll('.anchor').forEach(anchor => {
+        anchor.addEventListener('click', e => {
+          e.preventDefault();
+          const target = document.getElementById(anchor.getAttribute('href').slice(1));
+          const container = document.querySelector('article.article');
+          if (target && container) {
+            container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
+          }
+        });
+      });
+
+      // モバイル用目次トグル
+      document.querySelector('.toc-toggle').addEventListener('click', () => {
+        document.querySelector('.toc-wrapper').classList.toggle('active');
+      });
+
+      // ドロップダウン展開処理
+      document.querySelectorAll('.dropdown-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const content = btn.nextElementSibling;
+          if (content && content.classList.contains('dropdown-content')) {
+            content.style.display = (content.style.display === 'block') ? 'none' : 'block';
+          }
+        });
+      });
+
+      window.onload = () => {
+        const linearParabola = document.getElementById("linear-parabola");
+        linearParabola.width = 200;
+        linearParabola.height = 400;
+        const viewer1 = new CompVis.View(linearParabola, {
+          mode: "static",
+          autoScale: false,
+          showAxis: false,
+          rangeX: [-5, 5],
+          rangeY: [-3, 9],
+        });
+
+        viewer1.addGraph(
+          (t) => {
+            return t**2/4 + 4;
+          },-5,5,1200,{color: "#000000"}
+        );
+        viewer1.addGraph(
+          (t) => {
+            return (t-0.5)/4+4+1/16;
+          },-3,4,1,{color: "#ff4444"}
+        );
+        viewer1.addGraph(
+          (t) => {
+            return 3*(t-3)/2+4+9/4;
+          },1,4.8,1,{color: "#44ff44"}
+        );
+        viewer1.addGraph(
+          (t) => {
+            return t/2;
+          },-5,5,1,{color: "#000000"}
+        );
+        viewer1.renderAll();
+      };
+    </script>
+  </body>
+</html>
