@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>平方完成(Part3) [HSM] | NeoTopazm</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+    <script src="https://mathotagamma.github.io/API/CompVisJS/latest/CompVisJS.js"></script>
+    <link rel="stylesheet" href="/Blog/styleTemplate.css"></link>
+  </head>
+  <body>
+    <header>
+      <div>平方完成(Part3) | 二次関数</div>
+      <nav>
+        <a href="../">ホーム</a>
+      </nav>
+    </header>
+
+    <div class="toc-toggle">📑 目次を表示</div>
+    <main>
+      <nav class="toc-wrapper" aria-label="目次">
+        <h2>目次</h2>
+        <ul>
+          <li><a href="#section0" class="anchor">はじめに</a></li>
+          <li><a href="#section1" class="anchor">前提知識</a></li>
+          <li><a href="#section2" class="anchor">導入</a></li>
+          <li><a href="#section3" class="anchor">平方完成</a></li>
+          <li><a href="#section4" class="anchor">まとめ</a></li>
+        </ul>
+      </nav>
+      <article class="article">
+        <h1>平方完成(Part3)</h1>
+        <p>
+          難易度☆(低:基本的な展開、因数分解ができる程度の方)
+        </p>
+        <section id="section0">
+          <h2>はじめに</h2>
+          <p>皆さんこんにちは！</p>
+          <p>
+            「二次関数」&nbsp;のPart3<br>
+            この記事では平方完成について解説していきます。
+          </p>
+        </section>
+        <section id="section1">
+          <h2>前提知識</h2>
+          <p>
+            基本的な展開・因数分解が分かれば大丈夫です。
+          </p>
+        </section>
+        <section id="section2">
+          <h2>導入</h2>
+          <p>
+            Part1,Part2では、二次関数の性質(特に\(x^2\)の性質)の観点から二次関数を分析してきました。
+          </p>
+          <p>
+            Part3からは、二次関数を数式から分析していきます。<br>
+            これによって、「二次関数のグラフがなぜ放物線となるのか」「グラフの頂点や軸」「最大・最小値」など他にもいろいろありますが、
+            これらの答えを論理的に導き、理解することができます。
+          </p>
+          <p>
+            数式で分析をするならば、その数式が簡単であればあるほど分析や変形がしやすく、嬉しいですよね？
+          </p>
+          <p>
+            二次関数の\(y=ax^2+bx+c\)という式には\(x\)が含まれる項が2つもあります。多いですね〜。その二つの\(x\)をまとめる操作(式変形)を平方完成といいます。
+          </p>
+          <p>
+            次のsectionで具体的な平方完成の方法を見ていきましょう!
+          </p>
+        </section>
+        <section id="section3">
+          <h2>平方完成</h2>
+          <p>
+            二次関数の\(y=ax^2+bx+c\)という式のまま変形すると見にくいですから、一度、何か具体的な二次関数を考えて見ましょう。
+          </p>
+          $$y=x^2+4x-3\tag{1}$$
+          <p>
+            この式を平方完成してみましょう！前のsectionで言ったように、\(x\)が2つの項に存在するのでまとめていきたいですね。
+          </p>
+          <p>
+            \(x^2\)と\(x\)を一つの項にまとめる武器として
+          </p>
+          <p>
+            \(x^2 + 2px + p^2 = (x+p)^2 \tag{2}\)
+          </p>
+          <p>
+            が使えそうです。\((x+p)(x+q)=x^2+(p+q)x+pq\)でもできなくはないですが、aとbという2つの文字を使う必要があまりありません。
+          </p>
+          <p>
+            (1)と(2)のxの係数から\(4=2p \Leftrightarrow p=2\)より
+          </p>
+          <p>
+            $$x^2+4x+4 = (x+2)^2$$
+          </p>
+          <p>
+            を使えば(1)の\(x^2\)と\(4x\)をうまくまとめられそうです。
+          </p>
+          
+          <p>
+            $$\begin{align*}
+              y &= x^2 + 4x - 3\\
+                &= x^2 + 4x + 4 - 7\\
+                &= (x + 2)^2 - 7\\
+            \end{align*}$$
+          </p>
+          <p>
+            このように変形するとxが一つの項にまとめられました！この操作を<b>平方完成</b>といいます。
+          </p>
+          <div class="block">
+            <p>
+              補足として、\(p\)に当たる部分を素早く見つける方法があります。
+            </p>
+            <p>
+              \(y=ax^2+bx+c\)を平方完成すると\(y=a(x+p)^2+q\)と表せて、その\(p\)は
+              \(p=\frac{b}{2a}\)で求められる。
+            </p>
+            <p>
+              \(q\)は\(a(x+p)^2\)を展開したときの定数項とcを比較して求める。
+            </p>
+            <p>
+              例えば、\(y=-2x^2+4x+3\)で考えると、\(p=\frac{4}{2\times(-2)}=-1\)より
+            </p>
+            <p>
+              $$\begin{align*}
+                y &= -2\left[x+(-1)\right]^2+q\\
+                  &= -2(x-1)^2+q \quad {\scriptsize \leftarrow \text{ここで展開する}}\\
+                  &= -2x^2+4x-2+q
+              \end{align*}$$
+            </p>
+            <p>
+              \(-2+q\)が\(3\)であればいいので\(q=5\)より
+            </p>
+            $$-2x^2+4x+3 = -2(x-1)^2+5$$
+          </div>
+          <p>
+            例題と練習問題を載せました。ぜひ解いてみましょう！
+          </p>
+          <h4>例題</h4>
+          <p>
+            次の関数を平方完成せよ
+            $$y=2x^2-6x+5$$
+          </p>
+          <button class="dropdown-toggle">▼解答▼</button>
+          <div class="dropdown-content equation" style="display:none;">
+            $$\begin{align*}
+              y &= 2x^2-6x+5\\
+                &= 2(x^2-3x)+5\\
+                &= 2\left(x^2-3x+\frac{9}{4}-\frac{9}{4}\right)+5\\
+                &= 2\left[\left(x-\frac{3}{2}\right)^2-\frac{9}{4}\right]+5\\
+                &= 2\left(x-\frac{3}{2}\right)^2+\frac{1}{2}
+            \end{align*}$$
+          </div>
+          <br><br><br>
+          <h4>
+            練習問題
+          </h4>
+          <p>
+            (1) \(y=x^2+6x\)<br>
+            (2) \(y=3x^2-6+11\)<br>
+            (3) \(y=-2x^2+7x-3\)<br>
+          </p>
+          <button class="dropdown-toggle">▼解答▼</button>
+          <div class="dropdown-content equation" style="display:none;">
+            (1) \(y=x^2+6x\)
+            $$\begin{align*}
+              y &= x^2 + 6x\\
+                &= (x+3)^2 - 3^2\\
+                &= (x+3)^2-9
+            \end{align*}$$
+            (2) \(y=3x^2-6+11\)
+            $$\begin{align*}
+              y &= 3x^2 - 6x + 11\\
+                &= 3(x^2 - 2x) + 11\\
+                &= 3(x-1)^2-3\times1^2+11 \\
+                &{\scriptsize \uparrow \text{補足の\(p=-1\)を使えばここから}}\\
+                &= 3(x-1)^2+8
+            \end{align*}$$
+            (3) \(y=-2x^2+7x-3\)
+            $$\begin{align*}
+              y &= -2x^2 + 7x - 3\\
+                &= -2\left(x^2-\frac{7}{2}x\right)-3\\
+                &= -2\left[\left(x-\frac{7}{4}\right)^2-\left(\frac{7}{4}\right)^2\right]-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+2\times\frac{49}{16}-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+\frac{25}{8}
+            \end{align*}$$
+            (補足を使った場合)
+            $$\begin{align*}
+              y &= -2x^2 + 7x - 3\\
+                &= -2\left[x+\frac{7}{2\times(-2)}\right]^2{\color{red}+}2\times\left[\frac{7}{2\times(-2)}\right]^2-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+\frac{49}{8}-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+\frac{25}{8}
+            \end{align*}$$
+          </div>
+        </section>
+        <section id="section4">
+          <h2>まとめ</h2>
+          <ul>
+            <li>二次関数は \(y=ax^2+bx+c\,(a\neq0)\) の形を持つ。</li>
+            <li>一次関数と異なり、グラフは直線ではなく放物線になる。</li>
+            <li>傾きはxに応じて変化する（一定ではない）。</li>
+          </ul>
+          <h3>次回</h3>
+          <p>
+            次回は、二次方程式の解の種類（実数解・虚数解）や、判別式について解説します！
+          </p>
+          <a href="./equation">Part2</a>
+        </section>
+        
+      </article>
+
+      <aside class="sidebar">
+        <section>
+          <h3>おすすめ記事</h3>
+          <!-- おすすめリンクなど -->
+        </section>
+      </aside>
+    </main>
+
+    <script>
+      // スムーズスクロール（目次）
+      document.querySelectorAll('.anchor').forEach(anchor => {
+        anchor.addEventListener('click', e => {
+          e.preventDefault();
+          const target = document.getElementById(anchor.getAttribute('href').slice(1));
+          const container = document.querySelector('article.article');
+          if (target && container) {
+            container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
+          }
+        });
+      });
+
+      // モバイル用目次トグル
+      document.querySelector('.toc-toggle').addEventListener('click', () => {
+        document.querySelector('.toc-wrapper').classList.toggle('active');
+      });
+
+      // ドロップダウン展開処理
+      document.querySelectorAll('.dropdown-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const content = btn.nextElementSibling;
+          if (content && content.classList.contains('dropdown-content')) {
+            content.style.display = (content.style.display === 'block') ? 'none' : 'block';
+          }
+        });
+      });
+
+      window.onload = () => {
+        const linearParabola = document.getElementById("linear-parabola");
+        linearParabola.width = 200;
+        linearParabola.height = 400;
+        const viewer1 = new CompVis.View(linearParabola, {
+          mode: "static",
+          autoScale: false,
+          showAxis: false,
+          rangeX: [-5, 5],
+          rangeY: [-3, 9],
+        });
+
+        viewer1.addGraph(
+          (t) => {
+            return t**2/4 + 4;
+          },-5,5,1200,{color: "#000000"}
+        );
+        viewer1.addGraph(
+          (t) => {
+            return (t-0.5)/4+4+1/16;
+          },-3,4,1,{color: "#ff4444"}
+        );
+        viewer1.addGraph(
+          (t) => {
+            return 3*(t-3)/2+4+9/4;
+          },1,4.8,1,{color: "#44ff44"}
+        );
+        viewer1.addGraph(
+          (t) => {
+            return t/2;
+          },-5,5,1,{color: "#000000"}
+        );
+        viewer1.renderAll();
+
+        
+        const parabola2 = document.getElementById("parabola2");
+        parabola2.width = 200;
+        parabola2.height = 200;
+        const viewer2 = new CompVis.View(parabola2, {
+          mode: "static",
+          autoScale: false,
+          showAxis: false,
+          rangeX: [-2,2],
+          rangeY: [-1, 4],
+        });
+        
+        viewer2.addGraph(
+          (t) => {
+            return t**2
+          },-2,2,1200,{color: "#00aaff",}
+        );
+        viewer2.renderAll();
+        
+        const parabola3 = document.getElementById("parabola3");
+        parabola3.width = 200;
+        parabola3.height = 200;
+        const viewer3 = new CompVis.View(parabola3, {
+          mode: "static",
+          autoScale: false,
+          showAxis: false,
+          rangeX: [-2,2],
+          rangeY: [-4, 1],
+        });
+        
+        viewer3.addGraph(
+          (t) => {
+            return -(t**2)
+          },-2,2,1200,{color: "#00aaff",}
+        );
+        viewer3.renderAll();
+      };
+    </script>
+  </body>
+</html>
