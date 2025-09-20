@@ -23,6 +23,8 @@
           <li><a href="#section0" class="anchor">はじめに</a></li>
           <li><a href="#section1" class="anchor">前提知識</a></li>
           <li><a href="#section2" class="anchor">二次方程式について</a></li>
+          <li><a href="#section3" class="anchor">二次方程式の解の種類</a></li>
+
         </ul>
       </nav>
       <article class="article">
@@ -42,7 +44,7 @@
           基本的な展開、因数分解が分かれば大丈夫です。
         </section>
         <section id="section2">
-          <h2>二次方程式</h2>
+          <h2>二次方程式について</h2>
           <p>
             二次方程式は
             $$ax^2+bx+c = 0 \quad (a \neq 0)$$
@@ -60,7 +62,7 @@
           <div class="block">
             <p>
               ※この考え方は<b>非常に</b>重要です。方程式は代数学であり、それが図形という幾何学と結びついています。<br>
-              このような分野の切り替えが非常にわかりにくく、思いつくことが困難であるものは「難しい問題」と認識されます。
+              このような分野の切り替え&nbsp;が非常にわかりにくく、思いつくことが困難であるものは「難しい問題」と認識されます。
             </p>
           </div>
           <p>
@@ -75,8 +77,9 @@
             よって、\(x^2-4x-5 = 0\)の実数解は2つあり、その解はx=-1, 5であることを示しています。
           </p>
           <p>
-            ちなみに、このグラフの形は物を投げた時の軌道であることから放物線とも呼ばれます。
+            x軸と1点で交わる場合、つまり放物線とx軸が接しているとき、「二次方程式は<b>重解</b>を持つ」と言います。
           </p>
+          <canvas id="parabola1-2"></canvas>
           <p>
             しかし、放物線とx軸が交わらないときもあります。そのとき、「実数解は存在しないが解は存在する」という状態になっています。次は解の種類について見ていきましょう。
           </p>
@@ -115,14 +118,25 @@
           <p>
             このことについては詳しく解説するページを作る<span style="color: red;">予定</span>ですのでお待ちください。
           </p>
-          <p>
-            Part2では、二次関数のグラフについて解説していきます。
-          </p>
           <small id="annotation1">
             (注)【1】複素数は実数を含んでいるため、正しくは「虚部が0でない複素数」。<br>
             以下では、複素数解といった場合は虚部が0でない複素数の解とする。
           </small>
         </section>
+        <section id="section4">
+          <h2>まとめ</h2>
+          <ul>
+            <li>二次方程式は <code>ax^2+bx+c=0 (a≠0)</code> の形をしている。</li>
+            <li>解とは、対応する放物線とx軸（またはy=0の直線）の交点のx座標を意味する。</li>
+            <li>交点が2つあれば実数解は2個(1つなら重解)、交点が無ければ実数解は存在しない。</li>
+            <li>交点が無い場合でも、複素数解が存在する（解そのものが消えるわけではない）。</li>
+            <li>代数と幾何は結びついており、式の解釈を図形的に考えることが重要である。</li>
+          </ul>
+          <p>
+            次回は、判別式を用いて解の種類を具体的に分類し、実際に解を求める方法について学びます。
+          </p>
+        </section>
+
       </article>
 
       <aside class="sidebar">
@@ -184,6 +198,29 @@
           },-3,7,1,{color: "#ff0000",}
         );
         viewer1.renderAll();
+
+        const parabola1_2 = document.getElementById("parabola1-2");
+        parabola1_2.width = 200;
+        parabola1_2.height = 300;
+        const viewer1_2 = new CompVis.View(parabola1_2, {
+          mode: "static",
+          autoScale: false,
+          showAxis: true,
+          rangeX: [-6, 4],
+          rangeY: [-3, 18],
+        });
+
+        viewer1_2.addGraph(
+          (t) => {
+            return t**2 + 2*t + 1
+          },-6,4,1200,{color: "#00aaff",}
+        );
+        viewer1_2.addGraph(
+          (t) => {
+            return 0
+          },-6,4,1,{color: "#ff0000",}
+        );
+        viewer1_2.renderAll();
         
         const parabola2 = document.getElementById("parabola2");
         parabola2.width = 200;
