@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LaTeX 数式エディタ</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+      html, body {
+        width: 100%;
+        height: 100%;
+        font-family: monospace;
+        overflow: hidden;
+      }
+      
+      .side {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: max(25%, 150px);
+        height: 100%;
+        background: #dddddd;
+      }
+      
+      main {
+        position: absolute;
+        width: calc(100% - max(25%, 150px));
+        left: max(25%, 150px);
+        top: 0px;
+        height: 100%;
+      }
+      
+      .preview {
+        overflow: scroll;
+        height: 100%;
+        font-size: 35px;
+      }
+      
+      .visible-change-btn {
+        position: absolute;
+        bottom: 150px;
+        left: 70px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 40px;
+        height: 28px;
+        background: grey;
+        color: white;
+      }
+      
+      .keyboard {
+        position: absolute;
+        display: grid;
+        box-sizing: border-box;
+        background: white;
+        bottom: 0px;
+        left: 0px;
+        border-top: 5px solid green;
+        height: 150px;
+        width: 100%;
+        grid-template-columns: 1fr min(200px, 50%) min(100px, 20%);
+        grid-gap: 10px;
+      }
+      
+      .functions, .numbers, .operation {
+        box-sizing: border-box;
+        display: grid;
+        width: 100%;
+        height: 100%;
+        border: 2px solid grey;
+        padding: 5px;
+      }
+      
+      .functions {
+        grid-template-columns: repeat(4, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        grid-gap: 10px;
+      }
+      
+      .numbers {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        grid-gap: 10px;
+      }
+      
+      .operation {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(5, 1fr);
+        grid-gap: 8px;
+      }
+      
+      .key {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid grey;
+      }
+    </style>
+  </head>
+  <body>
+    <header>LaTeX 数式エディタ</header>
+    <div class="side" id="side">
+      
+    </div>
+    <main>
+      <div class="preview" id="preview">数式がここに表示されます</div>
+    </main>
+    <div class="visible-change-btn" id="visible-change-btn">
+      ...
+    </div>
+    <div class="keyboard" id="keyboard">
+      <div class="functions" id="functions">
+        <div class="key">
+          \(x^y\)
+        </div>
+        <div class="key">
+          \(x\)
+        </div>
+        <div class="key">
+          \(y\)
+        </div>
+        <div class="key">
+          \(z\)
+        </div>
+        <div class="key">
+          \(x_y\)
+        </div>
+        <div class="key">
+          \(\sqrt{\:\:}\)
+        </div>
+        <div class="key">
+          \(\sqrt[3]{\:}\)
+        </div>
+        <div class="key">
+          \(i\)
+        </div>
+        <div class="key">
+          abc
+        </div>
+        <div class="key">
+          \(\sum\)
+        </div>
+        <div class="key">
+          \(\int\)
+        </div>
+        <div class="key">
+          \(e^x\)
+        </div>
+        <div class="key">
+          \(\int^{b}_{a}\)
+        </div>
+      </div>
+      <div class="numbers">
+        <div class="key">
+          1
+        </div>
+        <div class="key">
+          2
+        </div>
+        <div class="key">
+          3
+        </div>
+        <div class="key">
+          4
+        </div>
+        <div class="key">
+          5
+        </div>
+        <div class="key">
+          6
+        </div>
+        <div class="key">
+          7
+        </div>
+        <div class="key">
+          8
+        </div>
+        <div class="key">
+          9
+        </div>
+        <div class="key">
+          .
+        </div>
+        <div class="key">
+          0
+        </div>
+        <div class="key">
+          =
+        </div>
+      </div>
+      <div class="operation">
+        <div class="key" data-value="+">\(+\)</div>
+        <div class="key" data-value="-">\(-\)</div>
+        <div class="key" data-value="\times">\(\times\)</div>
+        <div class="key" data-value="\div">\(\div\)</div>
+        <div class="key" data-value="\pm">\(\pm\)</div>
+      </div>
+    </div>
+    <script>
+      window.onload = () => {
+        let text = "\\sqrt{\\frac{2}{a}}"
+        const preview = document.getElementById("preview");
+        const visibleBtn = document.getElementById("visible-change-btn");
+        const keyboard = document.getElementById("keyboard");
+        const functionsDiv = document.getElementById("functions");
+        
+        const keyboardHeight = 200;
+        visibleBtn.style.bottom = keyboardHeight+"px";
+        keyboard.style.height = keyboardHeight+"px";
+        
+        let isAlphabet = false;
+        
+        //input.addEventListener("input", update);
+        
+        //[small, medium, large] 行,列
+        //small: 4行3列, medium: 4行4列, large: 4行5列, greatest: 4行6列
+        const keys = {
+          "\\(x^y\\)"         : [[1,1],[1,1],[1,1],[1,1]],
+          "\\(x_y\\)"         : [ null, null,[1,2],[1,2]],
+          "\\(x\\)"           : [[1,2],[1,2],[1,3],[1,3]],
+          "\\(y\\)"           : [[1,3],[1,3],[1,4],[1,4]],
+          "\\(z\\)"           : [ null,[1,4],[1,5],[1,5]],
+          "\\(n\\)"           : [ null, null, null,[1,6]],
+          "\\(\\log\\)"       : [ null,[2,1],[2,1],[2,1]],
+          "\\(\\lim\\)"       : [ null, null,[2,2],[2,2]],
+          "\\(\\sqrt{}\\)"    : [[2,1],[2,2],[2,3],[2,3]],
+          "\\(\\sqrt[3]{}\\)" : [ null, null, null,[2,4]],
+          "\\(f{\\scriptsize(x)}\\)"      : [[2,2],[2,3],[2,4],[2,5]],
+          "\\(i\\)"           : [[2,3],[2,4],[2,5],[2,6]],
+          "\\(\\frac{y}{x}\\)": [[3,1],[3,1],[3,1],[3,1]],
+          "\\(\\sum\\)"       : [ null, null,[3,2],[3,2]],
+          "\\(\\int \\text{d}\\circ\\)"   : [[3,2],[3,2],[3,3],[3,3]],
+          "\\(\\int^b_a\\text{d}\\circ\\)": [ null, null, null,[3,4]],
+          "\\(\\lvert\\quad\\rvert\\)"    : [ null,[3,3],[3,4],[3,5]],
+          "\\((\\quad)\\)"    : [[3,3],[3,4],[3,5],[3,6]],
+          "abc"               : [[4,1],[4,1],[4,1],[4,1]],
+          "\\(\\pi\\)"        : [[4,2],[4,2],[4,2],[4,2]],
+          "\\(e\\)"           : [[4,3],[4,3],[4,3],[4,3]],
+          "\\(\\sin\\)"       : [ null,[4,4],[4,4],[4,4]],
+          "\\(\\cos\\)"       : [ null, null,[4,5],[4,5]],
+          "\\(\\tan\\)"       : [ null, null, null,[4,6]],
+        }
+        
+        const alphabetKeys = [
+          "a","b","c","d",
+          "e","f","g","h",
+          "i","j","k","l",
+          "m","n","o","p"
+        ];
+        
+        
+        keyboard.addEventListener("touchstart", (e) => {
+          const target = e.target.closest(".key");
+          if (!target) return;
+          if (!target.classList.contains("key")) return;
+          let value;
+          if (target.dataset.value) {
+            value = target.dataset.value;
+          } else {
+            value = target.innerHTML;
+          }
+          if (value == "abc") {
+            isAlphabet = !isAlphabet;
+            renderKeyboard();
+            return;
+          }
+          text += value;
+          update();
+        });
+        
+        // 現在のレイアウトを判定
+        function getLayoutIndex() {
+          const w = window.innerWidth;
+          if (w < 500) return null;
+          if (w < 650) return 0;  // small
+          if (w < 800) return 1;  // medium
+          if (w < 1000)return 2;  // large
+          return 3;               // greatest
+        }
+        
+        function unwrapLatex(str) {
+          const regex = /\\\((.*?)\\\)/;
+          const match = str.match(regex);
+          if (match) {
+            return match[1]; // 括弧内の中身
+          } else {
+            return str;      // マッチしなければそのまま
+          }
+        }
+        
+        
+        
+        // キーボードを描画
+        function renderKeyboard() {
+          const idx = getLayoutIndex();
+          if (idx === null) {
+            functionsDiv.style.opacity = "0";
+            keyboard.style.gridTemplateColumns = "15% 1fr min(100px, 20%)";
+            return;
+          }
+          const gridCols = [3,4,5,6][idx];
+        
+          functionsDiv.style.opacity = "1";
+          keyboard.style.gridTemplateColumns = "1fr min(200px, 50%) min(100px, 20%)";
+          functionsDiv.style.display = "grid";
+          functionsDiv.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
+          functionsDiv.innerHTML = "";
+        
+          if (isAlphabet) {
+            // 英字表示
+            alphabetKeys.forEach((ch, i) => {
+              const div = document.createElement("div");
+              div.className = "key";
+              div.innerText = ch;
+              div.style.gridRow = Math.floor(i / gridCols) + 1;
+              div.style.gridColumn = (i % gridCols) + 1;
+              functionsDiv.appendChild(div);
+            });
+          } else {
+            // LaTeX キー表示（既存コード）
+            for (const [latex, positions] of Object.entries(keys)) {
+              const pos = positions[idx];
+              if (!pos) continue;
+              const [row, col] = pos;
+              const div = document.createElement("div");
+              div.className = "key";
+              div.innerHTML = latex;
+              div.style.gridRow = row;
+              div.style.gridColumn = col;
+              div.dataset.value = unwrapLatex(latex);
+              functionsDiv.appendChild(div);
+            }
+            MathJax.typesetPromise([functionsDiv]);
+          }
+        }
+        
+        
+        // 初期化とリサイズ対応
+        window.addEventListener("resize", renderKeyboard);
+        renderKeyboard()
+        
+        
+        visibleBtn.addEventListener("click", () => {
+          if(visibleBtn.style.bottom == keyboardHeight+"px"){
+            visibleBtn.style.bottom = "0px";
+            keyboard.style.display = "none";
+          } else {
+            visibleBtn.style.bottom = keyboardHeight+"px";
+            keyboard.style.display = "grid";
+          }
+        });
+        
+        function update() {
+          preview.textContent = "\\(" + text + "\\)";
+          MathJax.typesetPromise([preview]);
+        }
+  
+        function insert(cmd) {
+          const start = input.selectionStart;
+          const end = input.selectionEnd;
+          const text = input.value;
+          input.value = text.slice(0, start) + cmd + text.slice(end);
+          input.focus();
+          input.selectionStart = input.selectionEnd = start + cmd.length;
+          update();
+        }
+  
+        // 初期表示
+        update();
+      }
+    </script>
+  </body>
+</html>
