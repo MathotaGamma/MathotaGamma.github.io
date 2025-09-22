@@ -36,6 +36,7 @@
         font-size: 35px;
       }
       
+      
       .visible-change-btn {
         position: absolute;
         bottom: 150px;
@@ -53,41 +54,48 @@
         position: absolute;
         display: grid;
         box-sizing: border-box;
+        font-size: 20px;
         background: white;
         bottom: 0px;
-        left: 0px;
+        left: 0px; 
         border-top: 5px solid green;
         height: 150px;
         width: 100%;
-        grid-template-columns: 1fr min(200px, 50%) min(100px, 20%);
+        padding: 0px 50px;
+        grid-template-columns: 1fr 150px 150px;
         grid-gap: 10px;
       }
       
-      .functions, .numbers, .operation {
+      functions, .numbers, .operation {
         box-sizing: border-box;
         display: grid;
-        width: 100%;
+        /*width: 100%;*/
         height: 100%;
         border: 2px solid grey;
         padding: 5px;
+        margin: 0px 10px;
       }
       
       .functions {
         grid-template-columns: repeat(4, 1fr);
         grid-template-rows: repeat(4, 1fr);
-        grid-gap: 10px;
+        grid-gap: 7px;
+        font-size: 18px;
+        width: minmax(0, 40%);
       }
       
       .numbers {
+        width: 100%;
         grid-template-columns: repeat(3, 1fr);
         grid-template-rows: repeat(4, 1fr);
-        grid-gap: 10px;
+        grid-gap: 7px;
       }
       
       .operation {
+        width: 100%;
         grid-template-columns: 1fr 1fr;
-        grid-template-rows: repeat(4, 1fr);
-        grid-gap: 8px;
+        grid-template-rows: repeat(5, 1fr);
+        grid-gap: 5px;
       }
       
       .key {
@@ -97,14 +105,36 @@
         border: 1px solid grey;
       }
       
-      .source {
-        font-size: 20px;
+      /* Source area styles for div and textarea */
+      .source-container {
+        display: flex;
+        flex-direction: column;
+        border-bottom: 2px solid #999;
+        font-size: 14px;
         background: #f0f0f0;
         padding: 8px;
-        border-bottom: 2px solid #999;
+        min-height: 100px; /* Adjust as needed */
+        max-height: 200px;
+        overflow-y: scroll;
+      }
+      
+      .source-display {
+        flex-grow: 1;
         white-space: pre-wrap;
         word-wrap: break-word;
       }
+      
+      .source-textarea {
+        flex-grow: 1;
+        width: 100%;
+        resize: none;
+        box-sizing: border-box;
+        border: none;
+        background: transparent;
+        font-size: 20px;
+        font-family: monospace;
+      }
+      
       .cursor {
         display: inline-block;
         width: 2px;
@@ -114,8 +144,25 @@
         animation: blink 1s step-start infinite;
         opacity: 0;
       }
+      
       @keyframes blink {
         50% { opacity: 1; }
+      }
+      
+      .marker {
+        color: red;
+        border: 1px solid green;
+      }
+      
+      .toggle-source-btn {
+        position: absolute;
+        align-self: flex-end;
+        right: 5px;
+        top: 5px;
+        padding: 2px 5px;
+        border: 1px solid #ccc;
+        background: #e0e0e0;
+        cursor: pointer;
       }
     </style>
   </head>
@@ -125,7 +172,8 @@
       
     </div>
     <main>
-      <div class="source" id="source">\sqrt{\frac{2}{a}}</div>
+      <div class="source-container"></div>
+      <button id="toggle-source-btn" class="toggle-source-btn">テキストモード</button>
       <div class="preview" id="preview">数式がここに表示されます</div>
     </main>
     <div class="visible-change-btn" id="visible-change-btn">
@@ -190,146 +238,264 @@
       <div class="operation">
         <div class="key" data-value="+">\(+\)</div>
         <div class="key" data-value="-">\(-\)</div>
-        <div class="key" data-value="\times">\(\times\)</div>
-        <div class="key" data-value="\div">\(\div\)</div>
-        <div class="key" data-value="\pm">\(\pm\)</div>
+        <div class="key" data-value="/">/</div>
+        <div class="key" data-value="^">^</div>
+        <div class="key" data-value="&">&</div>
+        <div class="key" data-value="\\">\\\\</div>
+        <div class="key" data-value="DELETE">\(\otimes\)</div>
         <div class="key" data-value="ENTER">&#x21B5;</div>
-        <div class="key" data-value="LEFT">&#8592;</div>
-        <div class="key" data-value="RIGHT">&#8594;</div>
+        <div class="key" data-value="LEFT">\(\leftarrowtail\)</div>
+        <div class="key" data-value="RIGHT">\(\rightarrowtail\)</div>
       </div>
     </div>
     <script>
       window.onload = () => {
-        let text = "\\sqrt{\\frac{2}{a}}"
+        let text = `\\begin{align*}
+  \\sqrt{\\frac{2}{a}}
+\\end{align*}`
         const preview = document.getElementById("preview");
         const visibleBtn = document.getElementById("visible-change-btn");
         const keyboard = document.getElementById("keyboard");
         const functionsDiv = document.getElementById("functions");
-        const sourceDiv = document.getElementById("source");
+        const sourceContainer = document.querySelector(".source-container");
+        const toggleBtn = document.getElementById("toggle-source-btn");
         
-        const keyboardHeight = 200;
+        const keyboardHeight = 230;
         visibleBtn.style.bottom = keyboardHeight+"px";
         keyboard.style.height = keyboardHeight+"px";
         
+        const keyboardColumns = "1fr calc(130px + 10%) calc(80px + 10%)";
+        
         let isAlphabet = false;
+        let isUpper = false;
         let cursorPos = text.length;
+        let isTextareaMode = false;
         
-        //input.addEventListener("input", update);
+        // input.addEventListener("input", update);
         
-        //[small, medium, large] 行,列
-        //small: 4行3列, medium: 4行4列, large: 4行5列, greatest: 4行6列
+        // [small, medium, large] 行,列
+        // small: 4行3列, medium: 4行4列, large: 4行5列, greatest: 4行6列
         const keys = {
-          "\\(x^y\\)"         : [[1,1],[1,1],[1,1],[1,1],"{$<1>}^{$<2>}$<3>"],
-          "\\(x_y\\)"         : [ null, null,[1,2],[1,2],"{$<1>}_{$<2>}$<3>"],
-          "\\(x\\)"           : [[1,2],[1,2],[1,3],[1,3]],
-          "\\(y\\)"           : [[1,3],[1,3],[1,4],[1,4]],
-          "\\(z\\)"           : [ null,[1,4],[1,5],[1,5]],
-          "\\(n\\)"           : [ null, null, null,[1,6]],
-          "\\(\\log\\)"       : [ null,[2,1],[2,1],[2,1],"\\log{$<1>}$<2>"],
-          "\\(\\lim\\)"       : [ null, null,[2,2],[2,2],"\\lim_{$<1>\rightarrow$<2>}"],
-          "\\(\\sqrt{\\:}\\)"    : [[2,1],[2,2],[2,3],[2,3],"\\sqrt{$<1>}$<2>"],
+          "\\(x^y\\)"        : [[1,1],[1,1],[1,1],[1,1],"^{$<1>}"],
+          "\\(x_y\\)"        : [ null, null,[1,2],[1,2],"_{$<1>}"],
+          "\\(x\\)"          : [[1,2],[1,2],[1,3],[1,3]],
+          "\\(y\\)"          : [[1,3],[1,3],[1,4],[1,4]],
+          "\\(z\\)"          : [ null,[1,4],[1,5],[1,5]],
+          "\\(n\\)"          : [ null, null, null,[1,6]],
+          "\\(\\log\\)"      : [ null,[2,1],[2,1],[2,1],"\\log{$<1>}$<2>"],
+          "\\(\\lim\\)"      : [ null, null,[2,2],[2,2],"\\lim_{$<1>\\rightarrow$<2>}"],
+          "\\(\\sqrt{\\:}\\)": [[2,1],[2,2],[2,3],[2,3],"\\sqrt{$<1>}$<2>"],
           "\\(\\sqrt[3]{\\:}\\)" : [ null, null, null,[2,4],"\\sqrt[3]{$<1>}$<2>"],
-          "\\(f{\\scriptsize(x)}\\)"      : [[2,2],[2,3],[2,4],[2,5]],
-          "\\(i\\)"           : [[2,3],[2,4],[2,5],[2,6]],
+          "\\(f{\\scriptsize(x)}\\)"     : [[2,2],[2,3],[2,4],[2,5]],
+          "\\(i\\)"          : [[2,3],[2,4],[2,5],[2,6]],
           "\\(\\frac{y}{x}\\)": [[3,1],[3,1],[3,1],[3,1],"\\frac{$<1>}{$<2>}$<3>"],
-          "\\(\\sum\\)"       : [ null, null,[3,2],[3,2],"\\sum^{$<1>}_{$<2>}$<3>"],
-          "\\(\\int \\text{d}\\circ\\)"   : [[3,2],[3,2],[3,3],[3,3],"\\int $<2>\\text{d}$<1>$<3>"],
+          "\\(\\sum\\)"      : [ null, null,[3,2],[3,2],"\\sum^{$<1>}_{$<2>}$<3>"],
+          "\\(\\int \\text{d}\\circ\\)"  : [[3,2],[3,2],[3,3],[3,3],"\\int $<2>\\text{d}$<1>$<3>"],
           "\\(\\int^b_a\\text{d}\\circ\\)": [ null, null, null,[3,4],"\\int^{$<2>}_{$<3>} $<4>\\text{d}$<1>$<5>"],
-          "\\(\\lvert\\quad\\rvert\\)"    : [ null,[3,3],[3,4],[3,5],"\\lvert$1\\rvert\\"],
+          "\\(\\lvert\\quad\\rvert\\)"      : [ null,[3,3],[3,4],[3,5],"\\lvert$1\\rvert\\"],
           "\\((\\quad)\\)"    : [[3,3],[3,4],[3,5],[3,6],"($1)$2"],
-          "abc"               : [[4,1],[4,1],[4,1],[4,1]],
+          "abc"              : [[4,1],[4,1],[4,1],[4,1]],
           "\\(\\pi\\)"        : [[4,2],[4,2],[4,2],[4,2]],
-          "\\(e\\)"           : [[4,3],[4,3],[4,3],[4,3]],
-          "\\(\\sin\\)"       : [ null,[4,4],[4,4],[4,4],"\\sin{$1}"],
-          "\\(\\cos\\)"       : [ null, null,[4,5],[4,5],"\\cos{$1}"],
-          "\\(\\tan\\)"       : [ null, null, null,[4,6],"\\tan{$1}"],
+          "\\(e\\)"          : [[4,3],[4,3],[4,3],[4,3]],
+          "\\(\\sin\\)"      : [ null,[4,4],[4,4],[4,4],"\\sin{$1}"],
+          "\\(\\cos\\)"      : [ null, null,[4,5],[4,5],"\\cos{$1}"],
+          "\\(\\tan\\)"      : [ null, null, null,[4,6],"\\tan{$1}"],
         }
         
-        const alphabetKeys = [
-          "a","b","c","d",
-          "e","f","g","h",
-          "i","j","k","l",
-          "m","n","o","p"
+        const qwerty = [
+          ["q","w","e","r","t","y","u","i","o","p",["\\(\\otimes\\)","DELETE"]],
+          [["\\(\\Uparrow\\)","SIZE"],"a","s","d","f","g","h","j","k","l","!"],
+          ["{","}","z","x","c","v","b","n","m","%","?"],
+          ["123","^","_",["SPACE"," "],",",".","\\"],
         ];
+        
         
         
         // $<n> を新テンプレート基準で挿入
         function insertTemplate(template) {
-          // 1. 新しいテンプレートの最大番号を取得
           const newMarkers = [...template.matchAll(/\$<(\d+)>/g)].map(m => parseInt(m[1]));
           const maxNew = newMarkers.length > 0 ? Math.max(...newMarkers) : 0;
-        
-          // 2. 既存のテンプレート番号を maxNew だけ加算
+          
           text = text.replace(/\$<(\d+)>/g, (m, n) => `$<${parseInt(n) + maxNew}>`);
-        
-          // 3. カーソル位置に新しいテンプレートを挿入
           text = text.slice(0, cursorPos) + template + text.slice(cursorPos);
-        
+          
           if (template.indexOf("$<1>") == -1) template = template+"$<1>";
-        
-          // 6. 全てのテンプレート番号を -1
+          
           text = text.replace(/\$<(\d+)>/g, (m, n) => `$<${parseInt(n) - 1}>`);
-        
-          // 7. カーソルを移動
-          cursorPos = text.indexOf("$<0>");
+          
+          cursorPos = text.search(/\$<0>/);
           text = text.replace("$<0>","");
-        
+          
           update();
         }
         
-        
-        
         // ENTER: カーソル位置の $<n> を消して、後ろを1つずらす
-        function moveToNextMarker() {
+        function moveToNextMarkerOrNewline() {
+          if (/\$<\d+>/.test(text)) {
+            let num = 1;
+            let ind = null;
+            do {
+              const re = new RegExp(`\\$<${num}>`);
+              ind = text.search(re);
+              if (ind == -1) break;
+              text = text.replace(re, `$<${num-1}>`);
+              num++;
+            } while(ind != -1)
+            cursorPos = text.search(/\$<0>/);
+            text = text.replace(/\$<0>/,"");
+          } else {
+            text = text.slice(0, cursorPos) + "\n" + text.slice(cursorPos);
+            cursorPos++;
+          }
+          update();
+        }
+        
+        function moveCursorLeft() {
+          if (isTextareaMode) {
+            const textarea = sourceContainer.querySelector(".source-textarea");
+            if (textarea) {
+              textarea.selectionStart--;
+              textarea.selectionEnd = textarea.selectionStart;
+              cursorPos = textarea.selectionStart;
+              update();
+            }
+          } else {
+            const cursor = sourceContainer.querySelector(".cursor");
+            if (!cursor) return;
+        
+            let prev = cursor.previousSibling;
+            if (prev) {
+              if (prev.dataset && prev.dataset.index !== undefined) {
+                cursorPos = parseInt(prev.dataset.index);
+              }
+              sourceContainer.querySelector(".source-display").insertBefore(cursor, prev);
+              update();
+            }
+          }
+        }
+        
+        function moveCursorRight() {
+          if (isTextareaMode) {
+            const textarea = sourceContainer.querySelector(".source-textarea");
+            if (textarea) {
+              textarea.selectionStart++;
+              textarea.selectionEnd = textarea.selectionStart;
+              cursorPos = textarea.selectionStart;
+              update();
+            }
+          } else {
+            const cursor = sourceContainer.querySelector(".cursor");
+            if (!cursor) return;
+        
+            let next = cursor.nextSibling;
+            if (next) {
+              if (next.dataset && next.dataset.index !== undefined) {
+                cursorPos = parseInt(next.dataset.index) + 1;
+              }
+              sourceContainer.querySelector(".source-display").insertBefore(cursor, next.nextSibling);
+              update();
+            }
+          }
+        }
+        
+        let sourceDiv;
+        function renderSource() {
+          if (sourceDiv) sourceDiv.innerHTML = "";
+        
           let num = 1;
           let ind = null;
+          let list = {};
           do {
             const re = new RegExp(`\\$<${num}>`);
             ind = text.search(re);
             if (ind == -1) break;
-            text = text.replace(re, `$<${num-1}>`);
+            list[ind] = [num,`$<${num}>`.length];
             num++;
           } while(ind != -1)
-          cursorPos = text.search(/\$<0>/);
-          text = text.replace(/\$<0>/,"");
-          update();
-        }
-        /*function moveToNextMarker() {
-          const regex = /\$<(\d+)>/g;
-          let match, markers = [];
-          while ((match = regex.exec(text)) !== null) {
-            markers.push({ num: parseInt(match[1]), index: match.index });
-          }
-          markers.sort((a, b) => a.index); // 位置順にソート
-          for (let i = 0; i < markers.length; i++) {
-            if (markers[i].index > cursorPos) {
-              cursorPos = markers[i].index;
-              // カーソル位置の $<n> を削除して連番を詰める
-              text = text.slice(0, cursorPos) + text.slice(cursorPos + 4);
-              let remainingIdx = 1;
-              text = text.replace(/\$<(\d+)>/g, () => `$<${remainingIdx++}>`);
-              update();
-              return;
+        
+          let sourceCursorPos = 0;
+        
+          for(let i = 0; i < text.length; i++){
+            if (i < cursorPos) sourceCursorPos++;
+            if (Object.keys(list).includes(String(i))) {
+              const span = document.createElement("span");
+              span.textContent = String(list[i][0]);
+              span.dataset.index = i;
+              span.classList.add("marker");
+              sourceDiv.appendChild(span);
+              i += list[i][1] - 1;
+            } else {
+              const span = document.createElement("span");
+              span.textContent = text[i];
+              span.dataset.index = i;
+              sourceDiv.appendChild(span);
             }
           }
-        }*/
         
-        
-        // sourceDiv にカーソル表示
-        function renderSource() {
-          const before = text.slice(0, cursorPos);
-          const after = text.slice(cursorPos);
-        
-          // $<n> を span で強調
-          const highlighted = after.replace(/\$<(\d+)>/g, '<span class="marker">$<$1></span>');
-        
-          sourceDiv.innerHTML = before + '<span class="cursor"></span>' + highlighted;
+          const cursorSpan = document.createElement("span");
+          cursorSpan.className = "cursor";
+          if(sourceCursorPos >= sourceDiv.childNodes.length) {
+            sourceDiv.appendChild(cursorSpan);
+          } else {
+            sourceDiv.insertBefore(cursorSpan, sourceDiv.childNodes[sourceCursorPos]);
+          }
         }
         
+        // ====== 2. 行末余白タッチでカーソル移動 ======
+        // イベントリスナーをsourceContainerに追加し、モードによって処理を切り分ける
+        sourceContainer.addEventListener("click", (e) => {
+          if (isTextareaMode) return;
+          
+          const span = e.target.closest("span");
+        
+          if (!span) {
+            const rect = sourceDiv.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+        
+            const lineHeight = parseFloat(getComputedStyle(sourceDiv).lineHeight) || 20;
+            const lineIndex = Math.floor(y / lineHeight);
+        
+            const lines = text.split("\n");
+            if (lineIndex < lines.length) {
+              let pos = 0;
+              for (let i = 0; i < lineIndex; i++) {
+                pos += lines[i].length + 1;
+              }
+              cursorPos = pos + lines[lineIndex].length;
+              renderSource();
+            }
+            return;
+          }
+        
+          if (span.dataset.index !== undefined) {
+            if (span.classList.contains("marker")) {
+              const idx = parseInt(span.dataset.index);
+              const match = text.match(/\$<\d+>/g) || [];
+              const markerAtIdx = match.find(m => {
+                const pos = text.indexOf(m);
+                return pos === idx;
+              });
+        
+              if (markerAtIdx) {
+                const markerLength = markerAtIdx.length;
+                text = text.slice(0, idx) + text.slice(idx + markerLength);
+                let counter = 1;
+                text = text.replace(/\$<(\d+)>/g, () => `$<${counter++}>`);
+                cursorPos = idx;
+                update();
+              }
+            } else {
+              cursorPos = parseInt(span.dataset.index);
+              renderSource();
+            }
+          }
+        });
         
         // 画面更新
         function update() {
-          renderSource();
+          if (!isTextareaMode) {
+            renderSource();
+          }
           preview.textContent = "\\(" + text + "\\)";
           MathJax.typesetPromise([preview]);
         }
@@ -342,20 +508,57 @@
         
           let value = target.dataset.value || target.innerHTML;
         
+          if (value === "/") {
+            value = "\\frac{$<1>}{$<2>}";
+          }
+        
+          if (value === "abc" || value === "123") {
+            isAlphabet = !isAlphabet;
+            renderKeyboard();
+            return;
+          }
+        
+          if (value === "SIZE") {
+            isUpper = !isUpper;
+            renderKeyboard();
+            return;
+          }
+        
           if (value === "ENTER") {
-            moveToNextMarker();
+            moveToNextMarkerOrNewline();
             return;
           }
         
           if (value === "LEFT") {
-            cursorPos = Math.max(0, cursorPos - 1);
-            update();
+            moveCursorLeft();
             return;
           }
         
           if (value === "RIGHT") {
-            cursorPos = Math.min(text.length, cursorPos + 1);
-            update();
+            moveCursorRight();
+            return;
+          }
+        
+          // ====== DELETE 処理 ======
+          if (value === "DELETE") {
+            if (cursorPos > 0) {
+              const before = text.slice(0, cursorPos);
+              const markerMatch = before.match(/\$<\d+>$/);
+              if (markerMatch) {
+                const marker = markerMatch[0];
+                const idx = before.lastIndexOf(marker);
+                text = text.slice(0, idx) + text.slice(cursorPos);
+        
+                let counter = 1;
+                text = text.replace(/\$<(\d+)>/g, () => `$<${counter++}>`);
+        
+                cursorPos = idx;
+              } else {
+                text = text.slice(0, cursorPos - 1) + text.slice(cursorPos);
+                cursorPos--;
+              }
+              update();
+            }
             return;
           }
         
@@ -368,10 +571,6 @@
           }
         });
         
-        
-        
-        
-        
         // 現在のレイアウトを判定
         function getLayoutIndex() {
           const w = window.innerWidth;
@@ -379,49 +578,101 @@
           if (w < 650) return 0;  // small
           if (w < 800) return 1;  // medium
           if (w < 1000)return 2;  // large
-          return 3;               // greatest
+          return 3;             // greatest
         }
         
         function unwrapLatex(str) {
           const regex = /\\\((.*?)\\\)/;
           const match = str.match(regex);
           if (match) {
-            return match[1]; // 括弧内の中身
+            return match[1];
           } else {
-            return str;      // マッチしなければそのまま
+            return str;
           }
         }
         
-        
-        
         // キーボードを描画
         function renderKeyboard() {
-          const idx = getLayoutIndex();
+          let idx = getLayoutIndex();
           if (idx === null) {
-            functionsDiv.style.opacity = "0";
-            keyboard.style.gridTemplateColumns = "15% 1fr min(100px, 20%)";
-            return;
+            if (isAlphabet) {
+              idx = 0;
+            } else {
+              keyboard.style.display = "grid";
+              functionsDiv.style.width = "auto";
+              functionsDiv.style.display = "block";
+              keyboard.style.gridTemplateColumns = keyboardColumns;
+              functionsDiv.innerHTML = "";
+              const div = document.createElement("div");
+              div.className = "key";
+              div.innerText = "abc";
+              div.style.width = "100%";
+              div.style.height = "100%";
+              div.style.display = "flex";
+              div.style.justifyContent = "center";
+              div.style.alignItems = "center";
+              functionsDiv.appendChild(div);
+              return;
+            }
           }
-          const gridCols = [3,4,5,6][idx];
+        
+          let gridCols = [3,4,5,6][idx];
         
           functionsDiv.style.opacity = "1";
-          keyboard.style.gridTemplateColumns = "1fr min(200px, 50%) min(100px, 20%)";
+          keyboard.style.display = "grid";
+          keyboard.style.gridTemplateColumns = keyboardColumns;
           functionsDiv.style.display = "grid";
           functionsDiv.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
           functionsDiv.innerHTML = "";
+          //functionsDiv.style.width = "auto";
         
           if (isAlphabet) {
-            // 英字表示
-            alphabetKeys.forEach((ch, i) => {
-              const div = document.createElement("div");
-              div.className = "key";
-              div.innerText = ch;
-              div.style.gridRow = Math.floor(i / gridCols) + 1;
-              div.style.gridColumn = (i % gridCols) + 1;
-              functionsDiv.appendChild(div);
+            gridCols = 11;
+            keyboard.style.display = "block";
+            functionsDiv.style.width = "100%";
+            functionsDiv.style.height = "100%";
+            functionsDiv.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
+        
+            qwerty.forEach((row, rowIndex) => {
+              const totalCols = row.length;
+              const startCol = Math.floor((gridCols - totalCols) / 2) + 1;
+        
+              row.forEach((ch, colIndex) => {
+                const div = document.createElement("div");
+                let value = ch;
+        
+                if (Array.isArray(ch)) {
+                  value = ch[0];
+                  div.dataset.value = ch[1];
+                }
+        
+                if (/^[a-z]$/i.test(value)) {
+                  value = isUpper ? value.toUpperCase() : value.toLowerCase();
+                }
+        
+                div.className = "key";
+                div.innerText = value;
+        
+                div.style.gridRow = rowIndex + 1;
+        
+                if (value === "SPACE") {
+                  div.style.gridColumn = `4 / 9`;
+                }
+        
+                div.style.display = "flex";
+                div.style.justifyContent = "center";
+                div.style.alignItems = "center";
+        
+                if (!/^[a-z]$/i.test(value) && div.dataset.value !== "SIZE") {
+                  div.style.backgroundColor = "#cccccc";
+                }
+        
+                functionsDiv.appendChild(div);
+              });
             });
+        
+            MathJax.typesetPromise([functionsDiv]);
           } else {
-            // LaTeX キー表示（既存コード）
             for (const [latex, positions] of Object.entries(keys)) {
               const pos = positions[idx];
               if (!pos) continue;
@@ -433,7 +684,7 @@
               } else {
                 div.dataset.value = unwrapLatex(latex);
               }
-              
+        
               div.innerHTML = latex;
               div.style.gridRow = row;
               div.style.gridColumn = col;
@@ -443,11 +694,18 @@
           }
         }
         
-        
         // 初期化とリサイズ対応
         window.addEventListener("resize", renderKeyboard);
         renderKeyboard()
         
+        let lastTouch = 0;
+        window.addEventListener('touchstart', function(e) {
+          const now = Date.now();
+          if (now - lastTouch <= 300) {
+            e.preventDefault(); // ダブルタップによる拡大を防ぐ
+          }
+          lastTouch = now;
+        }, { passive: false });
         
         visibleBtn.addEventListener("click", () => {
           if(visibleBtn.style.bottom == keyboardHeight+"px"){
@@ -460,56 +718,91 @@
         });
         
         
-        // クリック/タッチでカーソル移動
-        sourceDiv.addEventListener("click", (e) => {
-          const rect = sourceDiv.getBoundingClientRect();
-          const x = e.clientX - rect.left;
         
-          // 各文字の位置を計算するため、一時的に span を挟んで幅を取る
-          let pos = 0;
-          let minDiff = Infinity;
-        
-          for (let i = 0; i <= text.length; i++) {
-            const testBefore = text.slice(0, i);
-            sourceDiv.innerHTML = testBefore + '<span id="measure"></span>' + text.slice(i);
-            const measure = document.getElementById("measure");
-            const mRect = measure.getBoundingClientRect();
-            const diff = Math.abs(mRect.left - e.clientX);
-        
-            if (diff < minDiff) {
-              minDiff = diff;
-              pos = i;
-            }
+        // 新しいトグル機能
+        toggleBtn.addEventListener("click", () => {
+          isTextareaMode = !isTextareaMode;
+          sourceContainer.innerHTML = ""; // Clear the container
+          if (isTextareaMode) {
+            // Switch to textarea mode
+            const textarea = document.createElement("textarea");
+            textarea.id = "source-textarea";
+            textarea.classList.add("source-textarea");
+            textarea.value = text;
+            sourceContainer.prepend(textarea);
+            textarea.focus();
+            textarea.selectionStart = cursorPos;
+            textarea.selectionEnd = cursorPos;
+            // sourceDiv = textarea; // Redefine sourceDiv to point to the textarea
+            toggleBtn.textContent = "プレビューモード";
+            
+            // Add an input listener for the new textarea
+            textarea.addEventListener("input", () => {
+              text = textarea.value;
+              cursorPos = textarea.selectionStart;
+              update();
+            });
+          } else {
+            // Switch to div mode
+            sourceDiv = document.createElement("div");
+            sourceDiv.classList.add("source-display");
+            sourceContainer.prepend(sourceDiv);
+            toggleBtn.textContent = "テキストモード";
+            update(); // Re-render the source display
           }
-        
-          cursorPos = pos;
-          renderSource();
+          sourceContainer.appendChild(toggleBtn);
         });
         
+        // 物理キーボード入力対応
+        document.addEventListener("keydown", (e) => {
+          if (!isTextareaMode) { // テキストモードでない場合のみ独自のキーボード処理を有効にする
+            e.preventDefault();
+          
+            const key = e.key;
+          
+            if (key.length === 1) {
+              text = text.slice(0, cursorPos) + key + text.slice(cursorPos);
+              cursorPos += key.length;
+            } else if (key === "Backspace") {
+              if (cursorPos > 0) {
+                const before = text.slice(0, cursorPos);
+                const markerMatch = before.match(/\$<\d+>$/);
+                if (markerMatch) {
+                  const marker = markerMatch[0];
+                  const idx = before.lastIndexOf(marker);
+                  text = text.slice(0, idx) + text.slice(cursorPos);
+                  let counter = 1;
+                  text = text.replace(/\$<(\d+)>/g, () => `$<${counter++}>`);
+                  cursorPos = idx;
+                } else {
+                  text = text.slice(0, cursorPos - 1) + text.slice(cursorPos);
+                  cursorPos--;
+                }
+              }
+            } else if (key === "Delete") {
+              if (cursorPos < text.length) {
+                text = text.slice(0, cursorPos) + text.slice(cursorPos + 1);
+              }
+            } else if (key === "Enter") {
+              moveToNextMarkerOrNewline();
+              return;
+            } else if (key === "ArrowLeft") {
+              moveCursorLeft();
+              return;
+            } else if (key === "ArrowRight") {
+              moveCursorRight();
+              return;
+            }
+          
+            update();
+          }
+        });
         
-        function renderSource() {
-          const before = text.slice(0, cursorPos);
-          const after = text.slice(cursorPos);
-          sourceDiv.innerHTML = before + '<span class="cursor"></span>' + after;
-        }
+        // 初期状態としてdivモードで開始
+        sourceDiv = document.createElement("div");
+        sourceDiv.classList.add("source-display");
+        sourceContainer.prepend(sourceDiv);
         
-        function update() {
-          renderSource();
-          preview.textContent = "\\(" + text + "\\)";
-          MathJax.typesetPromise([preview]);
-        }
-  
-        function insert(cmd) {
-          const start = input.selectionStart;
-          const end = input.selectionEnd;
-          const text = input.value;
-          input.value = text.slice(0, start) + cmd + text.slice(end);
-          input.focus();
-          input.selectionStart = input.selectionEnd = start + cmd.length;
-          update();
-        }
-  
-        // 初期表示
         update();
       }
     </script>
