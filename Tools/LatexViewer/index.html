@@ -54,16 +54,17 @@
         position: absolute;
         display: grid;
         box-sizing: border-box;
-        font-size: 20px;
+        font-size: 18px;
         background: white;
         bottom: 0px;
         left: 0px; 
         border-top: 5px solid green;
         height: 150px;
         width: 100%;
-        padding: 0px 50px;
+        padding: 0px min(5%, 50px);
         grid-template-columns: 1fr 150px 150px;
         grid-gap: 10px;
+        user-select: none;
       }
       
       functions, .numbers, .operation {
@@ -74,13 +75,14 @@
         border: 2px solid grey;
         padding: 5px;
         margin: 0px 10px;
+        user-select: none;
       }
       
       .functions {
         grid-template-columns: repeat(4, 1fr);
         grid-template-rows: repeat(4, 1fr);
         grid-gap: 7px;
-        font-size: 18px;
+        font-size: 14px;
         width: minmax(0, 40%);
       }
       
@@ -98,27 +100,44 @@
         grid-gap: 5px;
       }
       
+      @media screen and (min-width:780px) {
+        .keyboard {
+          font-size: 22px;
+        }
+        
+        .functions {
+          font-size: 20px;
+        }
+      }
+      
       .key {
         display: flex;
         justify-content: center;
         align-items: center;
         border: 1px solid grey;
+        user-select: none;
       }
       
       /* Source area styles for div and textarea */
       .source-container {
+        /*position: absolute;
+        top: 22px;
+        right: 0px;*/
         display: flex;
         flex-direction: column;
         border-bottom: 2px solid #999;
-        font-size: 14px;
+        font-size: 20px;
         background: #f0f0f0;
         padding: 8px;
+        box-sizing: border-box;
+        width: 100%;
         min-height: 100px; /* Adjust as needed */
         max-height: 200px;
         overflow-y: scroll;
       }
       
       .source-display {
+        font-size: 20px;
         flex-grow: 1;
         white-space: pre-wrap;
         word-wrap: break-word;
@@ -155,10 +174,13 @@
       }
       
       .toggle-source-btn {
-        position: absolute;
-        align-self: flex-end;
-        right: 5px;
-        top: 5px;
+        /*position: position;*/
+        /*align-self: flex-end;*/
+        margin: 0px;
+        box-sizing: border-box;
+        width: 100%;
+        font-size: 16px;
+        height: 22px;
         padding: 2px 5px;
         border: 1px solid #ccc;
         background: #e0e0e0;
@@ -172,8 +194,8 @@
       
     </div>
     <main>
-      <div class="source-container"></div>
       <button id="toggle-source-btn" class="toggle-source-btn">テキストモード</button>
+      <div class="source-container"></div>
       <div class="preview" id="preview">数式がここに表示されます</div>
     </main>
     <div class="visible-change-btn" id="visible-change-btn">
@@ -264,7 +286,7 @@
         visibleBtn.style.bottom = keyboardHeight+"px";
         keyboard.style.height = keyboardHeight+"px";
         
-        const keyboardColumns = "1fr calc(130px + 10%) calc(80px + 10%)";
+        const keyboardColumns = "1fr calc(120px + 5%) calc(50px + 10%)";
         
         let isAlphabet = false;
         let isUpper = false;
@@ -574,7 +596,7 @@
         // 現在のレイアウトを判定
         function getLayoutIndex() {
           const w = window.innerWidth;
-          if (w < 500) return null;
+          if (w < 400) return null;
           if (w < 650) return 0;  // small
           if (w < 800) return 1;  // medium
           if (w < 1000)return 2;  // large
@@ -750,7 +772,6 @@
             toggleBtn.textContent = "テキストモード";
             update(); // Re-render the source display
           }
-          sourceContainer.appendChild(toggleBtn);
         });
         
         // 物理キーボード入力対応
