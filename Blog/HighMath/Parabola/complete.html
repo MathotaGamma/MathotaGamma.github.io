@@ -69,13 +69,39 @@
         </section>
         <section id="section3">
           <h2>平方完成</h2>
+          <div class="block">
+            計算手順
+            <ul>
+              <li>二次の係数\(a\)で定数項以外をまとめる</li>
+              <li>
+                まとめた式の中身を
+                $$\left(x+\frac{p}{2}\right)^2 = x^2+px+\frac{p^2}{4}$$
+                を用いて\(x\)をまとめる
+              </li>
+              <li>少々展開する</li>
+            </ul>
+          </div>
           <p>
-            二次関数の\(y=ax^2+bx+c\)という式のまま変形すると見にくいですから、一度、何か具体的な二次関数を考えて見ましょう。
+            二次関数の\(y=ax^2+bx+c\)という式のまま変形すると見にくいですから、一度具体的な、下の二次関数を平方完成してみましょう。
           </p>
-          $$y=x^2+4x-3\tag{1}$$
+          $$y=2x^2+4x-3\tag{1}$$
+          <div>
+            <h3>最終的な計算過程</h3>
+            <p>例</p>
+            $$\begin{align*}
+              y &= 2x^2+4x-3\\
+                &= 2\left(x^2+2x\right)-3 \tag{\textcircled{\scriptsize 1}}\\
+                &= 2\left[(x+1)^2-1\right]-3 \tag{\textcircled{\scriptsize 2}}\\
+                &= 2(x+1)^2-5
+            \end{align*}$$
+          </div>
           <p>
-            この式を平方完成してみましょう！前のsectionで言ったように、\(x\)が2つの項に存在するのでまとめていきたいですね。
+            それでは平方完成してみましょう！前のsectionで言ったように、\(x\)が2つの項に存在するのでまとめていきたいですね。
           </p>
+          <p>
+            まずは、2つの\(x\)の項を二次の係数でまとめておきましょう。
+          </p>
+          $$2x^2+4x-3=2(x^2+2)-3$$
           <p>
             \(x^2\)と\(x\)を一つの項にまとめる武器として
           </p>
@@ -86,22 +112,17 @@
             が使えそうです。\((x+p)(x+q)=x^2+(p+q)x+pq\)でもできなくはないですが、aとbという2つの文字を使う必要があまりありません。
           </p>
           <p>
-            (1)と(2)のxの係数から\(4=2p \Leftrightarrow p=2\)より
+            (1)と(2)のxの係数から\(2=2p \Leftrightarrow p=1\)なので
           </p>
+          $$x^2+2x = (x+1)^2-1$$
           <p>
-            $$x^2+4x+4 = (x+2)^2$$
+            より
           </p>
-          <p>
-            を使えば(1)の\(x^2\)と\(4x\)をうまくまとめられそうです。
-          </p>
-          
-          <p>
-            $$\begin{align*}
-              y &= x^2 + 4x - 3\\
-                &= x^2 + 4x + 4 - 7\\
-                &= (x + 2)^2 - 7\\
-            \end{align*}$$
-          </p>
+          $$\begin{align*}
+            y &= 2\left(x^2+2\right) - 3\\
+              &= 2\left[(x+1)^2-1\right]-3\\
+              &= 2(x+1)^2-5
+          \end{align*}$$
           <p>
             このように変形するとxが一つの項にまとめられました！この操作を<b>平方完成</b>といいます。
           </p>
@@ -136,7 +157,20 @@
           </p>
           <h4>例題</h4>
           <p>
-            次の関数を平方完成せよ
+            1,次の関数を平方完成せよ
+            $$y=x^2+3x-1$$
+          </p>
+          <button class="dropdown-toggle">▼解答▼</button>
+          <div class="dropdown-content equation" style="display:none;">
+            $$\begin{align*}
+              y &= x^2+3x-1\\
+                &= \left(x+\frac{3}{2}\right)^2-\left(\frac{3}{2}\right)^2-1\\
+                &= \left(x+\frac{3}{2}\right)^2-\frac{13}{4}
+            \end{align*}$$
+          </div>
+          <br>
+          <p>
+            2,次の関数を平方完成せよ
             $$y=2x^2-6x+5$$
           </p>
           <button class="dropdown-toggle">▼解答▼</button>
@@ -154,19 +188,26 @@
             練習問題
           </h4>
           <p>
-            (1) \(y=x^2+6x\)<br>
-            (2) \(y=3x^2-6+11\)<br>
-            (3) \(y=-2x^2+7x-3\)<br>
+            (1) \(y=x^2+6x+2\)<br>
+            (2) \(y=x^2-5x\)<br>
+            (3) \(y=3x^2-6+11\)<br>
+            (4) \(y=-2x^2+7x-3\)<br>
           </p>
           <button class="dropdown-toggle">▼解答▼</button>
           <div class="dropdown-content equation" style="display:none;">
-            (1) \(y=x^2+6x\)
+            (1) \(y=x^2+6x+2\)
             $$\begin{align*}
-              y &= x^2 + 6x\\
-                &= (x+3)^2 - 3^2\\
-                &= (x+3)^2-9
+              y &= x^2 + 6x + 2\\
+                &= (x+3)^2 - 3^2 + 2\\
+                &= (x+3)^2-7
             \end{align*}$$
-            (2) \(y=3x^2-6+11\)
+            (2) \(y=x^2-5x\)
+            $$\begin{align*}
+              y &= x^2-5x\\
+                &= \left(x-\frac{5}{2}\right)^2-\left(\frac{5}{2}\right)^2\\
+                &= \left(x-\frac{5}{2}\right)^2-\frac{25}{4}
+            \end{align*}$$
+            (3) \(y=3x^2-6+11\)
             $$\begin{align*}
               y &= 3x^2 - 6x + 11\\
                 &= 3(x^2 - 2x) + 11\\
@@ -174,7 +215,7 @@
                 &{\scriptsize \uparrow \text{補足の\(p=-1\)を使えばここから}}\\
                 &= 3(x-1)^2+8
             \end{align*}$$
-            (3) \(y=-2x^2+7x-3\)
+            (4) \(y=-2x^2+7x-3\)
             $$\begin{align*}
               y &= -2x^2 + 7x - 3\\
                 &= -2\left(x^2-\frac{7}{2}x\right)-3\\
