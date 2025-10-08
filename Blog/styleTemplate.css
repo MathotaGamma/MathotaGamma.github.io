@@ -202,6 +202,7 @@ canvas {
 }
 
 .block {
+  margin-left: 20px;
   border:1px solid black;
   border-radius: 5px;
   padding: 3px;
