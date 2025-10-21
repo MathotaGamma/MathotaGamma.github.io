@@ -210,6 +210,9 @@
     </div>
     <script type="module">
       import * as THREE from "three";
+      
+      const developMode = false;
+      
       const headerHeight = 40;
       
       const header = document.getElementsByTagName("header")[0];
@@ -1490,53 +1493,6 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
               .addScaledVector(up, -ndy)
               .addScaledVector(right, ndx)
               .normalize();
-
-            // 軸を選択
-            /*let axis = "x";
-            let value = dir.x;
-            if (Math.abs(dir.y) > Math.abs(value)) {
-              axis = "y";
-              value = dir.y;
-            }
-            if (Math.abs(dir.z) > Math.abs(value)) {
-              axis = "z";
-              value = dir.z;
-            }
-            
-            let moveDire = [axis, value >= 0 ? 1 : -1];
-            
-
-            const camDir = new THREE.Vector3()
-              .subVectors(camera.position, me.model.position)
-              .normalize();
-
-            let camAxis = "x";
-            let camValue = camDir.x;
-            if (Math.abs(camDir.y) > Math.abs(camValue)) {
-              camAxis = "y"; camValue = camDir.y;
-            }
-            if (Math.abs(camDir.z) > Math.abs(camValue)) {
-              camAxis = "z"; camValue = camDir.z;
-            }
-
-            let moveAspDire = [camAxis, camValue >= 0 ? 1 : -1];
-            
-            textDiv.innerHTML = String(moveDire)+":"+String(moveAspDire);
-            
-            
-            const stract = data[stage].stage;
-            
-            if(!rollValid(moveDire, moveAspDire)) {
-              // 前に進む向きに変える
-              const preMoveDire = moveDire;
-              moveDire = [moveAspDire[0], -moveAspDire[1]];
-              moveAspDire = preMoveDire;
-              
-              if(!rollValid(moveDire, moveAspDire)) return;
-            }
-            
-            rollCube(moveDire, moveAspDire);
-            */
             
             let axis = "x";
             let value = forward.x;
@@ -1583,39 +1539,100 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
               swipeDire = [swipeAxis, swipeValue >= 0 ? 1 : -1];
             }
             
+            // up ベクトルのうち絶対値が最大の軸を求める
+            const absUp = {
+              x: Math.abs(up.x),
+              y: Math.abs(up.y),
+              z: Math.abs(up.z)
+            };
+            let upAxis = "x";
+            let upValue = up.x;
+
+            if (absUp.y > absUp[upAxis]) {
+              upAxis = "y";
+              upValue = up.y;
+            }
+            if (absUp.z > absUp[upAxis]) {
+              upAxis = "z";
+              upValue = up.z;
+            }
+
+            // upAxis が最大の軸名、upValue がその符号付き値
+            let upDire = [upAxis, upValue >= 0 ? 1 : -1];
+
+
+            
             let candList = [];
-            if(swipeDire[1] >= 0) {
-              // 上
-              candList = [
-                [swipeDire, [dire[0], -dire[1]]],
-                [[dire[0],dire[1]], swipeDire],
-                [swipeDire, dire],
-                [[dire[0],-dire[1]], [swipeDire[0],-swipeDire[1]]],
-              ]
-            } else {
-              // 下
-              if(-pitch >= 0) {
-                // 見下ろす
+            
+            if(Math.abs(ndy) >= Math.abs(ndx)) {
+              if(swipeDire[1] >= 0) {
+                // 上
                 candList = [
                   [swipeDire, [dire[0], -dire[1]]],
-                  [[dire[0],dire[1]*swipeDire[1]], [swipeDire[0], 1]],
-                  [swipeDire, dire]
+                  [dire, swipeDire],
+                  [swipeDire, dire],
+                  [[dire[0],-dire[1]], [swipeDire[0],-swipeDire[1]]],
                 ]
               } else {
-                // 見上げる
+                // 下
+                if(-pitch >= 0) {
+                  // 見下ろす
+                  candList = [
+                    [swipeDire, [dire[0], -dire[1]]],
+                    [[dire[0],dire[1]*swipeDire[1]], [swipeDire[0], 1]],
+                    [swipeDire, dire],
+                    [dire, swipeDire],
+                  ]
+                } else {
+                  // 見上げる
+                  candList = [
+                    [swipeDire, [dire[0], -dire[1]]],
+                    [dire, [swipeDire[0], -1]],
+                    [swipeDire, dire],
+                    [[dire[0],dire[1]*swipeDire[1]], [swipeDire[0], 1]]
+                  ]
+                }
+              }
+            } else {
+              let sideValue = 1;
+              if(swipeDire[0] == "x") sideValue = forward.x >= 0 ? 1 : -1;
+              else if(swipeDire[0] == "y") sideValue = forward.y >= 0 ? 1 : -1;
+              else if(swipeDire[0] == "z") sideValue = forward.z >= 0 ? 1 : -1;
+              
+              if(swipeDire[1] >= 0) {
+                // 右
                 candList = [
                   [swipeDire, [dire[0], -dire[1]]],
-                  [dire, [swipeDire[0], -1]],
+                  [[dire[0], dire[1]], swipeDire],
                   [swipeDire, dire],
-                  [[dire[0],dire[1]*swipeDire[1]], [swipeDire[0], 1]]
+                  [[dire[0], -dire[1]], [swipeDire[0], -swipeDire[1]]],
+                  [upDire, [swipeDire[0], -swipeDire[1]]],
+                  [swipeDire, [upDire[0], upDire[1]*swipeDire[1]]],
+                  [swipeDire, [upDire[0],-upDire[1]*swipeDire[1]]]
+                ]
+              } else {
+                // 左
+                candList = [
+                  [swipeDire, [dire[0], -dire[1]]],
+                  [[dire[0], dire[1]], swipeDire],
+                  [swipeDire, dire],
+                  [[dire[0], -dire[1]], [swipeDire[0], -swipeDire[1]]],
+                  [upDire, [swipeDire[0], -swipeDire[1]]],
+                  [swipeDire, [upDire[0], upDire[1]*swipeDire[1]]],
+                  [swipeDire, [upDire[0],-upDire[1]*swipeDire[1]]]
                 ]
               }
             }
             
-            
+            let i = 0;
             for(let k = 0; k < candList.length; k++) {
-              if(rollValid(candList[k][0], candList[k][1])) rollCube(candList[k][0], candList[k][1]);
+              i = k
+              if(rollValid(candList[k][0], candList[k][1])){
+                rollCube(candList[k][0], candList[k][1]);
+                break;
+              }
             }
+            if(developMode) textDiv.innerHTML = JSON.stringify(candList)+"<br>"+String(i);
           }
         }
 
@@ -1803,10 +1820,13 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
           me.timeCount.stage += deltaTime;
           me.timeCount.lately += deltaTime;
         }
-        /*textDiv.innerHTML = `${data[stage].needMiniCubes >= 1 ? (me.miniCubes.count >= data[stage].needMiniCubes ? '<span style="color: #66dd66;">' : '<span style="color: #dd6666;">') : ''}Keys : ${me.miniCubes.count} / ${data[stage].needMiniCubes ?? 0}${data[stage].needMiniCubes >= 1 ? '</span>' : ''}<br>Stage : ${stage}<br>
+        
+        if(!developMode) {
+          textDiv.innerHTML = `${data[stage].needMiniCubes >= 1 ? (me.miniCubes.count >= data[stage].needMiniCubes ? '<span style="color: #66dd66;">' : '<span style="color: #dd6666;">') : ''}Keys : ${me.miniCubes.count} / ${data[stage].needMiniCubes ?? 0}${data[stage].needMiniCubes >= 1 ? '</span>' : ''}<br>Stage : ${stage}<br>
 Time : ${(me.timeCount.lately/1000).toFixed(1)}秒 / ${(me.timeCount.stage/1000).toFixed(1)}秒<br>
 Move : ${me.moveCount.lately}回 / ${me.moveCount.stage}回<br>
-Fail : ${me.deadCount.stage}回`;*/
+Fail : ${me.deadCount.stage}回`;
+        }
         
         updateRoll();
         updateMe();
