@@ -1194,7 +1194,7 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
       function rollValid(moveDire, moveDireAsp) {
         // 移動後にブロックがなくてもvalidにしている！
         // (rollUpdateで、移動後のcheckSurrounfing.lengthが0なら追加でπさせるため(確実にブロックある))
-        if(moveDire[0] == moveDireAsp[1]) {
+        if(moveDire[0] == moveDireAsp[0]) {
           console.warn("Warn: rollValidで moveDire[0] == moveDireAsp[1] になっている。");
           return false;
         }
@@ -1207,10 +1207,13 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
         
         const stract = data[stage].stage;
         
+        
+        
         let k0 = vectorSum(me.pos, direAsp);
         let k1 = vectorSum(k0, dire);
         let k2 = vectorSum(me.pos, dire);
         let d0 = vectorSum(me.pos, {x: -direAsp.x, y: -direAsp.y, z: -direAsp.z});
+        
         
         if(getCubeKind(k2) != 0 && getCubeKind(k2) != 5) return false;
         if(getCubeKind(d0) == 0 && getCubeKind(d0) != 5) return false;
@@ -1475,18 +1478,21 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
               Math.sin(pitch),
               - Math.sin(yaw) * Math.cos(pitch)
             ).normalize();
+            
+            
+            
       
             const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).normalize();
             const up = new THREE.Vector3().crossVectors(right, forward).normalize();
       
             // スワイプ方向を変換（up/right基準）
-            const dir = new THREE.Vector3()
+            const swipe = new THREE.Vector3()
               .addScaledVector(up, -ndy)
               .addScaledVector(right, ndx)
               .normalize();
 
             // 軸を選択
-            let axis = "x";
+            /*let axis = "x";
             let value = dir.x;
             if (Math.abs(dir.y) > Math.abs(value)) {
               axis = "y";
@@ -1515,6 +1521,9 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
 
             let moveAspDire = [camAxis, camValue >= 0 ? 1 : -1];
             
+            textDiv.innerHTML = String(moveDire)+":"+String(moveAspDire);
+            
+            
             const stract = data[stage].stage;
             
             if(!rollValid(moveDire, moveAspDire)) {
@@ -1526,9 +1535,87 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
               if(!rollValid(moveDire, moveAspDire)) return;
             }
             
-            
-            
             rollCube(moveDire, moveAspDire);
+            */
+            
+            let axis = "x";
+            let value = forward.x;
+            if (Math.abs(forward.y) > Math.abs(value)) {
+              axis = "y";
+              value = forward.y;
+            }
+            if (Math.abs(forward.z) > Math.abs(value)) {
+              axis = "z";
+              value = forward.z;
+            }
+            
+            let dire = [axis, value >= 0 ? 1 : -1];
+            
+            let swipeDire;
+
+            if (Math.abs(ndy) > Math.abs(ndx)) {
+              // 縦方向のスワイプが強い
+              const swipeDirVec = new THREE.Vector3().copy(up);
+              const sign = (-ndy >= 0) ? 1 : -1;
+              swipeDirVec.multiplyScalar(sign);
+
+              // 一番大きい軸を取得
+              const swipeAbs = { x: Math.abs(swipeDirVec.x), y: Math.abs(swipeDirVec.y), z: Math.abs(swipeDirVec.z) };
+              const swipeAxis = swipeAbs.x > swipeAbs.y
+                ? (swipeAbs.x > swipeAbs.z ? "x" : "z")
+                : (swipeAbs.y > swipeAbs.z ? "y" : "z");
+              const swipeValue = swipeDirVec[swipeAxis];
+
+              swipeDire = [swipeAxis, swipeValue >= 0 ? 1 : -1];
+            } else {
+              // 横方向のスワイプが強い
+              const swipeDirVec = new THREE.Vector3().copy(right);
+              const sign = (ndx >= 0) ? 1 : -1;
+              swipeDirVec.multiplyScalar(sign);
+
+              // 一番大きい軸を取得
+              const swipeAbs = { x: Math.abs(swipeDirVec.x), y: Math.abs(swipeDirVec.y), z: Math.abs(swipeDirVec.z) };
+              const swipeAxis = swipeAbs.x > swipeAbs.y
+                ? (swipeAbs.x > swipeAbs.z ? "x" : "z")
+                : (swipeAbs.y > swipeAbs.z ? "y" : "z");
+              const swipeValue = swipeDirVec[swipeAxis];
+
+              swipeDire = [swipeAxis, swipeValue >= 0 ? 1 : -1];
+            }
+            
+            let candList = [];
+            if(swipeDire[1] >= 0) {
+              // 上
+              candList = [
+                [swipeDire, [dire[0], -dire[1]]],
+                [[dire[0],dire[1]], swipeDire],
+                [swipeDire, dire],
+                [[dire[0],-dire[1]], [swipeDire[0],-swipeDire[1]]],
+              ]
+            } else {
+              // 下
+              if(-pitch >= 0) {
+                // 見下ろす
+                candList = [
+                  [swipeDire, [dire[0], -dire[1]]],
+                  [[dire[0],dire[1]*swipeDire[1]], [swipeDire[0], 1]],
+                  [swipeDire, dire]
+                ]
+              } else {
+                // 見上げる
+                candList = [
+                  [swipeDire, [dire[0], -dire[1]]],
+                  [dire, [swipeDire[0], -1]],
+                  [swipeDire, dire],
+                  [[dire[0],dire[1]*swipeDire[1]], [swipeDire[0], 1]]
+                ]
+              }
+            }
+            
+            
+            for(let k = 0; k < candList.length; k++) {
+              if(rollValid(candList[k][0], candList[k][1])) rollCube(candList[k][0], candList[k][1]);
+            }
           }
         }
 
@@ -1716,10 +1803,10 @@ Fail : ${me.deadCount.all}回`, {onOk: toHome});
           me.timeCount.stage += deltaTime;
           me.timeCount.lately += deltaTime;
         }
-        textDiv.innerHTML = `${data[stage].needMiniCubes >= 1 ? (me.miniCubes.count >= data[stage].needMiniCubes ? '<span style="color: #66dd66;">' : '<span style="color: #dd6666;">') : ''}Keys : ${me.miniCubes.count} / ${data[stage].needMiniCubes ?? 0}${data[stage].needMiniCubes >= 1 ? '</span>' : ''}<br>Stage : ${stage}<br>
+        /*textDiv.innerHTML = `${data[stage].needMiniCubes >= 1 ? (me.miniCubes.count >= data[stage].needMiniCubes ? '<span style="color: #66dd66;">' : '<span style="color: #dd6666;">') : ''}Keys : ${me.miniCubes.count} / ${data[stage].needMiniCubes ?? 0}${data[stage].needMiniCubes >= 1 ? '</span>' : ''}<br>Stage : ${stage}<br>
 Time : ${(me.timeCount.lately/1000).toFixed(1)}秒 / ${(me.timeCount.stage/1000).toFixed(1)}秒<br>
 Move : ${me.moveCount.lately}回 / ${me.moveCount.stage}回<br>
-Fail : ${me.deadCount.stage}回`;
+Fail : ${me.deadCount.stage}回`;*/
         
         updateRoll();
         updateMe();
