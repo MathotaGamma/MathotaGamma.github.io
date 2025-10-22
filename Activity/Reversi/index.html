@@ -398,7 +398,7 @@
           let countList = [];
           for(let k = 1; k <= user; k++) {
             countList.push(map.flat().filter(num => num === k).length);
-            result += "player"+String(k)+':<span style="font-weight: bold;">'+String(countList[k-1])+"</span><br>";
+            result += '<span style="color: '+color[k]+'; -webkit-text-stroke: 1px black; text-stroke: 1px black;">player'+String(k)+'</span>:<span style="font-weight: bold;">'+String(countList[k-1])+"</span><br>"
           }
           const maxVal = Math.max(...countList); // 配列の最大値
           const winners = [];
