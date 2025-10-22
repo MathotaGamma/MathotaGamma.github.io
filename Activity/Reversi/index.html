@@ -123,7 +123,7 @@
           <option>あり</option>
           <option>なし</option>
         </select>
-        <span class="label">全滅:</span>
+        <span class="label" id="extinctLabel">全滅:</span>
         <select id="extinct">
           <option>あり</option>
           <option selected>なし</option>
@@ -236,7 +236,7 @@
         window.explain = () => {
           showOverlay(`このゲームは2～4人で遊べるオセロ風ゲームです。<br>
 ・プレイヤーは順番に空きマスに自分の石を置き、縦・横・斜めで相手の石を挟むと自分の色に変えられます。<br>
-  ・<span style="color: #700">3人以上でのプレイでは、置いた結果、他プレイヤーの石がなくなる場所には置けません。</span><br>
+  ・「全滅」"あり"の場合、<span style="color: #700">3人以上でのプレイでは、置いた結果、他プレイヤーの石がなくなる場所には置けません。</span><br>
   ・「全滅」を"なし"にした場合、置ける場所がない場合は手番がスキップされます。<br>
   ・全員が置ける場所を失した時点でゲームは終了し、石の数が最も多いプレイヤーが勝利です。`);
         }
@@ -260,6 +260,8 @@
         let n = 1;
         
         let player = 1;
+
+        let extinctList = [];
         
         function view() {
           ctx.clearRect(0,0,l,l);
@@ -360,6 +362,7 @@
                 && map.flat().filter(num => num === k).length
                   ==
                 stonesToFlip.filter(num => map[num[1]][num[0]] === k).length
+                && !extinctList.includes(k)
               ) return "player"+String(k)+"の石が無くなるため配置できません。";
             }
           }
@@ -425,15 +428,23 @@
               else skipList.push(player);
             }
           }
-          for(let k of skipList) showOverlay("player"+String(k)+"は配置できる場所がないため、スキップします。");
+          for(let k of skipList) {
+            if(!extinctList.includes(k)) {
+              showOverlay("player"+String(k)+"は配置できる場所がないため、スキップします。");
+              extinctList.push(k);
+            }
+          }
           renderFooter();
         }
         
         function init() {
+          extinctList = [];
           map = [];
           let col = [];
           for(let k = 0; k < num; k++) col.push(0);
           if(user == "2"){
+            document.getElementById("extinctLabel").style.opacity = "0.2";
+            document.getElementById("extinct").style.opacity = "0.2";
             for(let row = 0; row < num; row++){
               let colClone = structuredClone(col);
               if(row == num / 2 - 1) {
@@ -446,6 +457,8 @@
               map.push(colClone);
             }
           } else if(user == "3"){
+            document.getElementById("extinctLabel").style.opacity = "1";
+            document.getElementById("extinct").style.opacity = "1";
             for(let row = 0; row < num; row++){
               let colClone = structuredClone(col);
               if(row == (num-1) / 2 - 1) {
@@ -464,6 +477,8 @@
               map.push(colClone);
             }
           } else if(user == "4"){
+            document.getElementById("extinctLabel").style.opacity = "1";
+            document.getElementById("extinct").style.opacity = "1";
             for(let row = 0; row < num; row++){
               let colClone = structuredClone(col);
               if(row == num / 2 - 2) {
