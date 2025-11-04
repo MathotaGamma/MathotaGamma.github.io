@@ -493,7 +493,7 @@
         return null;
       }
       
-            function removeNode(id) {
+      function removeNode(id) {
         if(!confirm("ノードを削除しますか？")) return;
         nodes = nodes.filter(n => n.id !== id);
         connections = connections.filter(c => c.fromId !== id && c.toId !== id);
@@ -765,9 +765,9 @@
         placingType = null;*/
       });
 
-      // 論理評価：反復伝播で安定化
+      // 論理評価
       function evaluateAll() {
-        // rebuild inputs from connections
+        // 接続の再構築
         nodes.forEach(n => {
           n.inputs = n.inputs.map((v, idx) => {
             const c = connections.find(cc => cc.toId === n.id && cc.toInputIndex === idx);
@@ -775,26 +775,34 @@
           });
         });
 
-        // reset non-inputs
-        nodes.forEach(n => {
-          if (n.type !== 'INPUT') n.value = 0;
-        });
+        // INPUT以外の初期化はしない（保持を許可）
+        const prevValues = {};
+        nodes.forEach(n => prevValues[n.id] = n.value || 0);
 
-        const maxIter = Math.max(20, nodes.length * 4);
+        const maxIter = Math.max(50, nodes.length * 6);
         for (let iter = 0; iter < maxIter; iter++) {
           let changed = false;
+          const newValues = { ...prevValues };
+
           for (const n of nodes) {
             if (n.type === 'INPUT') continue;
+
             const inVals = n.inputs.map(fid => {
               const f = getNode(fid);
-              return f ? (f.value ? 1 : 0) : 0;
+              return f ? prevValues[f.id] : 0;
             });
-            const old = n.value;
-            n.value = calcGate(n.type, inVals);
-            if (n.value !== old) changed = true;
+
+            const v = calcGate(n.type, inVals, prevValues[n.id]);
+            if (v !== prevValues[n.id]) changed = true;
+            newValues[n.id] = v;
           }
+
+          Object.assign(prevValues, newValues);
           if (!changed) break;
         }
+
+        // 最終安定値を反映
+        nodes.forEach(n => n.value = prevValues[n.id]);
       }
 
       function calcGate(type, inVals) {
