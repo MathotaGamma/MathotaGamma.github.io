@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>論理ゲートシミュレーター（レスポンシブ・パン・ドラッグ対応）</title>
+    <style>
+      :root {
+        --panel-w: 220px;
+        --palette-bg: #0f1724;
+        --canvas-bg: linear-gradient(180deg,#071029 0%, #041023 100%);
+        --accent: #10b981;
+        --muted: #94a3b8;
+        --font: "Helvetica Neue", Arial, sans-serif;
+      }
+
+      html, body {
+        height: 100%;
+        margin: 0;
+        font-family: var(--font);
+        background: linear-gradient(180deg,#020617 0%, #071130 100%);
+        color: #e6eef8;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: var(--panel-w) 1fr 260px;
+        grid-template-rows: 56px 1fr;
+        gap: 12px;
+        height: 100vh;
+        padding: 12px;
+        box-sizing: border-box;
+      }
+
+      header {
+        grid-column: 1 / 4;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand {
+        font-weight: 700;
+        font-size: 16px;
+        padding-left: 8px;
+      }
+
+      .controls {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      button {
+        background: #0b1220;
+        color: #dbeafe;
+        border: 1px solid rgba(255,255,255,0.04);
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+
+      button.primary {
+        background: linear-gradient(90deg,#06b6d4,#7c3aed);
+        color: white;
+        border: none;
+      }
+
+      .panel {
+        background: var(--palette-bg);
+        border-radius: 10px;
+        padding: 12px;
+        box-sizing: border-box;
+        height: calc(100% - 12px);
+        overflow: auto;
+        box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+      }
+
+      .palette-title {
+        font-size: 14px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      .palette {
+        display: grid;
+        gap: 8px;
+      }
+
+      .tool {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+        cursor: pointer;
+        user-select: none;
+        border: 1px solid rgba(255,255,255,0.03);
+      }
+
+      .tool.active {
+        outline: 2px solid rgba(99,102,241,0.16);
+        box-shadow: 0 6px 18px rgba(99,102,241,0.06);
+      }
+
+      .tool .icon {
+        width: 46px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 14px;
+        color: #e6eef8;
+      }
+
+      .tool .label {
+        font-size: 13px;
+        color: #e6eef8;
+      }
+
+      .canvas-wrap {
+        position: relative;
+        border-radius: 10px;
+        overflow: hidden;
+        padding: 10px;
+        box-sizing: border-box;
+        background: var(--canvas-bg);
+      }
+
+      #scene {
+        width: 100%;
+        height: calc(100vh - 120px);
+        display: block;
+        border-radius: 8px;
+        background: transparent;
+        touch-action: none;
+        cursor: default;
+      }
+
+      .inspector {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .inspector h3 {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .node-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(255,255,255,0.02);
+        padding: 8px;
+        border-radius: 8px;
+        font-size: 13px;
+      }
+
+      .badge {
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: rgba(255,255,255,0.03);
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .state-on {
+        background: rgba(16,185,129,0.14);
+        color: #10b981;
+        border: 1px solid rgba(16,185,129,0.22);
+      }
+
+      .state-off {
+        background: rgba(203,213,225,0.02);
+        color: #94a3b8;
+        border: 1px solid rgba(255,255,255,0.02);
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+
+      .footer-note {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 12px;
+      }
+
+      @media (max-width: 920px) {
+        .app {
+          grid-template-columns: 1fr;
+          grid-template-rows: 56px auto 260px;
+        }
+        .panel {
+          height: auto;
+        }
+        #scene {
+          height: 60vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="brand">論理ゲートシミュレーター</div>
+        <div class="controls">
+          <button id="btnReset">再計算</button>
+          <button id="btnClear" class="primary">全消去</button>
+        </div>
+      </header>
+
+      <aside class="panel" id="leftPanel">
+        <div class="palette-title">ツールパレット</div>
+        <div class="palette" id="palette">
+          <div class="tool" data-type="INPUT" title="入力ノード（クリックで0/1切替）">
+            <div class="icon">I</div>
+            <div class="label">Input</div>
+          </div>
+          <div class="tool" data-type="OUTPUT" title="出力ノード">
+            <div class="icon">O</div>
+            <div class="label">Output</div>
+          </div>
+          <div class="tool" data-type="AND" title="ANDゲート">
+            <div class="icon">AND</div>
+            <div class="label">AND</div>
+          </div>
+          <div class="tool" data-type="OR" title="ORゲート">
+            <div class="icon">OR</div>
+            <div class="label">OR</div>
+          </div>
+          <div class="tool" data-type="NOT" title="NOTゲート">
+            <div class="icon">NOT</div>
+            <div class="label">NOT</div>
+          </div>
+          <div class="tool" data-type="NAND" title="NANDゲート">
+            <div class="icon">NAND</div>
+            <div class="label">NAND</div>
+          </div>
+          <div class="tool" data-type="NOR" title="NORゲート">
+            <div class="icon">NOR</div>
+            <div class="label">NOR</div>
+          </div>
+          <div class="tool" data-type="XOR" title="XORゲート">
+            <div class="icon">XOR</div>
+            <div class="label">XOR</div>
+          </div>
+          <div class="hint">・ツールを選択 → キャンバス上をクリックで配置<br>・出力端子をクリック → 入力端子をクリックで接続</div>
+        </div>
+      </aside>
+
+      <main class="canvas-wrap" id="canvasArea">
+        <canvas id="scene"></canvas>
+      </main>
+
+      <aside class="panel" id="rightPanel">
+        <div class="inspector">
+          <h3>ノード一覧</h3>
+          <div class="list" id="nodeList"></div>
+
+          <h3>接続一覧</h3>
+          <div class="list" id="connList"></div>
+
+          <div class="footer-note">・入力ノードはクリックで値を切替できます。<br>・出力色：緑=1 / 灰=0</div>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      /* 完全版：レスポンシブ、パン、ドラッグ、接続、端子は白円、信号で線色変化、ゲートは曲線描画
+       * インデントは2スペースで統一しています。
+       *
+       * 操作まとめ：
+       * - パレットでツール選択 → キャンバスをクリックで配置
+       * - ノードをドラッグで移動
+       * - 出力端子をクリック → 入力端子をクリックで接続
+       * - INPUTノードは本体クリックで0/1トグル
+       * - 空白クリックで選択解除（左パネル以外）
+       * - キャンバスパン：中クリック（ホイールボタン）ドラッグ、または Space キーを押しながらドラッグ（タッチは二本指パン）
+       */
+
+      const canvas = document.getElementById('scene');
+      const ctx = canvas.getContext('2d');
+      let DPR = window.devicePixelRatio || 1;
+
+      // ビュー変換（パンのみ）
+      let view = {tx: 0, ty: 0, scale: 1};
+
+      // 状態
+      let nodes = []; // {id,type,x,y,w,h,inputs:[],outputs:[],value,dragging}
+      let connections = []; // {fromId,toId,toInputIndex}
+      let nextId = 1;
+      let placingType = null;
+      let draggingNode = null;
+      let dragOff = {x:0,y:0};
+      let connectingFrom = null; // {nodeId, worldX, worldY}
+      let hoverTerm = null;
+      let selected = null; // selected node id or connection index
+      let isPanning = false;
+      let panStart = {x:0,y:0};
+      let lastMouse = {x:0,y:0};
+
+      const gateW = 120;
+      const gateH = 64;
+      const terminalRadius = 8;
+      const grid = 16;
+
+      // レスポンシブリサイズ
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        DPR = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(rect.width * DPR);
+        canvas.height = Math.floor(rect.height * DPR);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        draw();
+      }
+      window.addEventListener('resize', resizeCanvas);
+
+      // パレット選択
+      document.getElementById('palette').addEventListener('click', e => {
+        const t = e.target.closest('.tool');
+        if (!t) return;
+        document.querySelectorAll('.tool').forEach(el => el.classList.remove('active'));
+        t.classList.add('active');
+        placingType = t.dataset.type;
+      });
+
+      document.getElementById('btnClear').addEventListener('click', () => {
+        if (!confirm('全消去しますか？')) return;
+        nodes = [];
+        connections = [];
+        nextId = 1;
+        updateLists();
+        draw();
+      });
+
+      document.getElementById('btnReset').addEventListener('click', () => {
+        evaluateAll();
+        draw();
+      });
+
+      // ビュー ⇄ ワールド座標変換
+      function toWorld(pt) {
+        return {
+          x: (pt.x - view.tx) / view.scale,
+          y: (pt.y - view.ty) / view.scale
+        };
+      }
+      function toView(wp) {
+        return {
+          x: wp.x * view.scale + view.tx,
+          y: wp.y * view.scale + view.ty
+        };
+      }
+
+      // ノード作成
+      function createNode(type, wx, wy) {
+        const id = nextId++;
+        const inputCount = (type === 'NOT' || type === 'OUTPUT') ? 1 : (type === 'INPUT' ? 0 : 2);
+        const outputCount = (type === 'OUTPUT') ? 0 : 1;
+        const n = {
+          id,
+          type,
+          x: wx,
+          y: wy,
+          w: gateW,
+          h: gateH,
+          inputs: new Array(inputCount).fill(null),
+          outputs: new Array(outputCount).fill(null),
+          value: (type === 'INPUT' ? 0 : 0),
+          dragging: false
+        };
+        return n;
+      }
+
+      function getNode(id) {
+        return nodes.find(n => n.id === id);
+      }
+
+      // マウス座標取得（ビュー座標）
+      function clientPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        };
+      }
+
+      // タッチ座標（最初のタッチを使う）
+      function touchPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const t = e.touches[0];
+        return {
+          x: t.clientX - rect.left,
+          y: t.clientY - rect.top
+        };
+      }
+
+      function terminalPositions(n) {
+        const inputs = [];
+        const outputs = [];
+
+        
+        // 入力端子の位置（元のまま）
+        for (let i = 0; i < n.inputs.length; i++) {
+          const tx = n.x + 12;
+          const ty = n.y + 16 + i * 22;
+          inputs.push({ x: tx, y: ty, index: i });
+        }
+
+        // 出力端子（個数に応じて配置）
+        for (let i = 0; i < n.outputs.length; i++) {
+          const tx = n.x + n.w - 12;
+          const ty = n.y + 16 + i * 22;
+          outputs.push({ x: tx, y: ty, index: i });
+        }
+
+        return { inputs, outputs };
+      }
+
+
+      // ターミナル座標（ワールド）
+      /*function terminalPositions(n) {
+        const inputs = [];
+        for (let i = 0; i < n.inputs.length; i++) {
+          const tx = n.x + 12;
+          const ty = n.y + 16 + i * 22;
+          inputs.push({x: tx, y: ty, index: i});
+        }
+        const outx = n.x + n.w - 12;
+        const outy = n.y + n.h / 2;
+        return {inputs, output: {x: outx, y: outy}};
+      }*/
+
+      // ターミナルヒット検出（ビュー座標で判定）
+      function findTerminalAtView(vx, vy) {
+        // check nodes in reverse draw order
+        for (let i = nodes.length - 1; i >= 0; i--) {
+          const n = nodes[i];
+          const tp = terminalPositions(n);
+          // inputs
+          for (const inp of tp.inputs) {
+            const vv = toView({x: inp.x, y: inp.y});
+            if (pointInCircle(vx, vy, vv.x, vv.y, terminalRadius + 4)) {
+              return {node: n, kind: 'input', index: inp.index, viewX: vv.x, viewY: vv.y};
+            }
+          }
+          // outputs（複数対応）
+          if (tp.outputs && tp.outputs.length > 0) {
+            for (let j = 0; j < tp.outputs.length; j++) {
+              const out = tp.outputs[j];
+              const vvOut = toView(out);
+              if (pointInCircle(vx, vy, vvOut.x, vvOut.y, terminalRadius + 4)) {
+                return {node: n, kind: 'output', index: j, viewX: vvOut.x, viewY: vvOut.y};
+              }
+            }
+          }
+        }
+        return null;
+      }
+
+
+      function pointInCircle(px,py,cx,cy,r) {
+        const dx = px - cx, dy = py - cy;
+        return dx*dx + dy*dy <= r*r;
+      }
+
+      // ノードヒット（ビュー座標）
+      function findNodeAtView(vx, vy) {
+        for (let i = nodes.length - 1; i >= 0; i--) {
+          const n = nodes[i];
+          const topLeft = toView({x: n.x, y: n.y});
+          const br = toView({x: n.x + n.w, y: n.y + n.h});
+          if (vx >= topLeft.x && vx <= br.x && vy >= topLeft.y && vy <= br.y) return n;
+        }
+        return null;
+      }
+      
+            function removeNode(id) {
+        if(!confirm("ノードを削除しますか？")) return;
+        nodes = nodes.filter(n => n.id !== id);
+        connections = connections.filter(c => c.fromId !== id && c.toId !== id);
+        updateLists();
+      }
+
+
+      // マウス / タッチ イベント
+      canvas.addEventListener('mousedown', e => {
+        
+        const viewPos = clientPos(e);
+        lastMouse = viewPos;
+        // 中クリック or Space押しならパン開始
+        if (e.button === 1 || e.shiftKey || e.metaKey) { // middle or modifier for convenience
+          isPanning = true;
+          panStart = {x: viewPos.x, y: viewPos.y, sx: view.tx, sy: view.ty};
+          canvas.style.cursor = 'grabbing';
+          return;
+        }
+
+        // 端子優先
+        const term = findTerminalAtView(viewPos.x, viewPos.y);
+        if (term) {
+          if (term.kind === 'output') {
+            // 出力から接続開始
+            connectingFrom = {nodeId: term.node.id, outputIndex: term.index, viewX: term.viewX, viewY: term.viewY};
+            selected = {type: 'node', id: term.node.id};
+            draw();
+            return;
+          } else if (term.kind === 'input') {
+            // 入力端子がクリックされた：もし接続中なら接続完了
+            if (connectingFrom) {
+              if (connectingFrom.nodeId !== term.node.id) {
+                // 既に接続があるかチェック
+                const exists = connections.find(c => c.toId === term.node.id && c.toInputIndex === term.index);
+                if (!exists) {
+                  connections.push({
+                    fromId: connectingFrom.nodeId,
+                    fromOutputIndex: connectingFrom.outputIndex ?? 0,
+                    toId: term.node.id,
+                    toInputIndex: term.index
+                  });
+                }
+                evaluateAll();
+                updateLists();
+              }
+              connectingFrom = null;
+              draw();
+              return;
+            }
+            
+            // 接続中でなければ、単なる選択（または右クリックで削除 handled elsewhere）
+            selected = {type: 'node', id: term.node.id};
+            draw();
+            return;
+          }
+        }
+
+        // ノード本体をドラッグ開始（端子上でないこと）
+        const n = findNodeAtView(viewPos.x, viewPos.y);
+        if (n) {
+          // ノード本体クリック（INPUTならトグル）
+          // 判定：端子近傍は上で処理済み
+          draggingNode = n;
+          draggingNode.done = false;
+          n.dragging = true;
+          // compute world offset
+          const world = toWorld(viewPos);
+          dragOff.x = world.x - n.x;
+          dragOff.y = world.y - n.y;
+          if(!selected || n.id !== selected.id) {
+            selected = {type: 'node', id: n.id};
+          }
+          draw();
+          return;
+        }
+
+        // どこにも当たらない場所をクリック：選択解除（左パネル以外のクリックで解除）
+        selected = null;
+        connectingFrom = null;
+        draw();
+      });
+
+      canvas.addEventListener('mousemove', e => {
+        const viewPos = clientPos(e);
+        lastMouse = viewPos;
+        if (isPanning) {
+          // パン移動
+          const dx = viewPos.x - panStart.x;
+          const dy = viewPos.y - panStart.y;
+          view.tx = panStart.sx + dx;
+          view.ty = panStart.sy + dy;
+          draw();
+          return;
+        }
+        if (draggingNode && draggingNode.dragging) {
+          // ワールド座標で移動
+          const world = toWorld(viewPos);
+          draggingNode.x = Math.round((world.x - dragOff.x)/grid) * grid;
+          draggingNode.y = Math.round((world.y - dragOff.y)/grid) * grid;
+
+          draggingNode.done = true;
+          
+          draw();
+          return;
+        }
+        // hover terminal for highlight
+        hoverTerm = findTerminalAtView(viewPos.x, viewPos.y);
+        draw();
+      });
+
+      canvas.addEventListener('mouseup', e => {
+        const viewPos = clientPos(e);
+        if (isPanning) {
+          isPanning = false;
+          canvas.style.cursor = 'default';
+          return;
+        }
+        
+        if (draggingNode) {
+          if(draggingNode.done) {
+            draggingNode = null;
+            evaluateAll();
+            updateLists();
+            draw();
+            return;
+          }
+          draggingNode = null;
+        }
+        // クリックで配置 or toggle
+        const term = findTerminalAtView(viewPos.x, viewPos.y);
+        if (term) {
+          // input terminal clicked without connecting => no toggle; right-click deletes
+          return;
+        }
+        const n = findNodeAtView(viewPos.x, viewPos.y);
+        if (n) {
+          // click on node body (not terminal): if INPUT => toggle
+          const world = toWorld(viewPos);
+          // Make sure click isn't on terminal area (already checked)
+          if (n.type === 'INPUT') {
+            if(!selected || !selected.preTouchTime || Date.now() - selected.preTouchTime >= 199) {
+              if(selected) selected.preTouchTime = Date.now();
+              n.value = n.value ? 0 : 1;
+              evaluateAll();
+              updateLists();
+              draw();
+              return;
+            }
+          }
+          
+          // otherwise select
+          if (selected && selected.type === 'node' && selected.id === n.id) {
+            if(selected.preTouchTime && Date.now() - selected.preTouchTime < 200) {
+              removeNode(selected.id);
+              selected = null;
+              evaluateAll();
+              updateLists();
+              draw();
+              return;
+            } else {
+              selected.preTouchTime = Date.now();
+              return;
+            }
+          } else {
+            selected = {type: 'node', id: n.id};
+            draw();
+            return;
+          }
+        } else {
+          // empty clicked: if placingType set => place new node
+          if (placingType) {
+            const world = toWorld(viewPos);
+            const newNode = createNode(
+              placingType,
+              Math.round((world.x - gateW/2)/grid) * grid,
+              Math.round((world.y - gateH/2)/grid) * grid
+            );
+            nodes.push(newNode);
+            evaluateAll();
+            updateLists();
+            document.querySelectorAll('.tool').forEach(el => el.classList.remove('active'));
+            placingType = null;
+            draw();
+            // keep placing (do not clear placingType)
+            return;
+          }
+          // empty & not placing -> clear selection/connecting
+          selected = null;
+          connectingFrom = null;
+          draw();
+          return;
+        }
+      });
+
+      // 右クリック（接続削除）
+      canvas.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        const viewPos = clientPos(e);
+        const term = findTerminalAtView(viewPos.x, viewPos.y);
+        if (term && term.kind === 'input') {
+          const idx = connections.findIndex(c => c.toId === term.node.id && c.toInputIndex === term.index);
+          if (idx >= 0) {
+            const c = connections[idx];
+            connections.splice(idx,1);
+            // cleanup from outputs
+            const f = getNode(c.fromId);
+            if (f && f.outputs) {
+              f.outputs = f.outputs.filter(o => !(o.toId === c.toId && o.toInputIndex === c.toInputIndex && (o.fromOutputIndex ?? 0) === (c.fromOutputIndex ?? 0)));
+            }
+            evaluateAll();
+            updateLists();
+            draw();
+          }
+        }
+        document.querySelectorAll('.tool').forEach(el => el.classList.remove('active'));
+        selected = null;
+        placingType = null;
+      });
+
+
+      // タッチ用：簡易的にタッチでパン（2本指）とシングルでクリック
+      let ongoingTouches = 0;
+      canvas.addEventListener('touchstart', e => {
+        e.preventDefault();
+        ongoingTouches = e.touches.length;
+        if (e.touches.length === 1) {
+          const p = touchPos(e);
+          // emulate mousedown single touch
+          const m = {clientX: p.x + canvas.getBoundingClientRect().left, clientY: p.y + canvas.getBoundingClientRect().top};
+          canvas.dispatchEvent(new MouseEvent('mousedown', m));
+        } else if (e.touches.length === 2) {
+          // two-finger pan start
+          isPanning = true;
+          const t = e.touches[0];
+          panStart = {x: t.clientX - canvas.getBoundingClientRect().left, y: t.clientY - canvas.getBoundingClientRect().top, sx: view.tx, sy: view.ty};
+        }
+      }, {passive: false});
+
+      canvas.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if (ongoingTouches === 2 && isPanning) {
+          const t = e.touches[0];
+          const viewPos = {x: t.clientX - canvas.getBoundingClientRect().left, y: t.clientY - canvas.getBoundingClientRect().top};
+          const dx = viewPos.x - panStart.x;
+          const dy = viewPos.y - panStart.y;
+          view.tx = panStart.sx + dx;
+          view.ty = panStart.sy + dy;
+          draw();
+          e.preventDefault();
+        } else if (ongoingTouches === 1) {
+          const p = touchPos(e);
+          const m = {clientX: p.x + canvas.getBoundingClientRect().left, clientY: p.y + canvas.getBoundingClientRect().top};
+          canvas.dispatchEvent(new MouseEvent('mousemove', m));
+        }
+      }, {passive: false});
+
+      canvas.addEventListener('touchend', e => {
+        e.preventDefault();
+        ongoingTouches = e.touches.length;
+        if (ongoingTouches === 0) {
+          const last = e.changedTouches[0];
+          const m = {clientX: last.clientX, clientY: last.clientY};
+          canvas.dispatchEvent(new MouseEvent('mouseup', m));
+          isPanning = false;
+        }
+        /*document.querySelectorAll('.tool').forEach(el => el.classList.remove('active'));
+        selected = null;
+        placingType = null;*/
+      });
+
+      // 論理評価：反復伝播で安定化
+      function evaluateAll() {
+        // rebuild inputs from connections
+        nodes.forEach(n => {
+          n.inputs = n.inputs.map((v, idx) => {
+            const c = connections.find(cc => cc.toId === n.id && cc.toInputIndex === idx);
+            return c ? c.fromId : null;
+          });
+        });
+
+        // reset non-inputs
+        nodes.forEach(n => {
+          if (n.type !== 'INPUT') n.value = 0;
+        });
+
+        const maxIter = Math.max(20, nodes.length * 4);
+        for (let iter = 0; iter < maxIter; iter++) {
+          let changed = false;
+          for (const n of nodes) {
+            if (n.type === 'INPUT') continue;
+            const inVals = n.inputs.map(fid => {
+              const f = getNode(fid);
+              return f ? (f.value ? 1 : 0) : 0;
+            });
+            const old = n.value;
+            n.value = calcGate(n.type, inVals);
+            if (n.value !== old) changed = true;
+          }
+          if (!changed) break;
+        }
+      }
+
+      function calcGate(type, inVals) {
+        const a = inVals[0] || 0;
+        const b = inVals[1] || 0;
+        switch (type) {
+          case 'AND': return (a && b) ? 1 : 0;
+          case 'OR': return (a || b) ? 1 : 0;
+          case 'NOT': return a ? 0 : 1;
+          case 'NAND': return (a && b) ? 0 : 1;
+          case 'NOR': return (a || b) ? 0 : 1;
+          case 'XOR': return (a ^ b) ? 1 : 0;
+          case 'OUTPUT': return a;
+          default: return 0;
+        }
+      }
+
+      // 描画（ビュー座標を使用）
+      function draw() {
+        // clear
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        // 背景
+        drawBackground(rect.width, rect.height);
+        
+        
+        // draw nodes
+        for (const n of nodes) {
+          drawNode(n);
+        }
+
+        // draw connections under nodes
+        for (let i = 0; i < connections.length; i++) {
+          const c = connections[i];
+          const from = getNode(c.fromId);
+          const to = getNode(c.toId);
+          if (!from || !to) continue;
+          const fromTP = terminalPositions(from);
+          const toTP = terminalPositions(to);
+          const fromPos = toView(fromTP.outputs[c.fromOutputIndex ?? 0]);
+          const toPos = toView(toTP.inputs[c.toInputIndex]);
+          const val = from.value;
+          drawConnection(fromPos.x, fromPos.y, toPos.x, toPos.y, val, selected && selected.type === 'conn' && selected.idx === i);
+        }
+
+        // connecting temp line
+        if (connectingFrom) {
+          drawConnection(connectingFrom.viewX, connectingFrom.viewY, lastMouse.x, lastMouse.y, getNode(connectingFrom.nodeId)?.value, true);
+        }
+
+        // hover highlight for terminal
+        if (hoverTerm) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.fillStyle = 'rgba(255,255,255,0.06)';
+          ctx.arc(hoverTerm.viewX, hoverTerm.viewY, terminalRadius + 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+
+      function drawBackground(w, h) {
+        // grid
+        ctx.save();
+        ctx.fillStyle = '#071029';
+        ctx.fillRect(0,0,w,h);
+        ctx.globalAlpha = 0.04;
+        ctx.strokeStyle = '#ffffff';
+        const gap = 28 * view.scale;
+        for (let x = (view.tx % gap); x < w; x += gap) {
+          ctx.beginPath();
+          ctx.moveTo(x + 0.5, 0);
+          ctx.lineTo(x + 0.5, h);
+          ctx.stroke();
+        }
+        for (let y = (view.ty % gap); y < h; y += gap) {
+          ctx.beginPath();
+          ctx.moveTo(0, y + 0.5);
+          ctx.lineTo(w, y + 0.5);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawConnection(x1,y1,x2,y2, val=0, temp=false) {
+        ctx.save();
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = val ? '#10b981' : 'rgba(150,150,150,1)';
+        if (temp) ctx.setLineDash([8,6]);
+        const midX = (x1 + x2) / 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.bezierCurveTo(midX, y1, midX, y2, x2, y2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // ゲート描画（曲線で記号を描く）
+      function drawNode(n) {
+        const tl = toView({x: n.x, y: n.y});
+        const vw = n.w * view.scale;
+        const vh = n.h * view.scale;
+
+        // body
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        if(n.type === 'OUTPUT' && n.inputs[0] && getNode(n.inputs[0]).value) {
+          ctx.fillStyle = 'rgb(255,230,0,0.5)';
+        }
+        ctx.strokeStyle = (selected && selected.type === 'node' && selected.id === n.id) ? 'rgba(99,102,241,0.9)' : 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1.5;
+        // rounded rect in view coords
+        roundRect(ctx, tl.x, tl.y, vw, vh, 8, true, true);
+        
+        
+        //ctx.stroke();
+
+        // draw gate symbol centered in the node (use world coords -> view)
+        // compute symbol center in view
+        const centerView = toView({x: n.x + n.w/2, y: n.y + n.h/2});
+
+        // draw symbolic curve based on gate type
+        drawGateSymbol(n.type, n, centerView);
+
+        // title text
+        ctx.fillStyle = '#e6eef8';
+        ctx.font = `${12 * view.scale}px sans-serif`;
+        ctx.textBaseline = 'top';
+        ctx.fillText(n.type, tl.x + 20, tl.y + 2);
+
+        // draw terminals (white circles)
+        const tp = terminalPositions(n);
+
+        // inputs
+        for (let i = 0; i < tp.inputs.length; i++) {
+          const vv = toView(tp.inputs[i]);
+          ctx.beginPath();
+          ctx.fillStyle = '#ffffff'; // white circle as requested
+          ctx.arc(vv.x, vv.y, terminalRadius - 2, 0, Math.PI * 2);
+          ctx.fill();
+          // inner dot indicating connected value
+          const conn = connections.find(c => c.toId === n.id && c.toInputIndex === i);
+          if (conn) {
+            const from = getNode(conn.fromId);
+            const val = from ? from.value : 0;
+            ctx.beginPath();
+            ctx.fillStyle = val ? '#10b981' : '#94a3b8';
+            ctx.arc(vv.x, vv.y, terminalRadius - 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // outputs（複数対応）
+        for (let i = 0; i < tp.outputs.length; i++) {
+          const vv = toView(tp.outputs[i]);
+          ctx.beginPath();
+          ctx.fillStyle = '#ffffff';
+          ctx.arc(vv.x, vv.y, terminalRadius - 2, 0, Math.PI * 2);
+          ctx.fill();
+          // output inner color
+          ctx.beginPath();
+          ctx.fillStyle = n.value ? '#10b981' : '#94a3b8';
+          ctx.arc(vv.x, vv.y, terminalRadius - 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // description text
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = `${11 * view.scale}px monospace`;
+        const desc = nodeDescription(n);
+        ctx.fillText(desc, tl.x + 20, tl.y + n.h * view.scale - 16);
+        ctx.restore();
+      }
+
+
+      // 実際の曲線記号を描く関数（簡易的だが曲線で可視化）
+      function drawGateSymbol(type, node, centerView) {
+        ctx.save();
+        ctx.translate(centerView.x, centerView.y);
+        const s = Math.min(node.w, node.h) * view.scale * 0.8;
+        // unit box size
+        const w = s * 0.9;
+        const h = s * 0.6;
+        ctx.lineWidth = Math.max(2, (2 * view.scale));
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+
+        if (type === 'AND' || type === 'NAND') {
+          // left straight, right semicircle
+          ctx.beginPath();
+          ctx.moveTo(-w/2, -h/2);
+          ctx.lineTo(0, -h/2);
+          ctx.arc(0, 0, h/2, -Math.PI/2, Math.PI/2);
+          ctx.lineTo(-w/2, h/2);
+          ctx.closePath();
+          ctx.stroke();
+          if (type === 'NAND') {
+            // small inversion circle on right
+            ctx.beginPath();
+            ctx.arc(w/2 + 6 * view.scale, 0, 6 * view.scale, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.fill();
+          }
+        } else if (type === 'OR' || type === 'NOR' || type === 'XOR') {
+          // OR-like curved shape
+          // main shield
+          ctx.beginPath();
+          ctx.moveTo(-w/2, -h/2);
+          ctx.quadraticCurveTo(w/4, -h/2, 2*w/5, 0);
+          ctx.quadraticCurveTo(w/4, h/2, -w/2, h/2);
+          ctx.quadraticCurveTo(-w/4, 0, -w/2, -h/2);
+          ctx.closePath();
+          ctx.stroke();
+          if (type === 'NOR') {
+            ctx.beginPath();
+            ctx.arc(2*w/5 + 4 * view.scale, 0, 4 * view.scale, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.fill();
+          }
+          if (type === 'XOR') {
+            // extra leading curve
+            ctx.beginPath();
+            ctx.moveTo(-w/2 - 12*view.scale, -h/2);
+            ctx.quadraticCurveTo(-w/4 - 8*view.scale, 0, -w/2 - 12*view.scale, h/2);
+            ctx.stroke();
+          }
+        } else if (type === 'NOT') {
+          // triangle + small circle
+          ctx.beginPath();
+          ctx.moveTo(-w/2, -h/2);
+          ctx.lineTo(w/2, 0);
+          ctx.lineTo(-w/2, h/2);
+          ctx.closePath();
+          ctx.stroke();
+          // circle
+          ctx.beginPath();
+          ctx.arc(w/2 + 8*view.scale, 0, 6*view.scale, 0, Math.PI*2);
+          ctx.stroke();
+        } else if (type === 'INPUT' || type === 'OUTPUT') {
+          // small rounded rectangle with I text
+          ctx.beginPath();
+          ctx.rect(-w/4, -h/4, w/2, h/2);
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,0.02)';
+          ctx.fill();
+          ctx.fillStyle = '#e6eef8';
+          ctx.font = `${14 * view.scale}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const text = (() => {
+            if (type === 'INPUT') return 'I';
+            if (type === 'OUTPUT') return 'O';
+            return '';
+          })();
+          ctx.fillText(text, 0, 0);
+        } else {
+          // fallback mark
+          ctx.beginPath();
+          ctx.arc(0,0,Math.min(w,h)/4,0,Math.PI*2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function nodeDescription(n) {
+        if (n.type === 'INPUT') {
+          return `値:${n.value ? '1' : '0'}`;
+        }
+        const vs = n.inputs.map(fid => {
+          const f = getNode(fid);
+          return f ? (f.value ? '1' : '0') : '-';
+        });
+        return `in:${vs.join(',')}`;
+      }
+
+      function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
+      }
+
+      // UI リスト更新
+      function updateLists() {
+        const nl = document.getElementById('nodeList');
+        nl.innerHTML = '';
+        nodes.forEach(n => {
+          const div = document.createElement('div');
+          div.className = 'node-row';
+          const left = document.createElement('div');
+          left.textContent = `${n.id} : ${n.type}`;
+          const right = document.createElement('div');
+          right.className = 'badge ' + (n.value ? 'state-on' : 'state-off');
+          right.textContent = n.value ? '1' : '0';
+          div.appendChild(left);
+          div.appendChild(right);
+          nl.appendChild(div);
+        });
+
+        const cl = document.getElementById('connList');
+        cl.innerHTML = '';
+        connections.forEach((c, idx) => {
+          const div = document.createElement('div');
+          div.className = 'node-row';
+          div.textContent = `${idx+1}: ${c.fromId} → ${c.toId} [in ${c.toInputIndex}]`;
+          cl.appendChild(div);
+        });
+      }
+
+      // 初期サンプルを配置
+      function seedSample() {
+        const i1 = createNode('INPUT', Math.round(32/grid)*grid, Math.round(64/grid)*grid);
+        const i2 = createNode('INPUT', Math.round(32/grid)*grid, Math.round(160/grid)*grid);
+        nodes.push(i1, i2);
+        const andN = createNode('AND', Math.round(256/grid)*grid, Math.round(112/grid)*grid);
+        nodes.push(andN);
+        connections.push({fromId: i1.id, toId: andN.id, toInputIndex: 0});
+        connections.push({fromId: i2.id, toId: andN.id, toInputIndex: 1});
+        evaluateAll();
+        updateLists();
+      }
+
+      // 初期化
+      function init() {
+        // initial view center (optional)
+        const rect = canvas.getBoundingClientRect();
+        view.scale = 1;
+        view.tx = 20;
+        view.ty = 20;
+        resizeCanvas();
+        seedSample();
+        draw();
+        setInterval(() => draw(), 300);
+      }
+
+      init();
+
+      // 最後にログ（操作の注意）
+      console.log('起動しました。操作：パレット選択→キャンバスクリックで配置、ノードドラッグで移動、出力→入力で接続、INPUTはクリックで0/1切替、キャンバスの空白クリックで選択解除。Canvasパンは中クリックor2本指（タッチ）または Shift/Cmd+ドラッグで行えます。');
+    </script>
+  </body>
+</html>
