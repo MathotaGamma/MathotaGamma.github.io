@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>DQN &lt; Dendraw - Explanation</title>
+    <script src="./latest.js"></script>
+    <style>
+      a.anchor {
+        color: inherit;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>DQN &lt; Dendraw</h1>
+    <div style="display: flex;">
+      <button onclick='window.location.href="/";'>Home</button>
+      <button onclick='window.location.href="../../";'>API Home</button>
+    </div>
+    APIのURLは(クリックでコピー -->)<b><span id="API_URL" style="color: blue;">https://mathotagamma.github.io/API/Dendraw/DQN/latest.js
+    </span></b>です。
+    <main>
+      <h2>メソッド</h2>
+      <h3>new DQN(Argument)</h3>
+      <h4>Argument</h4>
+      <ul>
+        <li>
+          <h4>bufferSize</h4>
+          <p>初期値: 1000</p>
+        </li>
+        <li>
+          <h4>minBufferSize</h4>
+          <p>初期値: 0</p>
+        </li>
+        <li>
+          <h4>batchSize</h4>
+          <p>初期値: 32</p>
+        </li>
+        <li>
+          <h4>eta</h4>
+          <p>初期値: 0.005</p>
+        </li>
+        <li>
+          <h4>gamma</h4>
+          <p>初期値: 0.5</p>
+        </li>
+        <li>
+          <h4>E</h4>
+          <p>
+            初期値: (q, d) => 1/2*(q-d)**2
+          </p>
+        </li>
+        <li>
+          <h4>dE</h4>
+          <p>
+            初期値: (q, d) => q-d
+          </p>
+        </li>
+        <li>
+          <h4>actionType</h4>
+          <p>初期値: random</p>
+        </li>
+      </ul>
+    </main>
+    <script src="https://mathotagamma.github.io/API/JS-Window/latest.js"></script>
+    <script>
+      let element = document.getElementById('API_URL');
+      function copy_func(copy_text){
+        if (navigator.clipboard) {
+          alert('クリップボードにコピーしました。');
+          return navigator.clipboard.writeText(copy_text);
+        }
+      }
+      element.addEventListener('click',()=>{
+        copy_func(element.innerText);
+      });
+    </script>
+  </body>
+</html>
