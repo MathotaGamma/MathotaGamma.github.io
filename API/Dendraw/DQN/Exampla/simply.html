@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>DQNライブラリ</title>
+  </head>
+  <body>
+    <canvas id="canvas" style="position: absolute; left: 0; top: 0;"></canvas>
+    <canvas id="graph" style="position: absolute; right: 0; top: 0;"></canvas>
+    <canvas id="weights" style="position: absolute; right: 300px; top: 0; background-color: transparent;"></canvas>
+    <div id="Text" style="position: absolute; right: 100px; top: 10px; color: red;"></div>
+    <script>window.onload = () => {
+const Text = document.getElementById("Text")
+// クラスのオブジェクト作成。
+/*
+  eta: 学習率、学習係数
+  bufferSize: replayBufferの記憶するデータの個数
+  batchSize: 一回の学習で何個のreplayBufferのデータを使うか
+*/
+const net = new DQN({eta: 0.0005, bufferSize: 5000, batchSize: 5});
+
+// 入力層、出力層、隠れ層関係なく、
+// addLayerの引数分のneuronを持つ層を入力層側から追加
+net.addLayer(3);
+
+// weightsを決めたいときは下のように。(getLayerは、入力層側から引数番目(0から)のlayerを取得)
+// net.getLayer(1).setWeights([[1,0.5,0],[1,0,-0.2],[-1,0.1,0.7],[0.5,0,1],[0.3,-0.01,1],[0.2,1,-0.8],[1,0.4,0.1]])
+
+/*
+  f:ReLU,LeakyReLU,tanh,identity=linear
+  または、fに関数を入れる。その場合はdf(fの微分)も必要。
+  その場合、f: (x) => x, df: (x) => 1のように書く。
+  map: 部分結合層を作る時に用いる。
+    例: 入力--3個 出力--2個
+    mask: [
+      [1,0,1],
+      [0,1,1]
+    ]
+*/
+net.addLayer(7, { f: "LeakyReLU" });
+net.addLayer(5, { f: "LeakyReLU" });
+
+const canvas = document.getElementById("canvas");
+const l = innerHeight < innerWidth ? innerHeight : innerWidth;
+canvas.width = l;
+canvas.height = l;
+const ctx = canvas.getContext("2d");
+
+let lostList = [];
+const v = 0.25;
+
+/*
+  init: epsilonの初期値, decay: epsilonの減少量(ε *= decay),
+  epsilonDecayRule: "step" or "episode",
+  min: epsilonの下限,
+  margin/marginRule: epsilonの減少させない期間。marginRuleは
+  "step" or "episode" or "time" or "action" >>> ("actionRand","actionMax")(ε-greedy法のみ)
+*/
+net.setEpsilonData({init: 0.95, decay: 0.995, epsilonDecayRule: "episode", min: 0, margin: 0, marginRule: "episode"})
+
+/*
+setEnv
+・引数にs:state,a:action,count:合計の回数,
+  step:現在のepisodeでのstep数,time:現在のepisodeでの秒数,
+  preserve:前回のsetEnvでpreserveに保存したものを引き継げる
+*/
+net.setEnv = ({s, a, count, step, time, preserve}) => {
+  let s1 = null;
+  let r = 0;
+  if(a == 0) s1 = s;
+  else if(a == 1) s1 = [s[0]-v,s[1]];
+  else if(a == 2) s1 = [s[0],s[1]-v];
+  else if(a == 3) s1 = [s[0]+v,s[1]];
+  else if(a == 4) s1 = [s[0],s[1]+v];
+  s1 = structuredClone(s1);
+  s1 = [Math.min(Math.max(s1[0],0),7), Math.min(Math.max(s1[1],0),7)];
+  draw(s1);
+  let done = false;
+  r += (s1[0]+s1[1])/3;
+  if(a == 0) r -= 0.01;
+  if(s1[0]+s1[1] >= 14) {
+    done = true;
+    r += 5;
+  }
+  r -= (Math.abs(s1[0]-s1[1])/2)**2;
+  r -= 0.05;
+  r -= Math.tanh(step)/10;
+  r /= 5;
+  s1.push(Math.tanh(step));
+  return {s1, r, done, preserve};
+}
+function draw(s) {
+  ctx.clearRect(0,0,l,l);
+  ctx.fillStyle = "black";
+  ctx.fillRect(0,0,l,l);
+  ctx.fillStyle = "white";
+  const r = l/8;
+  ctx.fillRect(s[0]*r,s[1]*r,r,r);
+}
+
+/*
+  trainまたはsimulate中に実行される関数。
+    使用する引数は、train/simulate関数の引数のreturnKindが渡される。
+    {s: ~, a: ~}のように渡されるので、{s, a, r, ~}のように
+    引数でとると良い。
+*/
+net.setOnStep = ({a, r, count, epsilon, step, episode, loss}) => {
+  Text.innerHTML = String(count)+"回<br>action:"+String(a)+"<br>epsilon:"+epsilon.toFixed(4)+"<br>reward:"+r.toFixed(4)+"<br>step:"+step+"<br>episode:"+episode;
+  const k = net.getAllWeights();
+  if(!isNaN(k[0][0][0])) weights = structuredClone(k);
+  lossList.push(loss);
+};
+
+// 初期状態を渡す。入力層のニューロン数と同じ数の長さの配列で。
+net.setState = [0,0,0];
+
+// 学習させる。
+// 第一引数は、後述のkindに対する値。
+net.train(1000, {
+  // 第一引数の値の種類 "count" or "episode" or "epsilon" or "time"(<-timeは、長いとリロードされる)
+  kind: "episode",
+  /*
+    ※delayが0 ※[ms]だとメインスレッドで同期処理となるため、
+    後述のlimiterを設定していなかったり、長すぎると
+    処理に時間がかかりすぎて落ちる可能性がある。
+    
+    delayが0ではない場合、学習自体は非同期処理、
+    1回毎には同期となる。
+  */
+  delay: 0, // ※ms
+  /*
+    trainとsimulateのreturnKind一覧
+    train:
+      s,a,r,q,done,u,z,delta,w,count,step,episode,
+      epsilon,time,totalTime,loss
+    simulate:
+      s,a,r,q,done,u=null,z=null,delta=null,w=null,count,step,episode,
+      epsilon(=0),time,totalTime,loss=null
+    
+    setOnStepに渡す関数の引数にも同じ種類が渡されるが、
+    returnFormatにはよらず、{a: ~, r: ~, ~}のように渡される。
+    なので、setOnStepに渡す関数の引数は
+    {a, r, ~}のように記述すると良い。
+  */
+  returnKind: ["a","r","w","epsilon","count","step","episode","loss"],
+  // "object" or "array"
+  // setOnStepについての注意事項あり。returnKindの説明参照
+  returnFormat: "object",
+  limiter: 15, // 非同期時の実行時間の上限[s]
+  //lossView: graphElem, // 損失のグラフを描画。valueに描画したいcanvasのelementを入れる。
+  /*weightsView: { // 重みをNetworkで描画。
+    elem: weightsElem, // 描画したいcanvasのelement
+    transparent: true, // 背景(=network以外の部分)を透過
+    updateMode: "second", // "second" or "episode"
+    update: 1 // 更新頻度(updateModeに対しての)
+  }*/
+}).then(result => { // train終了後に実行される。
+  // resultには、resultKindがresultFormatで返ってくる
+  
+  console.log('episode:',result.episode[result.episode.length-1]);
+  console.log('count:',result.count.length);
+  console.log(net.predict([0,0,0]).q);
+  
+  //第一引数はdelay(間隔 ※[ms])
+  //returnKindについてはtrain関数のreturnKind参照
+  net.simulate(5, {returnKind: ["a","r","w","epsilon","step","episode"]});
+  
+  // 第一引数: lossの1次元配列, 第二引数: 描画するcanvasのelement
+  net.drawArrayGraph(lossList, document.getElementById("graph"));
+  // 第一引数: 描画するcanvasのelement
+  net.drawWeights(document.getElementById("weights"), true)
+}).catch(err => { // train中にエラーが発生した場合(中断される)
+  console.log(weights);
+  console.error("エラー:", err.message);
+  console.error("error:", err.stack);
+});
+}
+    </script>
+  </body>
+</html>
