@@ -7,7 +7,7 @@
     <style>
       a.anchor {
         color: inherit;
-        text-decoration: underline;
+        text-decoration: none;
       }
     </style>
   </head>
@@ -15,7 +15,7 @@
     <h1>CompVisJS</h1>
     <div style="display: flex;">
       <button onclick='window.location.href="/"'>Home</button>
-      <button onclick='window.location.href="../"'>API Home</button>
+      <button onclick='window.location.href="../home"'>API Home</button>
     </div>
     <p>
       APIのURLは(クリックでコピー -->)<b><span id="API_URL" style="color: blue;">https://makeplayonline.onrender.com/Static/API/CompVisJS/latest/CompVisJS.js</span></b>です。
@@ -94,7 +94,7 @@
           </ul>
         </li>
       </ul>
-      <a href="#ViewThree" class="anchor"><h2>ViewThreeクラスのメソッド一覧</h2></a>
+      <h2>ViewThreeクラスのメソッド一覧</h2>
       <ul>
         <li>CompVis.ViewThree.showError(msg)</li>
         <li>async CompVis.ViewThree.addGraoh(f, a, b, span=100, option={})</li>
@@ -537,9 +537,10 @@ console.log(CompVis._Imag(l_c));
           </ul>
         </li>
       </ul>
+
       <ul>
         <li>
-          <h3 id="ViewThree">ViewThreeクラス</h3>
+          <h3 id="ViewThre">ViewThreeクラス</h3>
           <ul>
             <li>
               <h4>CompVis.ViewThree.showError(msg)</h4>
@@ -605,7 +606,7 @@ view.addGraph((t) => Math.sin(t),
                   でないと、正しく動作しない場合があります。<br>
                 </span>
                 例:&nbsp;&times;&nbsp;setTimeout(startAnimate, 1000);<br>
-                &nbsp;&nbsp;&#9675;&nbsp;setTimeout(() => startAnimate(), 1000);
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9675;&nbsp;setTimeout(() => startAnimate(), 1000);
               </p>
             </li>
             <li>
