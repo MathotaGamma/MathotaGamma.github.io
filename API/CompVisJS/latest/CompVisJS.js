@@ -809,12 +809,13 @@ CompVis.View = class {
       y: (p1.clientY + p2.clientY) / 2
     };
   }
-};
+}
 
 CompVis.ViewThree = class {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
+    this.animation = true;
 
     // --- エラー表示用のコンテナ作成 ---
     this.errorContainer = document.createElement("div");
@@ -944,7 +945,7 @@ CompVis.ViewThree = class {
       window.addEventListener("resize", () => this.#onResize());
 
       // アニメーション開始
-      this.animate();
+      this.startAnimate();
 
     } catch (e) {
       this.showError("Scene Setup Error: " + e.message);
@@ -961,7 +962,7 @@ CompVis.ViewThree = class {
     this.labelRenderer.setSize(w, h);
   }
 
-  makeLabel(text) {
+  #makeLabel(text) {
     const CSS2DObject = this.modules.CSS2DObject;
     const div = document.createElement("div");
     div.style.color = "#aaaaaa";
@@ -1039,7 +1040,7 @@ CompVis.ViewThree = class {
         this.axisGroup.add(new THREE.Line(geo, mat));
 
         // 軸ラベル
-        const label = this.makeLabel(ax.text);
+        const label = this.#makeLabel(ax.text);
         label.position.set(ax.end[0] * 1.05, ax.end[1] * 1.05, ax.end[2] * 1.05);
         this.axisGroup.add(label);
       });
@@ -1052,11 +1053,11 @@ CompVis.ViewThree = class {
         const txt = (Math.abs(v) < 0.0001 || Math.abs(v) > 10000) ? v.toExponential(1) : parseFloat(v.toFixed(4));
         
         // X軸上の目盛り
-        let l = this.makeLabel(txt); l.position.set(v, 0, 0); this.axisGroup.add(l);
+        let l = this.#makeLabel(txt); l.position.set(v, 0, 0); this.axisGroup.add(l);
         // Y軸上の目盛り
-        l = this.makeLabel(txt); l.position.set(0, v, 0); this.axisGroup.add(l);
+        l = this.#makeLabel(txt); l.position.set(0, v, 0); this.axisGroup.add(l);
         // Z軸上の目盛り
-        l = this.makeLabel(txt); l.position.set(0, 0, v); this.axisGroup.add(l);
+        l = this.#makeLabel(txt); l.position.set(0, 0, v); this.axisGroup.add(l);
       }
 
       // グリッド描画 (XZ平面、XY平面、YZ平面)
@@ -1130,14 +1131,15 @@ CompVis.ViewThree = class {
       this.showError("Add Graph Error: " + e.message);
     }
   }
-
-  animate() {
+  
+  #animate() {
     // requestAnimationFrame自体がエラーを起こすとループが止まらないのでtry-catchする
     requestAnimationFrame(() => {
       try {
-        if(this.hasArnimationError) return;
+        if(this.hasAnimationError) return;
+        if(!this.animation) return;
         this.#animateInner();
-        this.animate();
+        if(this.animation) this.#animate();
       } catch(e) {
         if(!this.hasAnimationError) {
           this.showError("Animation Error: " + e.message);
@@ -1154,6 +1156,15 @@ CompVis.ViewThree = class {
       this.renderer.render(this.scene, this.camera);
       this.labelRenderer.render(this.scene, this.camera);
     }
+  }
+  
+  startAnimate() {
+    this.animation = true;
+    this.#animate();
+  }
+  
+  stopAnimate() {
+    this.animation = false;
   }
   
   async exec(callback) {
