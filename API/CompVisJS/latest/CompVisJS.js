@@ -16,6 +16,7 @@ viewer.addGraph(
 */
 /*
 CompVis.ViewThreeはTHREE.jsを使用しています。
+※内部に組み込んでいるため、別で用意する必要はありません。
 THREE : "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
 OrbitControls : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
 CSS2DRenderer : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
@@ -23,13 +24,27 @@ CSS2DRenderer : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/rendere
 使用例
 
 const canvas = document.getElementById("three-canvas");
-const view = new CompVis.ViewThree(canvas, { mode:"dynamic", labelDown: 2 });
+const view = new CompVis.ViewThree(canvas);
 
-view.ready.then(() => {
-  view.addGraph(t => Math.sin(t), -Math.PI*2, Math.PI*2, 200, { color:0xff0000 });
-  view.addGraph(t => [Math.cos(t), Math.sin(t), t/2], 0, Math.PI*6, 400, { color:0x00ffff });
+// 非同期で実行しても安全に追加されます
+
+view.addGraph(
+  (t) => [
+    4*Math.cos(2*t)*Math.cos(t+Math.PI/4),
+    4*Math.sin(2*t),
+    4*Math.cos(2*t)*Math.sin(t+Math.PI/4)
+  ],
+  -Math.PI, Math.PI, 100, { color: 0xdd4477 }
+);
+
+view.addGraph((t) => Math.exp(t/8), -20, 20, 200, { color: 0x7fffd4 });
+
+view.exec((THREE, scene, camera, renderer, controls) => {
+  let geometry = new THREE.BoxGeometry(1,1,1);
+  let material = new THREE.MeshLambertMaterial({color: 0x4444ff});
+  const cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
 });
-のように使ってください。
 */
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
