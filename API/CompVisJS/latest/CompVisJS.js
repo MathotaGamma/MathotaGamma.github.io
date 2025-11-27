@@ -255,6 +255,162 @@ class CompVis {
   }
 }
 
+CompVis.Quater = class {
+  constructor(a = null, b = null, c = null, d = null) {
+    if (a != null && typeof a === 'object') {
+      if (Array.isArray(a)) {
+        b = a[1];
+        c = a[2];
+        d = a[3];
+        a = a[0];
+      } else {
+        const requiredKeys = ['w', 'x', 'y', 'z'];
+        const keys = Object.keys(a);
+        if (keys.length == 4 && requiredKeys.every(key => keys.includes(key))) {
+          if (requiredKeys.every(key => typeof a[key] === 'number')) {
+            const A = structuredClone(a);
+            this.w = A.w;
+            this.x = A.x;
+            this.y = A.y;
+            this.z = A.z;
+            return;
+          }
+        }
+      }
+    }
+
+    if (a == null && b == null && c == null && d == null) {
+      this.w = 0;
+      this.x = 0;
+      this.y = 0;
+      this.z = 0;
+      return;
+    } else if (a != null && b == null && c == null && d == null) {
+      if (typeof a == "number") {
+        this.w = a;
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+        return;
+      }
+    } else if (a != null && b != null && c != null && d == null) {
+      if (typeof a == "number" && typeof b == "number" && typeof c == "number") {
+        this.w = 0;
+        this.x = a;
+        this.y = b;
+        this.z = c;
+        return;
+      }
+    } else if (a != null && b != null && c != null && d != null) {
+      if (
+        typeof a == "number" &&
+        typeof b == "number" &&
+        typeof c == "number" &&
+        typeof d == "number"
+      ) {
+        this.w = a;
+        this.x = b;
+        this.y = c;
+        this.z = d;
+        return;
+      }
+    }
+
+    alert("error");
+    throw new Error("constructor < Quater");
+  }
+
+  get val() {
+    return {
+      w: this.w,
+      x: this.x,
+      y: this.y,
+      z: this.z
+    }
+  }
+
+  get str() {
+    return `w:${this.w} x:${this.x} y:${this.y} z:${this.z}`;
+  }
+
+  get clone() {
+    return new CompVis.Quater(this.val);
+  }
+
+  add(q) {
+    const s = this.clone;
+    s.w += q.w;
+    s.x += q.x;
+    s.y += q.y;
+    s.z += q.z;
+    return s;
+  }
+
+  dif(q) {
+    const s = this.clone;
+    s.w -= q.w;
+    s.x -= q.x;
+    s.y -= q.y;
+    s.z -= q.z;
+    return s;
+  }
+
+  pro(q) { // Q*q  (pro_rと全く同じ！)
+    if (typeof q == "number") {
+      return new CompVis.Quater(this.w * q, this.x * q, this.y * q, this.z * q);
+    }
+
+    const Q = this.clone;
+
+    const s = new CompVis.Quater();
+    s.w = q.w * Q.w - q.x * Q.x - q.y * Q.y - q.z * Q.z;
+    s.x = q.w * Q.x + q.x * Q.w - q.y * Q.z + q.z * Q.y;
+    s.y = q.w * Q.y + q.y * Q.w + q.x * Q.z - q.z * Q.x;
+    s.z = q.w * Q.z + q.z * Q.w - q.x * Q.y + q.y * Q.x;
+    return s;
+  }
+
+  pro_r(q) { // proと全く同じ！ 
+    return this.pro(q);
+  }
+
+  pro_l(q) { // q*Q
+    const Q = this.clone;
+    const s = new CompVis.Quater();
+    s.w = Q.w * q.w - Q.x * q.x - Q.y * q.y - Q.z * q.z;
+    s.x = Q.w * q.x + Q.x * q.w - Q.y * q.z + Q.z * q.y;
+    s.y = Q.w * q.y + Q.y * q.w + Q.x * q.z - Q.z * q.x;
+    s.z = Q.w * q.z + Q.z * q.w - Q.x * q.y + Q.y * q.x;
+    return s;
+  }
+
+  div(q) {
+    if (typeof q == "number") return this.pro(1 / q);
+    return this.pro(q.inv);
+  }
+
+  div_by(q) {
+    if (typeof q == "number") return this.inv.pro(q);
+    return q.pro(this.inv);
+  }
+
+  get norm() {
+    return Math.sqrt(this.w ** 2 + this.x ** 2 + this.y ** 2 + this.z ** 2);
+  }
+
+  get conj() {
+    return new CompVis.Quater(this.w, -this.x, -this.y, -this.z);
+  }
+
+  get normalize() {
+    return this.pro(1 / this.norm);
+  }
+
+  get inv() {
+    return this.conj.pro(1 / this.norm ** 2);
+  }
+}
+
 CompVis.View = class {
   constructor(canvasElem, options = {}) {
     this.canvas = canvasElem;
