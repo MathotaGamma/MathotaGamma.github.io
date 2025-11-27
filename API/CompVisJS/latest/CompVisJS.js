@@ -23,8 +23,8 @@ CSS2DRenderer : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/rendere
 
 使用例
 
-const canvas = document.getElementById("three-canvas");
-const view = new CompVis.ViewThree(canvas);
+const myDiv = document.getElementById("my-div");
+const view = new CompVis.ViewThree(myDiv);
 
 // 非同期で実行しても安全に追加されます
 
