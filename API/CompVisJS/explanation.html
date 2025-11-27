@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>CompVisJS - Explanation</title>
+    <script src="https://makeplayonline.onrender.com/Static/API/CompVisJS/latest/CompVisJS.js"></script>
+    <style>
+      a.anchor {
+        color: inherit;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>CompVisJS</h1>
+    <div style="display: flex;">
+      <button onclick='window.location.href="/"'>Home</button>
+      <button onclick='window.location.href="../home"'>API Home</button>
+    </div>
+    APIのURLは(クリックでコピー -->)<b><span id="API_URL" style="color: blue;">https://makeplayonline.onrender.com/Static/API/CompVisJS/latest/CompVisJS.js</span></b>です。
+    <main>
+      <p>
+        Web版のEditorは<a href="./Editor">こちら</a><br>
+        <!--CompVisのGraphの使い方についての詳細は<a href="./explanation_graph" target="_blank">こちら</a><br>
+        CompVisのMatrixクラスの使い方についての詳細は<a href="./explanation_matrix" target="_blank">こちら</a>-->
+      </p>
+      <h2>メソッド一覧</h2>
+      <div id="divList"></div>
+      <p>
+        以下、変数を下記のように定める。
+        <ul>
+          <li>C,c : new CompVis(~,~);で作成したCompVisクラス変数</li>
+          <li>x : 実数</li>
+          <li>n : 整数</li>
+          <li>l : 実数値を二つ持った配列([x,y])</li>
+          <li>l_c・l_x : c・xの一次元配列</li>
+          <li>l2 : lを要素とする配列</li>
+        </ul>
+        verが書いてあるものは、そのverで追加、削除、変更のあったもの。<br>
+        追加は「 <- new ver:~~」、削除は取り消し線と「 <- ver:~~」、変更は「 - ver:~~ -」または「 - ver:~~ ->」で表す。
+      </p>
+      <ul>
+        <li>
+          <a href="#yes-arg" class="anchor">引数ありのメソッド</a>
+          <ul>
+            <li>C.round(n)</li>
+            <li>C.add(c)</li>
+            <li>C.dif(c)</li>
+            <li>C.pro(c)</li>
+            <li>C.div(c)</li>
+            <li>C.log_n(x)</li>
+            <li>C.pow_by(c)</li>
+            <li>C.pow_of(c)</li>
+            <li>C.rotate(x)</li>
+          </ul>
+        </li>
+        <li>
+          <a href="#no-arg" class="anchor">引数なしのメソッド</a>
+          <ul>
+            <li>C.value</li>
+            <li>C.str</li>
+            <li>C.real</li>
+            <li>C.imag</li>
+            <li>C.conj</li>
+            <li>C.abs</li>
+            <li>C.arg</li>
+            <li>C.log</li>
+            <li>C.exp</li>
+          </ul>
+        </li>
+        <li>
+          <a href="#static_method" class="anchor">静的メソッド</a>
+          <ul>
+            <li>CompVis._list - ver:1.02.03 -,<s>CompVis._list_ja</s> <- ver:1.02.03</li>
+            <li>CompVis._value(c)</li>
+            <li>CompVis._str(c)</li>
+            <li>CompVis._round(c,n)</li>
+            <li>CompVis._toComp(l),CompVis._toComp(x) - ver:1.02.03 -</li>
+            <li>CompVis._DFT(l) <- ver:1.02.03</li>
+            <li>CompVis._Real(c),CompVis._Real(l_c) <- new ver:1.02.03</li>
+            <li>CompVis._Imag(c),CompVis._Imag(l_c) <- new ver:1.02.03</li>
+          </ul>
+        </li>
+        <li>
+          <a href="#graph" class="anchor">Graph関連</a>
+          <ul>
+            <li>CompVis._create_canvas(element) - ver:1.02.03 -</li>
+            <li>CompVis._clear_canvas(id_ctx) <- new ver:1.03.01</li>
+            <li>CompVis._graph(id_ctx,func,start,end,step,params)</li>
+            <li>CompVis._re_graph(data)</li>
+            <li>CompVis._draw_text(id_ctx,text,position,params) <- new ver:1.02.04</li>
+          </ul>
+        </li>
+      </ul>
+      <h2>Matrixクラスのメソッド一覧</h2>
+      <ul>
+        <li>CompVis.Matrix.matrix [get,set]</li>
+        <li>CompVis.Matrix.size</li>
+        <li>CompVis.Matrix._inverse</li>
+      </ul>
+      <h2>メソッドの詳細</h2>
+      <ul>
+        <li>
+          <h3 id="yes-arg">引数ありのメソッド</h3>
+          <ul>
+            <li>
+              <h4>C.round(n)</h4>
+              <p>
+                Cの実部、虚部をそれぞれ特定の桁数で四捨五入する。<br>
+                n&gt;0の場合、小数第n位で四捨五入する。<br>
+                n=0の場合、そのまま四捨五入して整数値にする。<br>
+                n&lt;0の場合、10<sup>n</sup>の位で四捨五入する。
+              </p>
+            </li>
+            <li>
+              <h4>C.add(c)</h4>
+              <p>
+                Cにcを足した値を返す<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1,2);
+const c = new CompVis(-2,1);
+console.log(C.add(c).str);
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.dif(c)</h4>
+              <p>
+                Cからcを引いた値を返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1,2);
+const c = new CompVis(-2,1);
+console.log(C.dif(c).str);
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.pro(c)またはC.pro(x)</h4>
+              <p>
+                Cを cまたはx倍した値を返す。<br>
+                引数が実数の場合はCの実部と虚部両方がx倍される。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(-1,3);
+const c = new CompVis(2,1.5);
+const x = 3;
+                  
+console.log(C.pro(c).str); //C*c
+console.log(C.pro(x).str); //C*x
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.div(c)またはC.div(x)</h4>
+              <p>
+                Cを cまたはxで割った値を返す。<br>
+                引数が実数の場合はCの実部と虚部両方がxで割られる。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(-1,3);
+const c = new CompVis(0,1);
+const x = 3;
+                  
+console.log(C.div(c).str); //C/c
+console.log(C.div(x).str); //C/x
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.log_n(x)</h4>
+              <p>
+                log<sub>x</sub>(C)を返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(-1,3);
+const x = 2;
+                  
+console.log(C.log_n(x).str); //log_x(C)
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.pow_by(c)またはC.pow_by(x)</h4>
+              <p>
+                C<sup>c</sup>またはC<sup>x</sup>を返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(-1,3);
+const c = new CompVis(3,1.5);
+const x = 2;
+                  
+console.log(C.pow_by(c).round(3).str); //C^c
+console.log(C.pow_by(x).round(3).str); //C^x
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.pow_of(c)またはC.pow_of(x)</h4>
+              <p>
+                c<sup>C</sup>またはx<sup>C</sup>を返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(-1,3);
+const c = new CompVis(3,1.5);
+const x = 2;
+                  
+console.log(C.pow_of(c).str); //c^C
+console.log(C.pow_of(x).str); //x^C
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.rotate(x)</h4>
+              <p>
+                Cを原点中心でx[rad]回転させる。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(-1,Math.sqrt(3));
+const x = Math.PI/4;
+
+console.log(C.rotate(x).round(3).str); //C*(cos(x)+i*sin(x))
+                </js-window>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <h3 id="no-arg">引数なしのメソッド</h3>
+          <ul>
+            <li>
+              <h4>C.value</h4>
+              <p>
+                Cを配列[C.real,C.imag]で返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1,2);
+
+console.log(C.value); //[1,2]
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.str</h4>
+              <p>
+                Cを文字列「'C.real'+'C.imag'i」で返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1,2);
+
+console.log(C.str); //"1+2i"
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.real</h4>
+              <p>
+                Cの実部を実数値で返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1,2);
+
+console.log(C.real); //1
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.imag</h4>
+              <p>
+                Cの虚部を実数値で返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1,2);
+
+console.log(C.imag); //2
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.conj</h4>
+              <p>
+                Cの共役な複素数を返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1,2);
+
+console.log(C.conj.str); //1-2i
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.abs</h4>
+              <p>
+                Cの絶対値を返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1,2);
+
+console.log(C.abs); //√5
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.arg</h4>
+              <p>
+                Cの偏角を返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1,Math.sqrt(3));
+
+console.log(C.arg); //π/3
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.log</h4>
+              <p>
+                log<sub>e</sub>(C)を実数値で返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(1/2,Math.sqrt(3)/2);
+
+console.log(C.log.str) //iπ/3
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>C.exp</h4>
+              <p>
+                e<sup>C</sup>を返す。<br>
+                例:<br>
+                <js-window>
+const C = new CompVis(0,Math.PI);
+
+console.log(C.exp.round(5).str); //e_iπ (=-1)
+                </js-window>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <h3 id="static_method">静的メソッド</h3>
+          <ul>
+            <li>
+              <h4>CompVis._list,<s>CompVis._list_ja</s></h4>
+              <p>
+                使えるメソッドのリスト<s>と簡単な説明</s>を返す。 &lt;- ver:1.02.03で変更<br>
+                <s>._listは英語版、_list_jaは日本語版</s> --&gt; ._listは日本語。<br>
+                例:<br>
+                <js-window>
+console.log(CompVis._list.slice(0,7).join(','));
+/*console.log(CompVis._list_ja.join(',')); ver:1.02.03以降使えなくなりました。*/
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._value(c)</h4>
+              <p>
+                c.valueと同じ結果を得られる。<span style="color: red">なぜ作ったのかは分からない。</span><br>
+                若干式の中だと使いやすいのかも。<br>
+                例:<br>
+                <js-window>
+const c = new CompVis(1,3);
+console.log(CompVis._value(c)); //[1,3]
+console.log(c.value);
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._str(c)</h4>
+              <p>
+                c.strと同じ結果を得られる。<span style="color: red">なぜ作ったのかは分からない。</span><br>
+                複雑な式の出力に<b>多少使えるかも</b>。<br>
+                例:<br>
+                <js-window>
+const c = new CompVis(1,3);
+console.log(CompVis._str(c)); //1+3i
+console.log(c.str);
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._round(c,n)</h4>
+              <p>
+                c.round(n)と同じ。<span style="color: red">何故作ったのだろう。</span><br>
+                正直使うメリットが思いつかない。。<br>
+                例:<br>
+                <js-window>
+const c = new CompVis(1,3).pow_by(1/2); //√(1+3i)
+console.log(CompVis._round(c,3).str);
+console.log(c.round(3).str);
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._toComp(l)またはCompVis._toComp(x)<b>またはCompVis._toComp(l2) - ver:1.02.03 -</b></h4>
+              <p>
+                引数が配列lの場合、l[0]を実部,l[1]を虚部とするCompVisクラスを作成する。<br>
+                引数が実数xの場合は実部x,虚部0のCompVisクラスが作成される。<br>
+                引数が二次元配列(さらに、要素が長さ2の配列)l2の場合、配列lと同様の操作を<br>
+                全ての要素に対して行い、戻り値でCompVisクラスの配列を返す。<br>
+                静的メソッドの中で、数少ない使えそうなメソッドである。<br>
+                例:<br>
+                <js-window>
+const l = [1,3];
+const x = -2;
+console.log(CompVis._toComp(l).str); //1+3i
+console.log(CompVis._toComp(x).str); //-2
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._DFT(l_c,return_type)またはCompVis._DFT(l_x,return_type)</h4>
+              <p>
+                引数を離散フーリエ変換したものを戻り値として与える。<br>
+                return_typeは'normal'と'text_list'の二種類。<br>
+                <ul>
+                  <li>
+                    <h5 id="_DFT-normal">normal[default]</h5>
+                    <p>
+                      戻り値を[{value,abs,arg},...]で返す。<br>
+                      配列の長さはl_cまたはl_xと同じ。<br>
+                      <ul>
+                        <li>
+                          value:離散フーリエ変換の結果(indexに対応した周波数での値を返す)。
+                        </li>
+                        <li>
+                          abs:valueの絶対値。
+                        </li>
+                        <li>
+                          arg:valueの偏角。
+                        </li>
+                      </ul>
+                    </p>
+                  </li>
+                  <li>
+                    <h5>text_list</h5>
+                    <p>
+                      normalの結果を整形して文字列にした一次元配列を返す。<br>
+                      長さはl_cまたはl_xと同じ。<br>
+                      構造:<br>
+                      ['value:~~,abs:~~,arg:~~',...,'~~~']<br>
+                      value,abs,argについては上記の<a class="anchor" href="#_DFT-normal">normal</a>を参照
+                    </p>
+                  </li>
+                </ul>
+                例:<br>
+                <js-window>
+const l_c = CompVis._toComp([[1,0],[0,1],[-1,0],[0,-1]]);
+const l_x = CompVis._toComp([1,2,3,4]);
+
+console.log(CompVis._DFT(l_c));
+console.log(CompVis._DFT(l_x,'text_list').join('/n'));
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._Real(c)またはCompVis._Real(l_c)</h4>
+              <p>
+                C.realを配列に対しても使えるようにしたもの。<br>
+                <js-window>
+const c = new CompVis(-3,-2);
+const l_c = CompVis._toComp([[1,2],[3,-4]]);
+
+console.log(c.real);
+console.log(CompVis._Real(l_c));
+                </js-window>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._Imag(c)またはCompVis._Imag(l_c)</h4>
+              <p>
+                C.imagを配列に対しても使えるようにしたもの。<br>
+                例:<br>
+                <js-window>
+const c = new CompVis(-3,-2);
+const l_c = CompVis._toComp([[1,2],[3,-4]]);
+
+console.log(c.imag);
+console.log(CompVis._Imag(l_c));
+                </js-window>
+              </p>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <h3 id="graph">Graph関連</h3>
+          <span style="color: red;"><b>Graphの詳しい説明は<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a></b></span>
+          <ul>
+            <li>
+              <h3>CompVis._create_canvas(element)</h3>
+              <p>
+                canvasのelementとelement.getContext("2d");の配列を返す。<br>
+                CompVis._graphの引数id_ctxに代入する必要があるため必須。<br>
+                詳しくは<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a><br><br>
+                以下のように使う。<br>
+                const element = document.getElementById('canvas'); <-- CompVis Editorではこれで取得する。<br>
+                const id_ctx = CompVis._create_canvas(element);<br>
+              </p>
+            </li>
+            <li>
+              <h3>CompVis._clear_canvas(id_ctx)</h3>
+              <p>
+                canvasに書かれた物を消す。<br>
+                詳しくは<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._graph(id_ctx,func,start,end,step,params)</h4>
+              <p>
+                グラフの初期描画を行う。詳しくは<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a><br>
+                <b>変更点:ver:1.02.03以降は、描画の値が共役な複素数になっていたものを修正しました。</b>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._re_graph(data)</h4>
+              <p>
+                グラフの再描画を行う。詳しくは<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a>
+              </p>
+            </li>
+            <li>
+              <h4>CompVis._draw_text(id_ctx,text,position,params)</h4>
+              <p>
+                Textの表示を行う。詳しくは<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a>
+              </p>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </main>
+    <script src="https://makeplayonline.onrender.com/Static/API/JS-Window/latest/JS-Window.js"></script>
+    <script>
+      let text = 'statics => '+CompVis._list[0].join(',')+'\nmethods => '+CompVis._list[1].join(',');
+      document.getElementById('divList').innerText = text;
+      let element = document.getElementById('API_URL');
+      function copy_func(copy_text){
+        if (navigator.clipboard) {
+          alert('クリップボードにコピーしました。');
+          return navigator.clipboard.writeText(copy_text);
+        }
+      }
+      element.addEventListener('click',()=>{
+        copy_func(element.innerText);
+      });
+    </script>
+  </body>
+        </html>
