@@ -7,7 +7,7 @@
     <style>
       a.anchor {
         color: inherit;
-        text-decoration: none;
+        text-decoration: underline;
       }
     </style>
   </head>
@@ -94,11 +94,10 @@
           </ul>
         </li>
       </ul>
-      <h2>ViewThreeクラスのメソッド一覧</h2>
+      <a href="#ViewThree" class="anchor"><h2>ViewThreeクラスのメソッド一覧</h2></a>
       <ul>
         <li>CompVis.ViewThree.showError(msg)</li>
-        <li>CompVis.ViewThree.makeLabel(text)</li>
-        <li>async CompVis.ViewThree.addGraoh(f, a, b, soan=100, option={})</li>
+        <li>async CompVis.ViewThree.addGraoh(f, a, b, span=100, option={})</li>
         <li>CompVis.ViewThree.animate()</li>
         <li>async CompVis.ViewThree.exec(callback)</li>
       </ul>
@@ -538,10 +537,9 @@ console.log(CompVis._Imag(l_c));
           </ul>
         </li>
       </ul>
-
       <ul>
         <li>
-          <h3 id="ViewThre">ViewThreeクラス</h3>
+          <h3 id="ViewThree">ViewThreeクラス</h3>
           <ul>
             <li>
               <h4>CompVis.ViewThree.showError(msg)</h4>
@@ -550,24 +548,80 @@ console.log(CompVis._Imag(l_c));
               </p>
             </li>
             <li>
-              <h4>CompVis.ViewThree.makeLabel(text)</h4>
+              <h4>async CompVis.ViewThree.addGraoh(f, a, b, span=100, option={})</h4>
               <p>
-                
+                グラフを描画。
+              </p>
+              <p>
+                <ul>
+                  <li>
+                    <h5>f: 描画する関数。</h5>
+                    &nbsp;指定の仕方は二種類<br>
+                    <ol>
+                      <li>
+                        <b>(x) => xの関数</b><br>
+                        xy平面上に描画する。<br>
+                        もちろん、変数名はx以外でもOK。
+                      </li>
+                      <li>
+                        <b>(t) => [X(t), Y(t), Z(t)]</b><br>
+                        媒介変数表示で描画する。<br>
+                        もちろん、変数名はt以外でもOK。
+                      </li>
+                    </ol>
+                  </li>
+                  <li>
+                    <h5>a・b: 変数の定義域(a→b)</h5>
+                  </li>
+                  <li>
+                    <h5>span: 変数をaからbに動かす際の、分割数(≒精度)</h5>
+                  </li>
+                </ul>
+                例:<br>
+                <textarea wrap="off" rows="5" style="width: 250px; overflow-x: scroll;" readonly>
+const view = new CompVis.ViewThree(elem);
+view.addGraph((t) => Math.sin(t),
+  -10*Math.PI, 10*Math.PI, 100,
+  { color: 0xff0000 }
+);
+</textarea>
               </p>
             </li>
             <li>
-              <h4>async CompVis.ViewThree.addGraoh(f, a, b, soan=100, option={})</h4>
+              <h4>CompVis.ViewThree.startAnimate()</h4>
               <p>
-                
+                Animationを停止する。<br>
+                <span style="color: green";>
+                  ※AnimationはViewThreeインスタンスが<br>
+                  作成された時点で実行されています。
+                </span><br>
+                つまり、後述のstopAnimate()を<br>
+                使用しない場合、このメソッドを<br>
+                実行することは(基本)ありません。<br>
+                <span style="color: red";>
+                  ※このメソッドと、後述のstopAnimate()を<br>
+                  使用する際は、必ずstart/stopAnimate<b>()</b>のように、<br>
+                  '()'を使用して実行してください。<br>
+                  でないと、正しく動作しない場合があります。<br>
+                </span>
+                例:&nbsp;&times;&nbsp;setTimeout(startAnimate, 1000);<br>
+                &nbsp;&nbsp;&#9675;&nbsp;setTimeout(() => startAnimate(), 1000);
               </p>
             </li>
             <li>
-              <h4>CompVis.ViewThree.animate()</h4>
+              <h4>CompVis.ViewThree.stopAnimate()</h4>
               <p>
-                
+                <span style="color: red;">
+                  前述のstartAnimate()の赤字を読んでください。
+                </span><br>
+                概要:&nbsp;startAnimate、stopAnimateの実行には<br>
+                必ずstart/stopAnimate<b>()</b>のように<br>
+                '()'を使用してください。
               </p>
             </li>
-        <li>async CompVis.ViewThree.exec(callback)</li>
+            <li>
+              <h4>async CompVis.ViewThree.exec(callback)</h4>
+            </li>
           </ul>
         </li>
       </ul>
