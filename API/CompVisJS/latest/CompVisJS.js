@@ -847,7 +847,7 @@ CompVis.ViewThree = class {
     this.globalMaxDistance = 10; // ★重要: 初期値を0にしない（グリッドを出すため）
 
     // 初期化開始
-    this.initPromise = this.init().catch(err => this.showError("Init Error: " + err.message));
+    this.initPromise = this.#init().catch(err => this.showError("Init Error: " + err.message));
   }
 
   showError(msg) {
@@ -856,7 +856,7 @@ CompVis.ViewThree = class {
     this.errorContainer.innerHTML += `<div>${msg}</div>`;
   }
 
-  async init() {
+  async #init() {
     // 依存関係のロード
     const v = '0.152.2';
     const urls = {
@@ -877,13 +877,13 @@ CompVis.ViewThree = class {
       this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer;
       this.modules.CSS2DObject = css2dModule.CSS2DObject;
 
-      this.initScene();
+      this.#initScene();
     } catch (e) {
       throw new Error(`Failed to load Three.js libraries. Check internet connection. (${e.message})`);
     }
   }
 
-  initScene() {
+  #initScene() {
     try {
       const THREE = this.modules.three;
       const OrbitControls = this.modules.OrbitControls;
@@ -938,10 +938,10 @@ CompVis.ViewThree = class {
       this.scene.add(this.axisGroup);
 
       // ★初期描画: 何もグラフがなくてもとりあえずグリッドを描く
-      this.updateAxesAndGrid();
+      this.#updateAxesAndGrid();
 
       // リサイズイベント
-      window.addEventListener("resize", () => this.onResize());
+      window.addEventListener("resize", () => this.#onResize());
 
       // アニメーション開始
       this.animate();
@@ -951,7 +951,7 @@ CompVis.ViewThree = class {
     }
   }
 
-  onResize() {
+  #onResize() {
     if (!this.camera || !this.renderer) return;
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
@@ -972,7 +972,7 @@ CompVis.ViewThree = class {
     return new CSS2DObject(div);
   }
 
-  calcNiceStep(range) {
+  #calcNiceStep(range) {
     if (range <= 0) return 1;
     const exponent = Math.floor(Math.log10(range));
     const fraction = range / Math.pow(10, exponent);
@@ -984,7 +984,7 @@ CompVis.ViewThree = class {
     return niceFraction * Math.pow(10, exponent);
   }
 
-  create2DGrid(size, step, plane) {
+  #create2DGrid(size, step, plane) {
     const THREE = this.modules.three;
     const points = [];
     const n = Math.ceil(size / step);
@@ -1012,7 +1012,7 @@ CompVis.ViewThree = class {
     return new THREE.LineSegments(geometry, material);
   }
 
-  updateAxesAndGrid() {
+  #updateAxesAndGrid() {
     try {
       if (!this.axisGroup || !this.modules.three) return;
       const THREE = this.modules.three;
@@ -1021,7 +1021,7 @@ CompVis.ViewThree = class {
 
       // グラフがない場合でも最低限のサイズ(10)を確保
       const range = Math.max(10, this.globalMaxDistance);
-      const step = this.calcNiceStep(range / 2); // 目盛りの間隔
+      const step = this.#calcNiceStep(range / 2); // 目盛りの間隔
       const size = Math.ceil(range / step) * step; // グリッド全体のサイズ
 
       // 軸を描画 (X:赤, Y:緑, Z:青)
@@ -1060,9 +1060,9 @@ CompVis.ViewThree = class {
       }
 
       // グリッド描画 (XZ平面、XY平面、YZ平面)
-      this.axisGroup.add(this.create2DGrid(size, step, "XZ"));
-      this.axisGroup.add(this.create2DGrid(size, step, "XY"));
-      this.axisGroup.add(this.create2DGrid(size, step, "YZ"));
+      this.axisGroup.add(this.#create2DGrid(size, step, "XZ"));
+      this.axisGroup.add(this.#create2DGrid(size, step, "XY"));
+      this.axisGroup.add(this.#create2DGrid(size, step, "YZ"));
 
     } catch (e) {
       this.showError("Grid Update Error: " + e.message);
@@ -1113,7 +1113,7 @@ CompVis.ViewThree = class {
       // グリッド範囲の自動更新
       if (localMax > this.globalMaxDistance) {
         this.globalMaxDistance = localMax;
-        this.updateAxesAndGrid();
+        this.#updateAxesAndGrid();
         
         // カメラ自動調整 (オプションでオフに可能)
         if (!options.disableAutoCamera) {
@@ -1134,27 +1134,25 @@ CompVis.ViewThree = class {
   animate() {
     // requestAnimationFrame自体がエラーを起こすとループが止まらないのでtry-catchする
     requestAnimationFrame(() => {
-        try {
-            this.animateInner();
-            this.animate();
-        } catch(e) {
-            // アニメーションループ内でのエラーは致命的なので一度だけ表示してループを止めるなどの処置が望ましいが
-            // ここでは簡易的にshowErrorする(ただし連打される可能性あり)
-            if(!this.hasAnimationError) {
-                this.showError("Animation Error: " + e.message);
-                this.hasAnimationError = true;
-            }
+      try {
+        if(this.hasArnimationError) return;
+        this.#animateInner();
+        this.animate();
+      } catch(e) {
+        if(!this.hasAnimationError) {
+          this.showError("Animation Error: " + e.message);
+          this.hasAnimationError = true;
         }
+      }
     });
   }
 
-  animateInner() {
+  #animateInner() {
     if (this.hasAnimationError) return;
     if (this.controls) this.controls.update();
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
       this.labelRenderer.render(this.scene, this.camera);
-      //console.log("render")
     }
   }
   
