@@ -798,349 +798,369 @@ CompVis.View = class {
 
 CompVis.ViewThree = class {
   constructor(container, options = {}) {
-    this.container = container; // divを受け取る
+    this.container = container;
+    this.options = options;
 
+    // --- エラー表示用のコンテナ作成 ---
+    this.errorContainer = document.createElement("div");
+    Object.assign(this.errorContainer.style, {
+      position: "absolute", top: "0", left: "0", width: "100%",
+      zIndex: "1000", pointerEvents: "none", color: "red",
+      backgroundColor: "rgba(0,0,0,0.8)", padding: "10px", display: "none"
+    });
+    this.container.appendChild(this.errorContainer);
+
+    // --- コンテナのスタイル強制 ---
     const computedStyle = window.getComputedStyle(this.container);
-    if (computedStyle.getPropertyValue("height") === "0px" && !(options.zeroHeight ?? false)) {
-      this.container.style.width = "300px";
-      this.container.style.height = "150px";
+    if ((!this.container.style.height || computedStyle.height === "0px") && !(options.zeroHeight ?? false)) {
+      this.container.style.width = "100%";
+      this.container.style.height = "400px";
     }
-
-    this.labelDown = options.labelDown || 0;
-    this.labelSize = options.labelSize || "8px";
-
-    // カメラ初期設定（optionsから指定可能）
-    this.initialCameraPosition = options.cameraPosition || { x: 10, y: 10, z: 10 };
-    this.initialCameraTarget = options.cameraTarget || { x: 0, y: 0, z: 0 };
-
-    // containerを重ね合わせ可能に
     this.container.style.position = "relative";
     this.container.style.overflow = "hidden";
+    this.container.style.backgroundColor = "#222"; // ロード前から黒くする
+
+    // --- 設定値 ---
+    this.labelDown = options.labelDown || 0;
+    this.labelSize = options.labelSize || "12px";
+    this.initialCameraPosition = options.cameraPosition || { x: 15, y: 15, z: 15 }; // 少し引き気味に
+    this.initialCameraTarget = options.cameraTarget || { x: 0, y: 0, z: 0 };
 
     this.modules = {};
-    this.ready = this.init();
+    this.graphs = [];
+    this.axisGroup = null;
+    this.globalMaxDistance = 10; // ★重要: 初期値を0にしない（グリッドを出すため）
+
+    // 初期化開始
+    this.initPromise = this.init().catch(err => this.showError("Init Error: " + err.message));
+  }
+
+  showError(msg) {
+    console.error(msg);
+    this.errorContainer.style.display = "block";
+    this.errorContainer.innerHTML += `<div>${msg}</div>`;
   }
 
   async init() {
+    // 依存関係のロード
+    const v = '0.152.2';
     const urls = {
-      three: "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
-      OrbitControls: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
-      CSS2DRenderer: "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
+      three: `https://esm.sh/three@${v}`,
+      OrbitControls: `https://esm.sh/three@${v}/examples/jsm/controls/OrbitControls.js?deps=three@${v}`,
+      CSS2DRenderer: `https://esm.sh/three@${v}/examples/jsm/renderers/CSS2DRenderer.js?deps=three@${v}`
     };
 
-    this.modules.three = await import(urls.three);
+    try {
+      const [threeModule, orbitModule, css2dModule] = await Promise.all([
+        import(urls.three),
+        import(urls.OrbitControls),
+        import(urls.CSS2DRenderer)
+      ]);
 
-    const loadJSMWithInjectedThree = async (url) => {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch " + url + " : " + res.status);
-      let src = await res.text();
-      src = src.replace(/import\s+\{([^}]+)\}\s+from\s+['"]three['"];?/g, (m, p1) => `const { ${p1.trim()} } = THREE;`);
-      src = src.replace(/import\s+[^;]+;?/g, (m) => `// ${m.replace(/\n/g, "")}`);
-      src = src.replace(/export\s*\{\s*([^}]+)\s*\}\s*;?/g, (m, p1) =>
-        p1.split(",").map(s => s.trim()).filter(Boolean).map(name => `exports.${name} = ${name};`).join("\n")
-      );
-      src = src.replace(/export\s+default\s+/g, "exports.default = ");
-      const exportedAdded = [];
-      src = src.replace(/export\s+class\s+([A-Za-z0-9_]+)/g, (m, name) => { exportedAdded.push(name); return `class ${name}`; });
-      src = src.replace(/export\s+function\s+([A-Za-z0-9_]+)/g, (m, name) => { exportedAdded.push(name); return `function ${name}`; });
-      const postfix = exportedAdded.map(n => `exports.${n} = ${n};`).join("\n") + "\nreturn exports;";
-      const wrappedSrc = `${src}\n${postfix}`;
-      const moduleFactory = new Function("exports", "THREE", wrappedSrc);
-      const exports = {};
-      return moduleFactory(exports, this.modules.three);
-    };
+      this.modules.three = threeModule;
+      this.modules.OrbitControls = orbitModule.OrbitControls;
+      this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer;
+      this.modules.CSS2DObject = css2dModule.CSS2DObject;
 
-    const orbitModule = await loadJSMWithInjectedThree(urls.OrbitControls);
-    this.modules.OrbitControls = orbitModule.OrbitControls || orbitModule.default || orbitModule;
-
-    const css2dModule = await loadJSMWithInjectedThree(urls.CSS2DRenderer);
-    this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer || css2dModule.default || css2dModule;
-    this.modules.CSS2DObject = css2dModule.CSS2DObject || null;
-
-    this.initScene();
+      this.initScene();
+    } catch (e) {
+      throw new Error(`Failed to load Three.js libraries. Check internet connection. (${e.message})`);
+    }
   }
 
   initScene() {
-    const THREE = this.modules.three;
-    const OrbitControls = this.modules.OrbitControls;
-    const CSS2DRenderer = this.modules.CSS2DRenderer;
+    try {
+      const THREE = this.modules.three;
+      const OrbitControls = this.modules.OrbitControls;
+      const CSS2DRenderer = this.modules.CSS2DRenderer;
+      
+      // シーン
+      this.scene = new THREE.Scene();
+      this.scene.background = new THREE.Color(0x222222);
 
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(
-      45,
-      Math.max(1, this.container.clientWidth) / Math.max(1, this.container.clientHeight),
-      0.1,
-      5000
-    );
+      // カメラ
+      const w = this.container.clientWidth;
+      const h = this.container.clientHeight;
+      this.camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
+      this.camera.position.set(
+        this.initialCameraPosition.x,
+        this.initialCameraPosition.y,
+        this.initialCameraPosition.z
+      );
+      this.camera.lookAt(new THREE.Vector3(0,0,0));
 
-    // options で指定された初期位置にカメラを移動
-    this.camera.position.set(
-      this.initialCameraPosition.x,
-      this.initialCameraPosition.y,
-      this.initialCameraPosition.z
-    );
+      // WebGL Renderer
+      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      this.renderer.setSize(w, h);
+      this.renderer.setPixelRatio(window.devicePixelRatio);
+      Object.assign(this.renderer.domElement.style, { position: "absolute", top: "0", left: "0" });
+      this.container.appendChild(this.renderer.domElement);
 
-    // 親 container を positioned に
-    const cs = getComputedStyle(this.container);
-    if (cs.position === "static") this.container.style.position = "relative";
+      // Label Renderer
+      this.labelRenderer = new CSS2DRenderer();
+      this.labelRenderer.setSize(w, h);
+      Object.assign(this.labelRenderer.domElement.style, {
+        position: "absolute",
+        top: "0",
+        left: "0",
+        pointerEvents: "none", // クリックを透過させる
+      });
+      this.container.appendChild(this.labelRenderer.domElement);
 
-    // canvas 作成
-    this.canvas = document.createElement("canvas");
-    this.canvas.style.position = "absolute";
-    this.canvas.style.top = "0";
-    this.canvas.style.left = "0";
-    this.canvas.style.display = "block";
-    this.canvas.style.margin = "0";
-    this.canvas.style.padding = "0";
-    this.canvas.style.border = "0";
-    this.canvas.style.boxSizing = "border-box";
-    this.container.appendChild(this.canvas);
+      // Controls (OrbitControlsはWebGLRendererのキャンバスでイベントを受け取る)
+      this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+      this.controls.target.set(this.initialCameraTarget.x, this.initialCameraTarget.y, this.initialCameraTarget.z);
+      this.controls.update();
 
-    const dpr = window.devicePixelRatio || 1;
-    const w = Math.max(1, Math.floor(this.container.clientWidth));
-    const h = Math.max(1, Math.floor(this.container.clientHeight));
+      // ライト
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      dirLight.position.set(15, 20, 15);
+      this.scene.add(dirLight);
+      this.scene.add(new THREE.AmbientLight(0x888888));
 
-    this.canvas.width = Math.floor(w * dpr);
-    this.canvas.height = Math.floor(h * dpr);
-    this.canvas.style.width = w + "px";
-    this.canvas.style.height = h + "px";
+      // グループ作成
+      this.axisGroup = new THREE.Group();
+      this.scene.add(this.axisGroup);
 
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-    this.renderer.setPixelRatio(dpr);
-    this.renderer.setSize(w, h, false);
+      // ★初期描画: 何もグラフがなくてもとりあえずグリッドを描く
+      this.updateAxesAndGrid();
 
-    this.labelRenderer = new CSS2DRenderer();
-    this.labelRenderer.setSize(w, h);
-    const lr = this.labelRenderer.domElement;
-    lr.style.position = "absolute";
-    lr.style.top = "0";
-    lr.style.left = "0";
-    lr.style.width = w + "px";
-    lr.style.height = h + "px";
-    lr.style.margin = "0";
-    lr.style.padding = "0";
-    lr.style.border = "0";
-    lr.style.boxSizing = "border-box";
-    this.container.appendChild(lr);
+      // リサイズイベント
+      window.addEventListener("resize", () => this.onResize());
 
-    this.controls = new OrbitControls(this.camera, lr);
-    this.controls.target.set(
-      this.initialCameraTarget.x,
-      this.initialCameraTarget.y,
-      this.initialCameraTarget.z
-    );
-    this.controls.update();
+      // アニメーション開始
+      this.animate();
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(10, 10, 10);
-    this.scene.add(dirLight);
-    this.scene.add(new THREE.AmbientLight(0x666666));
-
-    this.graphs = [];
-    this.axisGroup = new THREE.Group();
-    this.scene.add(this.axisGroup);
-
-    this.globalMaxDistance = 0;
-
-    window.addEventListener("resize", () => this.onResize());
-    this.animate();
+    } catch (e) {
+      this.showError("Scene Setup Error: " + e.message);
+    }
   }
 
   onResize() {
-    const w = Math.max(1, Math.floor(this.container.clientWidth));
-    const h = Math.max(1, Math.floor(this.container.clientHeight));
-    const dpr = window.devicePixelRatio || 1;
-
+    if (!this.camera || !this.renderer) return;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-
-    this.canvas.width = Math.floor(w * dpr);
-    this.canvas.height = Math.floor(h * dpr);
-    this.canvas.style.width = w + "px";
-    this.canvas.style.height = h + "px";
-
-    this.renderer.setPixelRatio(dpr);
-    this.renderer.setSize(w, h, false);
-
+    this.renderer.setSize(w, h);
     this.labelRenderer.setSize(w, h);
-    const lr = this.labelRenderer.domElement;
-    lr.style.width = w + "px";
-    lr.style.height = h + "px";
   }
 
   makeLabel(text) {
     const CSS2DObject = this.modules.CSS2DObject;
     const div = document.createElement("div");
-    div.className = "label";
-    div.style.color = "white";
+    div.style.color = "#aaaaaa";
     div.style.fontSize = this.labelSize;
-    div.style.userSelect = "none";
+    div.style.fontFamily = "sans-serif";
     div.textContent = text;
+    div.style.userSelect = "none";
     return new CSS2DObject(div);
   }
 
-  calcNiceStep(maxDistance) {
-    if (maxDistance === 0) return 1;
-    let exponent = Math.floor(Math.log10(maxDistance));
-    const fraction = maxDistance / Math.pow(10, exponent);
-    let niceInd;
-    if (fraction <= 1) niceInd = 0;
-    else if (fraction <= 2) niceInd = 1;
-    else if (fraction <= 5) niceInd = 2;
-    else niceInd = 3;
-
-    const niceFractions = [1, 2, 5, 10];
-    niceInd -= this.labelDown + 2;
-
-    while (niceInd < 0) {
-      niceInd += 4;
-      exponent -= 1;
-    }
-
-    const niceFraction = niceFractions[niceInd];
+  calcNiceStep(range) {
+    if (range <= 0) return 1;
+    const exponent = Math.floor(Math.log10(range));
+    const fraction = range / Math.pow(10, exponent);
+    let niceFraction;
+    if (fraction <= 1) niceFraction = 1;
+    else if (fraction <= 2) niceFraction = 2;
+    else if (fraction <= 5) niceFraction = 5;
+    else niceFraction = 10;
     return niceFraction * Math.pow(10, exponent);
   }
 
   create2DGrid(size, step, plane) {
     const THREE = this.modules.three;
-
-    const gridGroup = new THREE.Group();
-    const material = new THREE.LineBasicMaterial({ color: 0x444444 });
+    const points = [];
     const n = Math.ceil(size / step);
-
+    
+    // グリッド線の座標を計算
     for (let i = -n; i <= n; i++) {
-      const pos = i * step;
-      let line1, line2;
-      switch (plane) {
-        case "XZ":
-          line1 = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-size, 0, pos), new THREE.Vector3(size, 0, pos)]),
-            material
-          );
-          line2 = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(pos, 0, -size), new THREE.Vector3(pos, 0, size)]),
-            material
-          );
-          break;
-        case "XY":
-          line1 = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-size, pos, 0), new THREE.Vector3(size, pos, 0)]),
-            material
-          );
-          line2 = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(pos, -size, 0), new THREE.Vector3(pos, size, 0)]),
-            material
-          );
-          break;
-        case "YZ":
-          line1 = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -size, pos), new THREE.Vector3(0, size, pos)]),
-            material
-          );
-          line2 = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, pos, -size), new THREE.Vector3(0, pos, size)]),
-            material
-          );
-          break;
+      const val = i * step;
+      // 範囲外にはみ出す線はカットしてもよいが、簡易的にすべて描画
+      if (plane === "XZ") {
+        points.push(-size, 0, val, size, 0, val); // 横線
+        points.push(val, 0, -size, val, 0, size); // 縦線
+      } else if (plane === "XY") {
+        points.push(-size, val, 0, size, val, 0);
+        points.push(val, -size, 0, val, size, 0);
+      } else if (plane === "YZ") {
+        points.push(0, -size, val, 0, size, val);
+        points.push(0, val, -size, 0, val, size);
       }
-      gridGroup.add(line1);
-      gridGroup.add(line2);
     }
 
-    return gridGroup;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+    // 透明度のある線にする
+    const material = new THREE.LineBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.3 });
+    return new THREE.LineSegments(geometry, material);
   }
 
   updateAxesAndGrid() {
-    const THREE = this.modules.three;
+    try {
+      if (!this.axisGroup || !this.modules.three) return;
+      const THREE = this.modules.three;
+      
+      this.axisGroup.clear(); // 既存のオブジェクトを削除
 
-    this.axisGroup.clear();
-    const step = this.calcNiceStep(this.globalMaxDistance);
+      // グラフがない場合でも最低限のサイズ(10)を確保
+      const range = Math.max(10, this.globalMaxDistance);
+      const step = this.calcNiceStep(range / 2); // 目盛りの間隔
+      const size = Math.ceil(range / step) * step; // グリッド全体のサイズ
 
-    const maxD = Math.ceil(this.globalMaxDistance / step) * step;
+      // 軸を描画 (X:赤, Y:緑, Z:青)
+      const axesData = [
+        { end: [size, 0, 0], color: 0xff4444, text: "X" },
+        { end: [0, size, 0], color: 0x44ff44, text: "Y" },
+        { end: [0, 0, size], color: 0x4444ff, text: "Z" }
+      ];
 
-    const axes = [
-      { from: new THREE.Vector3(-maxD, 0, 0), to: new THREE.Vector3(maxD, 0, 0), color: 0xff0000, name: "X" },
-      { from: new THREE.Vector3(0, -maxD, 0), to: new THREE.Vector3(0, maxD, 0), color: 0x00ff00, name: "Y" },
-      { from: new THREE.Vector3(0, 0, -maxD), to: new THREE.Vector3(0, 0, maxD), color: 0x0000ff, name: "Z" }
-    ];
+      axesData.forEach(ax => {
+        // 軸線
+        const points = [0, 0, 0, ...ax.end];
+        const geo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+        const mat = new THREE.LineBasicMaterial({ color: ax.color, linewidth: 2 });
+        this.axisGroup.add(new THREE.Line(geo, mat));
 
-    for (let ax of axes) {
-      const geom = new THREE.BufferGeometry().setFromPoints([ax.from, ax.to]);
-      const mat = new THREE.LineBasicMaterial({ color: ax.color, linewidth: 2 });
-      this.axisGroup.add(new THREE.Line(geom, mat));
+        // 軸ラベル
+        const label = this.makeLabel(ax.text);
+        label.position.set(ax.end[0] * 1.05, ax.end[1] * 1.05, ax.end[2] * 1.05);
+        this.axisGroup.add(label);
+      });
 
-      const nameLabel = this.makeLabel(ax.name);
-      nameLabel.position.copy(ax.to);
-      this.axisGroup.add(nameLabel);
-
-      for (let i = -Math.ceil(maxD / step); i <= Math.ceil(maxD / step); i++) {
+      // 目盛り数値の描画
+      const count = Math.ceil(size / step);
+      for (let i = -count; i <= count; i++) {
+        if (i === 0) continue; // 原点はスキップ
         const v = i * step;
-        const absV = Math.abs(v);
-        let strV;
-        if (absV == 0) strV = "0";
-        else if (absV >= 1e4 || absV <= 1e-3) strV = v.toExponential(2);
-        else strV = parseFloat(v.toFixed(6)).toString();
-
-        const lbl = this.makeLabel(strV);
-        switch (ax.name) {
-          case "X": lbl.position.set(v, 0, 0); break;
-          case "Y": lbl.position.set(0, v, 0); break;
-          case "Z": lbl.position.set(0, 0, v); break;
-        }
-        this.axisGroup.add(lbl);
+        const txt = (Math.abs(v) < 0.0001 || Math.abs(v) > 10000) ? v.toExponential(1) : parseFloat(v.toFixed(4));
+        
+        // X軸上の目盛り
+        let l = this.makeLabel(txt); l.position.set(v, 0, 0); this.axisGroup.add(l);
+        // Y軸上の目盛り
+        l = this.makeLabel(txt); l.position.set(0, v, 0); this.axisGroup.add(l);
+        // Z軸上の目盛り
+        l = this.makeLabel(txt); l.position.set(0, 0, v); this.axisGroup.add(l);
       }
-    }
 
-    this.axisGroup.add(this.create2DGrid(maxD, step, "XZ"));
-    this.axisGroup.add(this.create2DGrid(maxD, step, "XY"));
-    this.axisGroup.add(this.create2DGrid(maxD, step, "YZ"));
+      // グリッド描画 (XZ平面、XY平面、YZ平面)
+      this.axisGroup.add(this.create2DGrid(size, step, "XZ"));
+      this.axisGroup.add(this.create2DGrid(size, step, "XY"));
+      this.axisGroup.add(this.create2DGrid(size, step, "YZ"));
+
+    } catch (e) {
+      this.showError("Grid Update Error: " + e.message);
+    }
   }
 
-  addGraph(f, a, b, span = 100, options = {}) {
-    const THREE = this.modules.three;
+  async addGraph(f, a, b, span = 100, options = {}) {
+    try {
+      await this.initPromise; // 初期化待ち
+      const THREE = this.modules.three;
 
-    const points = [];
-    let localMaxDistance = 0;
+      const points = [];
+      let localMax = 0;
 
-    for (let i = 0; i <= span; i++) {
-      const t = a + ((b - a) * i) / span;
-      let res;
-      try { res = f(t); } catch { continue; }
+      for (let i = 0; i <= span; i++) {
+        const t = a + ((b - a) * i) / span;
+        let val;
+        try { val = f(t); } catch { continue; }
 
-      let vec;
-      if (Array.isArray(res) && res.length >= 3) vec = new THREE.Vector3(res[0], res[1], res[2]);
-      else if (typeof res === "number") vec = new THREE.Vector3(t, res, 0);
+        let x, y, z;
+        if (Array.isArray(val) && val.length >= 3) {
+          [x, y, z] = val;
+        } else if (typeof val === "number") {
+          x = t; y = val; z = 0;
+        } else {
+          continue;
+        }
 
-      points.push(vec);
-      localMaxDistance = Math.max(localMaxDistance, Math.abs(vec.x), Math.abs(vec.y), Math.abs(vec.z));
+        if (isNaN(x) || isNaN(y) || isNaN(z)) continue;
+
+        points.push(x, y, z);
+        localMax = Math.max(localMax, Math.abs(x), Math.abs(y), Math.abs(z));
+      }
+
+      if (points.length === 0) {
+        console.warn("No valid points generated for graph.");
+        return null;
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+      const material = new THREE.LineBasicMaterial({ color: options.color || 0x00ffff, linewidth: 2 });
+      const line = new THREE.Line(geometry, material);
+
+      this.scene.add(line);
+      this.graphs.push(line);
+
+      // グリッド範囲の自動更新
+      if (localMax > this.globalMaxDistance) {
+        this.globalMaxDistance = localMax;
+        this.updateAxesAndGrid();
+        
+        // カメラ自動調整 (オプションでオフに可能)
+        if (!options.disableAutoCamera) {
+             // カメラのターゲットは変えずに、距離だけ離す
+             const vec = new THREE.Vector3().copy(this.camera.position).normalize();
+             const dist = Math.max(20, this.globalMaxDistance * 2); 
+             this.camera.position.copy(vec.multiplyScalar(dist));
+             this.controls.update();
+        }
+      }
+
+      return line;
+    } catch (e) {
+      this.showError("Add Graph Error: " + e.message);
     }
-
-    const geom = new THREE.BufferGeometry().setFromPoints(points);
-    const mat = new THREE.LineBasicMaterial({ color: options.color || 0x00ffff, linewidth: 3 });
-    const line = new THREE.Line(geom, mat);
-    this.scene.add(line);
-    this.graphs.push(line);
-
-    this.globalMaxDistance = Math.max(this.globalMaxDistance, localMaxDistance);
-
-    this.updateAxesAndGrid();
-    this.controls.target.set(0, 0, 0);
-    this.camera.position.set(
-      this.globalMaxDistance + 5,
-      this.globalMaxDistance + 5,
-      this.globalMaxDistance + 5
-    );
-
-    return line;
   }
 
   animate() {
-    requestAnimationFrame(() => this.animate());
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
-    this.labelRenderer.render(this.scene, this.camera);
+    // requestAnimationFrame自体がエラーを起こすとループが止まらないのでtry-catchする
+    requestAnimationFrame(() => {
+        try {
+            this.animateInner();
+            this.animate();
+        } catch(e) {
+            // アニメーションループ内でのエラーは致命的なので一度だけ表示してループを止めるなどの処置が望ましいが
+            // ここでは簡易的にshowErrorする(ただし連打される可能性あり)
+            if(!this.hasAnimationError) {
+                this.showError("Animation Error: " + e.message);
+                this.hasAnimationError = true;
+            }
+        }
+    });
   }
-};
+
+  animateInner() {
+    if (this.hasAnimationError) return;
+    if (this.controls) this.controls.update();
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+      this.labelRenderer.render(this.scene, this.camera);
+      //console.log("render")
+    }
+  }
+  
+  async exec(callback) {
+    try {
+      // 初期化が完了するのを待つ
+      await this.initPromise;
+      const THREE = this.modules.three;
+      // コールバック関数に必要な主要オブジェクトを渡して実行
+      // nullチェックをして、オブジェクトが揃っているか確認
+      if (THREE && this.scene && this.camera && this.renderer && this.controls) {
+        callback(THREE, this.scene, this.camera, this.renderer, this.controls);
+      } else {
+        console.warn("ViewThree is initialized, but some core objects (scene/camera/renderer/controls) are missing.");
+      }
+    } catch (e) {
+      this.showError("Exec Method Error: " + e.message);
+      console.error("Exec Method Error:", e);
+    }
+  }
+}
 
 CompVis.Matrix = class {
   constructor (A = [[0]]){
