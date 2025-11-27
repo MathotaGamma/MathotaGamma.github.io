@@ -17,7 +17,9 @@
       <button onclick='window.location.href="/"'>Home</button>
       <button onclick='window.location.href="../home"'>API Home</button>
     </div>
-    APIのURLは(クリックでコピー -->)<b><span id="API_URL" style="color: blue;">https://makeplayonline.onrender.com/Static/API/CompVisJS/latest/CompVisJS.js</span></b>です。
+    <p>
+      APIのURLは(クリックでコピー -->)<b><span id="API_URL" style="color: blue;">https://makeplayonline.onrender.com/Static/API/CompVisJS/latest/CompVisJS.js</span></b>です。
+    </p>
     <main>
       <p>
         Web版のEditorは<a href="./Editor">こちら</a><br>
@@ -37,7 +39,7 @@
           <li>l2 : lを要素とする配列</li>
         </ul>
         verが書いてあるものは、そのverで追加、削除、変更のあったもの。<br>
-        追加は「 <- new ver:~~」、削除は取り消し線と「 <- ver:~~」、変更は「 - ver:~~ -」または「 - ver:~~ ->」で表す。
+        追加は「 &lt;- new ver:~~」、削除は取り消し線と「 &lt;- ver:~~」、変更は「 - ver:~~ -」または「 - ver:~~ -&gt;」で表す。
       </p>
       <ul>
         <li>
@@ -91,6 +93,15 @@
             <li>CompVis._draw_text(id_ctx,text,position,params) <- new ver:1.02.04</li>
           </ul>
         </li>
+      </ul>
+      <h2>ViewThreeクラスのメソッド一覧</h2>
+      <ul>
+        <li>CompVis.ViewThree.showError(msg)</li>
+        <li>CompVis.ViewThree.onResize()</li>
+        <li>CompVis.ViewThree.makeLabel(text)</li>
+        <li>async CompVis.ViewThree.addGraoh(f, a, b, soan=100, option={})</li>
+        <li>CompVis.ViewThree.animate()</li>
+        <li>async CompVis.ViewThree.exec(callback)</li>
       </ul>
       <h2>Matrixクラスのメソッド一覧</h2>
       <ul>
@@ -486,7 +497,7 @@ console.log(CompVis._Imag(l_c));
         </li>
         <li>
           <h3 id="graph">Graph関連</h3>
-          <span style="color: red;"><b>Graphの詳しい説明は<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a></b></span>
+          <!--<span style="color: red;"><b>Graphの詳しい説明は<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a></b></span>-->
           <ul>
             <li>
               <h3>CompVis._create_canvas(element)</h3>
@@ -529,6 +540,7 @@ console.log(CompVis._Imag(l_c));
         </li>
       </ul>
     </main>
+
     <script src="https://makeplayonline.onrender.com/Static/API/JS-Window/latest/JS-Window.js"></script>
     <script>
       let text = 'statics => '+CompVis._list[0].join(',')+'\nmethods => '+CompVis._list[1].join(',');
@@ -545,4 +557,4 @@ console.log(CompVis._Imag(l_c));
       });
     </script>
   </body>
-        </html>
+</html>
