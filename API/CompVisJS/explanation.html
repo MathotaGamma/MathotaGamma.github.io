@@ -97,7 +97,6 @@
       <h2>ViewThreeクラスのメソッド一覧</h2>
       <ul>
         <li>CompVis.ViewThree.showError(msg)</li>
-        <li>CompVis.ViewThree.onResize()</li>
         <li>CompVis.ViewThree.makeLabel(text)</li>
         <li>async CompVis.ViewThree.addGraoh(f, a, b, soan=100, option={})</li>
         <li>CompVis.ViewThree.animate()</li>
@@ -500,7 +499,7 @@ console.log(CompVis._Imag(l_c));
           <!--<span style="color: red;"><b>Graphの詳しい説明は<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a></b></span>-->
           <ul>
             <li>
-              <h3>CompVis._create_canvas(element)</h3>
+              <h4>CompVis._create_canvas(element)</h4>
               <p>
                 canvasのelementとelement.getContext("2d");の配列を返す。<br>
                 CompVis._graphの引数id_ctxに代入する必要があるため必須。<br>
@@ -511,7 +510,7 @@ console.log(CompVis._Imag(l_c));
               </p>
             </li>
             <li>
-              <h3>CompVis._clear_canvas(id_ctx)</h3>
+              <h4>CompVis._clear_canvas(id_ctx)</h4>
               <p>
                 canvasに書かれた物を消す。<br>
                 詳しくは<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a>
@@ -536,6 +535,39 @@ console.log(CompVis._Imag(l_c));
                 Textの表示を行う。詳しくは<a href="https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation_graph" target="_blank">こちら</a>
               </p>
             </li>
+          </ul>
+        </li>
+      </ul>
+
+      <ul>
+        <li>
+          <h3 id="ViewThre">ViewThreeクラス</h3>
+          <ul>
+            <li>
+              <h4>CompVis.ViewThree.showError(msg)</h4>
+              <p>
+                div(canvas)上部に赤字で表示する。
+              </p>
+            </li>
+            <li>
+              <h4>CompVis.ViewThree.makeLabel(text)</h4>
+              <p>
+                
+              </p>
+            </li>
+            <li>
+              <h4>async CompVis.ViewThree.addGraoh(f, a, b, soan=100, option={})</h4>
+              <p>
+                
+              </p>
+            </li>
+            <li>
+              <h4>CompVis.ViewThree.animate()</h4>
+              <p>
+                
+              </p>
+            </li>
+        <li>async CompVis.ViewThree.exec(callback)</li>
           </ul>
         </li>
       </ul>
