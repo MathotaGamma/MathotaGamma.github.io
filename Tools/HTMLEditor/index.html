@@ -104,6 +104,7 @@
         <button id="copy-code">📋 コード全文コピー</button>
         <button id="save-code">💾 保存</button>
         <button id="load-code">📂 読み込み</button>
+        <label>⬜︎ space:<input type="number" id="space-num" value="2"></label>
       </div>
       <textarea id="editor"><!DOCTYPE html>
 <html lang="ja">
@@ -139,6 +140,8 @@
       const copyCodeBtn = document.getElementById("copy-code");
       const saveBtn = document.getElementById("save-code");
       const loadBtn = document.getElementById("load-code");
+
+      const spaceInp = document.getElemenyById("space-num");
 
       const STORAGE_KEY = "HTMLEditor_code";
 
@@ -177,7 +180,11 @@
         }
       });
 
-      const INDENT = "    ";
+      let INDENT = "  ";
+
+      spaceInp.addEventListener("change", (e) => {
+        INDENT = " ".repeat(parseInt(space.Inp.value));
+      }
 
       editor.addEventListener("keydown", (e) => {
         const val = editor.value;
