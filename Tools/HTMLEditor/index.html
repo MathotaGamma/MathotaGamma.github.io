@@ -184,6 +184,8 @@
 
       spaceInp.addEventListener("input", (e) => {
         INDENT = " ".repeat(parseInt(space.Inp.value));
+        alert(parseInt(space.Inp.value));
+        alert(INDENT.length);
       });
 
       editor.addEventListener("keydown", (e) => {
