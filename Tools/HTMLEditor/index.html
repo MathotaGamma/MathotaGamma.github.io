@@ -183,6 +183,7 @@
       let INDENT = "  ";
 
       spaceInp.addEventListener("input", (e) => {
+        if(!parseInt(space.Inp.value).isInteger || parseInt(space.Inp.value) < 1) return;
         INDENT = " ".repeat(parseInt(space.Inp.value));
         alert(parseInt(space.Inp.value));
         alert(INDENT.length);
