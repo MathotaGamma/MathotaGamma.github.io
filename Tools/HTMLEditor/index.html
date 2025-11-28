@@ -183,10 +183,8 @@
       let INDENT = "  ";
 
       spaceInp.addEventListener("input", (e) => {
-        if(!Number.isInteger(parseInt(space.Inp.value)) || parseInt(space.Inp.value) < 1) return;
-        INDENT = " ".repeat(parseInt(space.Inp.value));
-        alert(parseInt(space.Inp.value));
-        alert(INDENT.length);
+        if(!Number.isInteger(parseInt(spaceInp.value)) || parseInt(spaceInp.value) < 1) return;
+        INDENT = " ".repeat(parseInt(spaceInp.value));
       });
 
       editor.addEventListener("keydown", (e) => {
