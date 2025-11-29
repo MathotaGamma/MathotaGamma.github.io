@@ -527,8 +527,7 @@
 
 
       // マウス / タッチ イベント
-      canvas.addEventListener('mousedown', e => {
-        
+            canvas.addEventListener('mousedown', e => {
         const viewPos = clientPos(e);
         lastMouse = viewPos;
         // 中クリック or Space押しならパン開始
@@ -549,10 +548,9 @@
             draw();
             return;
           } else if (term.kind === 'input') {
-            // 入力端子がクリックされた：もし接続中なら接続完了
+            // 入力端子クリック：接続中なら完了
             if (connectingFrom) {
               if (connectingFrom.nodeId !== term.node.id) {
-                // 既に接続があるかチェック
                 const exists = connections.find(c => c.toId === term.node.id && c.toInputIndex === term.index);
                 if (!exists) {
                   connections.push({
@@ -569,23 +567,19 @@
               draw();
               return;
             }
-            
-            // 接続中でなければ、単なる選択（または右クリックで削除 handled elsewhere）
+            // そうでなければ選択
             selected = {type: 'node', id: term.node.id};
             draw();
             return;
           }
         }
 
-        // ノード本体をドラッグ開始（端子上でないこと）
+        // ノードドラッグ開始
         const n = findNodeAtView(viewPos.x, viewPos.y);
         if (n) {
-          // ノード本体クリック（INPUTならトグル）
-          // 判定：端子近傍は上で処理済み
           draggingNode = n;
           draggingNode.done = false;
           n.dragging = true;
-          // compute world offset
           const world = toWorld(viewPos);
           dragOff.x = world.x - n.x;
           dragOff.y = world.y - n.y;
@@ -596,7 +590,7 @@
           return;
         }
 
-        // どこにも当たらない場所をクリック：選択解除（左パネル以外のクリックで解除）
+        // 空白クリック：選択解除
         selected = null;
         connectingFrom = null;
         draw();
@@ -605,8 +599,8 @@
       canvas.addEventListener('mousemove', e => {
         const viewPos = clientPos(e);
         lastMouse = viewPos;
+
         if (isPanning) {
-          // パン移動
           const dx = viewPos.x - panStart.x;
           const dy = viewPos.y - panStart.y;
           view.tx = panStart.sx + dx;
@@ -614,30 +608,29 @@
           draw();
           return;
         }
+
         if (draggingNode && draggingNode.dragging) {
-          // ワールド座標で移動
           const world = toWorld(viewPos);
           draggingNode.x = Math.round((world.x - dragOff.x)/grid) * grid;
           draggingNode.y = Math.round((world.y - dragOff.y)/grid) * grid;
-
           draggingNode.done = true;
-          
           draw();
           return;
         }
-        // hover terminal for highlight
+
         hoverTerm = findTerminalAtView(viewPos.x, viewPos.y);
         draw();
       });
 
       canvas.addEventListener('mouseup', e => {
         const viewPos = clientPos(e);
+
         if (isPanning) {
           isPanning = false;
           canvas.style.cursor = 'default';
           return;
         }
-        
+
         if (draggingNode) {
           if(draggingNode.done) {
             draggingNode = null;
@@ -648,17 +641,16 @@
           }
           draggingNode = null;
         }
-        // クリックで配置 or toggle
+
+        // terminal
         const term = findTerminalAtView(viewPos.x, viewPos.y);
-        if (term) {
-          // input terminal clicked without connecting => no toggle; right-click deletes
-          return;
-        }
+        if (term) return;
+
+        // node
         const n = findNodeAtView(viewPos.x, viewPos.y);
         if (n) {
-          // click on node body (not terminal): if INPUT => toggle
           const world = toWorld(viewPos);
-          // Make sure click isn't on terminal area (already checked)
+
           if (n.type === 'INPUT') {
             if(!selected || !selected.preTouchTime || Date.now() - selected.preTouchTime >= 199) {
               if(selected) selected.preTouchTime = Date.now();
@@ -669,8 +661,7 @@
               return;
             }
           }
-          
-          // otherwise select
+
           if (selected && selected.type === 'node' && selected.id === n.id) {
             if(selected.preTouchTime && Date.now() - selected.preTouchTime < 200) {
               removeNode(selected.id);
@@ -688,33 +679,30 @@
             draw();
             return;
           }
-        } else {
-          // empty clicked: if placingType set => place new node
-          if (placingType) {
-            const world = toWorld(viewPos);
-            const newNode = createNode(
-              placingType,
-              Math.round((world.x - gateW/2)/grid) * grid,
-              Math.round((world.y - gateH/2)/grid) * grid
-            );
-            nodes.push(newNode);
-            evaluateAll();
-            updateLists();
-            document.querySelectorAll('.tool').forEach(el => el.classList.remove('active'));
-            placingType = null;
-            draw();
-            // keep placing (do not clear placingType)
-            return;
-          }
-          // empty & not placing -> clear selection/connecting
-          selected = null;
-          connectingFrom = null;
+        }
+
+        // 空白クリック → 新規配置
+        if (placingType) {
+          const world = toWorld(viewPos);
+          const newNode = createNode(
+            placingType,
+            Math.round((world.x - gateW/2)/grid) * grid,
+            Math.round((world.y - gateH/2)/grid) * grid
+          );
+          nodes.push(newNode);
+          evaluateAll();
+          updateLists();
+          document.querySelectorAll('.tool').forEach(el => el.classList.remove('active'));
+          placingType = null;
           draw();
           return;
         }
+
+        selected = null;
+        connectingFrom = null;
+        draw();
       });
 
-      // 右クリック（接続削除）
       canvas.addEventListener('contextmenu', e => {
         e.preventDefault();
         const viewPos = clientPos(e);
@@ -724,7 +712,6 @@
           if (idx >= 0) {
             const c = connections[idx];
             connections.splice(idx,1);
-            // cleanup from outputs
             const f = getNode(c.fromId);
             if (f && f.outputs) {
               f.outputs = f.outputs.filter(o => !(o.toId === c.toId && o.toInputIndex === c.toInputIndex && (o.fromOutputIndex ?? 0) === (c.fromOutputIndex ?? 0)));
@@ -739,56 +726,74 @@
         placingType = null;
       });
 
+      /*------------------------------------------------------
+         ★ Touch を mouse と完全同等に統一
+        ------------------------------------------------------*/
+      let touchMode = false;
 
-      // タッチ用：簡易的にタッチでパン（2本指）とシングルでクリック
-      let ongoingTouches = 0;
       canvas.addEventListener('touchstart', e => {
         e.preventDefault();
-        ongoingTouches = e.touches.length;
+        touchMode = true;
+
         if (e.touches.length === 1) {
           const p = touchPos(e);
-          // emulate mousedown single touch
-          const m = {clientX: p.x + canvas.getBoundingClientRect().left, clientY: p.y + canvas.getBoundingClientRect().top};
-          canvas.dispatchEvent(new MouseEvent('mousedown', m));
+          canvas.dispatchEvent(
+            new MouseEvent('mousedown', {
+              clientX: p.x + canvas.getBoundingClientRect().left,
+              clientY: p.y + canvas.getBoundingClientRect().top
+            })
+          );
         } else if (e.touches.length === 2) {
-          // two-finger pan start
           isPanning = true;
           const t = e.touches[0];
-          panStart = {x: t.clientX - canvas.getBoundingClientRect().left, y: t.clientY - canvas.getBoundingClientRect().top, sx: view.tx, sy: view.ty};
+          panStart = {
+            x: t.clientX - canvas.getBoundingClientRect().left,
+            y: t.clientY - canvas.getBoundingClientRect().top,
+            sx: view.tx,
+            sy: view.ty
+          };
         }
-      }, {passive: false});
+      }, {passive:false});
 
       canvas.addEventListener('touchmove', e => {
         e.preventDefault();
-        if (ongoingTouches === 2 && isPanning) {
+
+        if (e.touches.length === 2 && isPanning) {
           const t = e.touches[0];
-          const viewPos = {x: t.clientX - canvas.getBoundingClientRect().left, y: t.clientY - canvas.getBoundingClientRect().top};
+          const viewPos = {
+            x: t.clientX - canvas.getBoundingClientRect().left,
+            y: t.clientY - canvas.getBoundingClientRect().top
+          };
           const dx = viewPos.x - panStart.x;
           const dy = viewPos.y - panStart.y;
           view.tx = panStart.sx + dx;
           view.ty = panStart.sy + dy;
           draw();
-          e.preventDefault();
-        } else if (ongoingTouches === 1) {
+        } else if (e.touches.length === 1) {
           const p = touchPos(e);
-          const m = {clientX: p.x + canvas.getBoundingClientRect().left, clientY: p.y + canvas.getBoundingClientRect().top};
-          canvas.dispatchEvent(new MouseEvent('mousemove', m));
+          canvas.dispatchEvent(
+            new MouseEvent('mousemove', {
+              clientX: p.x + canvas.getBoundingClientRect().left,
+              clientY: p.y + canvas.getBoundingClientRect().top
+            })
+          );
         }
-      }, {passive: false});
+      }, {passive:false});
 
       canvas.addEventListener('touchend', e => {
         e.preventDefault();
-        ongoingTouches = e.touches.length;
-        if (ongoingTouches === 0) {
+
+        if (e.touches.length === 0) {
           const last = e.changedTouches[0];
-          const m = {clientX: last.clientX, clientY: last.clientY};
-          canvas.dispatchEvent(new MouseEvent('mouseup', m));
+          canvas.dispatchEvent(
+            new MouseEvent('mouseup', {
+              clientX: last.clientX,
+              clientY: last.clientY
+            })
+          );
           isPanning = false;
         }
-        /*document.querySelectorAll('.tool').forEach(el => el.classList.remove('active'));
-        selected = null;
-        placingType = null;*/
-      });
+      }, {passive:false});
 
       // 論理評価
       function evaluateAll() {
