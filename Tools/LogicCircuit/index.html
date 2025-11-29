@@ -203,18 +203,44 @@
         margin-top: 12px;
       }
 
+      /* ========= スマホ最適化（崩れの完全修正） ========= */
       @media (max-width: 920px) {
+
+        :root {
+          --panel-w: auto;
+        }
+
         .app {
-          grid-template-columns: 1fr;
-          grid-template-rows: 56px auto 260px;
-        }
-        .panel {
+          display: flex;
+          flex-direction: column;
           height: auto;
+          padding: 12px;
+          gap: 12px;
         }
+
+        .panel {
+          width: 100%;
+          height: auto;
+          max-height: none;
+          overflow: visible;
+        }
+
         #scene {
-          height: 60vh;
+          width: 100%;
+          height: 70vh;
+        }
+
+        .palette {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .tool .icon {
+          width: 40px;
+          height: 26px;
+          font-size: 13px;
         }
       }
+      /* ========= スマホ修正ここまで ========= */
     </style>
   </head>
   <body>
@@ -282,7 +308,6 @@
         </div>
       </aside>
     </div>
-
     <script>
       /* 完全版：レスポンシブ、パン、ドラッグ、接続、端子は白円、信号で線色変化、ゲートは曲線描画
        * インデントは2スペースで統一しています。
