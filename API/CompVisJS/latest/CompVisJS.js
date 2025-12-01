@@ -48,7 +48,7 @@ view.exec((THREE, scene, camera, renderer, controls) => {
 */
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
-class CompVis {
+window.CompVis = class {
   constructor(k_real, k_imag) {
     this._real = k_real;
     this._imag = k_imag;
