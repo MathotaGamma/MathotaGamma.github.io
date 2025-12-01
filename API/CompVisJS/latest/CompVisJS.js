@@ -387,7 +387,7 @@ CompVis.Quater = class {
 
   static rotAxis(theta, p) { // pは純虚四元数
     if(p.w != 0) throw new Error("rotAxis < Quater");
-    return p.normalize.pro(Math.sin(theta/2)).add(Math.cos(theta/2);
+    return p.normalize.pro(Math.sin(theta/2)).add(Math.cos(theta/2));
   }
 
   add(q) {
