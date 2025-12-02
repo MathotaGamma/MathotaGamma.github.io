@@ -255,6 +255,100 @@ window.CompVis = class {
   }
 }
 
+CompVis.Vector = class {
+  constructor(...elems) {
+    if(Array.isArray(elems[0])) {
+      this.values = elems[0];
+    } else if(Number.isFinite(elems[0])) {
+      this.values = elems;
+    } else if(typeof elems[0] == "object") {
+      const elem = elems[0];
+      this.values = [];
+      if(elem.x == null) throw new Error("constructor < Vector : Ex...{x:1,y:2,z:3}");
+      this.values.push(elem.x);
+      if(elem.y != null) {
+        this.values.push(elem.y);
+        if(elem.z != null) {
+          this.values.push(elem.z);
+        }
+      }
+    }
+    
+    return this.values.length;
+  }
+  
+  get len() {
+    return this.values.length;
+  }
+  
+  get clone() {
+    return new CompVis.Vector(structuredClone(this.values));
+  }
+  
+  get str() {
+    return this.values.join(", ");
+  }
+  
+  add(u) {
+    const v = this.clone;
+    if(Number.isFinite(u)) {
+      return new CompVis.Vector(v.values.map(k => k+u));
+    } else {
+      if(v.len != u.len) throw new Error("add < Vector");
+      return new CompVis.Vector(v.values.map((k, ind) => k+u.values[ind]));
+    }
+  }
+  
+  sub(u) {
+    const v = this.clone;
+    if(Number.isFinite(u)) {
+      return new CompVis.Vector(v.values.map(k => k-u));
+    } else {
+      if(v.len != u.len) throw new Error("sub < Vector");
+      return new CompVis.Vector(v.values.map((k, ind) => k-u.values[ind]));
+    }
+  }
+  
+  dot(u) {
+    const v = this.clone;
+    if(v.len != u.len) throw new Error("dot < Vector");
+    let ret = 0;
+    for(let ind = 0; ind < v.len; ind++) {
+      ret += v.values[ind]*u.values[ind];
+    }
+    return ret;
+  }
+  
+  cross(u) {
+    const v = this.clone;
+    if(v.len != 3 || u.len != 3) throw new Error("cross < Vector");
+    const v_val = v.values;
+    const u_val = u.values;
+    return new CompVis.Vector(v_val[1]*u_val[2]-v_val[2]*u_val[1],v_val[2]*u_val[0]-v_val[0]*u_val[2],v_val[0]*u_val[1]-v_val[1]*u_val[0]);
+  }
+  
+  cross_l(u) {
+    return u.cross(this);
+  }
+  
+  scale(k) {
+    const v = this.clone.values;
+    return new CompVis.Vector(v.map(value => value*k));
+  }
+  
+  get abs() {
+    return Math.sqrt(this.values.reduce((pre, cur) => pre+cur**2,0));
+  }
+  
+  get negate() {
+    return this.scale(-1);
+  }
+  
+  get normalize() {
+    return this.scale(1/this.abs);
+  }
+}
+
 CompVis.Quater = class {
   constructor(a=null,b=null,c=null,d=null) {
     if (a != null&&typeof a=='object') {
