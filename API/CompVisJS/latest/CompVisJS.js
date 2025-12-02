@@ -346,6 +346,50 @@ CompVis.Quater = class {
     return `w:${this.w} x:${this.x} y:${this.y} z:${this.z}`;
   }
 
+  strFormat(text) {
+    const values = this.val;
+    let result = "";
+    let i = 0;
+
+    while (i < text.length) {
+      let bsCount = 0;
+
+      // $ の直前のバックスラッシュの数を数える
+      while (i < text.length && text[i] === "\\") {
+        bsCount++;
+        i++;
+      }
+
+      if (i < text.length && text[i] === "$") {
+        // $ の後の変数名を取得
+        let j = i + 1;
+        let varName = "";
+        while (j < text.length && /[a-zA-Z0-9_]/.test(text[j])) {
+          varName += text[j];
+          j++;
+        }
+
+        if (varName) {
+          if (bsCount % 2 === 0) {
+            // 偶数 → 置換
+            result += "\\".repeat(bsCount / 2) + (values[varName] !== undefined ? values[varName] : "$" + varName);
+          } else {
+            // 奇数 → エスケープ扱いで $varName を残す
+            result += "\\".repeat(Math.floor(bsCount / 2)) + "$" + varName;
+          }
+          i = j; // 変数名の最後まで進める
+          continue;
+        }
+      }
+
+      // バックスラッシュだけ書き出す
+      result += "\\".repeat(bsCount);
+      if (i < text.length) result += text[i++];
+    }
+
+    return result;
+  }
+
   get clone() {
     return new CompVis.Quater(this.val);
   }
