@@ -288,6 +288,10 @@ CompVis.Vector = class {
   get str() {
     return this.values.join(", ");
   }
+
+  val(ind) {
+    return this.values[ind];
+  }
   
   add(u) {
     const v = this.clone;
