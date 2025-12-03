@@ -1722,6 +1722,19 @@ CompVis.Matrix = class {
 
     return new CompVis.Matrix(result);
   }
+
+  mulVector(v) {
+    const M = this.clone._matrix;
+    
+    const V = v.values;
+    if(V.length != 3) throw new Error("mulVector < Matrix");
+    
+    const resultX = M[0][0] * V[0] + M[0][1] * V[1] + M[0][2] * V[2];
+    const resultY = M[1][0] * V[0] + M[1][1] * V[1] + M[1][2] * V[2];
+    const resultZ = M[2][0] * V[0] + M[2][1] * V[1] + M[2][2] * V[2];
+    
+    return new CompVis.Vector(resultX, resultY, resultZ); 
+  }
   
   get _det() {
     let n = this._matrix.length;
