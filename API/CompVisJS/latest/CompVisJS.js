@@ -289,7 +289,7 @@ CompVis.Vector = class {
     return this.values.join(", ");
   }
 
-  val(ind) {
+  getVal(ind) {
     return this.values[ind];
   }
   
