@@ -436,6 +436,11 @@ CompVis.Quater = class {
     return Q;
   }
 
+  get VectorInstance() {
+    const Q = this.clone;
+    return new CompVis.Vector(Q.x, Q.y, Q.z);
+  }
+
   get str() {
     return `w:${this.w} x:${this.x} y:${this.y} z:${this.z}`;
   }
