@@ -296,6 +296,20 @@ CompVis.Vector = class {
   get str() {
     return this.values.join(", ");
   }
+
+  get x() {
+    return this.values[0];
+  }
+  
+  get y() {
+    if(this.len < 2) throw new Error("y < Vector");
+    return this.values[1];
+  }
+  
+  get z() {
+    if(this.len < 3) throw new Error("z < Vector");
+    return this.values[2];
+  }
   
   getValue(ind) {
     return structuredClone(this.values)[ind];
