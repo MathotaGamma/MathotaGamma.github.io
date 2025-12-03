@@ -1724,43 +1724,59 @@ CompVis.Matrix = class {
   }
   
   get _inverse() {
-    if(this.size[0] != this.size[1]) throw new Error("CompVisJS_Matrix-Shape error->Must be a square matrix.");
-    let A = this._matrix;
-    let n = A.length;
-    let I = Array.from({ length: n }, (_, i) =>
-      Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
-    );
+    let n = this._matrix.length;
+    // 正方行列でない場合はエラー
+    if (this._matrix[0].length !== n) {
+      throw new Error("CompVisJS_Matrix-Shape error->Inverse can only be calculated for square matrices.");
+    }
 
-    for (let i = 0; i < n; i++) {
-      let pivot = A[i][i];
-      if (pivot === 0) {
-        for (let k = i + 1; k < n; k++) {
-          if (A[k][i] !== 0) {
-            [A[i], A[k]] = [A[k], A[i]];
-            [I[i], I[k]] = [I[k], I[i]];
-            pivot = A[i][i];
-            break;
-          }
-        }
-      }
-      if (pivot === 0) throw new Error("CompVisJS_Matrix-Shape error->Singular matrix (non-invertible).");
-      for (let j = 0; j < n; j++) {
-        A[i][j] /= pivot;
-        I[i][j] /= pivot;
-      }
+    // 行列をコピーし、右側に単位行列を結合した拡大行列を作成 [A | I]
+    let augmented = this._matrix.map((row, i) => [
+      ...row,
+      ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
+    ]);
+    
 
-      for (let k = 0; k < n; k++) {
-        if (k !== i) {
-          let factor = A[k][i];
-          for (let j = 0; j < n; j++) {
-            A[k][j] -= factor * A[i][j];
-            I[k][j] -= factor * I[i][j];
-          }
-        }
-      }
-    }
-    return new CompVis.Matrix(I);
-  }
+    // ガウス・ジョルダン法
+    for (let i = 0; i < n; i++) {
+      // 1. ピボット選択 (行の入れ替え)
+      let maxRow = i;
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+          maxRow = k;
+        }
+      }
+
+      // 行列式が0の場合、逆行列は存在しない
+      if (augmented[maxRow][i] === 0) {
+        throw new Error("CompVisJS_Matrix-Determinant error->Matrix is singular, inverse does not exist.");
+      }
+
+      // 行の入れ替え
+      [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+
+      // 2. 対角成分を1にする (正規化)
+      let pivot = augmented[i][i];
+      for (let j = i; j < 2 * n; j++) {
+        augmented[i][j] /= pivot;
+      }
+
+      // 3. 対角成分以外を0にする
+      for (let k = 0; k < n; k++) {
+        if (k !== i) {
+          let factor = augmented[k][i];
+          for (let j = i; j < 2 * n; j++) {
+            augmented[k][j] -= factor * augmented[i][j];
+          }
+        }
+      }
+    }
+
+    // 拡大行列の右半分 (逆行列 I) を抽出
+    let I = augmented.map(row => row.slice(n));
+     
+    return new CompVis.Matrix(I);
+  }
 }
 
 CompVis._list = [
