@@ -56,7 +56,7 @@ window.CompVis = class {
     return new CompVis.Quater(Vector.values);
   }
   
-  static QuaterToMatrix33(q) {
+  static QuaterToMatrix3x3(q) {
     const Q = q.clone;
     const w = Q.w;
     const x = Q.x;
