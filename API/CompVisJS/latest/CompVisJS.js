@@ -288,8 +288,8 @@ CompVis.Vector = class {
   get str() {
     return this.values.join(", ");
   }
-
-  getVal(ind) {
+  
+  getValue(ind) {
     return this.values[ind];
   }
   
@@ -349,6 +349,7 @@ CompVis.Vector = class {
   }
   
   get normalize() {
+    if(this.abs < 10e-8) return new CompVis.Vector(0,0,0);
     return this.scale(1/this.abs);
   }
 }
