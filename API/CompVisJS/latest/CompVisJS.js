@@ -301,10 +301,9 @@ CompVis.Vector = class {
     return structuredClone(this.values)[ind];
   }
 
-  setValue(ind, k) {
-    const values = structuredClone(this.values);
+  setValue(ind, k) { // 破壊的
+    const values = this.values;
     values[ind] = k;
-    return new CompVis.Vector(values);
   }
   
   add(u) {
