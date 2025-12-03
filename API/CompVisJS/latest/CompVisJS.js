@@ -1653,6 +1653,10 @@ CompVis.Matrix = class {
       
     }
   }
+
+  get clone() {
+    return new CompVis.Matrix(this._matrix.map(row => [...row]));
+  }
   
   get matrix(){
     return this._matrix
@@ -1721,6 +1725,22 @@ CompVis.Matrix = class {
     }
 
     return det_k;
+  }
+
+  get transpose() {
+    const I = this._matrix;
+    if (I.length === 0 || I[0] === undefined) {
+        return new CompVis.Matrix([]);
+    }
+    
+    const R = I.length;    
+    const C = I[0].length; 
+    const I_T = [...Array(C).keys()].map(i => {
+        return [...Array(R).keys()].map(j => {
+            return I[j][i]; 
+        });
+    });
+    return new CompVis.Matrix(I_T);
   }
   
   get _inverse() {
