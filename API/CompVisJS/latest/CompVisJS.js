@@ -49,11 +49,19 @@ view.exec((THREE, scene, camera, renderer, controls) => {
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
 window.CompVis = class {
+  constructor() {
+  }
+
+  VectorToQuater(V) {
+    return new CompVis.Quater(Vector.values);
+  }
+}
+
+CompVis.Complex = class {
   constructor(k_real, k_imag) {
     this._real = k_real;
     this._imag = k_imag;
   }
-  
   static ver = '1.01.02';
   static time = '2025/9/17/18:30';
   
@@ -63,11 +71,11 @@ window.CompVis = class {
       throw new Error('CompVisJS-Argument error->The argument of this method must be a real number.')
     }
   }
-  
-  
+
   get value(){
     return [this._real,this._imag];
   }
+  
   static _value(k){
     if(Array.isArray(k)){
       let list_k = [];
@@ -99,7 +107,7 @@ window.CompVis = class {
     return k;
   }
   get str(){
-    return CompVis._str(this);
+    return CompVis.Complex._str(this);
   }
   static _str(k){
     if(Array.isArray(k)){
@@ -116,9 +124,9 @@ window.CompVis = class {
   round(k=0){
     let k_k;
     if(k >= 0){
-      k_k = new CompVis(this._real.toFixed(k),this._imag.toFixed(k));
+      k_k = new CompVis.Complex(this._real.toFixed(k),this._imag.toFixed(k));
     } else {
-      k_k = new CompVis(Math.round(this._real*10**k)/10**k,Math.round(this._imag*10**k)/10**k)
+      k_k = new CompVis.Complex(Math.round(this._real*10**k)/10**k,Math.round(this._imag*10**k)/10**k)
     }
     return k_k;
   }
@@ -144,10 +152,10 @@ window.CompVis = class {
   static _toComp(k){
     if(Array.isArray(k[0])){
       return k.map((j) => {
-        return new CompVis(j[0],j[1]);
+        return new CompVis.Complex(j[0],j[1]);
       })
     } else {
-      return new CompVis(k[0],k[1]);
+      return new CompVis.Complex(k[0],k[1]);
     }
   }
   
@@ -158,7 +166,7 @@ window.CompVis = class {
     return this._imag;
   }
   get conj(){
-    return new CompVis(this._real,-this._imag);
+    return new CompVis.Complex(this._real,-this._imag);
   }
   get abs(){
     return Math.sqrt(this._real*this._real+this._imag*this._imag);
@@ -167,10 +175,10 @@ window.CompVis = class {
     return Math.atan2(this._imag,this._real);
   }
   get log(){
-    return new CompVis(Math.log(this.abs),this.arg);
+    return new CompVis.Complex(Math.log(this.abs),this.arg);
   }
   get exp(){
-    return new CompVis(Math.cos(this._imag),Math.sin(this._imag)).pro(Math.exp(this._real));
+    return new CompVis.Complex(Math.cos(this._imag),Math.sin(this._imag)).pro(Math.exp(this._real));
   }
   
   
@@ -182,10 +190,10 @@ window.CompVis = class {
     let return_value = [];
     let F = [];
     for(let k = 0; k < N; k++){
-      F.push(new CompVis(0,0));
+      F.push(new CompVis.Complex(0,0));
     
       for(let j = 0; j < N; j++){
-        F[k] = F[k].add(new CompVis(0,1).pro(-2*Math.PI*j*k/N).exp.pro(l[j]));
+        F[k] = F[k].add(new CompVis.Complex(0,1).pro(-2*Math.PI*j*k/N).exp.pro(l[j]));
       }
       F[k] = F[k].div(N);
       if(return_type == 'normal') {
@@ -218,25 +226,25 @@ window.CompVis = class {
   
   add(k){
     k = this.#RtoI(k);
-    return new CompVis(this._real+k.real,this._imag+k.imag);
+    return new CompVis.Complex(this._real+k.real,this._imag+k.imag);
   }
   dif(k){
     k = this.#RtoI(k);
-    return new CompVis(this._real-k.real,this._imag-k.imag);
+    return new CompVis.Complex(this._real-k.real,this._imag-k.imag);
   }
   pro(k){
     k = this.#RtoI(k);
-    return new CompVis(this._real*k.real-this._imag*k.imag,this._real*k.imag+this._imag*k.real);
+    return new CompVis.Complex(this._real*k.real-this._imag*k.imag,this._real*k.imag+this._imag*k.real);
   }
   div(k){
     k = this.#RtoI(k);
     let k_k = this.pro(k.conj);
     let k_abs2 = k.abs*k.abs;
-    return new CompVis(k_k.real/k_abs2,k_k.imag/k_abs2);
+    return new CompVis.Complex(k_k.real/k_abs2,k_k.imag/k_abs2);
   }
   log_n(k){
     this.#Error_Argument_real(k);
-    return new CompVis(Math.log(this.abs)/Math.log(k),this.arg/Math.log(k));
+    return new CompVis.Complex(Math.log(this.abs)/Math.log(k),this.arg/Math.log(k));
   }
   pow_by(k){
     k = this.#RtoI(k);
@@ -250,7 +258,7 @@ window.CompVis = class {
   }
   rotate(k){
     this.#Error_Argument_real(k);
-    k = new CompVis(0,1).pro(k).exp;
+    k = new CompVis.Complex(0,1).pro(k).exp;
     return this.pro(k);
   }
 }
