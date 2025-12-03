@@ -555,7 +555,7 @@ CompVis.Quater = class {
     return axis.pro(p).pro(axis.inv);
   }
 
-  static invRot(axis, p) {
+  static rotInv(axis, p) {
     return axis.inv.pro(p).pro(axis);
   }
 
