@@ -290,7 +290,13 @@ CompVis.Vector = class {
   }
   
   getValue(ind) {
-    return this.values[ind];
+    return structuredClone(this.values)[ind];
+  }
+
+  setValue(ind, k) {
+    const values = structuredClone(this.values);
+    values[ind] = k;
+    return new CompVis.Vector(values);
   }
   
   add(u) {
@@ -533,9 +539,17 @@ CompVis.Quater = class {
     return q; 
   }
 
-  static rotAxis(theta, p) { // pは純虚四元数
-    if(p.w != 0) throw new Error("rotAxis < Quater");
-    return p.normalize.pro(Math.sin(theta/2)).add(Math.cos(theta/2));
+  static rotAxis(axis, theta) {
+    if(axis.w != 0) throw new Error("rotAxis < Quater");
+    return axis.normalize.pro(Math.sin(theta/2)).add(Math.cos(theta/2));
+  }
+
+  static rot(axis, p) {
+    return axis.pro(p).pro(axis.inv);
+  }
+
+  static invRot(axis, p) {
+    return axis.inv.pro(p).pro(axis);
   }
 
   add(q) {
