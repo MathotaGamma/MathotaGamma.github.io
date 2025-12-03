@@ -1703,7 +1703,6 @@ CompVis.Matrix = class {
       throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
     }
     let A = this._matrix;
-    console.log(B.matrix)
     let [m, n] = this.size;
     let [p, q] = B.size;
     
@@ -1715,7 +1714,7 @@ CompVis.Matrix = class {
     for (let i = 0; i < m; i++) {
       for (let j = 0; j < q; j++) {
         for (let k = 0; k < n; k++) {
-          result[i][j] += A[i][k] * B.matrix[k][j];
+          result[i][j] += A[i][k] * B._matrix[k][j];
         }
       }
     }
@@ -1724,7 +1723,7 @@ CompVis.Matrix = class {
   }
 
   mulVector(v) {
-    const M = this.clone._matrix;
+    const M = this._matrix;
     
     const V = v.values;
     if(V.length != 3) throw new Error("mulVector < Matrix");
