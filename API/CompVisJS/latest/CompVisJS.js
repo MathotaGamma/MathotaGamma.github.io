@@ -315,8 +315,6 @@ CompVis.Vector = class {
         }
       }
     }
-    
-    return this.values;
   }
   
   get len() {
