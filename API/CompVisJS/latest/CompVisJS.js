@@ -1689,7 +1689,7 @@ CompVis.Matrix = class {
   }
 
   get clone() {
-    return new CompVis.Matrix(this._matrix.map(row => [...row]));
+    return new CompVis.Matrix(structuredClone(this._matrix));
   }
   
   get matrix(){
