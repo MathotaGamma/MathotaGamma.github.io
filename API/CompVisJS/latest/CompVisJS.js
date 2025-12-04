@@ -344,6 +344,10 @@ CompVis.Vector = class {
     if(this.len < 3) throw new Error("z < Vector");
     return this.values[2];
   }
+
+  lerp(u, t) {
+    return this.clone.scale(1-t).add(u.clone.scale(t)).clone;
+  }
   
   getValue(ind) {
     return structuredClone(this.values)[ind];
