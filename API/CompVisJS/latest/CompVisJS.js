@@ -1703,7 +1703,7 @@ CompVis.Matrix = class {
   }
 
   scale(n) {
-    return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col) => col*n}));
+    return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col => col*n)}));
   }
   
   pro(B) {
