@@ -1701,6 +1701,10 @@ CompVis.Matrix = class {
   get toString() {
     return JSON.stringify(this._matrix);
   }
+
+  scale(n) {
+    return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col) => col*n}));
+  }
   
   pro(B) {
     if (!(B instanceof CompVis.Matrix)) {
