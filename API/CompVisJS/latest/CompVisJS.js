@@ -602,11 +602,37 @@ CompVis.Quater = class {
   }
 
   static rot(axis, p) {
+    if(p instanceof window.CompVis.Vector) {
+      p = CompVis.VectorToQuater(p);
+    }
     return axis.pro(p).pro(axis.inv);
   }
 
   static rotInv(axis, p) {
     return axis.inv.pro(p).pro(axis);
+  }
+
+  static rotAxisFromEuler(order, ...thetas) {
+    // 例:Com~ter.getFromEuler("xyz",θx,θy,θz);
+    const axes = [];
+    for(let k = 0; k < 3; k++) {
+      switch(order.charAt(k)) {
+        case "x":
+          axes.push(new CompVis.Quater(1,0,0);
+          break;
+        case "y":
+          axes.push(new CompVis.Quater(0,1,0);
+          break;
+        case "z":
+          axes.push(new CompVis.Quater(0,0,1);
+          break;
+        default:
+          throw new Error("rotAxisFromEuler < Quater");
+      }
+    }
+    return [0,1,2].reduce((q,ind) => 
+                            new CompVis.Quater.rotAxis(axes[ind], thetas[ind]).pro(q) // 逆順になるように
+                          ,new CompVis.Quater(1));
   }
 
   add(q) {
