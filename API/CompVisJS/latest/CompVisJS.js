@@ -618,13 +618,13 @@ CompVis.Quater = class {
     for(let k = 0; k < 3; k++) {
       switch(order.charAt(k)) {
         case "x":
-          axes.push(new CompVis.Quater(1,0,0);
+          axes.push(new CompVis.Quater(1,0,0));
           break;
         case "y":
-          axes.push(new CompVis.Quater(0,1,0);
+          axes.push(new CompVis.Quater(0,1,0));
           break;
         case "z":
-          axes.push(new CompVis.Quater(0,0,1);
+          axes.push(new CompVis.Quater(0,0,1));
           break;
         default:
           throw new Error("rotAxisFromEuler < Quater");
