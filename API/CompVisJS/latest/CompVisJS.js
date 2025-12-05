@@ -631,7 +631,7 @@ CompVis.Quater = class {
       }
     }
     return [0,1,2].reduce((q,ind) => 
-                            new CompVis.Quater.rotAxis(axes[ind], thetas[ind]).pro(q) // 逆順になるように
+                            CompVis.Quater.rotAxis(axes[ind], thetas[ind]).pro(q) // 逆順になるように
                           ,new CompVis.Quater(1));
   }
 
