@@ -262,7 +262,7 @@ CompVis.Complex = class {
     k = this.#RtoI(k);
     return new CompVis.Complex(this._real+k.real,this._imag+k.imag);
   }
-  dif(k){
+  sub(k){
     k = this.#RtoI(k);
     return new CompVis.Complex(this._real-k.real,this._imag-k.imag);
   }
@@ -1750,6 +1750,48 @@ CompVis.Matrix = class {
   scale(n) {
     return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col => col*n)}));
   }
+
+  add(B) {
+    if (!(B instanceof CompVis.Matrix)) {
+      throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
+    }
+    let A = this._matrix.clone;
+    let [m, n] = this.size;
+    let [p, q] = B.size;
+    
+    if (m !== p || n !== q) {
+      throw new Error("CompVisJS_Matrix-Shape error->Matrix addition dimension mismatch.");
+    }
+    
+    for(let i = 0; i < A.length; i++) {
+      for(let j = 0; j < A[0].length; j++) {
+        A[i][j] = A[i][j]+B[i][j];
+      }
+    }
+
+    return new CompVis.Matrix(A);
+  }
+
+  sub(B) {
+    if (!(B instanceof CompVis.Matrix)) {
+      throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
+    }
+    let A = this._matrix.clone;
+    let [m, n] = this.size;
+    let [p, q] = B.size;
+    
+    if (m !== p || n !== q) {
+      throw new Error("CompVisJS_Matrix-Shape error->Matrix addition dimension mismatch.");
+    }
+    
+    for(let i = 0; i < A.length; i++) {
+      for(let j = 0; j < A[0].length; j++) {
+        A[i][j] = A[i][j]-B[i][j];
+      }
+    }
+
+    return new CompVis.Matrix(A);
+  }
   
   pro(B) {
     if (!(B instanceof CompVis.Matrix)) {
@@ -1775,11 +1817,11 @@ CompVis.Matrix = class {
     return new CompVis.Matrix(result);
   }
 
-  mulVector(v) {
+  mulVector(v) { M*v
     const M = this._matrix;
     
     const V = v.values;
-    if(V.length != 3) throw new Error("mulVector < Matrix");
+    if(V.length != 3) throw new Error("mulVector < Matrix : vector's length must be 3");
     
     const resultX = M[0][0] * V[0] + M[0][1] * V[1] + M[0][2] * V[2];
     const resultY = M[1][0] * V[0] + M[1][1] * V[1] + M[1][2] * V[2];
