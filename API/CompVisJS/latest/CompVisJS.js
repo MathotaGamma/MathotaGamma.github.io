@@ -1779,6 +1779,10 @@ CompVis.Matrix = class {
     return new CompVis.Vector(resultX, resultY, resultZ); 
   }
   
+  setValue(i,j,v) { // 破壊的
+    this._matrix[i][j] = v;
+  }
+  
   get _det() {
     let n = this._matrix.length;
     let A = this._matrix.map(row => [...row]); // 行列をコピー
