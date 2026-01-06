@@ -1755,7 +1755,7 @@ CompVis.Matrix = class {
     if (!(B instanceof CompVis.Matrix)) {
       throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
     }
-    let A = this._matrix.clone;
+    let A = structuredClone(this._matrix);
     let [m, n] = this.size;
     let [p, q] = B.size;
     
@@ -1776,7 +1776,7 @@ CompVis.Matrix = class {
     if (!(B instanceof CompVis.Matrix)) {
       throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
     }
-    let A = this._matrix.clone;
+    let A = structuredClone(this._matrix);
     let [m, n] = this.size;
     let [p, q] = B.size;
     
