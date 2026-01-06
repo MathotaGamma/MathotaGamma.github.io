@@ -343,7 +343,11 @@ CompVis.Vector = class {
     return this.values[2];
   }
 
-  lerp(u, t) {
+  at(k) {
+    return this.values[k];
+  }
+
+  lerp(u, t) { // 線形補完 v*(1-t)+u*t
     return this.clone.scale(1-t).add(u.clone.scale(t)).clone;
   }
   
