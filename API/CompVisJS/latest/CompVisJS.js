@@ -1827,8 +1827,7 @@ CompVis.Matrix = class {
     if (this._matrix[0].length !== n) {
       throw new Error("CompVisJS_Matrix-Shape error->Inverse can only be calculated for square matrices.");
     }
-
-    // 行列をコピーし、右側に単位行列を結合した拡大行列を作成 [A | I]
+    
     let augmented = this._matrix.map((row, i) => [
       ...row,
       ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
@@ -1875,6 +1874,22 @@ CompVis.Matrix = class {
      
     return new CompVis.Matrix(I);
   }
+
+  get gram() { // グラム行列
+    // Gram = A^T A
+    return this.transpose.pro(this);
+  }
+
+  get Fnorm() { // Frobenius
+    let sum = 0;
+    for (let i = 0; i < this._matrix.length; i++) {
+      for (let j = 0; j < this._matrix[0].length; j++) {
+        sum += this._matrix[i][j] ** 2;
+      }
+    }
+    return Math.sqrt(sum);
+  }
+
 }
 
 CompVis._list = [
