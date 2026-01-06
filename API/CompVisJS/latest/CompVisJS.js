@@ -344,7 +344,7 @@ CompVis.Vector = class {
   }
 
   at(k) {
-    return this.values[k];
+    return this.values[k-1];
   }
 
   lerp(u, t) { // 線形補完 v*(1-t)+u*t
@@ -1718,6 +1718,10 @@ CompVis.Matrix = class {
       this._size = [A.length,columnLength];
       
     }
+  }
+
+  at(R,C) { // R行C列目の数
+    return this._matrix[R-1][C-1];
   }
 
   get clone() {
