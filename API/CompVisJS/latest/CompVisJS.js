@@ -1701,9 +1701,18 @@ CompVis.ViewThree = class {
 }
 
 CompVis.Matrix = class {
-  constructor (A = [[0]]){
+  constructor (A = [[0]], B=null){
     if (A === undefined || A === null) {
       A = [[0]];  // 手動でデフォルト値を設定
+    }
+    if(Number.isInteger(A) && Number.isInteger(B) && A >= 1 && B >= 1) { // A*Bの行列
+      let mat = new Array(A);
+      for(let i = 0; i < B; i++) {
+        mat[i] = new Array(B).fill(0);
+      }
+      this._matrix = structuredClone(mat);
+      this._size = [A,B];
+      return;
     }
     if (!Array.isArray(A) || A.length == 0 || !Array.isArray(A[0]) || A[0].length == 0) {
       throw new Error("CompVisJS_Matrix-Argument error->Invalid matrix format.");
@@ -1716,7 +1725,7 @@ CompVis.Matrix = class {
       }
       this._matrix = A;
       this._size = [A.length,columnLength];
-      
+      return;
     }
   }
 
