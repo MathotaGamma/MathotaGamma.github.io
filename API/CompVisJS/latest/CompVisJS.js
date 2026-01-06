@@ -1784,8 +1784,8 @@ CompVis.Matrix = class {
       throw new Error("CompVisJS_Matrix-Shape error->Matrix addition dimension mismatch.");
     }
     
-    for(let i = 0; i < A.length; i++) {
-      for(let j = 0; j < A[0].length; j++) {
+    for(let i = 0; i < m; i++) {
+      for(let j = 0; j < n; j++) {
         A[i][j] = A[i][j]-B[i][j];
       }
     }
