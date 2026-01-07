@@ -106,7 +106,7 @@ window.CompVis = class {
     return new CompVis.Matrix(R);
   }
 
-  async regression(a, f_k, P, { lambda = 1, nu = 10, S = null } = {}) {
+  static async regression(a, f_k, P, { lambda = 1, nu = 10, S = null } = {}) {
     const s_list = [];
     const N = P.length;
     const I = CompVis.Matrix.identity(a.len);
