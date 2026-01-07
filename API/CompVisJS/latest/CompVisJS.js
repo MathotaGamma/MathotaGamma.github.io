@@ -1409,12 +1409,13 @@ CompVis.Quater = class {
   }
 }*/
 
-View = class {
+CompVis.View = class {
   constructor(canvasElem, options = {}) {
     this.canvas = canvasElem;
     this.ctx = this.canvas.getContext("2d");
     this.dpi = window.devicePixelRatio || 1;
     this.graphs = [];
+    this.points = [];
 
     // 初期座標・拡大率（gridコード準拠）
     this.offsetX = 0;
@@ -1485,7 +1486,8 @@ View = class {
         resolution: span || 8, 
         color: options.color !== undefined ? options.color : "0ff",
         isImplicit: true,
-        isParametric: false
+        isParametric: false,
+        lineWidth: options.lineWidth !== undefined ? options.lineWidth : 2,
       };
       this.graphs.push(graph);
       return graph;
@@ -1511,10 +1513,23 @@ View = class {
       span,
       color: options.color !== undefined ? options.color : "0ff",
       isParametric: options.isParametric !== undefined ? options.isParametric : false,
+      lineWidth: options.lineWidth !== undefined ? options.lineWidth : 2,
     };
     this.graphs.push(graph);
     //this.renderAll();
     return graph;
+  }
+  
+  addPoint(x, y, options = {}) {
+    const point = {
+      x: x,
+      y: y,
+      color: options.color || "#f00",     // デフォルト赤
+      radius: options.radius || 4,        // デフォルト半径4px
+      fill: options.fill !== undefined ? options.fill : true // デフォルト塗りつぶし
+    };
+    this.points.push(point);
+    return point;
   }
 
   getGraphPoints(graph) {
@@ -1563,6 +1578,14 @@ View = class {
           maxY = Math.max(maxY, ...points.map(p => p.y));
         }
       }
+      
+      for (const p of this.points) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+      }
+      
       // 陰関数のみの場合は範囲計算をスキップ（またはデフォルト範囲を使用）
       if (minX === Infinity && !this.autoScale) {
           // do nothing, rely on rangeX/Y
@@ -1593,6 +1616,8 @@ View = class {
     for (const graph of this.graphs) {
       viewData.push(this.renderGraph(graph));
     }
+    
+    this.renderPoints();
 
     return viewData;
   }
@@ -1812,13 +1837,13 @@ View = class {
   // 陰関数描画 (Marching Squares)
   //----------------
   renderImplicit(graph) {
-    const { f, color, resolution } = graph;
+    const { f, color, resolution, lineWidth } = graph;
     const ctx = this.ctx;
-    const step = resolution || 8; // グリッドサイズ(px)
+    const step = resolution || 1; // グリッドサイズ(px)
 
     ctx.beginPath();
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = lineWidth || 2;
 
     // 画面座標系でのループ
     // 画面外も少し含めるためにマージンを取る
@@ -1922,6 +1947,29 @@ View = class {
       isImplicit: true,
       graph
     };
+  }
+  
+  renderPoints() {
+    const ctx = this.ctx;
+    for (const p of this.points) {
+      const px = this.W / 2 + (p.x - this.offsetX) * this.xScale;
+      const py = this.H / 2 - (p.y - this.offsetY) * this.yScale;
+
+      // 画面外簡易判定（半径分余裕を持たせる）
+      if (px < -20 || px > this.W + 20 || py < -20 || py > this.H + 20) continue;
+
+      ctx.beginPath();
+      ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+      
+      if (p.fill) {
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
   }
 
   //----------------
