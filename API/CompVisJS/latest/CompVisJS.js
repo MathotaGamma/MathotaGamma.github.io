@@ -1749,6 +1749,14 @@ CompVis.Matrix = class {
     return this._matrix[R][C];
   }
 
+  static identity(n) {
+    const A = new CompVis.Matrix(n,n);
+    for(let k = 0; k < n; k++) {
+      A.setValue(k,k,1);
+    }
+    return new CompVis.Matrix(A);
+  };
+
   get clone() {
     return new CompVis.Matrix(structuredClone(this._matrix));
   }
