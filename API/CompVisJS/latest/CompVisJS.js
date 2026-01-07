@@ -1813,18 +1813,12 @@ CompVis.Matrix = class {
 
     return new CompVis.Matrix(A);
   }
-  
-  pro(B) {
-    if (B instanceof CompVis.Vector) {
-      B = 
-    }
 
-    if (!(B instanceof CompVis.Matrix)) {
-      throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
-    }
+  #miniPro(B) {
     let A = this._matrix;
     let [m, n] = this.size;
     let [p, q] = B.size;
+    B = B.values;
     
     if (n !== p) {
       throw new Error("CompVisJS_Matrix-Shape error->Matrix multiplication dimension mismatch.");
@@ -1834,15 +1828,27 @@ CompVis.Matrix = class {
     for (let i = 0; i < m; i++) {
       for (let j = 0; j < q; j++) {
         for (let k = 0; k < n; k++) {
-          result[i][j] += A[i][k] * B._matrix[k][j];
+          result[i][j] += A[i][k] * B[k][j];
         }
       }
     }
 
     return new CompVis.Matrix(result);
   }
+  
+  pro(B) {
+    if (B instanceof CompVis.Vector) {
+      return CompVis.MatrixToVector(this.#miniPro(CompVis.VectorToMatrix(B)));
+    }
 
-  mulVector(v) { M*v
+    if (!(B instanceof CompVis.Matrix)) {
+      throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
+    }
+
+    return this.#miniPro(B);
+  }
+
+  mulVector(v) { // M*v
     const M = this._matrix;
     
     const V = v.values;
