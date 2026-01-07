@@ -1754,7 +1754,7 @@ CompVis.Matrix = class {
     for(let k = 0; k < n; k++) {
       A.setValue(k,k,1);
     }
-    return new CompVis.Matrix(A);
+    return A;
   };
 
   get clone() {
