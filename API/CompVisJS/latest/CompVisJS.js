@@ -62,6 +62,16 @@ window.CompVis = class {
     );
   }
 
+  static MatrixToVector(A, column = true) {
+    if(column) {
+      if(A.size[1] != 1) throw new Error("MatrixToVector < CompVis");
+      return new CompVis.Vector(A.values.flat());
+    } else {
+      if(A.size[0] != 1) throw new Error("MatrixToVector < CompVis");
+      return new CompVis.Vector(A.values[0]);
+    }
+  }
+
   static QuaterToVector(Q) {
     return Q.VectorInstance;
   }
@@ -1744,7 +1754,10 @@ CompVis.Matrix = class {
   }
   
   get matrix(){
-    return this._matrix
+    return this._matrix;
+  }
+  get values() {
+    return this.matrix; // get matrix()を呼び出す。
   }
   get size(){
     return this._size;
