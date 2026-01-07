@@ -105,6 +105,79 @@ window.CompVis = class {
     
     return new CompVis.Matrix(R);
   }
+
+  async regression(a, f_k, P, { lambda = 1, nu = 10, S = null } = {}) {
+    const s_list = [];
+    const N = P.length;
+    const I = CompVis.Matrix.identity(a.len);
+
+    const f = (a) => {
+      return new CompVis.Matrix(
+        P.map(p => [ f_k(p, a) ])
+      );
+    };
+
+    if (S == null) {
+      S = (a) => {
+        const r = f(a);
+        let s = 0;
+        for (let i = 0; i < N; i++) {
+          s += r.at(i, 0) ** 2;
+        }
+        return s / 2;
+      };
+    }
+
+    function jacobian(f, a, eps = 1e-6) {
+      const f0 = f(a);
+      const J = new Array(a.len);
+
+      for (let m = 0; m < a.len; m++) {
+        let a_eps = a.clone;
+        a_eps.setValue(m, a.at(m) + eps);
+
+        J[m] =
+          CompVis.MatrixToVector(
+            f(a_eps).sub(f0).scale(1 / eps)
+          ).values;
+      }
+
+      return new CompVis.Matrix(J).transpose;
+    }
+
+    const tick = () => Promise.resolve();
+
+    function update() {
+      const S_a = S(a);
+      s_list.push(S_a);
+
+      const J = jacobian(f, a);
+      const napla = J.transpose.pro(f(a));
+      const JJ = J.transpose.pro(J);
+      const M = JJ.add(I.scale(lambda));
+
+      const a_trial =
+        CompVis.MatrixToVector(
+          CompVis.VectorToMatrix(a)
+            .sub(M.inverse.pro(napla))
+        );
+
+      if (S_a > S(a_trial)) {
+        a = a_trial.clone;
+        lambda /= nu;
+      } else {
+        lambda *= nu;
+      }
+    }
+
+    for (let k = 0; k < 100; k++) {
+      update();
+      await tick();
+    }
+    s_list.push(S(a));
+
+    return { a, s_list };
+  }
 }
 
 CompVis.Complex = class {
