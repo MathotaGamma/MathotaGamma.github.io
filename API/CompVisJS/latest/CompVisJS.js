@@ -1923,7 +1923,7 @@ CompVis.Matrix = class {
     return new CompVis.Matrix(I_T);
   }
   
-  get _inverse() {
+  get inverse() {
     let n = this._matrix.length;
     // 正方行列でない場合はエラー
     if (this._matrix[0].length !== n) {
@@ -1982,7 +1982,7 @@ CompVis.Matrix = class {
     return this.transpose.pro(this);
   }
 
-  get Fnorm() { // Frobenius
+  get fNorm() { // Frobenius
     let sum = 0;
     for (let i = 0; i < this._matrix.length; i++) {
       for (let j = 0; j < this._matrix[0].length; j++) {
