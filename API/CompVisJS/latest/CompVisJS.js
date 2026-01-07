@@ -323,7 +323,7 @@ CompVis.Complex = class {
   
   #RtoI(k){
     if(!isNaN(k)){
-      k = new CompVis(k,0);
+      k = new CompVis.Complex(k,0);
     }
     return k;
   }
