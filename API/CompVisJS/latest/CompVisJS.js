@@ -136,8 +136,7 @@ window.CompVis = class {
         let a_eps = a.clone;
         a_eps.setValue(m, a.at(m) + eps);
 
-        J[m] =
-          CompVis.MatrixToVector(
+        J[m] = CompVis.MatrixToVector(
             f(a_eps).sub(f0).scale(1 / eps)
           ).values;
       }
@@ -156,11 +155,7 @@ window.CompVis = class {
       const JJ = J.transpose.pro(J);
       const M = JJ.add(I.scale(lambda));
 
-      const a_trial =
-        CompVis.MatrixToVector(
-          CompVis.VectorToMatrix(a)
-            .sub(M.inverse.pro(napla))
-        );
+      const a_trial = CompVis.MatrixToVector(CompVis.VectorToMatrix(a).sub(M.inverse.pro(napla)));
 
       if (S_a > S(a_trial)) {
         a = a_trial.clone;
