@@ -56,6 +56,12 @@ window.CompVis = class {
     return new CompVis.Quater(Vector.values);
   }
 
+  static VectorToMatrix(V, column = true) { // column ? 列ベクトル(n*1) : 行ベクトル(1*n)
+    return new CompVis.Matrix(
+      column ? V.values.map(k => [k]) : [V.clone.values]
+    );
+  }
+
   static QuaterToVector(Q) {
     return Q.VectorInstance;
   }
@@ -1796,6 +1802,10 @@ CompVis.Matrix = class {
   }
   
   pro(B) {
+    if (B instanceof CompVis.Vector) {
+      B = 
+    }
+
     if (!(B instanceof CompVis.Matrix)) {
       throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
     }
