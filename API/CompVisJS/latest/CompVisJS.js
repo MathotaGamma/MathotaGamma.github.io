@@ -106,7 +106,7 @@ window.CompVis = class {
     return new CompVis.Matrix(R);
   }
 
-  static async regression(a, f_k, P, { lambda = 1, nu = 10, S = null } = {}) {
+  static async regression(a, f_k, P, { lambda = 1, nu = 10, S = null, repeat=100} = {}) {
     const s_list = [];
     const N = P.length;
     const I = CompVis.Matrix.identity(a.len);
@@ -165,7 +165,7 @@ window.CompVis = class {
       }
     }
 
-    for (let k = 0; k < 100; k++) {
+    for (let k = 0; k < repeat; k++) {
       update();
       await tick();
     }
