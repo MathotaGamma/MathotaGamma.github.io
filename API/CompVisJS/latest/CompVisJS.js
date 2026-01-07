@@ -1758,6 +1758,7 @@ CompVis.Matrix = class {
     let A = structuredClone(this._matrix);
     let [m, n] = this.size;
     let [p, q] = B.size;
+    B = structuredClone(B._matrix);
     
     if (m !== p || n !== q) {
       throw new Error("CompVisJS_Matrix-Shape error->Matrix addition dimension mismatch.");
@@ -1779,6 +1780,7 @@ CompVis.Matrix = class {
     let A = structuredClone(this._matrix);
     let [m, n] = this.size;
     let [p, q] = B.size;
+    B = structuredClone(B._matrix);
     
     if (m !== p || n !== q) {
       throw new Error("CompVisJS_Matrix-Shape error->Matrix addition dimension mismatch.");
