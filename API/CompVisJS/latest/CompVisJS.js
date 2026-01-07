@@ -46,6 +46,67 @@ view.exec((THREE, scene, camera, renderer, controls) => {
   scene.add(cube);
 });
 */
+/*
+CompVis.regressionのサンプル(非同期関数)
+レーベンバーグ・マルカート法(LM法)を使用。
+例として、円回帰( (x-x0)^2+(y-y0)^2-R^2 = 0 )
+
+let P = [{x:0,y:2},{x:2,y:0},{x:-3,y:0},{x:-2,y:-3},{x:3,y:-2}]; // サンプル点列
+let a0 = new CompVis.Vector(0,0,1); // パラメータとその初期値(x0,y0,R)
+const f_k = (p,a) => {
+  // 渡す数式は、陰関数でf(x,y)=0としたときのf(x,y)を！
+  return (p.x-a.at(0))**2+(p.y-a.at(1))**2 - a.at(2)**2;
+}
+
+// 即時関数、非同期
+(async () => {
+  try{
+    const { a, s_list } = await CompVis.regression(a0, f_k, P, {
+      lambda: 1, // lambdaの初期値
+      nu: 10, // 学習率
+      repeat: 100 // LM法の繰り返しの適用数
+    });
+    console.log("パラメータ",a);
+    console.log("最終誤差",s_list[s_list.length-1]/P.length);
+
+    // --- ここからはおまけ(回帰で求めたものを、実際に描画する。例では、canvas id="myCanvas"に描画) ---
+
+    const canvas = document.getElementById("myCanvas");
+    // キャンバスサイズ設定
+    canvas.width = 600;
+    canvas.height = 600;
+
+    // インスタンス化 (dynamicモード推奨)
+    const view = new CompVis.View(canvas, {
+      mode: "dynamic",
+      showAxis: true,
+      autoScale: false
+    });
+
+    // --- 方程式 (x-x0)^2 + (y-y0)^2 - R^2 = 0) ---
+    view.addGraph(
+      (x,y) => (x-a.at(0))**2+(y-a.at(1))**2 - a.at(2)**2,
+      null, null, 
+      1, // 解像度(1px刻み)
+      { isImplicit: true, color: "blue" }
+    );
+
+    // サンプル点列を描画
+    for(let k = 0; k < P.length; k++) {
+      const p = P[k];
+      view.addPoint(p.x,p.y, { 
+        color: "green", 
+        radius: 5
+      });
+    }
+    
+    view.renderAll();
+    
+  } catch(e) {
+    console.log(e.message)
+  }
+})();
+*/
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
 window.CompVis = class {
