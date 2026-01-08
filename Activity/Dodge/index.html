@@ -67,13 +67,13 @@
             ctx.fillStyle = "green";
             break;
           case 2:
-            ctx.fillStyle = "#80800";
+            ctx.fillStyle = "#808000";
             break;
           case 1:
             ctx.fillStyle = "#008b8b";
             break;
           case 0:
-            ctx.fillStyle = "black";
+            // finishの実行部で再描画して黒色にしている
         }
         ctx.fillRect(margin.x, h-margin.y-me.l-me.y,me.l,me.l);
         
@@ -90,6 +90,8 @@
               me.life--;
               if(me.life == 0) {
                 clearInterval(game);
+                ctx.fillStyle = "black";
+                ctx.fillRect(margin.x, h-margin.y-me.l-me.y,me.l,me.l);
                 alert("finish");
                 textId.style.left = "50%";
                 textId.style.top = "50%";
@@ -108,7 +110,7 @@
             }*/
             //const v = Math.min(200 + 50*Math.floor(T/10),1200);
             if(!hit) me.score += Math.round(W.v/200);
-            const v = 200 + 50*Math.floor(T/10);
+            const v = 250 + 50*Math.floor(T/10);
             wall.push({
                 time: T+(w-margin.x+50)/v+Math.random(),
                 height: 30+20*Math.random(),
