@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>Game</title>
+  </head>
+  <body>
+    <div id="Text" style="position: absolute; left: 20px; top: 20px; font-size: 16px; z-index: 500; background: #ddd; padding: 5px;">Welcom To Our Game!</div>
+    <input type="button" value="New Game" id="new" onclick="init();" style="font-size: 24px; position: absolute; left: 50%; top: 50%; display: block; z-index: 501; transform: translate(-50%, -50%); height: 40px; border-radius: 0px; background: rgba(210,210,210,0.3); border: 1px solid grey;">
+    <canvas id="myCanvas" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); border: 1px solid black; border-radius: 5px;"></canvas>
+    <script>
+    window.onload = () => {
+      const textId = document.getElementById("Text");
+      const canvas = document.getElementById("myCanvas");
+      const newButton = document.getElementById("new");
+      const w = 600;
+      const h = 300;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      const wall = []; // {time, v, height}
+      const margin = {x: 30, y: 50};
+      
+      let fast = false;
+      
+      let startTime = Date.now();
+      
+      let game;
+      
+      const me = {
+        y: 0, // 最大20
+        isJump: false,
+        jumpTime: Date.now(),
+        l: 30,
+        v: 0,
+        life: 3,
+        score: 0,
+      }
+      
+      const g = 700;
+      const jumpV = 300;
+      
+      window.addEventListener("touchstart", () => {
+        // jump
+        if(!me.isJump) {
+          me.v = jumpV;
+          me.isJump = true;
+          me.jumpTime = Date.now();
+        }
+      });
+      
+      function draw(T) {
+        ctx.clearRect(0,0,w,h);
+        
+        ctx.fillStyle = "#ccffff";
+        ctx.fillRect(0,0,w,h);
+        
+        ctx.beginPath();
+        ctx.strokeStyle = "black";
+        ctx.moveTo(0,h-50);
+        ctx.lineTo(w,h-50);
+        ctx.stroke();
+        
+        // charactor
+        switch (me.life) {
+          case 3:
+            ctx.fillStyle = "green";
+            break;
+          case 2:
+            ctx.fillStyle = "#80800";
+            break;
+          case 1:
+            ctx.fillStyle = "#008b8b";
+            break;
+          case 0:
+            ctx.fillStyle = "black";
+        }
+        ctx.fillRect(margin.x, h-margin.y-me.l-me.y,me.l,me.l);
+        
+        ctx.fillStyle = "red";
+        for(let k = 0; k < wall.length; k++) {
+          const W = wall[k];
+          const x = (W.time-T)*W.v;
+          const X = margin.x + x
+          ctx.fillRect(X, h-margin.y-W.height, W.width, W.height);
+          let hit = false;
+          if((X < margin.x && margin.x < X+W.width) || (X < margin.x+me.l && margin.x+me.l < X+W.width)) {
+            if(W.height > me.y) {
+              hit = true;
+              me.life--;
+              if(me.life == 0) {
+                clearInterval(game);
+                alert("finish");
+                textId.style.left = "50%";
+                textId.style.top = "50%";
+                textId.style.transform = "translate(-50%, -50%)";
+                textId.style.fontSize = "30px";
+                newButton.style.top = "30px";
+                newButton.style.display = "block";
+              }
+            }
+          }
+          if(hit || X+W.width < 0) {
+            wall.splice(k,1);
+            /*if(W.fast) {
+              setTimeout(() => {fast = false}, 1000);
+              continue
+            }*/
+            //const v = Math.min(200 + 50*Math.floor(T/10),1200);
+            if(!hit) me.score += Math.round(W.v/200);
+            const v = 200 + 50*Math.floor(T/10);
+            wall.push({
+                time: T+(w-margin.x+50)/v+Math.random(),
+                height: 30+20*Math.random(),
+                width: 0.5 < Math.random() ? 40+T/4 : 20+T/4,
+                v: v
+              })
+          }
+        }
+      }
+      
+      function update() {
+        const dt = (Date.now()-me.jumpTime)/1000;
+        
+        const T = (Date.now()-startTime)/1000;
+        
+        if (me.isJump) {
+          me.y = jumpV*dt-g*dt**2/2;
+          if(me.y < 0) {
+            me.y = 0; me.v = 0; me.isJump = false
+          }
+        }
+        
+        draw(T);
+        
+        textId.innerHTML = `HIT: <span style="color: blue;">${me.life}</span> / 3<br>Time: ${T.toFixed(1)}<br>Score: ${me.score}`
+      }
+      
+      window.init = () => {
+        me.y = 0;
+        me.isJump = false;
+        me.v = 0;
+        startTime = Date.now();
+        me.life = 3;
+        me.score = 0;
+        wall = [];
+        wall.push({time: 3+Math.random(), height: 40, width: 20, v: 200});
+        
+        draw();
+        
+        textId.style.left = "20px";
+        textId.style.top = "20px";
+        textId.style.fontSize = "16px";
+        textId.style.transform = "none";
+        
+        newButton.style.display = "none";
+        
+        game = setInterval(update, 5);
+      }
+    }
+    </script>
+  </body>
+</html>
