@@ -236,8 +236,16 @@ window.CompVis = class {
   }
 
   Eval(Text, vars={}) { // ※absは、 | x | ではなく [ x ]
-    // 例:CompVis.Eval("-1+2(3-4*5)[max(6,7+8)-9]/x");
+    // 例:CompVis.eval("-1+2(3-4*5)[max(6,7+8)-9]/x");
     return CompVis.Eval.run(Text, vars)
+  }
+
+  tokens(Text) {
+    return CompVis.Eval.getTokens(Text);
+  }
+
+  ast(Text) {
+    return CompVis.Eval.getAst(Text);
   }
 }
 
@@ -346,13 +354,7 @@ CompVis.Eval = class {
   
   static parser(Text) {
     const struct = {};
-    const originTokens = CompVis.Eval.#tokenizer(Text);
-    const tokens = CompVis.Eval.#applyImplicitRules(originTokens);
-    
-    for(let k = 0; k < tokens.length-1; k++) if(CompVis.Eval.#isErrorPair(tokens[k], tokens[k+1])) {
-      CompVis.Eval.throwTokenError();
-      break;
-    }
+    const tokens = CompVis.Eval.getTokens(Text);
     
     const parse = CompVis.Eval.#parseExpression(tokens);
     
@@ -371,11 +373,9 @@ CompVis.Eval = class {
       const a = origin[k];
       if(a.type === "space") continue;
       const b = origin[k+1];
-      if(a.type === "parStart" && b.type === "add") {
-        b.type = "plus";
-      }
-      if(a.type === "parStart" && b.type === "sub") {
-        b.type = "minus";
+      if(a.type === "parStart" || a.type === "absStart") {
+        if(b.type === "add") b.type = "plus";
+        else if(b.type === "sub") b.type = "minus";
       }
       
       tokens.push(structuredClone(origin[k]));
@@ -397,6 +397,14 @@ CompVis.Eval = class {
   }
   
   static #isOmitMul(a, b) {
+    if (["add", "sub", "pro", "div", "pow", "parEnd", "absEnd", "comma"].includes(b.type)) {
+    return false;
+  }
+  
+  // aが「開き記号」や「演算子」の場合は、その直後に掛け算を入れない
+  if (["parStart", "absStart", "add", "sub", "pro", "div", "pow", "comma", "plus", "minus"].includes(a.type)) {
+    return false;
+  }
     return (
       (a.type === "num" && b.type === "value") ||       // 2x
       (a.type === "value" && b.type === "value") ||     // xy
@@ -408,7 +416,7 @@ CompVis.Eval = class {
       (a.type === "value" && b.type === "absStart") ||  // x[
       (a.type === "num" && b.type === "absStart") ||    // 2[
       (a.type === "absEnd" && b.type === "absStart") || // ][
-      (a.type === "absEnd" && b.type === "padStart") || // ](
+      (a.type === "absEnd" && b.type === "parStart") || // ](
       (a.type === "parEnd" && b.type === "absStart") || // )[
       (!a.func && b.func) // xsin
     );
@@ -427,7 +435,7 @@ CompVis.Eval = class {
     while (tokens.length > 0) {
       const opToken = tokens[0];
       const opInfo = this.bpList[opToken.type];
-    
+      
       if (!opInfo || opInfo.bp < minBp) break; // 次の演算子の方が弱ければ終了
 
       tokens.shift(); // 演算子を消費
@@ -518,7 +526,7 @@ CompVis.Eval = class {
       return { type: "FunctionCall", name: "abs", arguments: [expr] };
     }
 
-    CompVis.Eval.throwTokenError("#parsePrimary");
+    CompVis.Eval.throwTokenError("#parsePrimary", "tokens: "+JSON.stringify(tokens));
   }
   
   static #evaluate(node, vars = {}) {
@@ -579,6 +587,22 @@ CompVis.Eval = class {
   static run(Text, vars={}) {
     const ast = CompVis.Eval.parser(Text);
     return CompVis.Eval.#evaluate(ast, vars);
+  }
+  
+  static getTokens(Text) {
+    const originTokens = CompVis.Eval.#tokenizer(Text);
+    const tokens = CompVis.Eval.#applyImplicitRules(originTokens);
+    
+    for(let k = 0; k < tokens.length-1; k++) if(CompVis.Eval.#isErrorPair(tokens[k], tokens[k+1])) {
+      CompVis.Eval.throwTokenError();
+      break;
+    }
+    
+    return tokens;
+  }
+  
+  static getAst(Text) {
+    return CompVis.Eval.parser(Text);
   }
 }
 
