@@ -234,6 +234,352 @@ window.CompVis = class {
 
     return { a, s_list };
   }
+
+  Eval(Text, vars={}) { // ※absは、 | x | ではなく [ x ]
+    // 例:CompVis.Eval("-1+2(3-4*5)[max(6,7+8)-9]/x");
+    return CompVis.Eval.run(Text, vars)
+  }
+}
+
+CompVis.Eval = class {
+  constructor() {
+  }
+  
+  static character = "[a-zA-Z\\u0391-\\u03A9\\u03B1-\\u03C9]"
+  
+  static numReg = "(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)" // 0.~, 非0
+  
+  static tokenRules = {
+    space: {re: /^\s+/},
+    comma: {re: /^,/},
+    parStart : {re: /^\(/},
+    parEnd :   {re: /^\)/},
+    add:   {re: /^\+/},
+    sub:   {re: /^\-/},
+    pro:   {re: /^\*/},
+    div:   {re: /^\//},
+    pow:   {re: /^\^/},
+    absStart:   {re: /^\[/},
+    absEnd:     {re: /^\]/},
+    // cosecがcos判定とならないように、cosより前に判定
+    csc:   {re: /^(csc|cosec)/, func: true, par: true},
+    sec:   {re: /^sec/, func: true, par: true},
+    cot:   {re: /^cot/, func: true, par: true},
+    arccsc:{re: /^(arccsc|acsc|arccosec|acosec)/, func: true, par: true},
+    arcsec:{re: /^(arcsec|asec)/, func: true, par: true},
+    arccot:{re: /^(arccot|acot)/, func: true, par: true},
+    sin:   {re: /^sin/, func: true, par: true},
+    cos:   {re: /^cos/, func: true, par: true},
+    tan:   {re: /^tan/, func: true, par: true},
+    arcsin:{re: /^(arcsin|asin)/, func: true, par: true},
+    arccos:{re: /^(arccos|acos)/, func: true, par: true},
+    arctan2: {re: /^(acrtan2|atan2)/, func: true},
+    arctan:{re: /^(arctan|atan)/, func: true, par: true},
+    log10: {re: /^log10/, func: true, par: true},
+    log:   {re: /^log/, func: true, par: true},
+    ln:    {re: /^ln/, func: true, par: true},
+    exp:   {re: /^exp/, func: true, par: true},
+    arg:   {re: /^arg/, func: true, par: true},
+    max:   {re: /^max/, func: true},
+    min:   {re: /^min/, func: true},
+    e:     {re: /^e(?!_)/},
+    i:     {re: /^i(?!_)/},
+    pi:    {re: /^pi|π/},
+    num:   {re: new RegExp(`^${this.numReg}`)},
+    value: {re: new RegExp(`^(?:${this.character}(?:(?:0|[1-9][0-9]*)(?!${this.character})|_(?:${this.character}|${this.numReg})*)?)`)},
+  }
+  
+  static bpList = {
+    add: {value: "+", bp: 10},
+    sub: {value: "-", bp: 10},
+    pro: {value: "*", bp: 50},
+    div: {value: "/", bp: 50},
+    pow: {value: "^", bp: 70},
+      
+    plus: {value: "+", bp: 100},
+    minus: {value: "-", bp: 100},
+  }
+  
+  static throwTokenError(location="", detailed="") {
+    const err = new Error("Unexpected Token."+(location ? " Location: "+location+" ." : "")+"\n"+detailed);
+    // console.log(err.stack)
+    throw err;
+  }
+  
+  static #tokenizer(Text) {
+    const numReg = this.numReg; // 数値の正規表現の文字列
+    const tokenRules = structuredClone(this.tokenRules);
+    
+    const tokens = [];
+    let i = 0;
+    let text = Text;
+    
+    while(i < Text.length) {
+      text = Text.slice(i);
+      let match = false;
+      if(text[0] === "|") throw new Error("Use [x] instead of |x| in the Abs function!")
+      for(const name of Object.keys(tokenRules)) {
+        const re = tokenRules[name].re;
+        const m = text.match(re);
+        if(m) {
+          match = true;
+          const method = m[0];
+          const token = {
+            type: name,
+            value: method,
+          }
+          if (tokenRules[name].func) token.func = tokenRules[name].func;
+          if (tokenRules[name].par)  token.par  = tokenRules[name].par;
+          tokens.push(structuredClone(token));
+          i += method.length;
+          break;
+        }
+      }
+      if(!match) {
+        CompVis.Eval.throwTokenError("#tokenizer", text);
+        break;
+      }
+    }
+    
+    return tokens;
+  }
+  
+  static parser(Text) {
+    const struct = {};
+    const originTokens = CompVis.Eval.#tokenizer(Text);
+    const tokens = CompVis.Eval.#applyImplicitRules(originTokens);
+    
+    for(let k = 0; k < tokens.length-1; k++) if(CompVis.Eval.#isErrorPair(tokens[k], tokens[k+1])) {
+      CompVis.Eval.throwTokenError();
+      break;
+    }
+    
+    const parse = CompVis.Eval.#parseExpression(tokens);
+    
+    return parse
+  }
+  
+  static #applyImplicitRules(originTokens) {
+    const origin = structuredClone(originTokens);
+    const tokens = [];
+    if(origin.length == 0) return tokens;
+    
+    if(origin[0].type === "add") origin[0].type = "plus";
+    if(origin[0].type === "sub") origin[0].type = "minus";
+    
+    for(let k = 0; k < origin.length - 1; k++) {
+      const a = origin[k];
+      if(a.type === "space") continue;
+      const b = origin[k+1];
+      if(a.type === "parStart" && b.type === "add") {
+        b.type = "plus";
+      }
+      if(a.type === "parStart" && b.type === "sub") {
+        b.type = "minus";
+      }
+      
+      tokens.push(structuredClone(origin[k]));
+      
+      if (b.type === "space") {
+        const c = origin[k+2];
+        if (c && CompVis.Eval.#isOmitMul(a, c)) {
+          tokens.push({ type:"pro", value:"*" });
+        }
+      } else if(CompVis.Eval.#isOmitMul(a, b)) {
+        tokens.push({
+          type: "pro",
+          value: "*"
+        });
+      }
+    }
+    tokens.push(structuredClone(origin[origin.length-1]));
+    return tokens;
+  }
+  
+  static #isOmitMul(a, b) {
+    return (
+      (a.type === "num" && b.type === "value") ||       // 2x
+      (a.type === "value" && b.type === "value") ||     // xy
+      (a.type === "parEnd" && b.type === "value") ||    // )x
+      (a.type === "value" && b.type === "parStart") ||  // x(
+      (a.type === "num" && b.type === "parStart") ||    // 2(
+      (a.type === "parEnd" && b.type === "parStart") || // )(
+      (a.type === "absEnd" && b.type === "value") ||    // ]x
+      (a.type === "value" && b.type === "absStart") ||  // x[
+      (a.type === "num" && b.type === "absStart") ||    // 2[
+      (a.type === "absEnd" && b.type === "absStart") || // ][
+      (a.type === "absEnd" && b.type === "padStart") || // ](
+      (a.type === "parEnd" && b.type === "absStart") || // )[
+      (!a.func && b.func) // xsin
+    );
+  }
+  
+  static #isErrorPair(a, b) {
+    return (
+      (a.type === "num" && b.type === "num") ||
+      (a.type === "value" && b.type === "num")
+    );
+  }
+  
+  static #parseExpression(tokens, minBp = 0) {
+    let left = CompVis.Eval.#parsePrimary(tokens); // 数値や括弧などを取得
+
+    while (tokens.length > 0) {
+      const opToken = tokens[0];
+      const opInfo = this.bpList[opToken.type];
+    
+      if (!opInfo || opInfo.bp < minBp) break; // 次の演算子の方が弱ければ終了
+
+      tokens.shift(); // 演算子を消費
+      const nextBp = (opToken.type === "pow") ? opInfo.bp : opInfo.bp + 1;
+      const right = CompVis.Eval.#parseExpression(tokens, nextBp);
+    
+      // 二項演算子のノードを作成
+      left = {
+        type: "BinaryExpression",
+        operator: opInfo.value,
+        left: left,
+        right: right
+      };
+    }
+    return left;
+  }
+  
+  static #parsePrimary(tokens) {
+    const token = tokens.shift(); // 先頭のトークンを取り出す
+
+    if (!token) throw new Error("式が途中で終わっています");
+
+    // 1. 数値や定数、変数
+    if (token.type === "num" || token.type === "value" || token.type === "pi" || token.type === "e" || token.type === "i") {
+      return { type: "Leaf", value: token.value, kind: token.type };
+    }
+
+    // 2. 単項演算子 (プラス・マイナス)
+    if (token.type === "minus" || token.type === "plus") {
+      // 結合力 100で右側を解析
+      const right = CompVis.Eval.#parseExpression(tokens, 100); 
+      return { type: "UnaryExpression", operator: token.value, argument: right };
+    }
+
+    // 3. 括弧 (通常の計算順序の制御)
+    // ここにカンマ処理は入れない（(1, 2) という式は定義しないため）
+    if (token.type === "parStart") {
+      const expr = CompVis.Eval.#parseExpression(tokens, 0); // 括弧内を解析
+      const next = tokens.shift();
+      if (!next || next.type !== "parEnd") throw new Error("閉じ括弧がありません");
+      return expr;
+    }
+
+    // 4. 関数 (sin, max など)
+    if (token.func) {
+      const next = tokens[0];
+      let args = [];
+
+      // 次が開き括弧なら、引数リストとして解析
+      if (next && next.type === "parStart") {
+        tokens.shift(); // '(' を消費
+
+        // 引数が空でないかチェック ( max() 対策 )
+        if (tokens[0] && tokens[0].type !== "parEnd") {
+          while (true) {
+            // 式を解析してリストに追加
+            args.push(CompVis.Eval.#parseExpression(tokens, 0));
+
+            // カンマがあれば消費して次へ、なければループ終了
+            if (tokens[0] && tokens[0].type === "comma") {
+              tokens.shift(); 
+            } else {
+              break; 
+            }
+          }
+        }
+
+        const end = tokens.shift(); // ')' を消費
+        if (!end || end.type !== "parEnd") throw new Error(`関数 ${token.value} の閉じ括弧がありません`);
+      
+      } else {
+        // 括弧がない場合 (sin x など) - 優先度80で1つの引数を取る
+        args.push(CompVis.Eval.#parseExpression(tokens, 80)); 
+      }
+      
+      return { type: "FunctionCall", name: token.type, arguments: args };
+    }
+
+    // 5. 絶対値 [x]
+    if (token.type === "absStart") {
+      const expr = CompVis.Eval.#parseExpression(tokens, 0);
+      const next = tokens.shift();
+      
+      // トークンタイプは absEnd で判定
+      if (!next || next.type !== "absEnd") throw new Error("絶対値の閉じ記号 '|' がありません");
+      
+      // 関数として扱うため、arguments は配列にする
+      return { type: "FunctionCall", name: "abs", arguments: [expr] };
+    }
+
+    CompVis.Eval.throwTokenError("#parsePrimary");
+  }
+  
+  static #evaluate(node, vars = {}) {
+    switch (node.type) {
+      case "Leaf":
+        // 数値の場合
+        if (node.kind === "num") return parseFloat(node.value);
+        // 定数の場合
+        if (node.kind === "pi") return Math.PI;
+        if (node.kind === "e") return Math.E;
+        // 変数の場合
+        if (node.kind === "value") {
+          if (vars[node.value] !== undefined) return vars[node.value];
+          throw new Error(`変数 '${node.value}' が定義されていません`);
+        }
+        return 0;
+
+      case "UnaryExpression":
+        const argValue = CompVis.Eval.#evaluate(node.argument, vars);
+        return node.operator === "-" ? -argValue : argValue;
+
+      case "BinaryExpression":
+        const left = CompVis.Eval.#evaluate(node.left, vars);
+        const right = CompVis.Eval.#evaluate(node.right, vars);
+        switch (node.operator) {
+          case "+": return left + right;
+          case "-": return left - right;
+          case "*": return left * right;
+          case "/": return left / right;
+          case "^": return Math.pow(left, right);
+        }
+        return 0;
+
+      case "FunctionCall":
+        const args = node.arguments.map(arg => CompVis.Eval.#evaluate(arg, vars));
+        const v = args[0];
+        // tokenRules で定義した関数名に応じて Math 関数を呼び出す
+        switch (node.name) {
+          case "sin": return Math.sin(v);
+          case "cos": return Math.cos(v);
+          case "tan": return Math.tan(v);
+          case "log": return Math.log(v);
+          case "ln":  return Math.log(v);
+          case "log10": return Math.log10(v);
+          case "abs": return Math.abs(v);
+          case "exp": return Math.exp(v);
+          case "sqrt": return Math.sqrt(v);
+          case "arcsin": return Math.asin(v);
+          case "arccos": return Math.acos(v);
+          case "arctan": return Math.atan(v);
+          case "arctan2": return Math.atan2(args[0],args[1]);
+          case "max": return Math.max(...args);
+        }
+        return 0;
+    }
+  }
+  
+  static run(Text, vars={}) {
+    const ast = CompVis.Eval.parser(Text);
+    return CompVis.Eval.#evaluate(ast, vars);
+  }
 }
 
 CompVis.Complex = class {
