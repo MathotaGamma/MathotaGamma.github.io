@@ -235,7 +235,7 @@ window.CompVis = class {
     return { a, s_list };
   }
 
-  Eval(Text, vars={}) { // ※absは、 | x | ではなく [ x ]
+  eval(Text, vars={}) { // ※absは、 | x | ではなく [ x ]
     // 例:CompVis.eval("-1+2(3-4*5)[max(6,7+8)-9]/x");
     return CompVis.Eval.run(Text, vars)
   }
@@ -344,7 +344,7 @@ CompVis.Eval = class {
         }
       }
       if(!match) {
-        CompVis.Eval.throwTokenError("#tokenizer", text);
+        this.throwTokenError("#tokenizer", text);
         break;
       }
     }
@@ -354,9 +354,9 @@ CompVis.Eval = class {
   
   static parser(Text) {
     const struct = {};
-    const tokens = CompVis.Eval.getTokens(Text);
+    const tokens = this.getTokens(Text);
     
-    const parse = CompVis.Eval.#parseExpression(tokens);
+    const parse = this.#parseExpression(tokens);
     
     return parse
   }
@@ -382,10 +382,10 @@ CompVis.Eval = class {
       
       if (b.type === "space") {
         const c = origin[k+2];
-        if (c && CompVis.Eval.#isOmitMul(a, c)) {
+        if (c && this.#isOmitMul(a, c)) {
           tokens.push({ type:"pro", value:"*" });
         }
-      } else if(CompVis.Eval.#isOmitMul(a, b)) {
+      } else if(this.#isOmitMul(a, b)) {
         tokens.push({
           type: "pro",
           value: "*"
@@ -430,7 +430,7 @@ CompVis.Eval = class {
   }
   
   static #parseExpression(tokens, minBp = 0) {
-    let left = CompVis.Eval.#parsePrimary(tokens); // 数値や括弧などを取得
+    let left = this.#parsePrimary(tokens); // 数値や括弧などを取得
 
     while (tokens.length > 0) {
       const opToken = tokens[0];
@@ -440,7 +440,7 @@ CompVis.Eval = class {
 
       tokens.shift(); // 演算子を消費
       const nextBp = (opToken.type === "pow") ? opInfo.bp : opInfo.bp + 1;
-      const right = CompVis.Eval.#parseExpression(tokens, nextBp);
+      const right = this.#parseExpression(tokens, nextBp);
     
       // 二項演算子のノードを作成
       left = {
@@ -466,14 +466,14 @@ CompVis.Eval = class {
     // 2. 単項演算子 (プラス・マイナス)
     if (token.type === "minus" || token.type === "plus") {
       // 結合力 100で右側を解析
-      const right = CompVis.Eval.#parseExpression(tokens, 100); 
+      const right = this.#parseExpression(tokens, 100); 
       return { type: "UnaryExpression", operator: token.value, argument: right };
     }
 
     // 3. 括弧 (通常の計算順序の制御)
     // ここにカンマ処理は入れない（(1, 2) という式は定義しないため）
     if (token.type === "parStart") {
-      const expr = CompVis.Eval.#parseExpression(tokens, 0); // 括弧内を解析
+      const expr = this.#parseExpression(tokens, 0); // 括弧内を解析
       const next = tokens.shift();
       if (!next || next.type !== "parEnd") throw new Error("閉じ括弧がありません");
       return expr;
@@ -492,7 +492,7 @@ CompVis.Eval = class {
         if (tokens[0] && tokens[0].type !== "parEnd") {
           while (true) {
             // 式を解析してリストに追加
-            args.push(CompVis.Eval.#parseExpression(tokens, 0));
+            args.push(this.#parseExpression(tokens, 0));
 
             // カンマがあれば消費して次へ、なければループ終了
             if (tokens[0] && tokens[0].type === "comma") {
@@ -508,7 +508,7 @@ CompVis.Eval = class {
       
       } else {
         // 括弧がない場合 (sin x など) - 優先度80で1つの引数を取る
-        args.push(CompVis.Eval.#parseExpression(tokens, 80)); 
+        args.push(this.#parseExpression(tokens, 80)); 
       }
       
       return { type: "FunctionCall", name: token.type, arguments: args };
@@ -516,7 +516,7 @@ CompVis.Eval = class {
 
     // 5. 絶対値 [x]
     if (token.type === "absStart") {
-      const expr = CompVis.Eval.#parseExpression(tokens, 0);
+      const expr = this.#parseExpression(tokens, 0);
       const next = tokens.shift();
       
       // トークンタイプは absEnd で判定
@@ -526,7 +526,7 @@ CompVis.Eval = class {
       return { type: "FunctionCall", name: "abs", arguments: [expr] };
     }
 
-    CompVis.Eval.throwTokenError("#parsePrimary", "tokens: "+JSON.stringify(tokens));
+    this.throwTokenError("#parsePrimary", "tokens: "+JSON.stringify(tokens));
   }
   
   static #evaluate(node, vars = {}) {
@@ -545,12 +545,12 @@ CompVis.Eval = class {
         return 0;
 
       case "UnaryExpression":
-        const argValue = CompVis.Eval.#evaluate(node.argument, vars);
+        const argValue = this.#evaluate(node.argument, vars);
         return node.operator === "-" ? -argValue : argValue;
 
       case "BinaryExpression":
-        const left = CompVis.Eval.#evaluate(node.left, vars);
-        const right = CompVis.Eval.#evaluate(node.right, vars);
+        const left = this.#evaluate(node.left, vars);
+        const right = this.#evaluate(node.right, vars);
         switch (node.operator) {
           case "+": return left + right;
           case "-": return left - right;
@@ -561,7 +561,7 @@ CompVis.Eval = class {
         return 0;
 
       case "FunctionCall":
-        const args = node.arguments.map(arg => CompVis.Eval.#evaluate(arg, vars));
+        const args = node.arguments.map(arg => this.#evaluate(arg, vars));
         const v = args[0];
         // tokenRules で定義した関数名に応じて Math 関数を呼び出す
         switch (node.name) {
@@ -585,16 +585,16 @@ CompVis.Eval = class {
   }
   
   static run(Text, vars={}) {
-    const ast = CompVis.Eval.parser(Text);
-    return CompVis.Eval.#evaluate(ast, vars);
+    const ast = this.parser(Text);
+    return this.#evaluate(ast, vars);
   }
   
   static getTokens(Text) {
-    const originTokens = CompVis.Eval.#tokenizer(Text);
-    const tokens = CompVis.Eval.#applyImplicitRules(originTokens);
+    const originTokens = this.#tokenizer(Text);
+    const tokens = this.#applyImplicitRules(originTokens);
     
-    for(let k = 0; k < tokens.length-1; k++) if(CompVis.Eval.#isErrorPair(tokens[k], tokens[k+1])) {
-      CompVis.Eval.throwTokenError();
+    for(let k = 0; k < tokens.length-1; k++) if(this.#isErrorPair(tokens[k], tokens[k+1])) {
+      this.throwTokenError();
       break;
     }
     
@@ -602,7 +602,7 @@ CompVis.Eval = class {
   }
   
   static getAst(Text) {
-    return CompVis.Eval.parser(Text);
+    return this.parser(Text);
   }
 }
 
