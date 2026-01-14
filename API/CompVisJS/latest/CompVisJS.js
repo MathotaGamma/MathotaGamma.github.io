@@ -3026,6 +3026,9 @@ CompVis.Matrix = class {
   get size(){
     return this._size;
   }
+  get str() {
+    return this._matrix.map(row => row.join(", ")).join("\n");
+  }
   get toString() {
     return JSON.stringify(this._matrix);
   }
