@@ -1034,8 +1034,8 @@ CompVis.Quater = class {
     let text = "";
     if(w != 0) text += w.toString();
     if(x != 0) text += (x > 0 && text != "" ? "+" : "") + x.toString()+"i";
-    if(y != 0) text += (y > 0 && text != "" ? "+" : "") + y.toString()+"i";
-    if(z != 0) text += (z > 0 && text != "" ? "+" : "") + z.toString()+"i";
+    if(y != 0) text += (y > 0 && text != "" ? "+" : "") + y.toString()+"j";
+    if(z != 0) text += (z > 0 && text != "" ? "+" : "") + z.toString()+"k";
     return text;
   }
 
