@@ -113,6 +113,12 @@ window.CompVis = class {
   constructor() {
   }
 
+  static round(num, n=0) {
+    if(Number.isInteger(n) && n >= 0) {
+      return Number(num.toFixed(n));
+    } else return num;
+  }
+
   static VectorToQuater(V) {
     return new CompVis.Quater(Vector.values);
   }
@@ -921,6 +927,11 @@ CompVis.Vector = class {
     const v = this.clone.values;
     return new CompVis.Vector(v.map(value => value*k));
   }
+
+  round(n=0) {
+    const v = this.clone.values;
+    return new CompVis.Vector(v.map(value => CompVis.round(value, n)));
+  }
   
   get abs() {
     return Math.sqrt(this.values.reduce((pre, cur) => pre+cur**2,0));
@@ -1089,6 +1100,10 @@ CompVis.Quater = class {
 
   get clone() {
     return new CompVis.Quater(this.val);
+  }
+
+  round(n) {
+    return new CompVis.Quater(this.clone.val.map(value => CompVis.rounc(value,n)));
   }
 
   _w(w) {
@@ -3035,6 +3050,10 @@ CompVis.Matrix = class {
 
   scale(n) {
     return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col => col*n)}));
+  }
+
+  round(n) {
+    return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col => CompVis.round(col,n))));
   }
 
   add(B) {
