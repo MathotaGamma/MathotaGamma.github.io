@@ -114,9 +114,13 @@ window.CompVis = class {
   }
 
   static round(num, n=0) {
-    if(Number.isInteger(n) && n >= 0) {
+    if(!Number.isInteger(n)) throw new Error("at CompVis.round ... The number of digits must be specified as an integer value.");
+    if(n >= 0) {
       return Number(num.toFixed(n));
-    } else return num;
+    } else {
+      const N = -n;
+      return Math.round(num/10**N)*10**N;
+    }
   }
 
   static VectorToQuater(V) {
@@ -680,8 +684,8 @@ CompVis.Complex = class {
     let k_k;
     if(k >= 0){
       k_k = new CompVis.Complex(this._real.toFixed(k),this._imag.toFixed(k));
-    } else {
-      k_k = new CompVis.Complex(Math.round(this._real*10**k)/10**k,Math.round(this._imag*10**k)/10**k)
+    } else { // k < 0
+      k_k = new CompVis.Complex(Math.round(this._real/10**k)*10**k,Math.round(this._imag*10**k)/10**k)
     }
     return k_k;
   }
