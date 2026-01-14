@@ -1029,6 +1029,17 @@ CompVis.Quater = class {
   }
 
   get str() {
+    const [w,x,y,z] = [this.w,this.x,this.y,this.z];
+    if(w == 0 && x == 0 && y == 0 && z == 0) return "0"
+    let text = "";
+    if(w != 0) text += w.toString();
+    if(x != 0) text += (x > 0 && text != "" ? "+" : "") + x.toString()+"i";
+    if(y != 0) text += (y > 0 && text != "" ? "+" : "") + y.toString()+"i";
+    if(z != 0) text += (z > 0 && text != "" ? "+" : "") + z.toString()+"i";
+    return text;
+  }
+
+  get strs() {
     return `w:${this.w} x:${this.x} y:${this.y} z:${this.z}`;
   }
 
