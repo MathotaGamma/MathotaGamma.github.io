@@ -3057,7 +3057,7 @@ CompVis.Matrix = class {
   }
 
   round(n) {
-    return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col => CompVis.round(col,n))));
+    return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col => CompVis.round(col,n))}));
   }
 
   add(B) {
