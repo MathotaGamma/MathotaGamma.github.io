@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>Car Race</title>
+    <style>
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      
+      canvas {
+        margin: 0;
+      }
+    </style>
+    <script src="https://mathotagamma.github.io/API/CompVisJS/latest/CompVisJS.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!--<div id="my-div"></div>-->
+    <canvas id="screen"></canvas>
+    <script type="module">
+      import * as THREE from "three";
+      window.onload = () => {
+        const myDiv = document.getElementById("my-div");
+        
+        //const P = [{x:0,y:-1,z:0},{x:0,y:0,z:-1},{x:1,y:0,z:0},{x:0,y:0,z:1},{x:-1,y:0,z:0},{x:0,y:1,z:0}]; // 例
+        
+        /*const players = {
+          
+        };*/
+        
+        const me = {
+          position: {x: 0, y: 0, z: 0},
+          rotation: {x: 0, y: 0, z: 0}
+        }
+        
+        const roadHalfWidth = 10;
+        
+        // 1区間あたりの分割数
+        const part = 300;
+        
+        const P_list = [
+          [0,13,0],
+          [-50,12,10],
+          [-60,10,-5],
+          [-52,8,-15],
+          [-45,7.7,-18],
+          [-30,7.4,-10],
+          [-10,7,-18],
+          [10,7,-20],
+          [30,6.3,-10],
+          [40,6,-12],
+          [50,6.5,-17],
+          [62,5.7,-22],
+          [75,5,-1],
+          [75,5,15],
+          [55,4.3,15],
+          [45,4.1,16],
+          [40,4,25],
+          [38,3,50],
+          [50,3,60],
+          [75,5,60],
+          [85,5.4,50],
+          [80,6,35],
+          [60,7,30],
+          [40,8,30],
+          [20,9,28],
+          [5,9,40],
+          [-20,9,40],
+          [-40,9,45],
+          [-45,9.3,60],
+          [-43,9.6,75],
+          [-25,9.8,80],
+          [-28,10,110],
+          [-40,10,125],
+          [-52,10,150],
+          [-35,10,170],
+          [-10,10,170],
+          [0,10,150],
+          [10,10,120],
+          [35,10,110],
+          [40,10.5,150],
+          [45,10.7,170],
+          [80,11,170],
+          [85,11,150],
+          [60,11,120],
+          [55,11,75],
+          [0,11,65],
+          [0,13,100],
+          [30,15,100],
+          [35,15.5,80],
+          [34,16,60],
+          [30,16,20],
+          [20,14,0]
+        ]
+        const P = P_list.map((k) => {return{x:10*k[0],y:3*k[1],z:10*k[2]}});
+
+        const N = P.length;
+        
+        const Fx = [], Fy = [], Fz = [];
+        
+        const array = [...Array(N).keys()];
+        
+        for(let n = 0; n < N; n++) {
+          const e = (s) => (new CompVis.Complex(0,-2*Math.PI*s/N)).exp;
+          
+          Fx[n] = array.reduce((acc, k) => acc.add(e(n*k).pro(P[k].x/N)), new CompVis.Complex(0,0));
+          Fy[n] = array.reduce((acc, k) => acc.add(e(n*k).pro(P[k].y/N)), new CompVis.Complex(0,0));
+          Fz[n] = array.reduce((acc, k) => acc.add(e(n*k).pro(P[k].z/N)), new CompVis.Complex(0,0));
+        }
+        
+        const r1 = (n) => 2*n < N ? 1 : -1;
+        const r2 = (n) => 2*n < N ? n : N-n;
+        
+        const fx = (t) => array.reduce((acc, k) => acc + Fx[k].abs*Math.cos(2*Math.PI*r2(k)*t/N+r1(k)*Fx[k].arg), 0);
+        const fy = (t) => array.reduce((acc, k) => acc + Fy[k].abs*Math.cos(2*Math.PI*r2(k)*t/N+r1(k)*Fy[k].arg), 0);
+        const fz = (t) => array.reduce((acc, k) => acc + Fz[k].abs*Math.cos(2*Math.PI*r2(k)*t/N+r1(k)*Fz[k].arg), 0);
+        const dfx = (t) => -2*Math.PI/N*array.reduce((acc, k) => acc + r2(k)*Fx[k].abs*Math.sin(2*Math.PI*r2(k)*t/N+r1(k)*Fx[k].arg), 0);
+        const dfy = (t) => -2*Math.PI/N*array.reduce((acc, k) => acc + r2(k)*Fy[k].abs*Math.sin(2*Math.PI*r2(k)*t/N+r1(k)*Fy[k].arg), 0);
+        const dfz = (t) => -2*Math.PI/N*array.reduce((acc, k) => acc + r2(k)*Fz[k].abs*Math.sin(2*Math.PI*r2(k)*t/N+r1(k)*Fz[k].arg), 0);
+        
+        // 道の幅の方向(法線ベクトル)
+        const u = (t) => new CompVis.Vector(-dfz(t),0,dfx(t)).normalize;
+        
+        const f = (t) => new CompVis.Vector(fx(t),fy(t),fz(t));
+        
+        const L = (t) => f(t).sub(u(t).scale(roadHalfWidth));
+        const R = (t) => f(t).add(u(t).scale(roadHalfWidth));
+        
+        
+        const Vertices = [];
+        
+        for(let t0 = 0; t0 < N; t0 += 1/part) {
+          let t1 = t0+1/part;
+          if(t1 > N) t1 = N;
+          const L0 = L(t0),R0 = R(t0), L1 = L(t1), R1 = R(t1); // 長方形の頂点
+          Vertices.push(
+            L1.x, L1.y, L1.z,
+            L0.x, L0.y, L0.z,
+            R0.x, R0.y, R0.z
+          );
+          Vertices.push(
+            L1.x, L1.y, L1.z,
+            R0.x, R0.y, R0.z,
+            R1.x, R1.y, R1.z
+          );
+        }
+        
+
+        
+        /*
+        const view = new CompVis.ViewThree(myDiv);
+        
+        view.addGraph(
+          (t) => [
+            fx(t),
+            fy(t),
+            fz(t)
+          ],
+          0, N, 10*N, { color: 0xdd4477 }
+        );
+
+        view.addGraph((t) => Math.exp(t/8), -20, 20, 200, { color: 0x7fffd4 });
+
+        view.exec((THREE, scene, camera, renderer, controls) => {
+          let T = 0;
+          const v = N;
+          let geometry = new THREE.SphereGeometry(0.1,15,15);
+          let material = new THREE.MeshLambertMaterial({color: 0x4444ff});
+          const sphere = new THREE.Mesh(geometry, material);
+          scene.add(sphere);
+          const startTime = Date.now();
+          
+          setInterval(() => {
+            T = (Date.now()-startTime)/1000;
+            sphere.position.set(fx(v*T),fy(v*T),fz(v*T));
+          }, 2);
+        });
+        */
+        
+        init()
+        
+        function init() {
+          const width = window.innerWidth;
+          const height = window.innerHeight;
+
+          // レンダラーを作成
+          const renderer = new THREE.WebGLRenderer({
+            canvas: document.getElementById("screen"),
+          });
+          renderer.setPixelRatio(window.devicePixelRatio);
+          renderer.setSize(width, height);
+
+          // シーンを作成
+          const scene = new THREE.Scene();
+
+          // カメラを作成
+          const camera = new THREE.PerspectiveCamera(45, width / height);
+          camera.position.set(0, 50, -50);
+          camera.lookAt(new THREE.Vector3(0, 0, 0));
+          
+          scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+          // 光を追加
+          const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+          dirLight.position.set(500, 1000, 500);
+          scene.add(dirLight);
+          
+          const light = new THREE.AmbientLight(0xFFFFFF, 1.0);
+          scene.add(light);
+
+          // 半球光源を作成
+          const hemiSphereLight = new THREE.HemisphereLight(0x888888, 0x0000FF, 1.0);
+          scene.add(hemiSphereLight);
+
+
+          // 箱を作成
+          const geometry = new THREE.BoxGeometry(1, 1, 1);
+          const material = new THREE.MeshNormalMaterial();
+          const box = new THREE.Mesh(geometry, material);
+          scene.add(box);
+          
+          const planeGeometry = new THREE.PlaneGeometry(10, 10);
+          const planeMaterial = new THREE.MeshBasicMaterial({color: 0xeecccc});
+          const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+          
+          plane.position.x = 0;
+          plane.position.y = 0;
+          plane.position.z = 0;
+          plane.rotation.y = Math.PI;
+          plane.rotation.x = Math.PI/2;
+          scene.add(plane);
+          
+          const roadGeometry = new THREE.BufferGeometry();
+          roadGeometry.setAttribute(
+            'position',
+            new THREE.Float32BufferAttribute(Vertices, 3)
+          );
+          roadGeometry.computeVertexNormals();
+
+          const roadMaterial = new THREE.MeshStandardMaterial({
+            color: 0x888888,
+            side: THREE.DoubleSide
+          });
+
+          const road = new THREE.Mesh(roadGeometry, roadMaterial);
+          scene.add(road);
+          
+          const startTime = Date.now();
+          
+          const cameraRadius = 30;
+          
+          function tick() {
+            // box.rotation.y += 0.01;
+            const T = (Date.now()-startTime)/1000;
+            //console.log(f(T))
+            const f_k = f(T).values;
+            
+            me.position = {x: f_k[0], y: f_k[1], z: f_k[2]}
+            box.position.set(me.position.x, me.position.y, me.position.z)
+            
+            //console.log(me.position)
+            
+            
+            const v = new CompVis.Vector(dfx(T), 0, dfz(T)).normalize.scale(cameraRadius);
+            
+            camera.position.set(me.position.x-v.x, me.position.y+6, me.position.z-v.z);
+            camera.lookAt(me.position.x, me.position.y, me.position.z);
+            renderer.render(scene, camera); // レンダリング
+
+            requestAnimationFrame(tick);
+          }
+          
+          tick();
+        }
+      }
+    </script>
+  </body>
+</html>
