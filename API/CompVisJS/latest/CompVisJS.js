@@ -858,7 +858,7 @@ CompVis.Vector = class {
     const v = this.values;
     if (v.length == 2) {
       return `x:${v[0]} y:${v[1]}`;
-    } else (v.length == 3) {
+    } else if (v.length == 3) {
       return `x:${v[0]} y:${v[1]} z:${v[2]}`;
     }
     return this.str;
