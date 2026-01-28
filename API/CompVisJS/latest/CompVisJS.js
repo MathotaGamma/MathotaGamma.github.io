@@ -854,6 +854,16 @@ CompVis.Vector = class {
     return this.values.join(", ");
   }
 
+  get strs() {
+    const v = this.values;
+    if (v.length == 2) {
+      return `x:${v[0]} y:${v[1]}`;
+    } else (v.length == 3) {
+      return `x:${v[0]} y:${v[1]} z:${v[2]}`;
+    }
+    return this.str;
+  }
+
   get x() {
     return this.values[0];
   }
