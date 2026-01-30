@@ -100,10 +100,11 @@
         top: 0;
         left: 0;
         background: rgba(200, 200, 200, 0.75);
-        z-index: 700;
+        z-index: 900;
       }
       
       #top {
+        position: relative;
         padding-left: 20px;
         display: flex;
         align-items: center;
@@ -111,9 +112,11 @@
         width: 100%;
         border-bottom: 1px solid black;
         gap: 12px;
+        z-index: 910;
       }
       
       #top > button {
+        position: relative;
         border-radius: 0px;
         color: white;
         background: rgba(0,0,0,0.6);
@@ -121,6 +124,7 @@
         font-size: 16px;
         margin: 3px;
         min-width: 80px;
+        z-index: 920;
       }
       
       #bottom {
@@ -130,13 +134,14 @@
         grid-template-rows: repeat(var(--rowsNum), auto);
         grid-auto-columns: 220px;
         gap: 8px;
-        max-height: 100%;
+        height: calc(100% - 70px);
         width: 100%;
 
         overflow-x: auto;
         overflow-y: hidden;
 
         padding: 8px;
+        z-index: 890;
         /*white-space: nowrap;*/
       }
       #buttom > .menu-item {
@@ -228,7 +233,10 @@
       <button onclick="toggleMission();">MISSION</button>
     </div>
     <div id="mission">
-      <div id="top"><button style="z-index: 805;" onclick="toggleMission();">戻る</button>MISSION</div>
+      <div id="top">
+        <button style="z-index: 805;" ontouchstart="toggleMission();">戻る</button>
+        <span>MISSION</span>
+      </div>
       <div id="bottom"></div>
     </div>
     <div id="out-circle">
@@ -850,6 +858,10 @@
           dataCalc();
           testMission();
           textView();
+          if(me.position.y < -50) {
+            positionReset();
+            showAlert("奈落に落ちたため、初期地点へ移動します。");
+          }
         }
         
 
@@ -1027,9 +1039,11 @@
           
           if(!div.style.display || div.style.display == "none") {
             div.style.display = "block";
+            timeStop(true);
             makeMission();
           } else {
             div.style.display = "none"
+            timeStop(false);
           }
         }
         
