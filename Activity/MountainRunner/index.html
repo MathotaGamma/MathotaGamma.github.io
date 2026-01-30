@@ -231,9 +231,11 @@
     <div id="left-stick-layer"></div>
     <div id="menu">▼ MENU</div>
     <div id="menu-container">
-      <button onclick="positionReset();">Position Reset</button><br>
+      <button onclick="positionReset(true);">Position Reset</button><br>
       <button onclick="timeStop('change');">Pause</button>
       <button onclick="toggleMission();">MISSION</button>
+      <button onclick="removeLocalStorage();">RESET</button>
+      <button onclick="help();">Help</button>
     </div>
     <div id="mission">
       <div id="top">
@@ -262,7 +264,7 @@
       window.onload = () => {
         const textDiv = document.getElementById("text-div");
         
-        const data = {
+        let data = {
           currentVelocity: null,
           maxAllVelocity: 0,
           maxXZVelocity: 0,
@@ -297,6 +299,9 @@
         const maxSlopeAngle = Math.PI/4;
         let sumPauseTime = {all: 0, episode: 0};
         let stopStart = null;
+        let gotCoins = [];
+        let gotMedals = [];
+        let isReload = false;
         
         const multipleGravity = 15;
         
@@ -491,14 +496,15 @@
           {explain: "制作者はここに来るまで10分掛かりました...", pos: [-410.5429171190803, 224.24979411378519, -384.30616367581575]}
         ]
         
-        let coinsMesh = [];
-        let medalsMesh = [];
+        let coinsData = [];
+        let medalsData = [];
         
         /*function init() {
           addForce()
         }*/
         
-        const menuData = {
+        
+        let missionData = {
           move1: {
             icon: "⭐︎",
             kind: "touch",
@@ -558,29 +564,30 @@
           }
         };
         
-        function testMission() {
+        function testMission(isLoad=false) {
+          // isLoadは、localStorageから読み込んだ時に、達成条件による変数変更(最大速度上限の上昇など)を適用させるために入れる。
           let update = false;
-          Object.keys(menuData).forEach(key => {
-            const item = menuData[key];
+          Object.keys(missionData).forEach(key => {
+            const item = missionData[key];
             const val = item.value();
             const success = item.result != null || val >= item.max;
-            if(success && item.result == null) { // 初達成
+            if(isLoad || (success && item.result == null)) { // 初達成
               if(key == "speed2") {
                 // 20 -> 28
                 maxSpeed = 28;
-                showAlert("ミッション達成<br>最高速度が28を超えました！<br>速度上限が上昇します")
+                if(!isLoad) showAlert("ミッション達成<br>最高速度が28を超えました！<br>速度上限が上昇します")
               }
               if(key == "coin1") {
                 // 150 -> 200
                 baseForce = 200;
-                showAlert("ミッション達成<br>コインを25枚集めました！<br>加速度が上昇します")
+                if(!isLoad) showAlert("ミッション達成<br>コインを25枚集めました！<br>加速度が上昇します")
               }
             }
-            
+            if(isLoad) update = true;
+            if(item.result == null || val > item.result) update = true;
             if(success && (item.result == null || val > item.result)) {
               item.result = val;
             }
-            if(item.result == null || val > item.result) update = true;
           });
           if(makeMission && update) makeMission();
         }
@@ -795,47 +802,49 @@
             renderer.render(scene, camera);
           }
           function coinsCalc() {
-            if(coinsMesh.length) {
+            if(coinsData.length) {
               const theta = 2*Math.PI*(data.episodeTime)/3;
-              for(let k = 0; k < coinsMesh.length; k++) {
-                const mesh = coinsMesh[k];
+              for(let k = 0; k < coinsData.length; k++) {
+                const mesh = coinsData[k].mesh;
                 const L = vectorThreeToCompVis(mesh.position).sub(me.position).abs;
                 if(L < 1.5) {
+                  gotCoins.push(coinsData[k].id);
                   scene.remove( mesh );
                   mesh.geometry.dispose();
                   mesh.material.dispose();
-                  data.getCoinsCount++;
-                  delete coinsMesh[k];
+                  data.getCoinsCount = gotCoins.length;
+                  delete coinsData[k];
                   continue;
                 }
                 mesh.rotation.z = theta;
               }
-              coinsMesh = coinsMesh.filter((mesh) => {
-                return mesh !== undefined;
+              coinsData = coinsData.filter((k) => {
+                return k !== undefined;
               });
             }
-            if(medalsMesh.length) {
+            if(medalsData.length) {
               const theta = 2*Math.PI*(data.episodeTime)/3;
               const hue = (data.episodeTime * 0.3) % 1; // 0〜1でループ
-              for(let k = 0; k < medalsMesh.length; k++) {
-                const explain = medalsMesh[k].explain;
-                const mesh = medalsMesh[k].mesh;
+              for(let k = 0; k < medalsData.length; k++) {
+                const explain = medalsData[k].explain;
+                const mesh = medalsData[k].mesh;
                 mesh.material.color.setHSL(hue, 0.8, 0.6);
                 const L = vectorThreeToCompVis(mesh.position).sub(me.position).abs;
                 if(L < 1.5) {
+                  gotMedals.push(medalsData[k].id);
                   showAlert("メダルを獲得した！<br>「"+explain+"」")
                   scene.remove( mesh );
                   mesh.geometry.dispose();
                   mesh.material.dispose();
-                  data.getMedalsCount++;
-                  delete medalsMesh[k];
+                  data.getMedalsCount = gotMedals.length;
+                  delete medalsData[k];
                   continue;
                 }
                 mesh.rotation.z = theta;
               }
               
-              medalsMesh = medalsMesh.filter((mesh) => {
-                return mesh !== undefined;
+              medalsData = medalsData.filter((k) => {
+                return k !== undefined;
               });
             }
           }
@@ -855,7 +864,7 @@
             const value = data.showValueName ? menuData[data.showValueName].value() : false;
             const text = value !== false ? menuData[data.showValueName].kind+": "+String(value)+"<br>" : ""
            
-            textDiv.innerHTML = `${text}air time: ${data.airTime.toFixed(2)}, coins: ${data.getCoinsCount} /${coins.length}<br>Vxz : ${CompVis.round(data.currentXZVelocity, 2)}<br>Max Vxz: ${CompVis.round(data.maxXZVelocity, 2)}<br>Time: ${data.episodeTime.toFixed(1)}s /${data.allTime.toFixed(1)}s`;
+            textDiv.innerHTML = `${text}air time: ${data.airTime.toFixed(2)} /${data.maxAirTime.toFixed(2)}<br>coins: ${data.getCoinsCount} /${coins.length}<br>Vxz : ${CompVis.round(data.currentXZVelocity, 2)} /${CompVis.round(data.maxXZVelocity, 2)}<br>Time: ${data.episodeTime.toFixed(1)}s /${data.allTime.toFixed(1)}s`;
           }
           
           animateInit();
@@ -891,6 +900,7 @@
           if(begin == "change") begin = stopStart ? false : true;
           if(begin && !stopStart) {
             stopStart = Date.now();
+            data.stopStart = Date.now();
           } else if(!begin && stopStart) {
             data.episodePauseTime += (Date.now()-stopStart)/1000;
             data.allPauseTime += (Date.now()-stopStart)/1000;
@@ -989,7 +999,8 @@
           }
         });
         
-        window.positionReset = () => {
+        window.positionReset = (confirmation = false) => {
+          if(confirmation && !confirm("初期地点に戻ります。本当によろしいですか？")) return;
           me.force = new CompVis.Vector(0,0,0);
           me.velocity = new CompVis.Vector(0,0,0);
           me.position = startPosition.clone;
@@ -1008,12 +1019,18 @@
         
         document.addEventListener("visibilitychange", (event) => {
           if (document.hidden) {
+            saveLocalStorage();
             timeStop(true);
           } else {
             alert("一時停止中");
             timeStop(false);
           }
         });
+        
+        window.addEventListener("beforeunload", (e) => {
+          if(!isReload) saveLocalStorage();
+        });
+
         
         window.showValue = (name) => {
           data.showValueName = name;
@@ -1022,8 +1039,8 @@
         function makeMission() {
           const bottom = document.getElementById("bottom");
           bottom.innerHTML = "";
-          Object.keys(menuData).forEach(key => {
-            const item = menuData[key];
+          Object.keys(missionData).forEach(key => {
+            const item = missionData[key];
             const div = document.createElement("div");
             div.className = "menu-item";
             const val = item.value();
@@ -1088,28 +1105,93 @@
           console.log(me.position.add(new CompVis.Vector(0,0.8,0)).str)
         }
         
+        
+        
         function coinsAndMedalsInit() {
-          for(let pos of coins) {
+          for(let k = 0; k < coins.length; k++) {
+            if(gotCoins.includes(k)) continue;
+            const pos = coins[k];
             const coin_k = coin.clone();
-            coinsMesh.push(coin_k);
+            coinsData.push({id: k, mesh: coin_k});
             coin_k.position.set(pos[0], pos[1], pos[2]);
             coin_k.visible = true;
             coin_k.rotation.x = Math.PI/2;
             scene.add(coin_k);
           }
-          for(let data of medals) {
+          for(let k = 0; k < medals.length; k++) {
+            if(gotMedals.includes(k)) continue;
+            const data = medals[k];
             const pos = data.pos;
             const medal_k = coin.clone();
             medal_k.geometry = coin.geometry.clone();
             medal_k.material = coin.material.clone();
             medal_k.scale.set(1.5,1.5,1.5);
-            medalsMesh.push({explain: data.explain, mesh: medal_k});
+            medalsData.push({id: k, explain: data.explain, mesh: medal_k});
             medal_k.material.color.set(0xff0000);
             medal_k.position.set(pos[0], pos[1], pos[2]);
             medal_k.visible = true;
             medal_k.rotation.x = Math.PI/2;
             scene.add(medal_k);
           }
+        }
+        
+
+        window.removeLocalStorage = () => {
+          if(!confirm('保存したデータを削除して、リロードします。\nこの操作を行うと\n二度とデータを元に戻すことはできません。\n本当によろしいですか？'))
+          //console.log("before", localStorage.getItem("Activity_MountainRunner_data"));
+          localStorage.removeItem("Activity_MountainRunner_data");
+          isReload = true;
+          location.reload();
+          /*const start = Date.now();
+          let k = 0;
+          while(localStorage.getItem("Activity_MountainRunner_data") != null && Date.now() - start < 1000) k++;
+          for(let k in missionData) {
+            missionData[k].result = null;
+          }
+          init();*/
+        }
+        
+        function getLocalStorage() {
+          let preserve = localStorage.getItem("Activity_MountainRunner_data");
+          
+          if(!preserve) return;
+          try {
+            preserve = JSON.parse(preserve);
+          } catch(e) {
+            return;
+          }
+          
+          gotCoins = preserve.gotCoins;
+          data = preserve.data;
+          data.resumption = true;
+          data.episodePauseTime += (Date.now()-preserve.interruptionStart)/1000;
+          data.allPauseTime += (Date.now()-preserve.interruptionStart)/1000;
+          for(let k in preserve.missionData) {
+            missionData[k].result = preserve.missionData[k];
+          }
+          //missionData = preserve.missionData;
+          //positionReset();
+          testMission(true);
+          
+        }
+        
+        function saveLocalStorage() {
+          const preserve = {};
+          preserve.gotCoins = gotCoins;
+          preserve.gotMedals = gotMedals;
+          preserve.data = data;
+          preserve.interruptionStart = Date.now();
+          preserve.missionData = {};
+          for(let k in missionData) {
+            preserve.missionData[k] = missionData[k].result;
+          }
+          
+          //console.log("ignore", ignoreCoins)
+          localStorage.setItem("Activity_MountainRunner_data", JSON.stringify(preserve));
+        }
+        
+        window.help = () => {
+          showAlert("Slope Runnerにようこそ (^-^)\/<br>簡易説明:<ul><li>画面左側で移動の操作<br>画面右側で視点の操作</li><li>左上にはSTATUS : 現在の情報が記載されている</li><li>右上にMENU</li><li>MENUには<ul><li>初期地点に戻る</li><li>一時停止</li><li>MISSION</li></ul>がある。<br>MISSIONの項目をタッチすると、<br>現在の達成度がSTATUSからわかる。</li></ul>");
         }
         
         function init() {
@@ -1123,9 +1205,16 @@
           data.allStartTime = Date.now();
           data.allTime = 0;
           data.episodeCount = 0;
+          data.maxXZVelocity = 0;
+          data.currentXZVelocity = 0;
           data.maxAirTime = 0;
           data.getCoinsCount = 0;
           data.getMedalsCount = 0;
+          data.resumption = false;
+          
+          getLocalStorage();
+          me.force = new CompVis.Vector(0,0,0);
+          me.velocity = new CompVis.Vector(0,0,0);
           me.model = sphere;
           me.position = startPosition.clone;
           camera.position.set(me.position.x, me.position.y+4, me.position.z+12)
@@ -1135,7 +1224,7 @@
           controls.target.copy(vectorCompVisToThree(me.position));
 
           coinsAndMedalsInit();
-          showAlert("Slope Runnerにようこそ (^-^)\/<br>簡易説明:<ul><li>画面左側で移動の操作<br>画面右側で視点の操作</li><li>左上にはSTATUS : 現在の情報が記載されている</li><li>右上にMENU</li><li>MENUには<ul><li>初期地点に戻る</li><li>一時停止</li><li>MISSION</li></ul>がある。<br>MISSIONの項目をタッチすると、<br>現在の達成度がSTATUSからわかる。</li></ul>")
+          if(!data.resumption) help();
           animate();
         }
       }
