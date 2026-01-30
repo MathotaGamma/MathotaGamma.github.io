@@ -289,7 +289,7 @@
         let preTime = null;
         let maxSpeed = 20;
         const terminalVelocity = 40;
-        const baseForce = 150;
+        let baseForce = 150;
         const controlAccel = 10;
         const maxSlopeAngle = Math.PI/4;
         let sumPauseTime = {all: 0, episode: 0};
@@ -525,7 +525,7 @@
             kind: "air time",
             explain: "滞空時間が5秒を超える",
             max: 5,
-            value: () => CompVis.round(data.maxAirTime, 1),
+            value: () => Math.floor(10*data.maxAirTime)/10,
             checked: false
           },
           speed2: {
@@ -544,11 +544,11 @@
             value: () => CompVis.round(data.maxAirTime, 1),
             checked: false
           },
-          coin: {
+          coin1: {
             icon: "⭐︎",
             kind: "coins",
-            explain: "コインを20枚集める",
-            max: 20,
+            explain: "コインを25枚集める。達成すると加速度UP",
+            max: 25,
             value: () => data.getCoinsCount,
             checked: false
           }
@@ -561,10 +561,15 @@
             const val = item.value();
             const success = item.result != null || val >= item.max;
             if(success && item.result == null) { // 初達成
-              // 20 -> 25
               if(key == "speed2") {
+                // 20 -> 28
                 maxSpeed = 28;
                 showAlert("ミッション達成<br>最高速度が28を超えました！<br>速度上限が上昇します")
+              }
+              if(key == "coin1") {
+                // 150 -> 200
+                baseForce = 200;
+                showAlert("ミッション達成<br>コインを25枚集めました！<br>加速度が上昇します")
               }
             }
             
@@ -831,10 +836,10 @@
             }
           }
           function dataCalc() {
-            if(!me.isSlide && airTimeBegin == null) airTimeBegin = Date.now();
+            if(!me.isSlide && airTimeBegin == null) airTimeBegin = data.episodeTime;
             if(me.isSlide && airTimeBegin != null) airTimeBegin = null;
             if(airTimeBegin) {
-              data.airTime = (Date.now()-airTimeBegin)/1000;
+              data.airTime = data.episodeTime-airTimeBegin;
               data.maxAirTime = Math.max(data.airTime, data.maxAirTime);
             }
             data.currentAllVelocity = me.velocity.abs;
@@ -1037,7 +1042,7 @@
         window.toggleMission = () => {
           const div = document.getElementById("mission");
           
-          if(!div.style.display || div.style.display == "none") {
+          if(div.style.display == "" || div.style.display == "none") {
             div.style.display = "block";
             timeStop(true);
             makeMission();
