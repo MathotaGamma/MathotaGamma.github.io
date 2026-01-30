@@ -1139,16 +1139,13 @@
         window.removeLocalStorage = () => {
           if(!confirm('保存したデータを削除して、リロードします。\nこの操作を行うと\n二度とデータを元に戻すことはできません。\n本当によろしいですか？'))
           //console.log("before", localStorage.getItem("Activity_MountainRunner_data"));
-          localStorage.removeItem("Activity_MountainRunner_data");
+          //localStorage.removeItem("Activity_MountainRunner_data");
+          localStorage.setItem("Activity_MountainRunner_data", "");
+          const start = Date.now();
+          while(localStorage.getItem("Activity_MountainRunner_data") != null && Date.now() - start < 1000) localStorage.removeItem("Activity_MountainRunner_data");
+          if(localStorage.getItem("Activity_MountainRunner_data") == null) alert("データを削除できませんでした。");
           isReload = true;
           location.reload();
-          /*const start = Date.now();
-          let k = 0;
-          while(localStorage.getItem("Activity_MountainRunner_data") != null && Date.now() - start < 1000) k++;
-          for(let k in missionData) {
-            missionData[k].result = null;
-          }
-          init();*/
         }
         
         function getLocalStorage() {
