@@ -1143,7 +1143,7 @@
           localStorage.setItem("Activity_MountainRunner_data", "");
           const start = Date.now();
           while(localStorage.getItem("Activity_MountainRunner_data") != null && Date.now() - start < 1000) localStorage.removeItem("Activity_MountainRunner_data");
-          if(localStorage.getItem("Activity_MountainRunner_data") == null) alert("データを削除できませんでした。");
+          if(localStorage.getItem("Activity_MountainRunner_data") != null) alert("データを削除できませんでした。");
           isReload = true;
           location.reload();
         }
