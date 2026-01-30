@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mountain Runner</title>
+    <style>
+      :root {
+        --R2: 200px;
+        --r2: calc(var(--R2) / 3);
+        --rowsNum: 3;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #text-div {
+        position: absolute;
+        top: 20px;
+        left: 50px;
+        background: rgba(255, 255, 255, 0.4);
+      }
+      canvas {
+        display: block;
+      }
+      
+      #left-stick-layer {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 50%;
+        height: 100%;
+        touch-action: none;
+      }
+
+      #menu {
+        display: flex;
+        position: absolute;
+        right: 50px;
+        top: 50px;
+        font-size: 16px;
+        width: 80px;
+        height: 40px;
+        justify-content: center;
+        align-items: center;
+        background: rgba(255,255,100,0.7);
+        z-index: 750;
+      }
+      
+      #menu-container {
+        display: none;
+        position: absolute;
+        right: 50px;
+        top: 90px;
+        width: 200px;
+        height: auto;
+        padding: 5px;
+        background: rgba(255, 255, 255, 0.3);
+      }
+      
+      #menu-container > button {
+        border-radius: 0px;
+        pointer-events: "auto";
+        color: white;
+        background: rgba(0,0,0,0.4);
+        border: 0px;
+        font-size: 16px;
+        margin: 3px;
+        min-width: 150px;
+      }
+      
+      #out-circle {
+        display: none;
+        position: absolute;
+        top: 150px;
+        left: 150px;
+        width: var(--R2);
+        height: var(--R2);
+        transform: translate(-50%, -50%);
+        border-radius: calc(var(--R2) / 2);
+        background: rgba(50, 50, 200, 0.5);
+        z-index: 499;
+      }
+      #in-circle {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: var(--r2);
+        height: var(--r2);
+        transform: translate(calc(-50% + var(--R2) / 2), calc(-50% + var(--R2) / 2));
+        border-radius: calc(var(--r2) / 2);
+        background: rgba(200, 200, 200, 0.8);
+        z-index: 500;
+      }
+      
+      #mission {
+        display: none;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        background: rgba(200, 200, 200, 0.75);
+        z-index: 700;
+      }
+      
+      #top {
+        padding-left: 20px;
+        display: flex;
+        align-items: center;
+        height: 70px;
+        width: 100%;
+        border-bottom: 1px solid black;
+        gap: 12px;
+      }
+      
+      #top > button {
+        border-radius: 0px;
+        color: white;
+        background: rgba(0,0,0,0.6);
+        border: 0px;
+        font-size: 16px;
+        margin: 3px;
+        min-width: 80px;
+      }
+      
+      #bottom {
+        -webkit-overflow-scrolling: touch;
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: repeat(var(--rowsNum), auto);
+        grid-auto-columns: 220px;
+        gap: 8px;
+        max-height: 100%;
+        width: 100%;
+
+        overflow-x: auto;
+        overflow-y: hidden;
+
+        padding: 8px;
+        /*white-space: nowrap;*/
+      }
+      #buttom > .menu-item {
+        box-sizing: border-box;
+        padding: 8px;
+        border: 1px solid #666;
+        background: #222;
+        color: #fff;
+
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .mission-title {
+        display: flex;
+        width: 100%;
+        gap: 4px;
+      }
+      .mission-title span:last-child {
+        max-width: 100%;
+        display: inline-block;
+        overflow-wrap: anywhere;
+      }
+      
+      #membrane {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 800;
+      }
+      #alert {
+        display: none; /*表示は display: flex;*/
+        flex-direction: column;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        min-width: 300px;
+        min-height: 150px;
+        max-width: 70%;
+        max-height: 70%;
+        background: white;
+        padding: 5px;
+        align-items: center;
+        overflow-y: scroll;
+        z-index: 801;
+      }
+      #alert-text {
+        flex: 1;
+        font-size: 14px;
+      }
+      #alert-closer {
+        width: 100%;
+        border-radius: 0;
+        border: 0px;
+        color: black;
+        font-weight: bold;
+        height: 20px;
+        background: rgb(200, 200, 200);
+      }
+    </style>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+          "three/examples/jsm/controls/OrbitControls.js":
+            "https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js",
+          "three/examples/jsm/loaders/GLTFLoader.js":
+            "https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js",
+          "three-mesh-bvh":
+            "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.6/build/index.module.js"
+        }
+      }
+    </script>
+    <script src="https://mathotagamma.github.io/API/CompVisJS/latest/CompVisJS.js"></script>
+  </head>
+  <body>
+    <div id="text-div"></div>
+    <div id="left-stick-layer"></div>
+    <div id="menu">▼ MENU</div>
+    <div id="menu-container">
+      <button onclick="positionReset();">Position Reset</button><br>
+      <button onclick="timeStop('change');">Pause</button>
+      <button onclick="toggleMission();">MISSION</button>
+    </div>
+    <div id="mission">
+      <div id="top"><button style="z-index: 805;" onclick="toggleMission();">戻る</button>MISSION</div>
+      <div id="bottom"></div>
+    </div>
+    <div id="out-circle">
+      <div id="in-circle"></div>
+    </div>
+    <div id="membrane"></div>
+    <div id="alert">
+      <div id="alert-text"></div>
+      <button id="alert-closer" onclick="alertClose();">CLOSE</button>
+    </div>
+    <button id="show-pos-button" onclick="showPos();" style="position: absolute; right: 0; top: 10px; width: 50px; height: 50px;">HERE</button>
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+      import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+      import { MeshBVH, acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
+
+      
+      
+      window.onload = () => {
+        const textDiv = document.getElementById("text-div");
+        
+        const data = {
+          currentVelocity: null,
+          maxAllVelocity: 0,
+          maxXZVelocity: 0,
+        }
+        
+        let mountain;
+        THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+        THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+        THREE.Mesh.prototype.raycast = acceleratedRaycast;
+        
+        let touchStart;
+        const root = window.getComputedStyle(document.documentElement);
+        const cssValue = {R2: parseInt(root.getPropertyValue("--R2").replace("px", "")), r2: parseInt(root.getPropertyValue("--r2").replace("px", ""))}
+        
+        const outCircle = document.getElementById("out-circle");
+        const inCircle = document.getElementById("in-circle");
+        const menuDiv = document.getElementById("menu");
+        const menuContainer = document.getElementById("menu-container");
+        
+        let touchVector = new CompVis.Vector(0,0,0);
+        
+
+        const g = 9.80665/2;
+        const isGroundDistance = 1;
+        const muK = 0.1;
+        const spherical = new THREE.Spherical();
+        let preTime = null;
+        let maxSpeed = 20;
+        const terminalVelocity = 40;
+        const baseForce = 150;
+        const controlAccel = 10;
+        const maxSlopeAngle = Math.PI/4;
+        let sumPauseTime = {all: 0, episode: 0};
+        let stopStart = null;
+        
+        const multipleGravity = 15;
+        
+        const maxUpSpeed = 1;
+        
+        const boundDamping = 0.995; // 設置時の跳ねの減衰(1で跳ねない)
+      
+        // ゲレンデスタート位置 352 686 365
+        const startPosition = new CompVis.Vector(350,684.5,365);
+
+        // シーン・カメラ・レンダラー
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(8, 5, 8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        const world = renderer.domElement;
+        document.body.appendChild(world)
+
+      
+        function vectorCompVisToThree(v) {
+          return new THREE.Vector3(v.x, v.y, v.z);
+        }
+        
+        function vectorThreeToCompVis(v) {
+          return new CompVis.Vector(v.x,v.y,v.z);
+        }
+
+        const plane = new THREE.Mesh(
+          new THREE.PlaneGeometry(20, 20),
+          new THREE.MeshStandardMaterial({ color: 0x808080 })
+        );
+        plane.rotation.x = -Math.PI / 2;
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        // 照明
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(300, 1000, 0);
+        scene.add(dirLight);
+
+        
+        const spotLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        spotLight.castShadow = true;
+        spotLight.shadow.mapSize.width = 4096;
+        spotLight.shadow.mapSize.height = 4096;
+
+        spotLight.shadow.camera.near = 0.5;
+        spotLight.shadow.camera.far  = 100;
+        const d = 200;
+        spotLight.shadow.camera.left   = -d;
+        spotLight.shadow.camera.right  =  d;
+        spotLight.shadow.camera.top    =  d;
+        spotLight.shadow.camera.bottom = -d;
+        scene.add(spotLight)
+        
+        //scene.add(new THREE.CameraHelper(spotLight.shadow.camera));
+        
+        const ambLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambLight);
+        
+        const pursuitLight = new THREE.PointLight(0xffffff, 0.3, 50, 1.0);
+        scene.add(pursuitLight);
+
+        // OrbitControls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = false;
+        controls.enableZoom = false;
+        controls.enablePan = false;
+
+        // GLTF読み込み
+        const loader = new GLTFLoader();
+        loader.load(
+          'https://mathotagamma.github.io/Statics/3dModel/Mountain/mountain1-2.glb', // ここにGLTFモデルのURLを入れてください
+          (gltf) => {
+            try {
+              mountain = gltf.scene;
+              mountain.traverse((child) => {
+                if (child.isMesh) {
+                  child.geometry.computeBoundsTree();
+                  child.receiveShadow = true;
+                }
+              });
+
+              scene.add(mountain);
+              mountain.scale.set(5,5,5);
+              console.log("success");
+              init();
+            } catch(e) {
+              console.log(e.message)
+            }
+          },
+          undefined,
+          (error) => { console.error(error); }
+        );
+
+        // 球作成
+        const sphere = new THREE.Mesh(
+          new THREE.SphereGeometry(0.5, 32, 32),
+          new THREE.MeshStandardMaterial({ color: 0xff0000 })
+        );
+        sphere.position.set( startPosition.x, startPosition.y, startPosition.z);
+        sphere.castShadow = true;
+        scene.add(sphere);
+        
+        const coin = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.7,0.7,0.1,32),
+          new THREE.MeshPhongMaterial({                                             color: 0xFFFF22
+          })
+        )
+        coin.visible = false;
+        
+        scene.add(coin);
+
+        // アニメーション
+        const clock = new THREE.Clock();
+      
+        function chaseMe() {
+          camera.position.set(vectorCompToThree(new CompVis.Vector(1,2,3)));
+        }
+        
+        
+        let me = {
+          mass: 50,
+          position: new CompVis.Vector(0,0,0),
+          rotation: new CompVis.Vector(0,0,0),
+          force: new CompVis.Vector(0,0,0),
+          velocity: new CompVis.Vector(0,0,0),
+          ground: null,
+          isSlide: true,
+        }
+        
+        const coins = [
+          [345.15784297719915, 678.5577520676291, 356.7906332703969],
+          [337.35959575760415, 679.815997823842, 332.94335172159987],
+          [329.43602471578055, 681.4588672381297, 306.42407959533625],
+          [294.69206145020837, 656.6725821394305, 243.84625530473303],
+          [267.5517216854369, 642.7016413809558, 216.87085062267582],
+          [186.08335357778455, 604.5771054310197, 43.983161900645264],
+          [142.74338924715533, 604.937903990153, -31.49515553045694],
+          [-322.0537001186686, 153.96310662945534, -294.16126283550983],
+          [-64.92034192068024, 540.742923875893, -263.2015290026717],
+          [260.9551324092842, 671.5407642334197, 372.31406718744483],
+          [151.06752579340824, 640.267256215062, 425.0345870700995],
+          [62.1428825623078, 608.7371586544307, 437.5302170118897],
+          [-225.39717834163667, 513.3371912558443, 424.6635293082737],
+          [-399.85150359582104, 566.3516655879856, 389.47823472063925],
+          [314.6680180129049, 675.5603221406407, 372.9672659558331],
+          [-409.68546827455236, 544.9791788982392, 344.14278133684604],
+          [-411.360859633392, 536.7224352267879, 332.60814324512944],
+          [-413.3678522788117, 527.6957083519643, 318.1049035260834],
+          [-415.28960074771, 518.3897748461563, 301.94063258638096],
+          [-407.5457545187649, 222.82152534084938, -82.15022037343421],
+          [269.45822067171014, 671.4241890456628, 386.3425550163763],
+          [182.59228989170137, 647.9609064147365, 367.0375767281158],
+          [-63.83717294475342, 540.7769670475158, 327.92284103627605],
+          [-210.87014372711735, 448.9870520087355, 324.03269086163664],
+          [-299.4985471617333, 349.5340360958584, 169.54661990086908],
+          [-307.4804024520167, 331.2235559199127, 142.3279024953055],
+          [-315.7297425528876, 310.78865376191226, 115.90453634849705],
+          [-323.3241872722768, 291.0644309932195, 92.05912581674338],
+          [-345.78458340592533, 226.2805029304511, -20.985687568234205],
+          [-359.97616432518475, 203.95599894388548, -119.01728986797474],
+          [-369.8691168202696, 182.83428649958395, -208.8100782437496],
+          [344.37306977315217, 682.3395405689577, 293.93330833074464],
+          [341.3949904880707, 673.1328034314505, 242.3001890638001],
+          [340.0329910900422, 654.9908635023099, 204.9469022195645],
+          [318.4711355437517, 545.4556034268824, 61.31620159833839],
+          [305.8967546418755, 485.5421488441555, -18.57253873584687],
+          [279.7659713376737, 413.05091756712415, -107.39508307112214],
+          [94.95805096309618, 279.2494091576323, -308.08756184064686],
+          [-24.092894340396356, 220.74527011602862, -322.6458912664749],
+          [-140.64056616247373, 179.4452701782219, -314.32222780729376],
+          [2.612841630109715, 401.29466429488446, -93.67221030112167],
+          [-59.31695908255523, 357.6865049582186, -76.89048688398076],
+          [-185.5937379107454, 325.57336132727227, 15.48655028373213],
+          [-193.07149507323595, 324.85279194757993, 13.684720373983094],
+          [-201.03226767642778, 322.84905628064644, 10.633648649853672],
+          [-240.4731135626659, 301.6204683145776, -8.865109908014919],
+          [-245.3244961545228, 297.5535181649675, -13.212526587623136],
+          [208.5927498450302, 643.93959827611, 277.9532392195173],
+          [63.237094245518314, 575.8237390837377, 186.28832013784952],
+          [-260.2426811511274, 322.10781665011865, 12.973187347684384],
+        ]
+        
+        const medals = [
+          {explain: "大ジャンプ!", pos: [-85.66267505217863, 455.42845779895764, -336.1631072355282]},
+          {explain: "洞窟の入り口で", pos: [246.06353597763626, 511.7382038291201, 1.8742846099621366]},
+          {explain: "制作者はここに来るまで10分掛かりました...", pos: [-410.5429171190803, 224.24979411378519, -384.30616367581575]}
+        ]
+        
+        let coinsMesh = [];
+        let medalsMesh = [];
+        
+        /*function init() {
+          addForce()
+        }*/
+        
+        const menuData = {
+          move1: {
+            icon: "⭐︎",
+            kind: "touch",
+            explain: "動いてみよう",
+            max: 0.01,
+            value: () => CompVis.round(touchVector.abs, 1),
+            result: null,
+            checked: false
+          },
+          time1: {
+            icon: "⭐︎",
+            kind: "time",
+            explain: "5分遊ぶ",
+            max: 5,
+            value: () => CompVis.round(data.allTime/60, 1),
+            checked: true
+          },
+          speed1: {
+            icon: "⭐︎",
+            kind: "Vxy",
+            explain: "速度が3以上",
+            max: 3,
+            value: () => CompVis.round(data.maxXZVelocity, 1),
+            checked: false
+          },
+          airTime1: {
+            icon: "⭐︎",
+            kind: "air time",
+            explain: "滞空時間が5秒を超える",
+            max: 5,
+            value: () => CompVis.round(data.maxAirTime, 1),
+            checked: false
+          },
+          speed2: {
+            icon: "⭐︎",
+            kind: "Vxy",
+            explain: '速度が28以上。<br><span style="font-weight: bold;">達成すると速度上限が上昇！</span>',
+            max: 28,
+            value: () => CompVis.round(data.maxXZVelocity, 1),
+            checked: false
+          },
+          airTime2: {
+            icon: "⭐︎⭐︎",
+            kind: "air time",
+            explain: "滞空時間が17秒を超える",
+            max: 17,
+            value: () => CompVis.round(data.maxAirTime, 1),
+            checked: false
+          },
+          coin: {
+            icon: "⭐︎",
+            kind: "coins",
+            explain: "コインを20枚集める",
+            max: 20,
+            value: () => data.getCoinsCount,
+            checked: false
+          }
+        };
+        
+        function testMission() {
+          let update = false;
+          Object.keys(menuData).forEach(key => {
+            const item = menuData[key];
+            const val = item.value();
+            const success = item.result != null || val >= item.max;
+            if(success && item.result == null) { // 初達成
+              // 20 -> 25
+              if(key == "speed2") {
+                maxSpeed = 28;
+                showAlert("ミッション達成<br>最高速度が28を超えました！<br>速度上限が上昇します")
+              }
+            }
+            
+            if(success && (item.result == null || val > item.result)) {
+              item.result = val;
+            }
+            if(item.result == null || val > item.result) update = true;
+          });
+          if(makeMission && update) makeMission();
+        }
+        
+        THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+        let raycaster;
+        const down = new THREE.Vector3(0, -1, 0);
+        const radius = 0.5; // プレイヤー半径
+
+        function getForce() {
+          const origin = vectorCompVisToThree(me.position);
+          let force = new CompVis.Vector(0,0,0);
+
+          // ===== 地面判定（下向きRay）=====
+          raycaster.set(origin, down);
+          raycaster.far = isGroundDistance + radius;
+
+          const intersect = raycaster.intersectObject(mountain, true);
+          if (intersect.length) {
+            me.ground = intersect[0];
+            me.isSlide = true;
+
+            /*let n = intersect[0].face.normal.clone();
+            n.transformDirection(intersect[0].object.matrixWorld);
+            n = vectorThreeToCompVis(n);*/
+          } else {
+            me.ground = null;
+            me.isSlide = false;
+            force = force.add(new CompVis.Vector(0, -multipleGravity * g, 0));
+          }
+
+          return force;
+        }
+        
+        const controlUpSpeed = 0.05;
+
+        function move(dt) {
+          let n_ground;
+          
+          function moveFuncInit() {
+            me.velocity = me.velocity.add(me.force.scale(dt / me.mass));
+          }
+          function operationMove() {
+            let camForward;
+            let camRight;
+            let moveDir;
+            let isGround;
+            let d;
+    
+            function getCameraVector() {
+              camForward = new THREE.Vector3();
+              camera.getWorldDirection(camForward);
+              camForward.y = 0;
+              camForward.normalize();
+
+              camRight = new THREE.Vector3()
+                .crossVectors(camForward, new THREE.Vector3(0,1,0))
+                .normalize();
+            }
+            function testContactGround() {
+              isGround = false;
+              if (me.ground) {
+                n_ground = vectorThreeToCompVis(
+                  me.ground.face.normal // 接面の法線
+                    .clone()
+                    .transformDirection(me.ground.object.matrixWorld)
+                ).normalize;
+                
+                isGround = n_ground.y > Math.cos(maxSlopeAngle);
+              }
+            }
+            function getMoveDirection() {
+              const moveDir3 = camRight.multiplyScalar(touchVector.x)
+                .add(camForward.multiplyScalar(-touchVector.y));
+              moveDir = vectorThreeToCompVis(moveDir3);
+              if(!n_ground) return;
+              // moveDir から法線方向成分を除去
+              d = moveDir.dot(n_ground);
+              moveDir = isGround ? moveDir.sub(n_ground.scale(d)) : new CompVis.Vector(0,0,0);
+            }
+            function addMoveByTouch() {
+              if(moveDir.abs == 0) return;
+              const planeVector = new CompVis.Vector(moveDir.x, moveDir.z).normalize.scale(baseForce);
+              const targetDirection = new CompVis.Vector(planeVector.x, moveDir.y, planeVector.y).normalize
+              
+              // 実際に速度(力)を入れる
+              me.force = me.force.add(targetDirection.scale(n_ground ? baseForce : baseForce/1.5));
+            }
+    
+            getCameraVector();
+            testContactGround();
+            getMoveDirection();
+            addMoveByTouch();
+          }
+          function contactObject() {
+            let hits = [];
+            let n_v;
+            
+            function velocityRayCast() {
+              const vel3 = vectorCompVisToThree(me.velocity);
+              if (vel3.lengthSq() != 0) { // <=> ｜vel3｜ != 0
+                const dir = vel3.clone().normalize();
+                raycaster.set(
+                  vectorCompVisToThree(me.position),
+                  dir
+                );
+                raycaster.far = radius + vel3.length() * dt;
+
+                hits = raycaster.intersectObject(mountain, true)
+              }
+            }
+            function getContactFaceNormal() {
+              if (hits && hits.length) {
+                const hit = hits[0];
+
+                n_v = vectorThreeToCompVis(
+                  hit.face.normal
+                     .clone()
+                     .transformDirection(hit.object.matrixWorld)
+                );
+              }
+            }
+            function executeBoundDamping() {
+              if(!n_v) return
+              const dot_nv = me.velocity.dot(n_v);
+              if (dot_nv < 0) {
+                me.velocity = me.velocity.sub(n_v.scale(dot_nv));
+              }
+
+              // 押し戻し
+              
+              // 急勾配
+              //if(n_v.y < Math.cos(maxSlopeAngle)) me.velocity.setValue(1, me.velocity.y-2*g*dt);
+              // 緩やか
+              //else me.position = me.position.add(n_v.scale(radius));
+            }
+            
+            velocityRayCast();
+            getContactFaceNormal();
+            executeBoundDamping();
+          }
+          function usuallyAddMove() {
+            function usuallyDamping() {
+              me.velocity.setValue(0, Math.sign(me.velocity.x)*Math.min(maxSpeed, Math.abs(me.velocity.x)));
+              if(!me.ground && maxUpSpeed < me.velocity.y) me.velocity.setValue(1, controlUpSpeed*(me.velocity.y-maxUpSpeed));
+              me.velocity.setValue(2, Math.sign(me.velocity.z)*Math.min(maxSpeed, Math.abs(me.velocity.z)));
+            }
+            function usuallyAddGravityPlus() {
+              me.velocity.setValue(1, me.velocity.y-dt);
+            }
+            
+            usuallyAddGravityPlus();
+            usuallyDamping();
+          }
+          function executeVelocityMove() {
+            const deltaPosition = me.velocity.scale(dt);
+            me.position = me.position.add(deltaPosition);
+            
+            if (me.ground) {
+              const p = vectorThreeToCompVis(me.ground.point);
+              const toMe = me.position.sub(p);
+              const penetration = radius - toMe.dot(n_ground);
+
+              if (penetration > 0) {
+                // ★ 法線方向にだけ押し戻す
+                me.position = me.position.add(n_ground.scale(penetration));
+              }
+            }
+            
+            me.model.position.set(me.position.x, me.position.y, me.position.z);
+          }
+          
+          operationMove();
+          moveFuncInit();
+          contactObject();
+          usuallyAddMove();
+          executeVelocityMove();
+        }
+
+        let airTimeBegin = null;
+        
+        function animate() {
+          let deltaTime, t;
+          
+          function animateInit() {
+            t = clock.getElapsedTime();
+            if(!stopStart) requestAnimationFrame(animate);
+            deltaTime = preTime ? t-preTime : 0;
+            preTime = t;
+            data.episodeTime = (Date.now()-data.episodeStartTime)/1000-data.episodePauseTime;
+            data.allTime = (Date.now()-data.allStartTime)/1000-data.allPauseTime;
+          }
+          function changeColor() {
+            const hue = (data.episodeTime * 0.1) % 1; // 0〜1でループ
+            me.model.material.color.setHSL(hue, 0.8, 0.5);
+          }
+          function calcMove() {
+            me.force = getForce();
+            move(deltaTime);
+          }
+          function calcCameraWork() {
+            controls.target.copy(me.model.position);
+            camera.position
+              .setFromSpherical(spherical)
+              .add(controls.target);
+            controls.update();
+          }
+          function calcWorld() {
+            spotLight.position.set(me.position.x, me.position.y+10, me.position.z);
+            pursuitLight.position.set(me.position.x, me.position.y, me.position.z);
+            renderer.render(scene, camera);
+          }
+          function coinsCalc() {
+            if(coinsMesh.length) {
+              const theta = 2*Math.PI*(data.episodeTime)/3;
+              for(let k = 0; k < coinsMesh.length; k++) {
+                const mesh = coinsMesh[k];
+                const L = vectorThreeToCompVis(mesh.position).sub(me.position).abs;
+                if(L < 1.5) {
+                  scene.remove( mesh );
+                  mesh.geometry.dispose();
+                  mesh.material.dispose();
+                  data.getCoinsCount++;
+                  delete coinsMesh[k];
+                  continue;
+                }
+                mesh.rotation.z = theta;
+              }
+              coinsMesh = coinsMesh.filter((mesh) => {
+                return mesh !== undefined;
+              });
+            }
+            if(medalsMesh.length) {
+              const theta = 2*Math.PI*(data.episodeTime)/3;
+              const hue = (data.episodeTime * 0.3) % 1; // 0〜1でループ
+              for(let k = 0; k < medalsMesh.length; k++) {
+                const explain = medalsMesh[k].explain;
+                const mesh = medalsMesh[k].mesh;
+                mesh.material.color.setHSL(hue, 0.8, 0.6);
+                const L = vectorThreeToCompVis(mesh.position).sub(me.position).abs;
+                if(L < 1.5) {
+                  showAlert("メダルを獲得した！<br>「"+explain+"」")
+                  scene.remove( mesh );
+                  mesh.geometry.dispose();
+                  mesh.material.dispose();
+                  data.getMedalsCount++;
+                  delete medalsMesh[k];
+                  continue;
+                }
+                mesh.rotation.z = theta;
+              }
+              
+              medalsMesh = medalsMesh.filter((mesh) => {
+                return mesh !== undefined;
+              });
+            }
+          }
+          function dataCalc() {
+            if(!me.isSlide && airTimeBegin == null) airTimeBegin = Date.now();
+            if(me.isSlide && airTimeBegin != null) airTimeBegin = null;
+            if(airTimeBegin) {
+              data.airTime = (Date.now()-airTimeBegin)/1000;
+              data.maxAirTime = Math.max(data.airTime, data.maxAirTime);
+            }
+            data.currentAllVelocity = me.velocity.abs;
+            data.currentXZVelocity =  new CompVis.Vector(me.velocity.x, me.velocity.z).abs;
+            data.maxAllVelocity = Math.max(data.maxAllVelocity, data.currentAllVelocity);
+            data.maxXZVelocity = Math.max(data.maxXZVelocity, data.currentXZVelocity);
+          }
+          function textView() {
+            const value = data.showValueName ? menuData[data.showValueName].value() : false;
+            const text = value !== false ? menuData[data.showValueName].kind+": "+String(value)+"<br>" : ""
+           
+            textDiv.innerHTML = `${text}air time: ${data.airTime.toFixed(2)}, coins: ${data.getCoinsCount} /${coins.length}<br>Vxz : ${CompVis.round(data.currentXZVelocity, 2)}<br>Max Vxz: ${CompVis.round(data.maxXZVelocity, 2)}<br>Time: ${data.episodeTime.toFixed(1)}s /${data.allTime.toFixed(1)}s`;
+          }
+          
+          animateInit();
+          changeColor();
+          calcMove();
+          calcCameraWork();
+          calcWorld();
+          coinsCalc();
+          dataCalc();
+          testMission();
+          textView();
+        }
+        
+
+        // リサイズ対応
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth/window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        controls.addEventListener('change', () => {
+          spherical.setFromVector3(
+            camera.position.clone().sub(controls.target)
+          );
+        });
+        
+        window.timeStop = (begin, reset=false) => {
+          if(begin == "change") begin = stopStart ? false : true;
+          if(begin && !stopStart) {
+            stopStart = Date.now();
+          } else if(!begin && stopStart) {
+            data.episodePauseTime += (Date.now()-stopStart)/1000;
+            data.allPauseTime += (Date.now()-stopStart)/1000;
+            stopStart = null;
+            preTime = null;
+            animate();
+          }
+        }
+        
+        const touchData = {}
+        
+        const leftLayer = document.getElementById("left-stick-layer");
+
+        leftLayer.addEventListener("touchstart", e => {
+          e.preventDefault();
+          e.stopPropagation();
+          for(let k = 0; k < e.changedTouches.length; k++) {
+            const touch = e.changedTouches[k];
+            if (!touchData.left) {
+              touchData.left = touch;
+              outCircle.style.display = "block";
+              outCircle.style.left = `${touch.clientX}px`;
+              outCircle.style.top = `${touch.clientY}px`;
+          
+              inCircle.style.left = "0";
+              inCircle.style.top = "0";
+            }
+          }
+        }, { passive: false });
+
+        leftLayer.addEventListener("touchmove", e => {
+          e.preventDefault();
+          e.stopPropagation();
+          if(touchData.left) {
+            let touch;
+            for(let k = 0; k < e.touches.length; k++) if(e.touches[k].identifier === touchData.left.identifier) touch = e.touches[k];
+            
+            const touchVector_k = new CompVis.Vector(
+              touch.clientX-touchData.left.clientX,
+              touch.clientY-touchData.left.clientY
+            );
+            touchVector = touchVector_k.scale(2*Math.min(cssValue.R2/touchVector_k.abs/2,1)/cssValue.R2);
+            
+            inCircle.style.left = `${touchVector.x*cssValue.R2/2}px`;
+            inCircle.style.top = `${touchVector.y*cssValue.R2/2}px`;
+          }
+        }, { passive: false });
+
+        leftLayer.addEventListener("touchend", e => {
+          e.preventDefault();
+          e.stopPropagation();
+          for(let k = 0; k < e.changedTouches.length; k++) {
+            const touch = e.changedTouches[k];
+            if(touchData.left && touch.identifier === touchData.left.identifier) {
+              touchData.left = null;
+              outCircle.style.display = "none";
+              controls.enabled = true;
+              touchVector = new CompVis.Vector(0,0,0);
+            }
+          }
+        }, { passive: false });
+
+
+        window.addEventListener("touchstart", (e) => {
+          touchStart = e.touches[0];
+          for(let k = 0; k < e.changedTouches.length; k++) {
+            const touch = e.changedTouches[k];
+            if(!touchData.right) {
+              controls.enabled = true;
+              touchData.right = touch;
+            }
+          }
+        })
+        
+        /*window.addEventListener("touchmove", (e) => {
+          
+        })*/
+        
+        window.addEventListener("touchend", (e) => {
+          for(let k = 0; k < e.changedTouches.length; k++) {
+            const touch = e.changedTouches[k];
+            if(touchData.right && touch.identifier === touchData.right.identifier) {
+              touchData.right = null;
+              controls.enabled = true;
+            }
+          }
+        });
+        
+        menuDiv.addEventListener("click", function() {
+          if(this.innerHTML == "▼ MENU") {
+            this.innerHTML = "▲ MENU"
+            menuContainer.style.display = "block";
+          } else {
+            this.innerHTML = "▼ MENU"
+            menuContainer.style.display = "none";
+          }
+        });
+        
+        window.positionReset = () => {
+          me.force = new CompVis.Vector(0,0,0);
+          me.velocity = new CompVis.Vector(0,0,0);
+          me.position = startPosition.clone;
+          timeStop(false, true);
+          data.episodePauseTime = 0;
+          data.episodeStartTime = Date.now();
+          data.episodeTime = 0;
+          data.episodeCount++;
+          camera.position.set(me.position.x, me.position.y+4, me.position.z+12)
+          spherical.setFromVector3(
+            camera.position.clone().sub(vectorCompVisToThree(me.position))
+          );
+          
+          controls.target.copy(vectorCompVisToThree(me.position));
+        }
+        
+        document.addEventListener("visibilitychange", (event) => {
+          if (document.hidden) {
+            timeStop(true);
+          } else {
+            alert("一時停止中");
+            timeStop(false);
+          }
+        });
+        
+        window.showValue = (name) => {
+          data.showValueName = name;
+        }
+        
+        function makeMission() {
+          const bottom = document.getElementById("bottom");
+          bottom.innerHTML = "";
+          Object.keys(menuData).forEach(key => {
+            const item = menuData[key];
+            const div = document.createElement("div");
+            div.className = "menu-item";
+            const val = item.value();
+            const success = item.result != null || val >= item.max;
+            //if(success && item.result === null) item.result = val;
+            div.innerHTML = `
+              <div class="mission-title">
+                <span>${item.icon}</span>
+                <span style="display: inline-block;">${item.explain}</span>
+              </div>
+              <input type="checkbox" onclick="return false" ${success ? "checked" : ""}>
+              <span class="value">${item.result ?? val} / ${item.max}</span>
+            `;
+            div.setAttribute('onclick', `showValue("${key}");`);
+            bottom.appendChild(div);
+          });
+        }
+        
+        //window.toggleMission = () => {
+        window.toggleMission = () => {
+          const div = document.getElementById("mission");
+          
+          if(!div.style.display || div.style.display == "none") {
+            div.style.display = "block";
+            makeMission();
+          } else {
+            div.style.display = "none"
+          }
+        }
+        
+        
+        
+        window.alertClose = () => {
+          const membrane = document.getElementById("membrane");
+          const alertDiv = document.getElementById("alert");
+          const alertText = document.getElementById("alert-text");
+
+          membrane.style.display = "none";
+          alertDiv.style.display = "none";
+          alertText.innerHTML = "";
+          
+          timeStop(false);
+        }
+        
+        function showAlert(HTML) {
+          timeStop(true);
+          const membrane = document.getElementById("membrane");
+          const alertDiv = document.getElementById("alert");
+          const alertText = document.getElementById("alert-text");
+          
+          alertText.innerHTML = HTML;
+          membrane.style.display = "block";
+          alertDiv.style.display = "flex";
+        }
+        
+        // coinやstarの場所を知るための関数。
+        // 開発が終わったらこのコード要らない！！
+        document.getElementById("show-pos-button").style.display = "none";
+        window.showPos = () => {
+          console.log(me.position.add(new CompVis.Vector(0,0.8,0)).str)
+        }
+        
+        function coinsAndMedalsInit() {
+          for(let pos of coins) {
+            const coin_k = coin.clone();
+            coinsMesh.push(coin_k);
+            coin_k.position.set(pos[0], pos[1], pos[2]);
+            coin_k.visible = true;
+            coin_k.rotation.x = Math.PI/2;
+            scene.add(coin_k);
+          }
+          for(let data of medals) {
+            const pos = data.pos;
+            const medal_k = coin.clone();
+            medal_k.geometry = coin.geometry.clone();
+            medal_k.material = coin.material.clone();
+            medal_k.scale.set(1.5,1.5,1.5);
+            medalsMesh.push({explain: data.explain, mesh: medal_k});
+            medal_k.material.color.set(0xff0000);
+            medal_k.position.set(pos[0], pos[1], pos[2]);
+            medal_k.visible = true;
+            medal_k.rotation.x = Math.PI/2;
+            scene.add(medal_k);
+          }
+        }
+        
+        function init() {
+          raycaster = new THREE.Raycaster();
+          raycaster.firstHitOnly = true;
+          raycaster.far = 50;
+          data.episodePauseTime = 0;
+          data.episodeStartTime = Date.now();
+          data.episodeTime = 0;
+          data.allPauseTime = 0;
+          data.allStartTime = Date.now();
+          data.allTime = 0;
+          data.episodeCount = 0;
+          data.maxAirTime = 0;
+          data.getCoinsCount = 0;
+          data.getMedalsCount = 0;
+          me.model = sphere;
+          me.position = startPosition.clone;
+          camera.position.set(me.position.x, me.position.y+4, me.position.z+12)
+          spherical.setFromVector3(
+            camera.position.clone().sub(vectorCompVisToThree(me.position))
+          );
+          controls.target.copy(vectorCompVisToThree(me.position));
+
+          coinsAndMedalsInit();
+          showAlert("Slope Runnerにようこそ (^-^)\/<br>簡易説明:<ul><li>画面左側で移動の操作<br>画面右側で視点の操作</li><li>左上にはSTATUS : 現在の情報が記載されている</li><li>右上にMENU</li><li>MENUには<ul><li>初期地点に戻る</li><li>一時停止</li><li>MISSION</li></ul>がある。<br>MISSIONの項目をタッチすると、<br>現在の達成度がSTATUSからわかる。</li></ul>")
+          animate();
+        }
+      }
+    </script>
+  </body>
+</html>
