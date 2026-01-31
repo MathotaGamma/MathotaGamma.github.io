@@ -1141,16 +1141,16 @@
         window.removeLocalStorage = () => {
           if(!confirm('保存したデータを削除して、リロードします。\nこの操作を行うと\n二度とデータを元に戻すことはできません。\n本当によろしいですか？'))
           localStorage.removeItem("Activity_MountainRunner_data");
-          localStorage.setItem("skipSaveOnce", "1");
+          localStorage.setItem("Activity_MountainRunner_skip", "1");
           location.reload();
         }
         
         function getLocalStorage() {
-          const skipSaveOnce = localStorage.getItem("skipSaveOnce");
+          const skip = localStorage.getItem("Activity_MountainRunner_skip");
           let preserve = localStorage.getItem("Activity_MountainRunner_data");
-          if(skipSaveOnce) {
+          if(skip) {
             localStorage.removeItem("Activity_MountainRunner_data");
-            localStorage.removeItem("skipSaveOnce");
+            localStorage.removeItem("Activity_MountainRunner_skip");
             return
           }
           if(!preserve) return;
