@@ -1192,7 +1192,12 @@
         
 
         window.removeLocalStorage = () => {
-          if(!confirm('保存したデータを削除して、リロードします。\nこの操作を行うと\n二度とデータを元に戻すことはできません。\n本当によろしいですか？'))
+          timeStop(true);
+          if(!confirm('保存したデータを削除して、リロードします。\nこの操作を行うと\n二度とデータを元に戻すことはできません。\n本当によろしいですか？')) {
+            timeStop(false);
+            return;
+          }
+          timeStop(false);
           localStorage.removeItem("Activity_MountainRunner_data");
           localStorage.setItem("Activity_MountainRunner_skip", "1");
           location.reload();
@@ -1288,7 +1293,12 @@
           coinsAndMedalsInit();
           data.isInit = true;
           if(!data.resumption) help();
-          else isSave = true;
+          else {
+            timeStop(true);
+            alert("以前のデータを復元しました。");
+            isSave = true;
+            timeStop(false);
+          }
           animate();
         }
       }
