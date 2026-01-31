@@ -951,7 +951,7 @@
         
         const leftLayer = document.getElementById("left-stick-layer");
 
-        leftLayer.addEventListener("touchstart", e => {
+        /*leftLayer.addEventListener("touchstart", e => {
           e.preventDefault();
           e.stopPropagation();
           for(let k = 0; k < e.changedTouches.length; k++) {
@@ -998,7 +998,58 @@
               touchVector = new CompVis.Vector(0,0,0);
             }
           }
-        }, { passive: false });
+        }, { passive: false });*/
+        leftLayer.addEventListener("touchstart", enableGyro);
+leftLayer.addEventListener("touchend", resetGyro);
+
+        
+        let gyroBase = null;
+
+        async function enableGyro() {
+
+          // 未対応チェック
+          if (!window.DeviceOrientationEvent) {
+            alert("この端末はジャイロに対応していません");
+            return;
+          }
+
+          // iOS許可
+          if (typeof DeviceOrientationEvent.requestPermission === "function") {
+            const res = await DeviceOrientationEvent.requestPermission();
+            if (res !== "granted") {
+              alert("ジャイロの使用が許可されませんでした");
+              return;
+            }
+          }
+          window.addEventListener("deviceorientation", onGyroMove);
+        }
+
+function onGyroMove(e) {
+
+  if (!gyroBase) {
+    gyroBase = { beta: e.beta, gamma: e.gamma };
+    return;
+  }
+
+  const dx = e.gamma - gyroBase.gamma;
+  const dy = e.beta - gyroBase.beta;
+
+  const v = new CompVis.Vector(dx, dy);
+
+  touchVector = v.scale(
+    2 * Math.min(cssValue.R2 / v.abs / 2, 1) / cssValue.R2
+  );
+
+  inCircle.style.left = `${touchVector.x * cssValue.R2 / 2}px`;
+  inCircle.style.top  = `${touchVector.y * cssValue.R2 / 2}px`;
+}
+
+function resetGyro() {
+  gyroBase = null;
+  touchVector = new CompVis.Vector(0,0,0);
+  window.removeEventListener("deviceorientation", onGyroMove);
+}
+        
 
 
         window.addEventListener("touchstart", (e) => {
