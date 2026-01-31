@@ -1142,11 +1142,11 @@
           //console.log("before", localStorage.getItem("Activity_MountainRunner_data"));
           //localStorage.removeItem("Activity_MountainRunner_data");
           localStorage.setItem("Activity_MountainRunner_data", "");
-          const start = Date.now();
+          /*const start = Date.now();
           while(localStorage.getItem("Activity_MountainRunner_data") != null && Date.now() - start < 2000) localStorage.removeItem("Activity_MountainRunner_data");
-          if(localStorage.getItem("Activity_MountainRunner_data") != null) alert("データを削除できませんでした。");
+          if(localStorage.getItem("Activity_MountainRunner_data") != null) alert("データを削除できませんでした。");*/
           localStorage.setItem("skipSaveOnce", "1");
-          alert(localStorage.getItem("Activity_MountainRunner_data"));
+          //alert(localStorage.getItem("Activity_MountainRunner_data"));
           //isReload = true;
           location.reload();
         }
