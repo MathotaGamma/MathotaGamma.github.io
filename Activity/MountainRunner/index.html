@@ -289,7 +289,7 @@
         
 
         const g = 9.80665/2;
-        const isGroundDistance = 0.3;
+        let isGroundDistance = 0.8;
         const muK = 0.1;
         const spherical = new THREE.Spherical();
         let preTime = null;
@@ -304,6 +304,17 @@
         let gotMedals = [];
         let isSave = false; // reload時に保存するか(init後にはtrueにしてる)
         let airDumping= 1;
+        
+        // jp-JP : YYYY/MM/DD hh:mm:ss
+        // en-US : MM/DD/YYYY hh:mm:ss AMorPM
+        const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        });
         
         const multipleGravity = 10;
         
@@ -602,6 +613,7 @@
               }
               if(key == "medal1") {
                 maxSlopeAngle = 5*Math.PI/12;
+                isGroundDistance = 1;
                 if(!isLoad) showAlert("ミッション達成<br>メダルを3枚集めました！<br>75°の斜面まで登れるようになります<br>(45° -> 75°)")
               }
               if(key == "coin2") {
@@ -1220,6 +1232,7 @@
           
           gotCoins = preserve.gotCoins;
           data = preserve.data;
+          data.lastLogin = preserve.lastLogin;
           data.resumption = true;
           data.episodePauseTime += (Date.now()-preserve.interruptionStart)/1000;
           data.allPauseTime += (Date.now()-preserve.interruptionStart)/1000;
@@ -1242,7 +1255,11 @@
           for(let k in missionData) {
             preserve.missionData[k] = missionData[k].result;
           }
-          
+          preserve.lastLogin = {
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            time: dateTimeFormat.format(new Date())
+          };
+        
           //console.log("ignore", ignoreCoins)
           localStorage.setItem("Activity_MountainRunner_data", JSON.stringify(preserve));
         }
@@ -1259,7 +1276,7 @@
           return originalSetItem.apply(this, arguments);
         };*/
 
-
+        
         
         function init() {
           raycaster = new THREE.Raycaster();
@@ -1295,7 +1312,8 @@
           if(!data.resumption) help();
           else {
             timeStop(true);
-            alert("以前のデータを復元しました。");
+            if(!data.lastLogin.time) data.lastLogin.time = "--";
+            alert("以前のデータを復元しました。\n日時 : "+data.lastLogin.time);
             isSave = true;
             timeStop(false);
           }
