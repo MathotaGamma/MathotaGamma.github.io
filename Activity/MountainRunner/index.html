@@ -1141,7 +1141,7 @@
           if(!confirm('保存したデータを削除して、リロードします。\nこの操作を行うと\n二度とデータを元に戻すことはできません。\n本当によろしいですか？'))
           //console.log("before", localStorage.getItem("Activity_MountainRunner_data"));
           //localStorage.removeItem("Activity_MountainRunner_data");
-          localStorage.setItem("Activity_MountainRunner_data", "");
+          localStorage.removeItem("Activity_MountainRunner_data");
           /*const start = Date.now();
           while(localStorage.getItem("Activity_MountainRunner_data") != null && Date.now() - start < 2000) localStorage.removeItem("Activity_MountainRunner_data");
           if(localStorage.getItem("Activity_MountainRunner_data") != null) alert("データを削除できませんでした。");*/
@@ -1154,8 +1154,6 @@
         function getLocalStorage() {
           const skipSaveOnce = localStorage.getItem("skipSaveOnce");
           let preserve = localStorage.getItem("Activity_MountainRunner_data");
-          alert(skipSaveOnce);
-          alert(preserve);
           if(skipSaveOnce) {
             localStorage.removeItem("Activity_MountainRunner_data");
             localStorage.removeItem("skipSaveOnce");
