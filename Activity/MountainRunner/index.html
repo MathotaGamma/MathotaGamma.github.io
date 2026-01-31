@@ -302,7 +302,7 @@
         let stopStart = null;
         let gotCoins = [];
         let gotMedals = [];
-        let isReload = false;
+        let isSave = false; // reload時に保存するか(init後にはtrueにしてる)
         
         const multipleGravity = 15;
         
@@ -883,7 +883,6 @@
           }
         }
         
-
         // リサイズ対応
         window.addEventListener('resize', () => {
           camera.aspect = window.innerWidth/window.innerHeight;
@@ -1020,7 +1019,7 @@
         
         document.addEventListener("visibilitychange", (event) => {
           if (document.hidden) {
-            saveLocalStorage();
+            if(isSave) saveLocalStorage();
             timeStop(true);
           } else {
             alert("一時停止中");
@@ -1029,8 +1028,8 @@
         });
         
         window.addEventListener("beforeunload", (e) => {
-          if(!localStorage.getItem("skipSaveOnce")) saveLocalStorage();
-          else localStorage.removeItem("skipSaveOnce");
+          if(!isSave || localStorage.getItem("Activity_MountainRunner_skip")) localStorage.removeItem("Activity_MountainRunner_skip");
+          else saveLocalStorage();
         });
 
         
@@ -1085,7 +1084,10 @@
           membrane.style.display = "none";
           alertDiv.style.display = "none";
           alertText.innerHTML = "";
-          
+          if(data.isInit) {
+            isSave = true;
+            data.isInit = false;
+          }
           timeStop(false);
         }
         
@@ -1193,7 +1195,15 @@
           showAlert("Slope Runnerにようこそ (^-^)\/<br>簡易説明:<ul><li>画面左側で移動の操作<br>画面右側で視点の操作</li><li>左上にはSTATUS : 現在の情報が記載されている</li><li>右上にMENU</li><li>MENUには<ul><li>初期地点に戻る</li><li>一時停止</li><li>MISSION</li></ul>がある。<br>MISSIONの項目をタッチすると、<br>現在の達成度がSTATUSからわかる。</li></ul>");
         }
         
-        const originalSetItem = Storage.prototype.setItem;
+        /*const originalSetItem = Storage.prototype.setItem;
+        Storage.prototype.setItem = function(key, value){
+          console.log("isSave", isSave);
+          
+          console.log(new Error().stack);
+          return originalSetItem.apply(this, arguments);
+        };*/
+
+
         
         function init() {
           raycaster = new THREE.Raycaster();
@@ -1225,7 +1235,9 @@
           controls.target.copy(vectorCompVisToThree(me.position));
 
           coinsAndMedalsInit();
+          data.isInit = true;
           if(!data.resumption) help();
+          else isSave = true;
           animate();
         }
       }
