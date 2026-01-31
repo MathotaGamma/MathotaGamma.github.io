@@ -289,22 +289,23 @@
         
 
         const g = 9.80665/2;
-        const isGroundDistance = 1;
+        const isGroundDistance = 0.3;
         const muK = 0.1;
         const spherical = new THREE.Spherical();
         let preTime = null;
         let maxSpeed = 20;
         const terminalVelocity = 40;
-        let baseForce = 150;
+        let baseForce = 100;
         const controlAccel = 10;
-        const maxSlopeAngle = Math.PI/4;
+        let maxSlopeAngle = Math.PI/4;
         let sumPauseTime = {all: 0, episode: 0};
         let stopStart = null;
         let gotCoins = [];
         let gotMedals = [];
         let isSave = false; // reload時に保存するか(init後にはtrueにしてる)
+        let airDumping= 1;
         
-        const multipleGravity = 15;
+        const multipleGravity = 10;
         
         const maxUpSpeed = 1;
         
@@ -492,7 +493,7 @@
         ]
         // [246.06353597763626, 511.7382038291201, 1.8742846099621366]
         const medals = [
-          {explain: "大ジャンプ!", pos: [-85.66267505217863, 455.42845779895764, -336.1631072355282]},
+          {explain: "中ジャンプ", pos: [-85.66267505217863, 455.42845779895764, -336.1631072355282]},
           {explain: "洞窟の入り口で", pos: [230.06353597763626, 510.7382038291201, -27.8742846099621366]},
           {explain: "制作者はここに来るまで10分掛かりました...", pos: [-410.5429171190803, 224.24979411378519, -384.30616367581575]}
         ]
@@ -562,6 +563,22 @@
             max: 25,
             value: () => data.getCoinsCount,
             checked: false
+          },
+          medal1: {
+            icon: "⭐︎⭐︎",
+            kind: "medals",
+            explain: "メダルを3枚集める。達成すると登れる斜面の角度が大幅にUP!",
+            max: 3,
+            value: () => data.getMedalsCount,
+            checked: false
+          },
+          coin2: {
+            icon: "⭐︎⭐︎⭐︎",
+            kind: "coins",
+            explain: "コインを50枚集める。達成すると空中での制御が大幅に強化!",
+            max: 50,
+            value: () => data.getCoinsCount,
+            checked: false
           }
         };
         
@@ -579,9 +596,17 @@
                 if(!isLoad) showAlert("ミッション達成<br>最高速度が28を超えました！<br>速度上限が上昇します")
               }
               if(key == "coin1") {
-                // 150 -> 200
-                baseForce = 200;
+                // 100 -> 150
+                baseForce = 150;
                 if(!isLoad) showAlert("ミッション達成<br>コインを25枚集めました！<br>加速度が上昇します")
+              }
+              if(key == "medal1") {
+                maxSlopeAngle = 5*Math.PI/12;
+                if(!isLoad) showAlert("ミッション達成<br>メダルを3枚集めました！<br>75°の斜面まで登れるようになります<br>(45° -> 75°)")
+              }
+              if(key == "coin2") {
+                airDumping = 1.5;
+                if(!isLoad) showAlert("ミッション達成<br>コインを50枚集めました！<br>空中での制御力が大幅にUPします<br>(1倍 -> 1.5倍)")
               }
             }
             if(isLoad) update = true;
@@ -676,7 +701,7 @@
               const targetDirection = new CompVis.Vector(planeVector.x, moveDir.y, planeVector.y).normalize
               
               // 実際に速度(力)を入れる
-              me.force = me.force.add(targetDirection.scale(n_ground ? baseForce : baseForce/1.5));
+              me.force = me.force.add(targetDirection.scale(n_ground ? baseForce : baseForce*airDumping));
             }
     
             getCameraVector();
@@ -877,7 +902,7 @@
           dataCalc();
           testMission();
           textView();
-          if(me.position.y < -50) {
+          if(me.position.y < -20) {
             positionReset();
             showAlert("奈落に落ちたため、初期地点へ移動します。");
           }
@@ -896,7 +921,7 @@
           );
         });
         
-        window.timeStop = (begin, reset=false) => {
+        window.timeStop = (begin) => {
           if(begin == "change") begin = stopStart ? false : true;
           if(begin && !stopStart) {
             stopStart = Date.now();
@@ -1000,11 +1025,13 @@
         });
         
         window.positionReset = (confirmation = false) => {
+          timeStop(true);
           if(confirmation && !confirm("初期地点に戻ります。本当によろしいですか？")) return;
           me.force = new CompVis.Vector(0,0,0);
           me.velocity = new CompVis.Vector(0,0,0);
           me.position = startPosition.clone;
-          timeStop(false, true);
+          timeStop(false);
+          airTimeBegin = null;
           data.episodePauseTime = 0;
           data.episodeStartTime = Date.now();
           data.episodeTime = 0;
@@ -1076,6 +1103,33 @@
         
         
         
+        
+        
+        const alertQueue = [];
+        let isAlertShowing = false;
+        function showAlert(HTML) {
+          alertQueue.push(HTML);
+          tryShowNextAlert();
+        }
+
+        function tryShowNextAlert() {
+          if (isAlertShowing) return;
+          if (alertQueue.length === 0) return;
+
+          isAlertShowing = true;
+
+          const membrane = document.getElementById("membrane");
+          const alertDiv = document.getElementById("alert");
+          const alertText = document.getElementById("alert-text");
+
+          const HTML = alertQueue.shift();
+
+          timeStop(true);
+          alertText.innerHTML = HTML;
+          membrane.style.display = "block";
+          alertDiv.style.display = "flex";
+        }
+
         window.alertClose = () => {
           const membrane = document.getElementById("membrane");
           const alertDiv = document.getElementById("alert");
@@ -1084,23 +1138,20 @@
           membrane.style.display = "none";
           alertDiv.style.display = "none";
           alertText.innerHTML = "";
-          if(data.isInit) {
+
+          if (data.isInit) {
             isSave = true;
             data.isInit = false;
           }
+
           timeStop(false);
-        }
-        
-        function showAlert(HTML) {
-          timeStop(true);
-          const membrane = document.getElementById("membrane");
-          const alertDiv = document.getElementById("alert");
-          const alertText = document.getElementById("alert-text");
-          
-          alertText.innerHTML = HTML;
-          membrane.style.display = "block";
-          alertDiv.style.display = "flex";
-        }
+
+          isAlertShowing = false;
+
+          // 次を表示
+          tryShowNextAlert();
+        };
+
         
         // coinやstarの場所を知るための関数。
         // 開発が終わったらこのコード要らない！！
