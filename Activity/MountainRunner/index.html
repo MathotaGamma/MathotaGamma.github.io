@@ -316,7 +316,7 @@
           second: "2-digit"
         });
         
-        const multipleGravity = 50; // 空中にいる時の重力の強さ
+        const multipleGravity = 25; // 空中にいる時の重力の強さ
         
         // 空中にいる時、上限値を超えると、超えた分にcontrolUpSpeedを掛けた値が引かれる。
         const supUpSpeed = 4;
@@ -564,8 +564,8 @@
           airTime2: {
             icon: "⭐︎⭐︎",
             kind: "air time",
-            explain: "滞空時間が17秒を超える",
-            max: 17,
+            explain: "滞空時間が12秒を超える",
+            max: 12,
             value: () => CompVis.round(data.maxAirTime, 1),
             checked: false
           },
@@ -588,7 +588,7 @@
           coin2: {
             icon: "⭐︎⭐︎⭐︎",
             kind: "coins",
-            explain: "コインを50枚集める。達成すると空中での制御が大幅に強化!",
+            explain: "コインを50枚集める。達成すると空中での制御が強化",
             max: 50,
             value: () => data.getCoinsCount,
             checked: false
@@ -755,6 +755,7 @@
               const dot_nv = me.velocity.dot(n_v);
               if (dot_nv < 0) {
                 me.velocity = me.velocity.sub(n_v.scale(dot_nv));
+                me.isSlide = true;
               }
 
               // 押し戻し
