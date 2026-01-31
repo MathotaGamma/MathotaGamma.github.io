@@ -1152,8 +1152,15 @@
         }
         
         function getLocalStorage() {
+          const skipSaveOnce = localStorage.getItem("skipSaveOnce");
           let preserve = localStorage.getItem("Activity_MountainRunner_data");
-          alert(preserve)
+          alert(skipSaveOnce);
+          alert(preserve);
+          if(skipSaveOnce) {
+            localStorage.removeItem("Activity_MountainRunner_data");
+            localStorage.removeItem("skipSaveOnce");
+            return
+          }
           if(!preserve) return;
           try {
             preserve = JSON.parse(preserve);
