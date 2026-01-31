@@ -1194,12 +1194,6 @@
         }
         
         const originalSetItem = Storage.prototype.setItem;
-
-        Storage.prototype.setItem = function(key, value) {
-          console.log("-29",new Error().stack);
-          return originalSetItem.apply(this, arguments);
-        };
-        
         
         function init() {
           raycaster = new THREE.Raycaster();
