@@ -951,7 +951,7 @@
         
         const leftLayer = document.getElementById("left-stick-layer");
 
-        /*leftLayer.addEventListener("touchstart", e => {
+        leftLayer.addEventListener("touchstart", e => {
           e.preventDefault();
           e.stopPropagation();
           for(let k = 0; k < e.changedTouches.length; k++) {
@@ -998,8 +998,9 @@
               touchVector = new CompVis.Vector(0,0,0);
             }
           }
-        }, { passive: false });*/
-        leftLayer.addEventListener("touchstart", enableGyro);
+        }, { passive: false });
+        
+        /*leftLayer.addEventListener("touchstart", enableGyro);
 leftLayer.addEventListener("touchend", resetGyro);
 
         
@@ -1048,7 +1049,7 @@ function resetGyro() {
   gyroBase = null;
   touchVector = new CompVis.Vector(0,0,0);
   window.removeEventListener("deviceorientation", onGyroMove);
-}
+}*/
         
 
 
