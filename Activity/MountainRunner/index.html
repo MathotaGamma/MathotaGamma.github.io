@@ -904,7 +904,6 @@
             const text = value !== false ? menuData[data.showValueName].kind+": "+String(value)+"<br>" : ""
            
             textDiv.innerHTML = `${text}air time: ${data.airTime.toFixed(2)} /${data.maxAirTime.toFixed(2)}<br>coins: ${data.getCoinsCount} /${coins.length} | medals: ${data.getMedalsCount} /${medals.length}<br>Vxz : ${CompVis.round(data.currentXZVelocity, 2)} /${CompVis.round(data.maxXZVelocity, 2)}<br>Time: ${data.episodeTime.toFixed(1)}s /${data.allTime.toFixed(1)}s`;
-            textDiv.innerHTML = me.velocity.y
           }
           
           animateInit();
