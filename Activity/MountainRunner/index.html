@@ -289,21 +289,21 @@
         
 
         const g = 9.80665/2;
-        let isGroundDistance = 0.8;
+        let isGroundDistance = 1;
         const muK = 0.1;
         const spherical = new THREE.Spherical();
         let preTime = null;
         let maxSpeed = 20;
         const terminalVelocity = 40;
         let baseForce = 100;
-        const controlAccel = 10;
+        //const controlAccel = 10;
         let maxSlopeAngle = Math.PI/4;
         let sumPauseTime = {all: 0, episode: 0};
         let stopStart = null;
         let gotCoins = [];
         let gotMedals = [];
         let isSave = false; // reload時に保存するか(init後にはtrueにしてる)
-        let airDumping= 1;
+        let controlAir = 1; // 地面と比べて、どれだけ空中で制御できるか(1より大きいと空中の方が操作しやすい)
         
         // jp-JP : YYYY/MM/DD hh:mm:ss
         // en-US : MM/DD/YYYY hh:mm:ss AMorPM
@@ -316,9 +316,11 @@
           second: "2-digit"
         });
         
-        const multipleGravity = 10;
+        const multipleGravity = 50; // 空中にいる時の重力の強さ
         
-        const maxUpSpeed = 1;
+        // 空中にいる時、上限値を超えると、超えた分にcontrolUpSpeedを掛けた値が引かれる。
+        const supUpSpeed = 4;
+        const controlUpSpeed = 0.05;
         
         const boundDamping = 0.995; // 設置時の跳ねの減衰(1で跳ねない)
       
@@ -404,7 +406,7 @@
 
               scene.add(mountain);
               mountain.scale.set(5,5,5);
-              console.log("success");
+              console.log("load success");
               init();
             } catch(e) {
               console.log(e.message)
@@ -617,7 +619,7 @@
                 if(!isLoad) showAlert("ミッション達成<br>メダルを3枚集めました！<br>75°の斜面まで登れるようになります<br>(45° -> 75°)")
               }
               if(key == "coin2") {
-                airDumping = 1.5;
+                controlAir = 1.5;
                 if(!isLoad) showAlert("ミッション達成<br>コインを50枚集めました！<br>空中での制御力が大幅にUPします<br>(1倍 -> 1.5倍)")
               }
             }
@@ -661,7 +663,6 @@
           return force;
         }
         
-        const controlUpSpeed = 0.05;
 
         function move(dt) {
           let n_ground;
@@ -713,7 +714,7 @@
               const targetDirection = new CompVis.Vector(planeVector.x, moveDir.y, planeVector.y).normalize
               
               // 実際に速度(力)を入れる
-              me.force = me.force.add(targetDirection.scale(n_ground ? baseForce : baseForce*airDumping));
+              me.force = me.force.add(targetDirection.scale(n_ground ? baseForce : baseForce*controlAir));
             }
     
             getCameraVector();
@@ -771,11 +772,11 @@
           function usuallyAddMove() {
             function usuallyDamping() {
               me.velocity.setValue(0, Math.sign(me.velocity.x)*Math.min(maxSpeed, Math.abs(me.velocity.x)));
-              if(!me.ground && maxUpSpeed < me.velocity.y) me.velocity.setValue(1, controlUpSpeed*(me.velocity.y-maxUpSpeed));
+              if(!me.ground && supUpSpeed < me.velocity.y) me.velocity.setValue(1, me.velocity.y-controlUpSpeed*(me.velocity.y-supUpSpeed));
               me.velocity.setValue(2, Math.sign(me.velocity.z)*Math.min(maxSpeed, Math.abs(me.velocity.z)));
             }
             function usuallyAddGravityPlus() {
-              me.velocity.setValue(1, me.velocity.y-dt);
+              me.velocity.setValue(1, me.velocity.y-2*dt);
             }
             
             usuallyAddGravityPlus();
@@ -903,6 +904,7 @@
             const text = value !== false ? menuData[data.showValueName].kind+": "+String(value)+"<br>" : ""
            
             textDiv.innerHTML = `${text}air time: ${data.airTime.toFixed(2)} /${data.maxAirTime.toFixed(2)}<br>coins: ${data.getCoinsCount} /${coins.length} | medals: ${data.getMedalsCount} /${medals.length}<br>Vxz : ${CompVis.round(data.currentXZVelocity, 2)} /${CompVis.round(data.maxXZVelocity, 2)}<br>Time: ${data.episodeTime.toFixed(1)}s /${data.allTime.toFixed(1)}s`;
+            textDiv.innerHTML = me.velocity.y
           }
           
           animateInit();
@@ -999,7 +1001,6 @@
             }
           }
         }, { passive: false });
-        
         /*leftLayer.addEventListener("touchstart", enableGyro);
 leftLayer.addEventListener("touchend", resetGyro);
 
@@ -1049,8 +1050,8 @@ function resetGyro() {
   gyroBase = null;
   touchVector = new CompVis.Vector(0,0,0);
   window.removeEventListener("deviceorientation", onGyroMove);
-}*/
-        
+}
+        */
 
 
         window.addEventListener("touchstart", (e) => {
