@@ -69,7 +69,9 @@
         margin: 3px;
         min-width: 150px;
       }
-      
+      #toggle-velocity {
+        opacity: 0.5;
+      }
       #out-circle {
         display: none;
         position: absolute;
@@ -235,7 +237,8 @@
       <button onclick="positionReset(true);">Position Reset</button><br>
       <button onclick="timeStop('change');">Pause</button>
       <button onclick="toggleMission();">MISSION</button>
-      <button onclick="removeLocalStorage();">RESET</button>
+      <button onclick="toggleShowVelocity();" id="toggle-velocity" disabled>Velocity Hide</button>
+      <button onclick="removeLocalStorage();">Data Reset</button>
       <button onclick="help();">Help</button>
     </div>
     <div id="mission">
@@ -284,6 +287,7 @@
         const inCircle = document.getElementById("in-circle");
         const menuDiv = document.getElementById("menu");
         const menuContainer = document.getElementById("menu-container");
+        const showVelocityButton = document.getElementById("toggle-velocity");
         
         let touchVector = new CompVis.Vector(0,0,0);
         
@@ -295,15 +299,17 @@
         let preTime = null;
         let maxSpeed = 20;
         const terminalVelocity = 40;
-        let baseForce = 100;
+        let baseForce = 125;
         //const controlAccel = 10;
         let maxSlopeAngle = Math.PI/4;
         let sumPauseTime = {all: 0, episode: 0};
         let stopStart = null;
         let gotCoins = [];
         let gotMedals = [];
+        const jumpDumping = 0; // 飛び出す時のy座標を抑える度合い(正しくは、面の法線方向の成分をどれだけ消すか)
         let isSave = false; // reload時に保存するか(init後にはtrueにしてる)
         let controlAir = 1; // 地面と比べて、どれだけ空中で制御できるか(1より大きいと空中の方が操作しやすい)
+        let decreaseCoefficient = 2; // 速度と反対方向に動かそうとした場合の力の倍率
         
         // jp-JP : YYYY/MM/DD hh:mm:ss
         // en-US : MM/DD/YYYY hh:mm:ss AMorPM
@@ -316,7 +322,7 @@
           second: "2-digit"
         });
         
-        const multipleGravity = 25; // 空中にいる時の重力の強さ
+        const multipleGravity = 15; // 空中にいる時の重力の倍率(地面と比べて)(重力 g と比べて)
         
         // 空中にいる時、上限値を超えると、超えた分にcontrolUpSpeedを掛けた値が引かれる。
         const supUpSpeed = 4;
@@ -369,11 +375,11 @@
 
         spotLight.shadow.camera.near = 0.5;
         spotLight.shadow.camera.far  = 100;
-        const d = 200;
-        spotLight.shadow.camera.left   = -d;
-        spotLight.shadow.camera.right  =  d;
-        spotLight.shadow.camera.top    =  d;
-        spotLight.shadow.camera.bottom = -d;
+        const cameraDistance = 200
+        spotLight.shadow.camera.left   = -cameraDistance;
+        spotLight.shadow.camera.right  =  cameraDistance;
+        spotLight.shadow.camera.top    =  cameraDistance;
+        spotLight.shadow.camera.bottom = -cameraDistance;
         scene.add(spotLight)
         
         //scene.add(new THREE.CameraHelper(spotLight.shadow.camera));
@@ -389,6 +395,10 @@
         controls.enableDamping = false;
         controls.enableZoom = false;
         controls.enablePan = false;
+        
+        const arrowHelper = new THREE.ArrowHelper( new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0x7700ff );
+        scene.add( arrowHelper );
+        arrowHelper.visible = false;
 
         // GLTF読み込み
         const loader = new GLTFLoader();
@@ -503,6 +513,31 @@
           [208.5927498450302, 643.93959827611, 277.9532392195173],
           [63.237094245518314, 575.8237390837377, 186.28832013784952],
           [-260.2426811511274, 322.10781665011865, 12.973187347684384],
+          [182.85023358125918, 628.3465573132314, 213.6693607580992],
+          [128.89750046062292, 626.5597652188009, 115.35114677084253],
+          [82.88365036778434, 578.0993074513789, -2.5552010060854906],
+          [78.10418480817772, 574.4967944563249, -10.171892205712515],
+          [73.03680191424294, 571.3609734934915, -18.16701748320173],
+          [15.706934297508193, 553.2478356420394, -167.0646245656103],
+          [329.3280612665473, 678.0465435357969, 357.9218984607667],
+          [304.1182189852034, 677.8316329479991, 335.5512142162498],
+          [238.47694643936183, 645.8738589781818, 245.78908890069093],
+          [158.47140899596826, 624.4951854845475, 234.79091804853138],
+          [27.12897188812854, 552.4111466692646, 132.4511103202694],
+          [-152.34248399058166, 395.8276598103708, -33.65313324666386],
+          [-68.7496079428992, 454.87537364784635, 2.557485978731943],
+          [-81.95191390069219, 436.52917037269555, -19.919365510275693],
+          [-94.14951531952079, 422.5088613628556, -39.17878009170675],
+          [-112.96042411170221, 394.5248954830518, -66.74248426149325],
+          [-125.29149954038104, 363.6632935430118, -100.70997885199591],
+          [-174.56151788798337, 275.0361037878992, -171.67095760068707],
+          [-57.45161917512796, 419.27001333677555, -214.92235910703445],
+          [-57.63619019164297, 420.70524761259145, -222.99148609986588],
+          [-58.56314364938991, 422.717609114537, -232.49225989016062],
+          [-59.207669472255965, 424.1168368126545, -239.09830250629912],
+          [-77.75485935783826, 354.1678481555154, -295.44944766041317],
+          [-79.75020231780448, 342.19158196655434, -298.55021352682496],
+          [-81.99127716939333, 327.6462655454587, -302.03284711077697],
         ]
         // [246.06353597763626, 511.7382038291201, 1.8742846099621366]
         const medals = [
@@ -564,8 +599,8 @@
           airTime2: {
             icon: "⭐︎⭐︎",
             kind: "air time",
-            explain: "滞空時間が12秒を超える",
-            max: 12,
+            explain: '滞空時間が16秒を超える。<br><span style="font-weight: bold;">達成すると速度を可視化できる</span>',
+            max: 16,
             value: () => CompVis.round(data.maxAirTime, 1),
             checked: false
           },
@@ -602,15 +637,21 @@
             const item = missionData[key];
             const val = item.value();
             const success = item.result != null || val >= item.max;
-            if(isLoad || (success && item.result == null)) { // 初達成
+            if((isLoad && success) || (success && item.result == null)) { // 初達成
               if(key == "speed2") {
                 // 20 -> 28
                 maxSpeed = 28;
                 if(!isLoad) showAlert("ミッション達成<br>最高速度が28を超えました！<br>速度上限が上昇します")
               }
+              if(key == "airTime2") {
+                arrowHelper.visible = true;
+                showVelocityButton.disabled = false;
+                showVelocityButton.style.opacity = "1";
+                if(!isLoad) showAlert("ミッション達成<br>滞空時間が16秒を超えました。<br>速度を可視化します。<br>MENUから可視化するかを選ぶことができます。")
+              }
               if(key == "coin1") {
-                // 100 -> 150
-                baseForce = 150;
+                // 125 -> 175
+                baseForce = 175;
                 if(!isLoad) showAlert("ミッション達成<br>コインを25枚集めました！<br>加速度が上昇します")
               }
               if(key == "medal1") {
@@ -705,7 +746,7 @@
               moveDir = vectorThreeToCompVis(moveDir3);
               if(!n_ground) return;
               // moveDir から法線方向成分を除去
-              d = moveDir.dot(n_ground);
+              d = jumpDumping*moveDir.dot(n_ground);
               moveDir = isGround ? moveDir.sub(n_ground.scale(d)) : new CompVis.Vector(0,0,0);
             }
             function addMoveByTouch() {
@@ -714,6 +755,8 @@
               const targetDirection = new CompVis.Vector(planeVector.x, moveDir.y, planeVector.y).normalize
               
               // 実際に速度(力)を入れる
+              targetDirection.setValue(0, targetDirection.x*(Math.sign(me.velocity.x) == -Math.sign(targetDirection.x) ? decreaseCoefficient : 1));
+              targetDirection.setValue(2, targetDirection.z*(Math.sign(me.velocity.z) == -Math.sign(targetDirection.z) ? decreaseCoefficient : 1));
               me.force = me.force.add(targetDirection.scale(n_ground ? baseForce : baseForce*controlAir));
             }
     
@@ -758,6 +801,7 @@
                 me.isSlide = true;
               }
 
+              
               // 押し戻し
               
               // 急勾配
@@ -777,7 +821,7 @@
               me.velocity.setValue(2, Math.sign(me.velocity.z)*Math.min(maxSpeed, Math.abs(me.velocity.z)));
             }
             function usuallyAddGravityPlus() {
-              me.velocity.setValue(1, me.velocity.y-2*dt);
+              if(!me.isSlide) me.velocity.setValue(1, me.velocity.y-dt);
             }
             
             usuallyAddGravityPlus();
@@ -828,6 +872,7 @@
           function calcMove() {
             me.force = getForce();
             move(deltaTime);
+            me.model.position.set(...me.position.values);
           }
           function calcCameraWork() {
             controls.target.copy(me.model.position);
@@ -906,6 +951,15 @@
            
             textDiv.innerHTML = `${text}air time: ${data.airTime.toFixed(2)} /${data.maxAirTime.toFixed(2)}<br>coins: ${data.getCoinsCount} /${coins.length} | medals: ${data.getMedalsCount} /${medals.length}<br>Vxz : ${CompVis.round(data.currentXZVelocity, 2)} /${CompVis.round(data.maxXZVelocity, 2)}<br>Time: ${data.episodeTime.toFixed(1)}s /${data.allTime.toFixed(1)}s`;
           }
+          function visibleVelocity() {
+            const vXZ = me.velocity.clone;
+            vXZ.setValue(1,0);
+            arrowHelper.position.set(...me.position.values);
+            
+            arrowHelper.setDirection(vectorCompVisToThree(vXZ.normalize));
+            arrowHelper.setLength(vXZ.abs == 0 ? 0 : data.currentAllVelocity)
+            //arrowHelper.setLength(2);
+          }
           
           animateInit();
           changeColor();
@@ -916,6 +970,7 @@
           dataCalc();
           testMission();
           textView();
+          visibleVelocity();
           if(me.position.y < -20) {
             positionReset();
             showAlert("奈落に落ちたため、初期地点へ移動します。");
@@ -1091,7 +1146,10 @@ function resetGyro() {
         
         window.positionReset = (confirmation = false) => {
           timeStop(true);
-          if(confirmation && !confirm("初期地点に戻ります。本当によろしいですか？")) return;
+          if(confirmation && !confirm("初期地点に戻ります。本当によろしいですか？")) {
+            timeStop(false);
+            return;
+          }
           me.force = new CompVis.Vector(0,0,0);
           me.velocity = new CompVis.Vector(0,0,0);
           me.position = startPosition.clone;
@@ -1220,12 +1278,21 @@ function resetGyro() {
         
         // coinやstarの場所を知るための関数。
         // 開発が終わったらこのコード要らない！！
-        document.getElementById("show-pos-button").style.display = "none";
+        document.getElementById("show-pos-button").style.display = "block";
         window.showPos = () => {
           console.log(me.position.add(new CompVis.Vector(0,0.8,0)).str)
         }
         
         
+        window.toggleShowVelocity = () => {
+          if(arrowHelper.visible) {
+            arrowHelper.visible = false;
+            showVelocityButton.innerHTML = "Velocity Show";
+          } else {
+            arrowHelper.visible = true;
+            showVelocityButton.innerHTML = "Velocity Hide";
+          }
+        }
         
         function coinsAndMedalsInit() {
           for(let k = 0; k < coins.length; k++) {
@@ -1362,8 +1429,10 @@ function resetGyro() {
 
           coinsAndMedalsInit();
           data.isInit = true;
-          if(!data.resumption) help();
-          else {
+          if(!data.resumption) {
+            help();
+            showAlert("横画面をお勧めします。<br>HelpはMENUから再度見ることができます。");
+          } else {
             timeStop(true);
             if(!data.lastLogin.time) data.lastLogin.time = "--";
             alert("以前のデータを復元しました。\n日時 : "+data.lastLogin.time);
