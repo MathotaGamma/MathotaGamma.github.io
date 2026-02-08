@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <title>画像からPDF生成</title>
+
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- SortableJS（スワイプ対応） -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 20px;
+      }
+
+      #preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .thumb {
+        width: 120px;
+        border: 1px solid #ccc;
+        padding: 5px;
+        background: #fafafa;
+        cursor: grab;
+      }
+
+      .thumb img {
+        width: 100%;
+        display: block;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h2>画像 → PDF</h2>
+
+    <input
+      type="file"
+      id="imageInput"
+      multiple
+      accept="image/*"
+    >
+
+    <br><br>
+
+    <label>
+      用紙サイズ：
+      <select id="pageSize">
+        <option value="a4">A4</option>
+        <option value="a3">A3</option>
+        <option value="letter">Letter</option>
+      </select>
+    </label>
+
+    <div id="preview"></div>
+
+    <br>
+
+    <button id="makePdf">PDF作成</button>
+
+    <script>
+      const DPI = 150;
+
+      const PAGE_SIZES_MM = {
+        a4: { w: 210, h: 297 },
+        a3: { w: 297, h: 420 },
+        letter: { w: 215.9, h: 279.4 }
+      };
+
+      function mmToPx(mm) {
+        return Math.round(mm / 25.4 * DPI);
+      }
+
+      async function compressImage(src, targetW, targetH, quality = 0.7) {
+        return new Promise(resolve => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = targetW;
+            canvas.height = targetH;
+
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, targetW, targetH);
+
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          };
+          img.src = src;
+        });
+      }
+
+      const imageInput = document.getElementById("imageInput");
+      const preview = document.getElementById("preview");
+
+      imageInput.addEventListener("change", () => {
+        preview.innerHTML = "";
+
+        [...imageInput.files].forEach(file => {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const div = document.createElement("div");
+            div.className = "thumb";
+            div.dataset.src = e.target.result;
+            div.innerHTML = `<img src="${e.target.result}">`;
+            preview.appendChild(div);
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+
+      new Sortable(preview, {
+        animation: 150
+      });
+
+      document.getElementById("makePdf").addEventListener("click", async () => {
+        const { jsPDF } = window.jspdf;
+        const sizeKey = document.getElementById("pageSize").value;
+        const page = PAGE_SIZES_MM[sizeKey];
+
+        const pdf = new jsPDF({
+          format: sizeKey,
+          unit: "mm"
+        });
+
+        const targetWpx = mmToPx(page.w);
+        const targetHpx = mmToPx(page.h);
+
+        const images = document.querySelectorAll(".thumb");
+
+        for (let i = 0; i < images.length; i++) {
+          if (i > 0) {
+            pdf.addPage();
+          }
+
+          const compressed = await compressImage(
+            images[i].dataset.src,
+            targetWpx,
+            targetHpx,
+            0.7
+          );
+
+          pdf.addImage(
+            compressed,
+            "JPEG",
+            0,
+            0,
+            page.w,
+            page.h
+          );
+        }
+
+        pdf.save("images.pdf");
+      });
+    </script>
+  </body>
+</html>
