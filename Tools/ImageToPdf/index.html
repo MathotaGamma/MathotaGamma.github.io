@@ -7,7 +7,7 @@
     <!-- jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <!-- SortableJS（スワイプ対応） -->
+    <!-- SortableJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
     <style>
@@ -47,6 +47,18 @@
       multiple
       accept="image/*"
     >
+    <br><br>
+
+    表示サイズ：
+    <input
+      type="range"
+      id="view-size"
+      min="60"
+      max="450"
+      step="10"
+      value="120"
+    >
+    <span id="sizeValue">120px</span>
 
     <br><br>
 
@@ -97,6 +109,19 @@
 
       const imageInput = document.getElementById("imageInput");
       const preview = document.getElementById("preview");
+      const sizeSlider = document.getElementById("view-size");
+      const sizeValue = document.getElementById("sizeValue");
+
+      function updateThumbSize(size) {
+        sizeValue.textContent = size + "px";
+        document.querySelectorAll(".thumb").forEach(thumb => {
+          thumb.style.width = size + "px";
+        });
+      }
+
+      sizeSlider.addEventListener("input", e => {
+        updateThumbSize(e.target.value);
+      });
 
       imageInput.addEventListener("change", () => {
         preview.innerHTML = "";
@@ -107,11 +132,14 @@
             const div = document.createElement("div");
             div.className = "thumb";
             div.dataset.src = e.target.result;
+            div.style.width = sizeSlider.value + "px";
             div.innerHTML = `<img src="${e.target.result}">`;
             preview.appendChild(div);
           };
           reader.readAsDataURL(file);
         });
+
+        updateThumbSize(sizeSlider.value);
       });
 
       new Sortable(preview, {
