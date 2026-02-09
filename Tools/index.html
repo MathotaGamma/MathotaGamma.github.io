@@ -1,191 +1,164 @@
 <!DOCTYPE html>
 <html lang="ja">
   <head>
-    <meta charset="UTF-8">
-    <title>画像からPDF生成</title>
-
-    <!-- jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-    <!-- SortableJS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TOOLS | LINK  NeoTopazm</title>
     <style>
+      :root {
+        --bg: #fdfdfd;
+        --text: #222;
+        --accent: #5ccca0;
+      }
+
       body {
-        font-family: sans-serif;
-        padding: 20px;
+        margin: 0;
+        font-family: "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        transition: background 0.3s, color 0.3s;
+        line-height: 1.6;
       }
 
-      #preview {
+      header {
+        background: var(--accent);
+        color: white;
+        padding: 16px 24px;
         display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 10px;
+        justify-content: space-between;
+        align-items: center;
       }
 
-      .thumb {
-        width: 120px;
-        border: 1px solid #ccc;
-        padding: 5px;
-        background: #fafafa;
-        cursor: grab;
+      header h1 {
+        margin: 0;
+        font-size: 20px;
       }
 
-      .thumb img {
-        width: 100%;
-        display: block;
+      nav a {
+        color: white;
+        margin-left: 16px;
+        text-decoration: none;
+        font-size: 14px;
+      }
+      nav a:hover {
+        text-decoration: underline;
+      }
+
+      .hero {
+        text-align: center;
+        padding: 80px 20px;
+        background: linear-gradient(135deg, var(--accent), #444);
+        color: white;
+      }
+
+      .hero h2 {
+        font-size: 36px;
+        margin-bottom: 16px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        max-width: 1000px;
+        margin: auto;
+        padding: 40px 20px 60px;
+      }
+
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .card h3 {
+        font-size: 25px;
+        margin-top: 0;
+        color: var(--accent);
+        -webkit-text-stroke-width: 1px;
+        -webkit-text-stroke-color: #aaa;
+        text-shadow: 1px 1px 1px rgba(0, 100, 80, 0.6);
+        
+      }
+
+
+      .btn {
+        padding: 10px 16px;
+        border-radius: 8px;
+        border: none;
+        background: var(--accent);
+        color: #000;
+        cursor: pointer;
+        transition: opacity 0.2s;
+        text-decoration: none;
+        text-align: center;
+        font-weight: bold;
+      }
+      .btn:hover {
+        opacity: 0.9;
+      }
+
+      footer {
+        background: #222;
+        color: #fff;
+        text-align: center;
+        padding: 20px;
+        font-size: 13px;
       }
     </style>
   </head>
-
   <body>
-    <h2>画像 → PDF</h2>
+    <header>
+      <h1>TOOLS | LINK</h1>
+      <nav>
+        <a href="/">ホーム</a>
+        <a href="/contact">お問い合わせ</a>
+      </nav>
+    </header>
 
-    <input
-      type="file"
-      id="imageInput"
-      multiple
-      accept="image/*"
-    >
-    <br><br>
+    <section class="hero">
+      <h2>Tools リンク集</h2>
+      <p>以下のカードから各ページへ移動できます。</p>
+    </section>
 
-    表示サイズ：
-    <input
-      type="range"
-      id="view-size"
-      min="60"
-      max="450"
-      step="10"
-      value="120"
-    >
-    <span id="sizeValue">120px</span>
+    <section class="grid" id="cardGrid">
+      <!-- JavaScriptでカードを挿入 -->
+    </section>
 
-    <br><br>
-
-    <label>
-      用紙サイズ：
-      <select id="pageSize">
-        <option value="a4">A4</option>
-        <option value="a3">A3</option>
-        <option value="letter">Letter</option>
-      </select>
-    </label>
-
-    <div id="preview"></div>
-
-    <br>
-
-    <button id="makePdf">PDF作成</button>
+    <footer>&copy; 2025 NeoTopazm</footer>
 
     <script>
-      const DPI = 150;
+      const sitelist = [
+        //{ title: "Mask", path: "./Mask/" },
+        { title: "Epiycle", path: "./Epicycle/", explain: "離散フーリエ変換を用いて、一筆書で書いた軌道をたどる曲線を計算し、周波数・振幅を表示します。" },
+        { title: "ImageToPdf", path: "./ImageToPdf/", explain: "複数画像を連結させたpdfに変換" },
+        { title: "LogicCircuit", path: "./LogicCircuit/", explain: "論理回路シミュレーター" },
+        { title: "LatexViewer", path: "./LatexViewer/", explain: "Latexで数式を表示します。" },
+        { title: "HTMLEditor", path: "./HTMLEditor/" },
+        { title: "ThreeJSEditor", path: "./ThreeJSEditor", explain: "THREE.js用のエディタです。HTML・CSSコードを書く必要がありません！" },
+        { title: "EditFile", path: "./EditFile/" },
+        { title: "ViewHierarchy", path: "./ViewHierarchy", 
+          explain: "ディレクトリを読み込むと、階層の構造とそれぞれのファイルの中身を見ることが出来ます。" },
+        { title: "ViewGLB", path: "./ViewGLB/", explain: ".glbまたは.gltfを読み込み、そのモデルを表示します。" },
+        { title: "InfCanvas", path: "./InfinityCanvas/", explain: "縦横制限なく書き込める手書きメモアプリです。" },
+        { title: "SortAlgorithm", path: "./Sort/", explain: "多くのSORTアルゴリズムを視覚的に眺めるサイトです。" },
+      ];
 
-      const PAGE_SIZES_MM = {
-        a4: { w: 210, h: 297 },
-        a3: { w: 297, h: 420 },
-        letter: { w: 215.9, h: 279.4 }
-      };
+      const grid = document.getElementById("cardGrid");
 
-      function mmToPx(mm) {
-        return Math.round(mm / 25.4 * DPI);
-      }
-
-      async function compressImage(src, targetW, targetH, quality = 0.7) {
-        return new Promise(resolve => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            canvas.width = targetW;
-            canvas.height = targetH;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, targetW, targetH);
-
-            resolve(canvas.toDataURL("image/jpeg", quality));
-          };
-          img.src = src;
-        });
-      }
-
-      const imageInput = document.getElementById("imageInput");
-      const preview = document.getElementById("preview");
-      const sizeSlider = document.getElementById("view-size");
-      const sizeValue = document.getElementById("sizeValue");
-
-      function updateThumbSize(size) {
-        sizeValue.textContent = size + "px";
-        document.querySelectorAll(".thumb").forEach(thumb => {
-          thumb.style.width = size + "px";
-        });
-      }
-
-      sizeSlider.addEventListener("input", e => {
-        updateThumbSize(e.target.value);
-      });
-
-      imageInput.addEventListener("change", () => {
-        preview.innerHTML = "";
-
-        [...imageInput.files].forEach(file => {
-          const reader = new FileReader();
-          reader.onload = e => {
-            const div = document.createElement("div");
-            div.className = "thumb";
-            div.dataset.src = e.target.result;
-            div.style.width = sizeSlider.value + "px";
-            div.innerHTML = `<img src="${e.target.result}">`;
-            preview.appendChild(div);
-          };
-          reader.readAsDataURL(file);
-        });
-
-        updateThumbSize(sizeSlider.value);
-      });
-
-      new Sortable(preview, {
-        animation: 150
-      });
-
-      document.getElementById("makePdf").addEventListener("click", async () => {
-        const { jsPDF } = window.jspdf;
-        const sizeKey = document.getElementById("pageSize").value;
-        const page = PAGE_SIZES_MM[sizeKey];
-
-        const pdf = new jsPDF({
-          format: sizeKey,
-          unit: "mm"
-        });
-
-        const targetWpx = mmToPx(page.w);
-        const targetHpx = mmToPx(page.h);
-
-        const images = document.querySelectorAll(".thumb");
-
-        for (let i = 0; i < images.length; i++) {
-          if (i > 0) {
-            pdf.addPage();
-          }
-
-          const compressed = await compressImage(
-            images[i].dataset.src,
-            targetWpx,
-            targetHpx,
-            0.7
-          );
-
-          pdf.addImage(
-            compressed,
-            "JPEG",
-            0,
-            0,
-            page.w,
-            page.h
-          );
-        }
-
-        pdf.save("images.pdf");
+      sitelist.forEach(site => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <h3>${site.title}</h3>
+          <p>${site.explain ?? (site.title+"のページへ移動します。")}</p>
+          <a href="${site.path}" class="btn">移動する</a>
+        `;
+        grid.appendChild(card);
       });
     </script>
   </body>
 </html>
-
