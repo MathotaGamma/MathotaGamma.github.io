@@ -142,7 +142,9 @@
         <div id="overlay-text">
           ようこそ!<br>
           <span style="color: red;">※3・4人用でプレイする場合は、<br>
-          ヘッダーの「遊び方」をご参照ください。</span>
+          ヘッダーの「遊び方」をご参照ください。<br>
+          ⚠️人数を変更すると、<span style="color: #700">盤面がリセット</span>されます。
+          </span>
         </div>
         <input type="button" id="overlay-button" value="OK" onclick="closeOverlay()">
       </div>
@@ -175,7 +177,7 @@
         const canvas = document.getElementById("canvas");
         const sizeElem = document.getElementById("size");
         const userElem = document.getElementById("userNum");
-        userElem.addEventListener("change", () => {
+        userElem.addEventListener("change", (e) => {
           if(userElem.value == "2") {
             sizeElem.innerHTML = `
               <option>6</option>
@@ -203,6 +205,16 @@
               <option>16</option>
               <option>22</option>
             `
+          }
+          start();
+          if(user == "2") {
+            document.getElementById("extinctLabel").style.opacity = "0.2";
+            document.getElementById("extinct").style.opacity = "0.2";
+            document.getElementById("extinct").disabled = true;
+          } else {
+            document.getElementById("extinctLabel").style.opacity = "1";
+            document.getElementById("extinct").style.opacity = "1";
+            document.getElementById("extinct").disabled = false;
           }
         });
         
@@ -236,6 +248,7 @@
         window.explain = () => {
           showOverlay(`このゲームは2～4人で遊べるオセロ風ゲームです。<br>
 ・プレイヤーは順番に空きマスに自分の石を置き、縦・横・斜めで相手の石を挟むと自分の色に変えられます。<br>
+  ・人数を変更すると、<span style="color: #700">盤面がリセット</span>されます。<br>
   ・「全滅」"あり"の場合、<span style="color: #700">3人以上でのプレイでは、置いた結果、他プレイヤーの石がなくなる場所には置けません。</span><br>
   ・「全滅」を"なし"にした場合、置ける場所がない場合は手番がスキップされます。<br>
   ・全員が置ける場所を失した時点でゲームは終了し、石の数が最も多いプレイヤーが勝利です。`);
@@ -262,6 +275,7 @@
         let player = 1;
 
         let extinctList = [];
+        let skippedList = [];
         
         function view() {
           ctx.clearRect(0,0,l,l);
@@ -308,6 +322,7 @@
         });
 
         document.getElementById("extinct").addEventListener("change", (e) => {
+          if(user == "2") return;
           if(e.target.value == "あり") extinct = true;
           else extinct = false;
           validList = hasValidMove(player);
@@ -431,7 +446,6 @@
           for(let k of skipList) {
             if(!extinctList.includes(k)) {
               showOverlay("player"+String(k)+"は配置できる場所がないため、スキップします。");
-              extinctList.push(k);
             }
           }
           renderFooter();
@@ -442,9 +456,16 @@
           map = [];
           let col = [];
           for(let k = 0; k < num; k++) col.push(0);
-          if(user == "2"){
+          if(user == "2") {
             document.getElementById("extinctLabel").style.opacity = "0.2";
             document.getElementById("extinct").style.opacity = "0.2";
+            document.getElementById("extinct").disabled = true;
+          } else {
+            document.getElementById("extinctLabel").style.opacity = "1";
+            document.getElementById("extinct").style.opacity = "1";
+            document.getElementById("extinct").disabled = false;
+          }
+          if(user == "2"){
             for(let row = 0; row < num; row++){
               let colClone = structuredClone(col);
               if(row == num / 2 - 1) {
@@ -457,8 +478,6 @@
               map.push(colClone);
             }
           } else if(user == "3"){
-            document.getElementById("extinctLabel").style.opacity = "1";
-            document.getElementById("extinct").style.opacity = "1";
             for(let row = 0; row < num; row++){
               let colClone = structuredClone(col);
               if(row == (num-1) / 2 - 1) {
@@ -477,8 +496,6 @@
               map.push(colClone);
             }
           } else if(user == "4"){
-            document.getElementById("extinctLabel").style.opacity = "1";
-            document.getElementById("extinct").style.opacity = "1";
             for(let row = 0; row < num; row++){
               let colClone = structuredClone(col);
               if(row == num / 2 - 2) {
@@ -526,6 +543,17 @@
           if(typeof ret === "string") showOverlay(ret);
           else {
             set(x, y, ret);
+            for (let k = 1; k <= user; k++) {
+              if (
+                !extinctList.includes(k) &&
+                map.flat().filter(v => v === k).length === 0
+              ) {
+                showOverlay(
+                  "player" + String(k) + "の石が無くなりました。"
+                );
+                extinctList.push(k);
+              }
+            }
             next();
             view();
           }
