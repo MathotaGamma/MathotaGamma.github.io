@@ -143,7 +143,7 @@
           ようこそ!<br>
           <span style="color: red;">※3・4人用でプレイする場合は、<br>
           ヘッダーの「遊び方」をご参照ください。<br>
-          ⚠️人数を変更すると、<span style="color: #700">盤面がリセット</span>されます。
+          ⚠️人数/盤面サイズを変更すると、<span style="color: #700">盤面がリセット</span>されます。
           </span>
         </div>
         <input type="button" id="overlay-button" value="OK" onclick="closeOverlay()">
@@ -177,6 +177,9 @@
         const canvas = document.getElementById("canvas");
         const sizeElem = document.getElementById("size");
         const userElem = document.getElementById("userNum");
+        sizeElem.addEventListener("change", () => {
+          start();
+        });
         userElem.addEventListener("change", (e) => {
           if(userElem.value == "2") {
             sizeElem.innerHTML = `
@@ -237,7 +240,8 @@
             circle.style.border = i === player ? "3px solid gold" : "1px solid #333"; // 手番強調
 
             span.appendChild(circle);
-            span.appendChild(document.createTextNode("Player " + i));
+            const num = map.flat().filter(v => v === i).length;
+            span.appendChild(document.createTextNode("Player"+i+": "+num+"石"));
 
             footer.appendChild(span);
           }
@@ -527,8 +531,8 @@
           r = l / num;
           n = 1;
           player = 1;
-          renderFooter();
           init();
+          renderFooter();
         }
         
         canvas.addEventListener("touchstart", (e) => {
