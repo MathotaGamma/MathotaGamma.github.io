@@ -376,7 +376,6 @@ SCOREDIFF:120
         reader.readAsText(file, 'UTF-8');
         reader.onload = function () {
           const fileContent = reader.result;
-          alert('読み込み完了：内容を表示します。');
           if (confirm('現在のテキストを置き換えますか？')) {
             text_id.value = fileContent;
             localStorage.setItem('text', text_id.value);
