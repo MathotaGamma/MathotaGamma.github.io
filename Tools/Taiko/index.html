@@ -237,10 +237,10 @@
             </details>
 
             <details>
-              <summary>TJAの中身を確認</summary>
+              <summary>TJAを読み込む</summary>
               <div class="menu">
                 <input id="tjaFile" type="file" accept=".tja,.txt">
-                <small class="help">読み込むと内容を表示領域に取り込みます（置換確認あり）。</small>
+                <small class="help">読み込むと内容を表示領域に取り込みます。</small>
               </div>
             </details>
 
@@ -261,7 +261,6 @@
                     <button type="button" class="ghost" id="revertBtn">TJAと音源を元に戻す</button>
                   </div>
                 </div>
-                <small class="help">※ 音源倍速はピッチも上がります（通常の再生速度変更）。</small>
               </div>
             </details>
           </div>
@@ -488,7 +487,7 @@ SCOREDIFF:120
         return { blob: wavBlob, name: newName };
       }
 
-      // ====== TJAテキスト：BPM / #BPMCHANGE 倍率適用 ======
+      // ====== TJAテキスト：OFFSET / BPM / #BPMCHANGE 倍率適用 ======
       function applySpeedToTjaText(srcText, rate, decimals) {
         const fmt = (num) => {
           if (!Number.isFinite(num)) return num;
@@ -497,6 +496,16 @@ SCOREDIFF:120
         };
 
         const lines = srcText.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+          const m = lines[i].match(/^OFFSET\s*:\s*([+-]?\d+(?:\.\d+)?)/i);
+          if (m) {
+            const val = parseFloat(m[1]);
+            if (Number.isFinite(val)) {
+              lines[i] = `OFFSET:${fmt(val / rate)}`;
+            }
+          }
+        }
 
         // BPM:xxx を置換（複数行対応）
         for (let i = 0; i < lines.length; i++) {
