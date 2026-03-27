@@ -15,6 +15,58 @@
         font-family: sans-serif;
         padding: 20px;
       }
+      
+      main {
+        display: flex;
+      }
+      
+      /* スイッチの外枠 */
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+      }
+
+      /* 元のチェックボックスを隠す */
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      /* スライダーの背景 */
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 26px; /* 丸み */
+      }
+
+      /* スライダー内の丸いツマミ */
+      .slider::before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+      }
+
+      /* チェックが入った時の背景色 */
+      input:checked + .slider {
+        background-color: #4CAF50;
+      }
+
+      /* チェックが入った時に丸を右へ移動 */
+      input:checked + .slider::before {
+        transform: translateX(24px);
+      }
 
       #preview {
         display: flex;
@@ -40,49 +92,73 @@
 
   <body>
     <h2>画像 → PDF</h2>
+    <main>
+      <div id="setting">
+        <input
+          type="file"
+          id="imageInput"
+          multiple
+          accept="image/*"
+        >
+        <br><br>
 
-    <input
-      type="file"
-      id="imageInput"
-      multiple
-      accept="image/*"
-    >
-    <br><br>
+        表示サイズ：
+        <input
+          type="range"
+          id="view-size"
+          min="60"
+          max="450"
+          step="10"
+          value="120"
+        >
+        <span id="sizeValue">120px</span>
 
-    表示サイズ：
-    <input
-      type="range"
-      id="view-size"
-      min="60"
-      max="450"
-      step="10"
-      value="120"
-    >
-    <span id="sizeValue">120px</span>
+        <br><br>
 
-    <br><br>
-
-    <label>
-      用紙サイズ：
-      <select id="pageSize">
-        <option value="a4">A4</option>
-        <option value="a3">A3</option>
-        <option value="letter">Letter</option>
-      </select>
-    </label>
-
-    <div id="preview"></div>
-
-    <br>
-
-    <button id="makePdf">PDF作成</button>
+        <label>
+          用紙サイズ：
+          <select id="pageSize">
+            <option value="a6">A6</option>
+            <option value="a5">A5</option>
+            <option value="a4">A4</option>
+            <option value="a3">A3</option>
+            <option value="b6">B6</option>
+            <option value="b5">B5</option>
+            <option value="b4">B4</option>
+            <option value="l">L判</option>
+            <option value="letter">Letter</option>
+         </select>
+        </label>
+      
+        <br><br>
+      
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle" checked>
+          <span class="slider"></span>
+        </label>
+        <span id="status">縦</span>
+        
+        <br><br>
+        
+        <button id="makePdf">PDF作成</button>
+      </div>
+      
+      <div id="preview"></div>
+    </main>
 
     <script>
       const DPI = 150;
 
+      // 縦
       const PAGE_SIZES_MM = {
+        a6: { w: 105, h: 148 },
+        a5: { w: 148, h: 210 },
         a4: { w: 210, h: 297 },
         a3: { w: 297, h: 420 },
+        b6: { w: 128, h: 182 },
+        b5: { w: 182, h: 257 },
+        b4: { w: 257, h: 364 },
+        l: { w: 89, h: 127 },
         letter: { w: 215.9, h: 279.4 }
       };
 
@@ -133,7 +209,7 @@
             div.className = "thumb";
             div.dataset.src = e.target.result;
             div.style.width = sizeSlider.value + "px";
-            div.innerHTML = `<img src="${e.target.result}">`;
+            div.innerHTML = `<img src="${e.target.result}"><div class="file-name" style="word-break: break-all; font-size: 12px;">${file.name}</div>`;
             preview.appendChild(div);
           };
           reader.readAsDataURL(file);
@@ -144,6 +220,17 @@
 
       new Sortable(preview, {
         animation: 150
+      });
+      
+      const toggle = document.getElementById('toggle');
+      const statusText = document.getElementById('status');
+      
+      toggle.addEventListener('change', () => {
+        if (toggle.checked) {
+          statusText.innerText = "縦";
+        } else {
+          statusText.innerText = "横";
+        }
       });
 
       document.getElementById("makePdf").addEventListener("click", async () => {
