@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8">
-    <title>Image to PDF Converter - Full Specs</title>
+    <title>Image to PDF Converter</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
@@ -61,35 +61,51 @@
 
       input[type="text"],
       select,
-      input[type="file"] {
+      input[type="file"],
+      input[type="range"] {
         padding: 10px;
         border: 1px solid #ccc;
         border-radius: 5px;
         font-size: 14px;
       }
 
-      /* PDF保存ボタン */
-      #btn-save {
-        margin-top: 10px;
-        padding: 16px;
-        background-color: #007bff;
-        color: white;
+      /* ボタン類の共通スタイル */
+      .btn {
+        padding: 12px;
         border: none;
         border-radius: 6px;
-        font-size: 16px;
         font-weight: bold;
         cursor: pointer;
         transition: background 0.2s;
+      }
+
+      #btn-save {
+        margin-top: 10px;
+        background-color: #007bff;
+        color: white;
+        font-size: 16px;
       }
 
       #btn-save:hover {
         background-color: #0056b3;
       }
 
+      .btn-outline {
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        color: #555;
+        font-size: 12px;
+      }
+
+      .btn-outline:hover {
+        background-color: #e9ecef;
+      }
+
       /* 画像カードのグリッド表示 */
       #preview-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        /* スライダーで変更される変数を参照 */
+        grid-template-columns: repeat(auto-fill, minmax(var(--thumb-size, 130px), 1fr));
         gap: 15px;
       }
 
@@ -122,7 +138,7 @@
         overflow: hidden;
       }
 
-      /* 生成中のオーバーレイ（以前のスタイルを適用） */
+      /* 生成中のオーバーレイ */
       #overlay {
         display: none;
         position: fixed;
@@ -155,12 +171,22 @@
       </div>
 
       <div class="control-group">
-        <label>保存ファイル名（.pdf抜き）</label>
-        <input type="text" id="input-filename" value="my_pdf">
+        <label>表示サイズ: <span id="label-thumb-size">130</span>px</label>
+        <input type="range" id="input-thumb-size" min="80" max="300" value="130">
       </div>
 
       <div class="control-group">
-        <label>用紙サイズを選択</label>
+        <label>名前で並び替え</label>
+        <button id="btn-sort" class="btn btn-outline">ファイル名順 (昇順)</button>
+      </div>
+
+      <div class="control-group">
+        <label>保存ファイル名</label>
+        <input type="text" id="input-filename" value="images_to_pdf">
+      </div>
+
+      <div class="control-group">
+        <label>用紙サイズ</label>
         <select id="select-papersize">
           <optgroup label="A列 (標準)">
             <option value="a3">A3 (297 x 420 mm)</option>
@@ -188,7 +214,7 @@
         </label>
       </div>
 
-      <button id="btn-save">PDFを保存する</button>
+      <button id="btn-save" class="btn">PDFを保存する</button>
     </aside>
 
     <main>
@@ -213,10 +239,14 @@
       };
 
       const EXPORT_QUALITY_DPI = 150;
+      let sortAscending = true; // ソート順の状態管理
 
       const fileInput = document.getElementById("input-files");
       const previewGrid = document.getElementById("preview-grid");
       const saveButton = document.getElementById("btn-save");
+      const thumbSlider = document.getElementById("input-thumb-size");
+      const thumbLabel = document.getElementById("label-thumb-size");
+      const sortButton = document.getElementById("btn-sort");
 
       /**
        * 画像選択時の処理
@@ -231,14 +261,60 @@
           const card = document.createElement("div");
           card.className = "image-card";
           card.dataset.url = blobUrl;
+          card.dataset.name = file.name; // ソート用にファイル名を保持
 
           card.innerHTML = `
             <img src="${blobUrl}">
             <div class="file-name">${file.name}</div>
           `;
 
+          // ダブルクリックで削除する機能を追加
+          card.addEventListener("dblclick", function() {
+            const result = confirm("この画像を削除しますか？\n" + file.name);
+            if (result === true) {
+              card.remove();
+            }
+          });
+
           previewGrid.appendChild(card);
         }
+      });
+
+      /**
+       * 表示サイズの変更（スライダー）
+       */
+      thumbSlider.addEventListener("input", function() {
+        const value = thumbSlider.value;
+        thumbLabel.innerText = value;
+        // CSS変数を使ってグリッドのサイズを一括変更
+        document.documentElement.style.setProperty("--thumb-size", value + "px");
+      });
+
+      /**
+       * ファイル名での並び替え
+       */
+      sortButton.addEventListener("click", function() {
+        const cards = Array.from(document.querySelectorAll(".image-card"));
+        
+        cards.sort(function(a, b) {
+          const nameA = a.dataset.name.toLowerCase();
+          const nameB = b.dataset.name.toLowerCase();
+          
+          if (sortAscending === true) {
+            return nameA.localeCompare(nameB);
+          } else {
+            return nameB.localeCompare(nameA);
+          }
+        });
+
+        // 並び替えた要素を再配置
+        cards.forEach(function(card) {
+          previewGrid.appendChild(card);
+        });
+
+        // 状態を反転させ、ボタンのテキストを更新
+        sortAscending = !sortAscending;
+        sortButton.innerText = sortAscending ? "ファイル名順 (昇順)" : "ファイル名順 (降順)";
       });
 
       /**
@@ -261,21 +337,17 @@
           return;
         }
 
-        // オーバーレイ表示（以前のスタイル）
         const overlay = document.getElementById("overlay");
         const progressDisplay = document.getElementById("progress-text");
         overlay.style.display = "flex";
 
-        // UIから設定値を取得
         const sizeKey = document.getElementById("select-papersize").value;
         const isPortrait = document.getElementById("check-portrait").checked;
         const filename = document.getElementById("input-filename").value;
 
         const basePaper = PAPER_SIZE_CONFIG[sizeKey];
         
-        let pageWidth;
-        let pageHeight;
-        let orientationCode;
+        let pageWidth, pageHeight, orientationCode;
 
         if (isPortrait === true) {
           pageWidth = basePaper.w;
@@ -294,9 +366,7 @@
           format: [pageWidth, pageHeight]
         });
 
-        // 1枚ずつ画像をPDFに落とし込む
         for (let i = 0; i < cards.length; i++) {
-          // 進捗表示を「生成中... (n / total)」形式に
           progressDisplay.innerText = "生成中... (" + (i + 1) + " / " + cards.length + ")";
 
           if (i > 0) {
@@ -304,8 +374,6 @@
           }
 
           const currentImageUrl = cards[i].dataset.url;
-          
-          // レイアウト計算と画像処理
           const layoutData = await processImageForPdf(currentImageUrl, pageWidth, pageHeight);
 
           pdf.addImage(
@@ -317,13 +385,11 @@
             layoutData.height
           );
 
-          // 非同期の隙間を作りフリーズを回避
           await new Promise(function(resolve) {
             setTimeout(resolve, 10);
           });
         }
 
-        // 完了・保存
         pdf.save(filename + ".pdf");
         overlay.style.display = "none";
       });
@@ -338,13 +404,10 @@
           img.onload = function() {
             const imgW = img.width;
             const imgH = img.height;
-            
             const imgRatio = imgW / imgH;
             const pageRatio = pw / ph;
 
-            let drawW;
-            let drawH;
-
+            let drawW, drawH;
             if (imgRatio > pageRatio) {
               drawW = pw;
               drawH = pw / imgRatio;
@@ -356,7 +419,6 @@
             const posX = (pw - drawW) / 2;
             const posY = (ph - drawH) / 2;
 
-            // Canvasを使用してリサイズ・圧縮
             const canvas = document.createElement("canvas");
             canvas.width = Math.round((drawW / 25.4) * EXPORT_QUALITY_DPI);
             canvas.height = Math.round((drawH / 25.4) * EXPORT_QUALITY_DPI);
@@ -372,7 +434,6 @@
               y: posY
             });
           };
-
           img.src = url;
         });
       }
