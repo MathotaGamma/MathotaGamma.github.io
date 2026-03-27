@@ -1,33 +1,35 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8">
-    <title>鉄道ゲーム - Google Drive同期テスト</title>
+    <title>鉄道ゲーム - Google Drive隠し同期テスト</title>
     <style>
       body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
       .controls { margin-bottom: 20px; display: flex; gap: 10px; }
-      #log { background: #f0f0f0; padding: 10px; height: 200px; overflow-y: scroll; border: 1px solid #ccc; font-family: monospace; }
-      button { padding: 8px 16px; cursor: pointer; }
+      #log { background: #f0f0f0; padding: 10px; height: 300px; overflow-y: scroll; border: 1px solid #ccc; font-family: monospace; font-size: 12px; }
+      button { padding: 10px 20px; cursor: pointer; font-weight: bold; }
+      h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
     </style>
   </head>
   <body>
 
-    <h1>鉄道ゲーム - サーバーレス保存</h1>
+    <h1>鉄道ゲーム - サーバーレス隠し保存</h1>
     
     <div class="controls">
       <button id="auth_btn">1. Googleと連携</button>
-      <button id="save_btn" disabled>2. 保存 (Save)</button>
+      <button id="save_btn" disabled>2. 隠し保存 (Save)</button>
       <button id="load_btn" disabled>3. 読み込み (Load)</button>
     </div>
 
-    <div id="log">ログを表示中...<br></div>
+    <div id="log">システムログ...<br></div>
 
     <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
 
     <script>
-      const CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
-      const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+      // ユーザー設定エリア
+      const CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+      const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
       const FILENAME = 'railway_save_data.json';
 
       let tokenClient;
@@ -36,7 +38,8 @@
 
       const logElement = document.getElementById('log');
       function logger(msg) {
-        logElement.innerHTML += `> ${msg}<br>`;
+        const now = new Date().toLocaleTimeString();
+        logElement.innerHTML += `[${now}] ${msg}<br>`;
         logElement.scrollTop = logElement.scrollHeight;
       }
 
@@ -46,7 +49,7 @@
           await gapi.client.init({
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
           });
-          logger("Google API Client 読み込み完了");
+          logger("Google API Client 準備完了");
         });
       }
 
@@ -60,20 +63,21 @@
               return;
             }
             accessToken = response.access_token;
-            logger("認証成功！");
+            logger("認証成功！隠し領域へのアクセスが許可されました");
             document.getElementById('save_btn').disabled = false;
             document.getElementById('load_btn').disabled = false;
-            findSaveFile();
+            findSaveFile(); // 既存の隠しファイルがあるかチェック
           },
         });
-        logger("Google Identity Services 読み込み完了");
+        logger("Google Identity Services 準備完了");
       }
 
-      // --- 2. ファイル検索 ---
+      // --- 2. 隠し領域内のファイル検索 ---
       async function findSaveFile() {
         try {
           const response = await gapi.client.drive.files.list({
             q: `name = '${FILENAME}' and trashed = false`,
+            spaces: 'appDataFolder',
             fields: 'files(id, name)',
           });
           const files = response.result.files;
@@ -81,21 +85,39 @@
             saveFileId = files[0].id;
             logger(`既存のセーブデータを発見 (ID: ${saveFileId})`);
           } else {
-            logger("新規ユーザーです（セーブデータなし）");
+            logger("新規ユーザーです（隠し領域にデータなし）");
           }
         } catch (err) {
           logger("ファイル検索失敗: " + err.message);
         }
       }
 
-      // --- 3. 保存 (POST / PATCH) ---
+      // --- 3. 保存実行 (新規:POST / 上書き:PATCH) ---
       async function saveGameData() {
+        if (!accessToken) {
+          tokenClient.requestAccessToken();
+          return;
+        }
+
+        // 鉄道ゲームのダミーデータ（ここを実際のゲーム変数に入れ替える）
         const gameData = {
-          lastSaved: new Date().toLocaleString(),
-          tracks: [] // 鉄道の座標データなどをここに入れる
+          lastSaved: new Date().toISOString(),
+          appVersion: "1.0.0",
+          gameState: {
+            score: 5000,
+            railCount: 24,
+            tracks: [
+              { id: "t1", type: "bezier", points: [[0,0], [10,20], [30,20], [40,0]] }
+            ]
+          }
         };
 
-        const metadata = { name: FILENAME, mimeType: 'application/json' };
+        const metadata = { 
+          name: FILENAME, 
+          mimeType: 'application/json',
+          parents: ['appDataFolder'] 
+        };
+        
         const file = new Blob([JSON.stringify(gameData)], { type: 'application/json' });
         const formData = new FormData();
         formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
@@ -105,24 +127,26 @@
           ? `https://www.googleapis.com/upload/drive/v3/files/${saveFileId}?uploadType=multipart`
           : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
         
+        const method = saveFileId ? 'PATCH' : 'POST';
+
         try {
           const response = await fetch(url, {
-            method: saveFileId ? 'PATCH' : 'POST',
+            method: method,
             headers: { Authorization: `Bearer ${accessToken}` },
             body: formData,
           });
           const result = await response.json();
           saveFileId = result.id;
-          logger("ドライブに保存しました。");
+          logger(`隠し領域に保存完了 (Method: ${method})`);
         } catch (err) {
-          logger("保存失敗: " + err.message);
+          logger("保存エラー: " + err.message);
         }
       }
 
-      // --- 4. 読み込み (GET) ---
+      // --- 4. 読み込み実行 ---
       async function loadGameData() {
         if (!saveFileId) {
-          logger("セーブデータが存在しません。");
+          logger("ロードするデータが見つかりません");
           return;
         }
         try {
@@ -130,13 +154,14 @@
             headers: { Authorization: `Bearer ${accessToken}` },
           });
           const data = await response.json();
-          logger("データをロードしました");
-          console.log(data);
+          logger("隠し領域からデータを復元しました");
+          console.log("復元データ:", data);
         } catch (err) {
-          logger("ロード失敗: " + err.message);
+          logger("ロードエラー: " + err.message);
         }
       }
 
+      // ボタンのイベント割り当て
       document.getElementById('auth_btn').onclick = () => tokenClient.requestAccessToken();
       document.getElementById('save_btn').onclick = saveGameData;
       document.getElementById('load_btn').onclick = loadGameData;
