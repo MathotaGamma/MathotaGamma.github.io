@@ -2,276 +2,380 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8">
-    <title>画像からPDF生成</title>
+    <title>Image to PDF Converter - Full Specs</title>
 
-    <!-- jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-    <!-- SortableJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
     <style>
+      /* 全体レイアウト */
       body {
-        font-family: sans-serif;
-        padding: 20px;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        height: 100vh;
+        font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", sans-serif;
+        background-color: #f4f7f6;
+        color: #333;
       }
-      
+
+      /* サイドバー設定エリア */
+      aside {
+        width: 320px;
+        padding: 25px;
+        background-color: #ffffff;
+        border-right: 1px solid #ddd;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        box-sizing: border-box;
+        overflow-y: auto;
+      }
+
+      h2 {
+        margin: 0 0 10px 0;
+        font-size: 1.2rem;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 8px;
+      }
+
+      /* メインプレビューエリア */
       main {
+        flex: 1;
+        padding: 30px;
+        overflow-y: auto;
+      }
+
+      /* 入力要素の共通スタイル */
+      .control-group {
         display: flex;
-      }
-      
-      /* スイッチの外枠 */
-      .toggle-switch {
-        position: relative;
-        display: inline-block;
-        width: 50px;
-        height: 26px;
+        flex-direction: column;
+        gap: 6px;
       }
 
-      /* 元のチェックボックスを隠す */
-      .toggle-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
+      label {
+        font-size: 13px;
+        font-weight: bold;
+        color: #555;
       }
 
-      /* スライダーの背景 */
-      .slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: #ccc;
-        transition: .4s;
-        border-radius: 26px; /* 丸み */
-      }
-
-      /* スライダー内の丸いツマミ */
-      .slider::before {
-        position: absolute;
-        content: "";
-        height: 20px;
-        width: 20px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: .4s;
-        border-radius: 50%;
-      }
-
-      /* チェックが入った時の背景色 */
-      input:checked + .slider {
-        background-color: #4CAF50;
-      }
-
-      /* チェックが入った時に丸を右へ移動 */
-      input:checked + .slider::before {
-        transform: translateX(24px);
-      }
-
-      #preview {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 10px;
-      }
-
-      .thumb {
-        width: 120px;
+      input[type="text"],
+      select,
+      input[type="file"] {
+        padding: 10px;
         border: 1px solid #ccc;
-        padding: 5px;
-        background: #fafafa;
-        cursor: grab;
+        border-radius: 5px;
+        font-size: 14px;
       }
 
-      .thumb img {
+      /* PDF保存ボタン */
+      #btn-save {
+        margin-top: 10px;
+        padding: 16px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      #btn-save:hover {
+        background-color: #0056b3;
+      }
+
+      /* 画像カードのグリッド表示 */
+      #preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 15px;
+      }
+
+      /* 画像カード（ドラッグ安定化） */
+      .image-card {
+        background: white;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        cursor: grab;
+        text-align: center;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .image-card img {
         width: 100%;
+        border-radius: 4px;
+        pointer-events: none;
         display: block;
+      }
+
+      .file-name {
+        margin-top: 8px;
+        font-size: 10px;
+        color: #888;
+        word-break: break-all;
+        height: 1.2em;
+        overflow: hidden;
+      }
+
+      /* 生成中のオーバーレイ（以前のスタイルを適用） */
+      #overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        z-index: 1000;
       }
     </style>
   </head>
 
   <body>
-    <h2>画像 → PDF</h2>
-    <main>
-      <div id="setting">
-        <input
-          type="file"
-          id="imageInput"
-          multiple
-          accept="image/*"
-        >
-        <br><br>
 
-        表示サイズ：
-        <input
-          type="range"
-          id="view-size"
-          min="60"
-          max="450"
-          step="10"
-          value="120"
-        >
-        <span id="sizeValue">120px</span>
+    <div id="overlay">
+      <div id="progress-text" style="font-size: 18px;">PDFを生成中... (0/0)</div>
+    </div>
 
-        <br><br>
+    <aside>
+      <h2>PDF出力設定</h2>
 
-        <label>
-          用紙サイズ：
-          <select id="pageSize">
-            <option value="a6">A6</option>
-            <option value="a5">A5</option>
-            <option value="a4">A4</option>
-            <option value="a3">A3</option>
-            <option value="b6">B6</option>
-            <option value="b5">B5</option>
-            <option value="b4">B4</option>
-            <option value="l">L判</option>
-            <option value="letter">Letter</option>
-         </select>
-        </label>
-      
-        <br><br>
-      
-        <label class="toggle-switch">
-          <input type="checkbox" id="toggle" checked>
-          <span class="slider"></span>
-        </label>
-        <span id="status">縦</span>
-        
-        <br><br>
-        
-        <button id="makePdf">PDF作成</button>
+      <div class="control-group">
+        <label>画像を選択（複数可）</label>
+        <input type="file" id="input-files" multiple accept="image/*">
       </div>
-      
-      <div id="preview"></div>
+
+      <div class="control-group">
+        <label>保存ファイル名（.pdf抜き）</label>
+        <input type="text" id="input-filename" value="my_collection">
+      </div>
+
+      <div class="control-group">
+        <label>用紙サイズを選択</label>
+        <select id="select-papersize">
+          <optgroup label="A列 (標準)">
+            <option value="a3">A3 (297 x 420 mm)</option>
+            <option value="a4" selected>A4 (210 x 297 mm)</option>
+            <option value="a5">A5 (148 x 210 mm)</option>
+            <option value="a6">A6 (105 x 148 mm)</option>
+          </optgroup>
+          <optgroup label="B列 (日本規格)">
+            <option value="b4">B4 (257 x 364 mm)</option>
+            <option value="b5">B5 (182 x 257 mm)</option>
+            <option value="b6">B6 (128 x 182 mm)</option>
+          </optgroup>
+          <optgroup label="写真・ハガキ">
+            <option value="postcard">ハガキ (100 x 148 mm)</option>
+            <option value="l_size">L判 (89 x 127 mm)</option>
+            <option value="2l_size">2L判 (127 x 178 mm)</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+          <input type="checkbox" id="check-portrait" checked>
+          <span>縦向き (Portrait)</span>
+        </label>
+      </div>
+
+      <button id="btn-save">PDFを保存する</button>
+    </aside>
+
+    <main>
+      <div id="preview-grid"></div>
     </main>
 
     <script>
-      const DPI = 150;
-
-      // 縦
-      const PAGE_SIZES_MM = {
-        a6: { w: 105, h: 148 },
-        a5: { w: 148, h: 210 },
-        a4: { w: 210, h: 297 },
-        a3: { w: 297, h: 420 },
-        b6: { w: 128, h: 182 },
-        b5: { w: 182, h: 257 },
-        b4: { w: 257, h: 364 },
-        l: { w: 89, h: 127 },
-        letter: { w: 215.9, h: 279.4 }
+      /**
+       * 用紙寸法の詳細データ (mm単位)
+       */
+      const PAPER_SIZE_CONFIG = {
+        "a3":       { w: 297, h: 420 },
+        "a4":       { w: 210, h: 297 },
+        "a5":       { w: 148, h: 210 },
+        "a6":       { w: 105, h: 148 },
+        "b4":       { w: 257, h: 364 },
+        "b5":       { w: 182, h: 257 },
+        "b6":       { w: 128, h: 182 },
+        "postcard": { w: 100, h: 148 },
+        "l_size":   { w: 89,  h: 127 },
+        "2l_size":  { w: 127, h: 178 }
       };
 
-      function mmToPx(mm) {
-        return Math.round(mm / 25.4 * DPI);
-      }
+      const EXPORT_QUALITY_DPI = 150;
 
-      async function compressImage(src, targetW, targetH, quality = 0.7) {
-        return new Promise(resolve => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            canvas.width = targetW;
-            canvas.height = targetH;
+      const fileInput = document.getElementById("input-files");
+      const previewGrid = document.getElementById("preview-grid");
+      const saveButton = document.getElementById("btn-save");
 
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, targetW, targetH);
+      /**
+       * 画像選択時の処理
+       */
+      fileInput.addEventListener("change", function() {
+        const files = fileInput.files;
 
-            resolve(canvas.toDataURL("image/jpeg", quality));
-          };
-          img.src = src;
-        });
-      }
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const blobUrl = URL.createObjectURL(file);
 
-      const imageInput = document.getElementById("imageInput");
-      const preview = document.getElementById("preview");
-      const sizeSlider = document.getElementById("view-size");
-      const sizeValue = document.getElementById("sizeValue");
+          const card = document.createElement("div");
+          card.className = "image-card";
+          card.dataset.url = blobUrl;
 
-      function updateThumbSize(size) {
-        sizeValue.textContent = size + "px";
-        document.querySelectorAll(".thumb").forEach(thumb => {
-          thumb.style.width = size + "px";
-        });
-      }
+          card.innerHTML = `
+            <img src="${blobUrl}">
+            <div class="file-name">${file.name}</div>
+          `;
 
-      sizeSlider.addEventListener("input", e => {
-        updateThumbSize(e.target.value);
-      });
-
-      imageInput.addEventListener("change", () => {
-        preview.innerHTML = "";
-
-        [...imageInput.files].forEach(file => {
-          const reader = new FileReader();
-          reader.onload = e => {
-            const div = document.createElement("div");
-            div.className = "thumb";
-            div.dataset.src = e.target.result;
-            div.style.width = sizeSlider.value + "px";
-            div.innerHTML = `<img src="${e.target.result}"><div class="file-name" style="word-break: break-all; font-size: 12px;">${file.name}</div>`;
-            preview.appendChild(div);
-          };
-          reader.readAsDataURL(file);
-        });
-
-        updateThumbSize(sizeSlider.value);
-      });
-
-      new Sortable(preview, {
-        animation: 150
-      });
-      
-      const toggle = document.getElementById('toggle');
-      const statusText = document.getElementById('status');
-      
-      toggle.addEventListener('change', () => {
-        if (toggle.checked) {
-          statusText.innerText = "縦";
-        } else {
-          statusText.innerText = "横";
+          previewGrid.appendChild(card);
         }
       });
 
-      document.getElementById("makePdf").addEventListener("click", async () => {
-        const { jsPDF } = window.jspdf;
-        const sizeKey = document.getElementById("pageSize").value;
-        const page = PAGE_SIZES_MM[sizeKey];
+      /**
+       * ドラッグ&ドロップ並び替えの初期化
+       */
+      new Sortable(previewGrid, {
+        animation: 200,
+        forceFallback: true,
+        fallbackTolerance: 3
+      });
 
+      /**
+       * PDF生成実行
+       */
+      saveButton.addEventListener("click", async function() {
+        const cards = document.querySelectorAll(".image-card");
+        
+        if (cards.length === 0) {
+          alert("画像が追加されていません。");
+          return;
+        }
+
+        // オーバーレイ表示（以前のスタイル）
+        const overlay = document.getElementById("overlay");
+        const progressDisplay = document.getElementById("progress-text");
+        overlay.style.display = "flex";
+
+        // UIから設定値を取得
+        const sizeKey = document.getElementById("select-papersize").value;
+        const isPortrait = document.getElementById("check-portrait").checked;
+        const filename = document.getElementById("input-filename").value;
+
+        const basePaper = PAPER_SIZE_CONFIG[sizeKey];
+        
+        let pageWidth;
+        let pageHeight;
+        let orientationCode;
+
+        if (isPortrait === true) {
+          pageWidth = basePaper.w;
+          pageHeight = basePaper.h;
+          orientationCode = "p";
+        } else {
+          pageWidth = basePaper.h;
+          pageHeight = basePaper.w;
+          orientationCode = "l";
+        }
+
+        const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({
-          format: sizeKey,
-          unit: "mm"
+          orientation: orientationCode,
+          unit: "mm",
+          format: [pageWidth, pageHeight]
         });
 
-        const targetWpx = mmToPx(page.w);
-        const targetHpx = mmToPx(page.h);
+        // 1枚ずつ画像をPDFに落とし込む
+        for (let i = 0; i < cards.length; i++) {
+          // 進捗表示を「生成中... (n / total)」形式に
+          progressDisplay.innerText = "生成中... (" + (i + 1) + " / " + cards.length + ")";
 
-        const images = document.querySelectorAll(".thumb");
-
-        for (let i = 0; i < images.length; i++) {
           if (i > 0) {
-            pdf.addPage();
+            pdf.addPage([pageWidth, pageHeight], orientationCode);
           }
 
-          const compressed = await compressImage(
-            images[i].dataset.src,
-            targetWpx,
-            targetHpx,
-            0.7
-          );
+          const currentImageUrl = cards[i].dataset.url;
+          
+          // レイアウト計算と画像処理
+          const layoutData = await processImageForPdf(currentImageUrl, pageWidth, pageHeight);
 
           pdf.addImage(
-            compressed,
+            layoutData.data,
             "JPEG",
-            0,
-            0,
-            page.w,
-            page.h
+            layoutData.x,
+            layoutData.y,
+            layoutData.width,
+            layoutData.height
           );
+
+          // 非同期の隙間を作りフリーズを回避
+          await new Promise(function(resolve) {
+            setTimeout(resolve, 10);
+          });
         }
 
-        pdf.save("images.pdf");
+        // 完了・保存
+        pdf.save(filename + ".pdf");
+        overlay.style.display = "none";
       });
+
+      /**
+       * 画像を解析し、用紙に最適化された配置データを返す
+       */
+      async function processImageForPdf(url, pw, ph) {
+        return new Promise(function(resolve) {
+          const img = new Image();
+          
+          img.onload = function() {
+            const imgW = img.width;
+            const imgH = img.height;
+            
+            const imgRatio = imgW / imgH;
+            const pageRatio = pw / ph;
+
+            let drawW;
+            let drawH;
+
+            if (imgRatio > pageRatio) {
+              drawW = pw;
+              drawH = pw / imgRatio;
+            } else {
+              drawH = ph;
+              drawW = ph * imgRatio;
+            }
+
+            const posX = (pw - drawW) / 2;
+            const posY = (ph - drawH) / 2;
+
+            // Canvasを使用してリサイズ・圧縮
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.round((drawW / 25.4) * EXPORT_QUALITY_DPI);
+            canvas.height = Math.round((drawH / 25.4) * EXPORT_QUALITY_DPI);
+            
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            resolve({
+              data: canvas.toDataURL("image/jpeg", 0.8),
+              width: drawW,
+              height: drawH,
+              x: posX,
+              y: posY
+            });
+          };
+
+          img.src = url;
+        });
+      }
     </script>
   </body>
 </html>
