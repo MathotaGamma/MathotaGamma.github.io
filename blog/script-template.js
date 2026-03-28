@@ -13,9 +13,14 @@ window.onload = () => {
   
   async function initBreadcrumb() {
     const breadcrumb = document.getElementById("breadcrumb");
+    const goTop = ddocument.createElement("span");
+    goTop.innerHTML = "TOP"
+    goTop.addEventListener("click", () => {
+      window.location.href = "/";
+    });
     const sitemap = await getSitemap();
     if (!sitemap) {
-      breadcrumb.innerHTML = "---";
+      breadcrumb.appendChild(goTop);
       return;
     }
 
@@ -38,7 +43,7 @@ window.onload = () => {
         currentSitemap = structuredClone(currentSitemap[pathList[ind]]);
       }
       if(!currentSitemap) {
-        breadcrumb.innerHTML = "---";
+        breadcrumb.appendChild(goTop);
         return;
       }
       const span = document.createElement("span");
@@ -52,10 +57,9 @@ window.onload = () => {
         name = currentSitemap.index;
         if(!name) name = currentSitemap;
       }
-      console.log(name)
+      
       if (!name) {
-        console.log("a")
-        breadcrumb.innerHTML = "---";
+        breadcrumb.appendChild(goTop);
         return;
       }
       span.innerHTML = name;
