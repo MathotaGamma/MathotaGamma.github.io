@@ -239,6 +239,7 @@
       <button onclick="toggleMission();">MISSION</button>
       <button onclick="toggleShowVelocity();" id="toggle-velocity" disabled>Velocity Hide</button>
       <button onclick="removeLocalStorage();">Data Reset</button>
+      <button onclick="goBack();">Go Back</button>
       <button onclick="help();">Help</button>
     </div>
     <div id="mission">
@@ -256,7 +257,9 @@
       <div id="alert-text"></div>
       <button id="alert-closer" onclick="alertClose();">CLOSE</button>
     </div>
-    <button id="show-pos-button" onclick="showPos();" style="position: absolute; right: 0; top: 10px; width: 50px; height: 50px;">HERE</button>
+    <!--
+      <button id="show-pos-button" onclick="showPos();" style="position: absolute; right: 0; top: 10px; width: 50px; height: 50px;">HERE</button>
+    -->
     <script type="module">
       import * as THREE from "three";
       import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -1441,6 +1444,10 @@ function resetGyro() {
           }
           animate();
         }
+      }
+
+      function goBack() {
+        window.location.href = "../";
       }
     </script>
   </body>
