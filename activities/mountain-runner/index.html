@@ -230,7 +230,7 @@
     <script src="https://mathotagamma.github.io/APIs/CompVisJS/latest/CompVisJS.js"></script>
   </head>
   <body>
-    <div id="text-div"></div>
+    <div id="text-div">Please wait.</div>
     <div id="left-stick-layer"></div>
     <div id="menu">▼ MENU</div>
     <div id="menu-container">
@@ -1432,6 +1432,7 @@ function resetGyro() {
 
           coinsAndMedalsInit();
           data.isInit = true;
+          textDiv.innerHTML = "";
           if(!data.resumption) {
             help();
             showAlert("横画面をお勧めします。<br>HelpはMENUから再度見ることができます。");
