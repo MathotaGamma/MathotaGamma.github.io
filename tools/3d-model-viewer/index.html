@@ -7,7 +7,7 @@
       <style>
         body { margin: 0; }
         canvas { display: block; }
-        #fileInput {
+        .file-container {
           position: absolute;
           top: 10px;
           left: 10px;
@@ -28,7 +28,7 @@
     </script>
   </head>
   <body>
-    <label>対応拡張子:.glb .gltf <input type="file" id="fileInput" accept=".glb"></label>
+    <label class="file-container">対応拡張子:.glb .gltf <input type="file" id="file-input" accept=".glb"></label>
     <script type="module">
       import * as THREE from "three";
       import { GLTFLoader } from "GLTFLoader";
@@ -73,7 +73,7 @@
          let currentModel = null;
 
          // ファイルが選択された時の処理
-         document.getElementById('fileInput').addEventListener('change', (event) => {
+         document.getElementById('file-input').addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (!file) return;
 
