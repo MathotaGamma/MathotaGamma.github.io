@@ -12,9 +12,12 @@ window.onload = () => {
   }
   
   async function initBreadcrumb() {
-    const sitemap = await getSitemap();
-    if (!sitemap) return;
     const breadcrumb = document.getElementById("breadcrumb");
+    const sitemap = await getSitemap();
+    if (!sitemap) {
+      breadcrumb.innerHTML = "---";
+      return;
+    }
 
     let endSlash = false;
 
