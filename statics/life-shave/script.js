@@ -14,12 +14,12 @@ window.onload = () => {
   const gaugeIn = document.getElementById("gauge-in");
   
   const glbFiles = {
-    'usually': 'https://mathotagamma.github.io/Statics/LIFESHAVE/usually.glb',
-    'squat': 'https://mathotagamma.github.io/Statics/LIFESHAVE/squat.glb',
-    'aim': 'https://mathotagamma.github.io/Statics/LIFESHAVE/aim.glb',
-    'ready': 'https://mathotagamma.github.io/Statics/LIFESHAVE/ready.glb',
-    'shooting': 'https://mathotagamma.github.io/Statics/LIFESHAVE/shooting.glb',
-    'shooted': 'https://mathotagamma.github.io/Statics/LIFESHAVE/shooted.glb',
+    'usually': 'https://mathotagamma.github.io/statics/life-shave/usually.glb',
+    'squat': 'https://mathotagamma.github.io/statics/life-shave/squat.glb',
+    'aim': 'https://mathotagamma.github.io/statics/life-shave/aim.glb',
+    'ready': 'https://mathotagamma.github.io/statics/life-shave/ready.glb',
+    'shooting': 'https://mathotagamma.github.io/statics/life-shave/shooting.glb',
+    'shooted': 'https://mathotagamma.github.io/statics/life-shave/shooted.glb',
   }
   
   const glbData = {
