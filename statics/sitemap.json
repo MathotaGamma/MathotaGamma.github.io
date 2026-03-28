@@ -1,0 +1,36 @@
+{
+  "index": "ホーム",
+  "blog": {
+    "index": "ブログ集",
+    "fourier": "フーリエ変換",
+    "zeta": "ゼータ関数",
+    "high-math": "高校数学",
+    "high-chemistry": "高校化学"
+  },
+  "tools": {
+    "index": "ツール集",
+    "epicycle": "エピサイクル",
+    "image-to-pdf": "画像→PDF",
+    "logic-circuit": "論理回路シミュレータ",
+    "latex-viewer": "Latexビュー",
+    "html-editor": "HTMLエディター",
+    "three-js-editor": "Three.jsエディター",
+    "file-editor": "ファイル編集",
+    "hierarchy-viewer": "ファイル階層表示",
+    "3d-model-viewer": ".glb,.gltfモデル表示",
+    "infinity-canvas": "際限ないキャンバス",
+    "sort-algorithm": "ソートアルゴリズム"
+  },
+  "activities": {
+    "index": "アクティビティー集",
+    "reversi": "リバーシ",
+    "mountain-runner": "山を滑走する",
+    "cubiro": "立方体のアドベンチャー",
+    "dodge": "障害物を避ける"
+  },
+  "APIs": {
+    "index": "API集",
+    "CompVisJS": "数学・描画ライブラリ",
+    "JS-Window": "Javascript欄埋め込み"
+  }
+}
