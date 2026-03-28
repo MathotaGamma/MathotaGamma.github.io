@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>GLB Model Viewer</title>
+      <title>3D Model Viewer</title>
       <style>
         body { margin: 0; }
         canvas { display: block; }
@@ -28,7 +28,7 @@
     </script>
   </head>
   <body>
-    <input type="file" id="fileInput" accept=".glb">
+    <label>対応拡張子:.glb .gltf <input type="file" id="fileInput" accept=".glb"></label>
     <script type="module">
       import * as THREE from "three";
       import { GLTFLoader } from "GLTFLoader";
