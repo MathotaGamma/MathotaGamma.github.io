@@ -9,971 +9,114 @@ html
 -->
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="keywords" content="__例:「Fourier,Epicycle,離散フーリエ変換,フーリエ,FourierTransform」__">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="例:「Fourier変換をわかりやすく解説。視覚的に理解できるエピサイクルや離散フーリエ変換の体感も」">
-  <title>__title__</title>
-  <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"></script>
-  <script type="text/javascript" src="https://mathotagamma.github.io/APIs/CompVisJS/latest/CompVisJS.js"></script>
-  
-  <script async custom-element="amp-auto-ads"
-    src="https://cdn.ampproject.org/v0/amp-auto-ads-0.1.js">
-  </script>
-  
-  <style>
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    html, body {
-      height: 100%;
-      font-family: 'American Typewriter','Meiryo UI','ヒラギノ丸ゴ ProN','Hiragino Maru Gothic ProN',sans-serif;
-      background: #fff;
-      color: #222;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-    }
-    
-    body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-    
-    .equation {
-      overflow-x: auto;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>平方完成 | 二次関数(Part3)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+    <script src="https://mathotagamma.github.io/APIs/CompVisJS/latest/CompVisJS.js"></script>
+    <link rel="stylesheet" href="/blog/style-template.css"></link>
+  </head>
+  <body>
+    <header>
+      <div>TITLE</div>
+      <nav class="bread-crumb"></nav> <!-- パンくずリストを自動表示(script-template.js) -->
+    </header>
 
-    header {
-      position: sticky;
-      top: 0;
-      background: #f8f9fa;
-      color: #1f2951;
-      padding: 1rem 2rem;
-      font-size: 1.5rem;
-      font-weight: bold;
-      z-index: 10;
-      user-select: none;
-      box-shadow: 0 2px 5px #0008;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    header nav a {
-      color: #1f2951;
-      text-decoration: none;
-      font-weight: 600;
-      margin-left: 1rem;
-      transition: color 0.3s ease;
-    }
-    header nav a:hover {
-      color: #f7931e;
-    }
-
-    main {
-      display: flex;
-      flex: 1;
-      flex-direction: row;
-      overflow: hidden;
-    }
-
-    .toc-wrapper {
-      width: 220px;
-      background: #f3f4f6;
-      border-right: 1px solid #ddd;
-      padding: 1rem 1.5rem;
-      overflow-y: auto;
-      font-size: 0.9rem;
-      line-height: 1.4;
-      transition: all 0.3s ease;
-    }
-    .toc-wrapper h2 {
-      margin-bottom: 0.8rem;
-      font-size: 1.2rem;
-      color: #f7931e;
-    }
-    .toc-wrapper ul {
-      list-style: none;
-    }
-    .toc-wrapper ul li {
-      margin-bottom: 0.5rem;
-    }
-    .toc-wrapper ul li a {
-      color: #1f2951;
-      text-decoration: none;
-      cursor: pointer;
-      transition: color 0.3s ease;
-    }
-    .toc-wrapper ul li a:hover {
-      color: #ffb933;
-      text-decoration: underline;
-    }
-
-    .toc-toggle {
-      display: none;
-      background: #f3f4f6;
-      border-bottom: 1px solid #ddd;
-      padding: 1rem;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    article.article {
-      flex: 1;
-      background: #fff;
-      padding: 2rem 3rem;
-      overflow-y: auto;
-      line-height: 1.7;
-      font-size: 1.1rem;
-      color: #222;
-      user-select: text;
-      scroll-behavior: smooth;
-    }
-    article.article h1 {
-      font-size: 2.2rem;
-      margin-bottom: 1rem;
-      color: #f7931e;
-    }
-    article.article h2 {
-      margin-top: 2rem;
-      margin-bottom: 1rem;
-      border-bottom: 2px solid #bbb;
-      padding-bottom: 0.3rem;
-      color: #008080;
-    }
-    article.article p {
-      margin-bottom: 1.2rem;
-    }
-
-    aside.sidebar {
-      width: 280px;
-      background: #f3f4f6;
-      border-left: 1px solid #ddd;
-      padding: 1rem 1.5rem;
-      overflow-y: auto;
-      font-size: 0.9rem;
-      color: #222;
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-    }
-    aside.sidebar h3 {
-      color: #f7931e;
-      margin-bottom: 1rem;
-      font-size: 1.2rem;
-    }
-    aside.sidebar a {
-      color: #1f2951;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    aside.sidebar a:hover {
-      color: #f7931e;
-      text-decoration: underline;
-    }
-    aside.sidebar .ads {
-      background: #eaeaea;
-      padding: 1rem;
-      border-radius: 8px;
-      text-align: center;
-      font-size: 0.9rem;
-      color: #777;
-    }
-
-    .cursive {
-      font-family: "Snell Roundhand", cursive;
-      color: #333;
-    }
-
-    table {
-      border-collapse: collapse;
-      border: 2px solid rgb(140 140 140);
-      letter-spacing: 1px;
-    }
-    caption {
-      caption-side: bottom;
-      padding: 10px;
-    }
-    thead {
-      background-color: rgb(228 240 245);
-    }
-    th, td {
-      border: 1px solid rgb(160 160 160);
-      padding: 8px 10px;
-    }
-    tbody > tr:nth-of-type(even) {
-      background-color: rgb(237 238 242);
-    }
-
-    @media (max-width: 768px) {
-      main {
-        flex-direction: column;
-      }
-      .toc-wrapper {
-        width: 100%;
-        display: none;
-      }
-      .toc-wrapper.active {
-        display: block;
-      }
-      .toc-toggle {
-        display: block;
-      }
-      aside.sidebar {
-        width: 100%;
-        border-left: none;
-        border-top: 1px solid #ddd;
-      }
-    }
-
-    .block {
-      padding: 2px;
-      border: 1px solid black;
-      border-radius: 2px;
-    }
-
-    #circle {
-      background: black;
-    }
-
-    #Epi {
-      background: black;
-    }
-
-    .dropdown-toggle {
-      padding: 10px 20px;
-      font-size: 16px;
-      font-weight: bold;
-      color: #fff;
-      background-color: #007ACC;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background-color 0.3s ease, box-shadow 0.2s ease;
-    }
-
-    .dropdown-toggle:hover {
-      background-color: #005f99;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    }
-
-    .dropdown-toggle:active {
-      background-color: #004f80;
-      transform: translateY(1px);
-    }
-
-    .dropdown-content {
-      border: 1px solid black;
-      padding: 2px;
-    }
-  </style>
-</head>
-<body>
-
-<header>
-  <div>Fourier変換 - NeoTopazm</div>
-  <nav>
-    <a href="../">ホーム</a>
-  </nav>
-</header>
-
-<div class="toc-toggle">📑 目次を表示</div>
-<main>
-  <nav class="toc-wrapper" aria-label="目次">
-    <h2>目次</h2>
-    <ul>
-      <li><a href="#section0" class="anchor">必要な知識について</a></li>
-      <li><a href="#section1" class="anchor">Fourier変換とは？</a></li>
-      <li><a href="#section2" class="anchor">Fourier変換の種類</a></li>
-      <li><a href="#section3" class="anchor">実際の式</a></li>
-      <li><a href="#section4" class="anchor">体感する</a></li>
-    </ul>
-  </nav>
-
-  <article class="article">
-    <p>難易度☆☆(低-中程度:三角関数についての基礎知識)</p>
-    <h1>Fourier変換</h1>
-    <section id="intro">
-      <p>皆さんこんにちは！Fourier変換楽しんでますか？</p>
-      <p>もちろん、毎日音をフーリエ変換して「うわ、この周波数の振幅デカいな」と感動する日々を送ってることでしょう^_^。</p>
-      <p>冗談は置いといて、この記事では</p>
-      <p class="cursive"><b>Fourier Transform</b></p>
-      <p>について、実際に体感して、難しい知識を使わずに解説していこうと思います。</p>
-    </section>
-    <amp-auto-ads type="adsense"
-      data-ad-client="ca-pub-2431365242443921">
-    </amp-auto-ads>
-    <section id="section0">
-      <h1>必要な知識について</h1>
-      <ul>
-        <li>
-          <h2>ラジアン[rad]</h2>
+    <div class="toc-toggle">📑 目次を表示</div> <!-- モバイル用 -->
+    <main>
+      <nav class="toc-wrapper" aria-label="目次">
+        <h2>目次</h2>
+        <ul>
+          <li><a href="#section0" class="anchor">#section0</a></li>
+          <li><a href="#section1" class="anchor">#section1</a></li>
+          <li><a href="#section2" class="anchor">#section2</a></li>
+        </ul>
+      </nav>
+      <article class="article">
+        <h1>H1</h1>
+        <p>
+          難易度⭐︎~⭐︎⭐︎⭐︎
+        </p>
+        <section id="section0">
+          <!-- section0 -->
+          <h2>H2</h2>
+          <p>section0</p>
+        </section>
+        <section id="section1">
+          <!-- section1 -->
+          <h2>H2</h2>
+          <p>section1</p>
+          <div class="block">
+            <small>
+              <p>divでclass="block"を指定した。</p>
+              <p>更に、LaTeXを書いてみる。</p>
+              $$\begin{align*}
+                y &= 2x^2+4x-3\\
+                  &= 2\left(x^2+2x\right)-3 \quad {...\large ①}\\
+                  &= 2\left[(x+1)^2-1\right]-3 \quad {...\large ②}\\
+                  &= 2(x+1)^2-5 \quad {...\large ③}
+              \end{align*}$$
+            </small>
+          </div>
+          <p>これは</p>
+          <span>
+            &lt;button class="dropdown-toggle"&gt;見出し&lt;/button&gt;<br>
+            &lt;div class="dropdown-content" style="display:none;"&gt;
+          </span>
           <p>
-            中心O、半径rの円周上に孤ABをとる。孤ABの長さを\(l_{AB}\)としたとき、∠AOBの大きさを\(\frac{l_{AB}}{r}\)ラジアンと定義する。
+            を用いたドロップダウン。
           </p>
-          <p>
-            <b>ラジアンの単位は、孤ABの単位を[m],半径rの単位を[m]とするとm/m、つまり無次元である。</b>
-          </p>
-        </li>
-        <li>
-          <h2>周波数</h2>
-          <p>
-            周波数f:振動、波が単位時間(1秒)あたりに何回繰り返すか(単位はHz ヘルツ(=/s 毎秒))
-          </p>
-          <p><b>円に対して用いる場合</b></p>
-          <p>
-            円上を動く点が1秒間で何周回るかが周波数fである。
-          </p>
-          <p>
-            赤い点の周波数は0.5Hz(2秒で1回転=1/2=0.5Hz)
-          </p>
-          <canvas id="circle"></canvas>
-          <p><b>三角関数に対して用いる場合</b></p>
-          <p>
-            1秒にf回振動するとき\(\sin (2\pi ft)\)と表される。
-          </p>
-          <p>
-            <b style="color: red;">
-              ※角周波数との違い
-            </b>
-          </p>
-          <p>
-            角周波数ω:単位時間あたりのラジアンの変化量(単位は、ラジアンに単位が無い(無次元)ので周波数と同じ)
-          </p>
-          <p>
-            sin関数において、1秒でf回振動するとき\(\sin (2\pi ft)\)と表され、
-            この\(2\pi f\)を\(\omega \)とする。つまり
-          </p>
-          $$\omega = 2\pi f$$
-          <p>
-            が成り立つ。
-          </p>
-        </li>
-      </ul>
-    </section>
-    <section id="section1">
-      <h2>Fourier変換とは？</h2>
-      <p>
-        Fourier変換は、信号や関数を周波数成分に分解する数学的手法です。
-        「この信号は、周波数〇Hzの波がどれくらい含まれているか？」
-        というのを知るために用いられます。
-      </p>
-      <p>
-        皆さんは高校でsinやcosをやった記憶はありますか？
-        そのsin,cosを使って波を分解してみよう！
-        というやつです。
-      </p>
-      <p>
-        例えば、下のような「矩形波」と呼ばれる波を
-        フーリエ変換してみましょう。
-        後程書きますが、今回使うのはフーリエ変換の一種である
-        フーリエ級数展開です。
-      </p>
-      <canvas id="square"></canvas>
-      <p>
-        スライダーを動かしてみてください。
-        右側にスライドするほど矩形波に近づきますよね？
-        これは、矩形波をフーリエ級数展開すると周波数が∞まで
-        出てくるため、足し合わせる数を多くするほど正確になるからです。
-      </p>
-      <tt><label id="showSliderNum" for="numSlider">015:</label></tt><input type="range" id="numSlider" min="0" max="100" step="1" value="20"><br>
-      <canvas id="squareSum"></canvas>
-      <p>
-        色々試してみると2つ気になる点が見つかると思います。
-      </p>
-      <p>
-        一つ目に、スライドの値を大きくしていっても不連続な点において飛び出るところがあり、最大のところで約9%はみ出ています。これは「ギブス現象」と呼ばれるもので、どれだけ値を大きくしても無くなることはありません。
-      </p>
-      <p>
-        このギブス現象が起こるのは不連続となる部分です。
-      </p>
-      <p>
-        そしてもう一つ、スライドの値を0と1、2と3、4と5のように偶数とそれに+1したグラフが同じになっているのに気づきましたか？
-      </p>
-      <p>
-        これは矩形波をフーリエ級数展開すると奇数の周波数(1Hz,3Hz,...)の大きさが0となっているためです。
-      </p>
-      <p>
-        そして、このグラフはsinθのみで表されています。これは下側の線と上側の線が同じ長さで、原点(今回は不連続な部分の中間とする)に対して点対称(=奇関数)であることからこのような結果になります。
-      </p>
-    </section>
-    <section id="section2">
-      <h2>Fourier変換の種類</h2>
-      <p>
-        フーリエ変換は4種類あります。
-        下の表をみてください。
-      </p>
-      <table>
-        <caption>
-          Fourier変換の種類
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">\</th>
-            <th scope="col">周期</th>
-            <th scope="col">非周期</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <th scope="row">連続<sup><a href="#annotation1" class="anchor">【1】</a></sup></th>
-            <td>フーリエ級数展開(FSE)</td>
-            <td>フーリエ変換(FT)</td>
-          </tr>
-          <tr>
-            <th scope="row">不連続(離散的)<sup><a href="#annotation1" class="anchor">【1】</a></sup></th>
-            <td>離散フーリエ変換(DFT)</td>
-            <td>離散時間フーリエ変換(DTFT)</td>
-          </tr>
-        </tbody>
-      </table>
-      <p>
-        これは、フーリエ変換するデータの種類を示しています。
-        4種類はその使う場面、関数の性質が異なります。
-      </p>
-      <ul>
-        <li>
-          <h3>
-            フーリエ級数展開(Fourier Series Expansion)
-          </h3>
-          <p>
-            これだけ名前の傾向が違う。可哀想。
-          </p>
-          <p>
-            その名の通り、ある関数f(x)をsin,cosの級数(足し算)で表す方法。
-          </p>
-          <p>
-            実数verと複素数verがある。
-          </p>
-        </li>
-        <li>
-          <h3>
-            フーリエ変換(Fourier Transform)
-          </h3>
-          <p>
-            連続、非周期の関数に用いる。<sup><a href="#annotation1" class="anchor">【1】</a></sup>
-            後述する式を見るとわかるが、
-            フーリエ級数展開を積分表記にして
-            範囲を無限にしただけ。
-          </p>
-        </li>
-        <li>
-          <h3>
-            離散フーリエ変換(Discrete Fourier Transform)
-          </h3>
-          <p>
-            皆大好き離散フーリエ変換。
-            今や私達の生活に欠かせないものとなっている。
-            名の通り離散的なデータをフーリエ変換する。
-            派生したものとして高速フーリエ変換(FFT)がある。
-          </p>
-        </li>
-        <li>
-          <h3>
-            離散時間フーリエ変換(Discrete Time Fourier Transform)
-          </h3>
-          <p>
-            フーリエ変換を離散的にする操作を施すと導ける。
-          </p>
-        </li>
-      </ul>
-      <h3>具体例</h3>
-      <p>
-        矩形波について考えてみましょう。
-      </p>
-      <canvas id="square2"></canvas>
-      <p>
-        この曲線はxについて不連続点以外では確定値が存在し、周期性を保つため
-        フーリエ級数展開が適しているとわかります。
-      </p>
-      <small id="annotation1">
-        (注)【1】正確には、「不連続な点を除く任意のxにおいてf(x)の確定値が存在する(=不連続点以外で各点収束)」場合に
-        フーリエ級数展開またはフーリエ変換が使えます。
-      </small>
-    </section>
-    <section id="section3">
-      <h2>実際の式</h2>
-      <p>
-        あまり数学が得意じゃないという方は
-        <a href="#section4" class="anchor">ここまで読み飛ばしてもらって</a>
-        構いません！
-      </p>
-      <p>
-        フーリエ変換は波をsin,cosで分解する変換です。
-        導出などを書くと数学的になりすぎてしまうので、
-        「式を眺めて」みましょう。
-      </p>
-      
-      <div class="block　equation">
-        <p>周期をTとする。</p>
-        <h3>フーリエ級数展開（FSE）</h3>
-        <h4>実数表記</h4>
-          $$f(t) = \frac{a_0}{2} + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2n\pi}{T}t) + b_n \sin(\frac{2n\pi}{T}t) \right\}$$
-        <p>ただし、</p>
-          $$a_n = \frac{2}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) \cos\left(\frac{2n\pi}{T}t\right) \, dt$$
-          $$b_n = \frac{2}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) \sin\left(\frac{2n\pi}{T}t\right) \, dt$$
-        <h4>複素数表記</h4>
-          $$f(t) = \sum_{n=-\infty}^{\infty} c_n e^{i\frac{2n\pi}{T}t}, \quad$$
-        <p>ただし、</p>
-          $$c_n = \frac{1}{T} \int_{-\frac{T}{2}}^{\frac{T}{2}} f(t) e^{-i\frac{2n\pi}{T} t} \, dt$$
+          <button class="dropdown-toggle">▼解答▼</button>
+          <div class="dropdown-content equation" style="display:none;">
+            (1) \(y=x^2+6x+2\)
+            $$\begin{align*}
+              y &= x^2 + 6x + 2\\
+                &= (x+3)^2 - 3^2 + 2\\
+                &= (x+3)^2-7
+            \end{align*}$$
+            (2) \(y=x^2-5x\)
+            $$\begin{align*}
+              y &= x^2-5x\\
+                &= \left(x-\frac{5}{2}\right)^2-\left(\frac{5}{2}\right)^2\\
+                &= \left(x-\frac{5}{2}\right)^2-\frac{25}{4}
+            \end{align*}$$
+            (3) \(y=3x^2-6+11\)
+            $$\begin{align*}
+              y &= 3x^2 - 6x + 11\\
+                &= 3(x^2 - 2x) + 11\\
+                &= 3(x-1)^2-3\times1^2+11 \\
+                &{\scriptsize \uparrow \text{補足の\(p=-1\)を使えばここから}}\\
+                &= 3(x-1)^2+8
+            \end{align*}$$
+            (4) \(y=-2x^2+7x-3\)
+            $$\begin{align*}
+              y &= -2x^2 + 7x - 3\\
+                &= -2\left(x^2-\frac{7}{2}x\right)-3\\
+                &= -2\left[\left(x-\frac{7}{4}\right)^2-\left(\frac{7}{4}\right)^2\right]-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+2\times\frac{49}{16}-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+\frac{25}{8}
+            \end{align*}$$
+            (補足を使った場合)<br>
+            (4) \(y = -2x^2 + 7x - 3\)
+            $$\begin{align*}
+              y &= -2x^2 + 7x - 3\\
+                &= -2\left[x+\frac{7}{2\times(-2)}\right]^2{\color{red}+}2\times\left[\frac{7}{2\times(-2)}\right]^2-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+\frac{49}{8}-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+\frac{25}{8}
+            \end{align*}$$
+          </div>
+        </section>
+      </article>
 
-        <h3>フーリエ変換（FT）</h3>
-          $$F(\omega) = \int_{-\infty}^{\infty} f(t)\,e^{-i\omega t}\,dt$$
-        <p>逆変換</p>
-          $$f(t) = \frac{1}{2\pi} \int_{-\infty}^{\infty} F(\omega)\,e^{i\omega t}\,d\omega$$
+      <aside class="sidebar">
+        <section>
+          <h3>おすすめ記事</h3>
+          <!-- おすすめリンクなど -->
+        </section>
+      </aside>
+    </main>
 
-        <h3>離散フーリエ変換（DFT）</h3>
-          $$X[k] = \sum_{n=0}^{N-1} x[n]\,e^{-i \frac{2\pi}{N}kn}$$
-        <p>逆変換</p>
-          $$x[n] = \frac{1}{N} \sum_{k=0}^{N-1} X[k]\,e^{i \frac{2\pi}{N}kn}$$
-
-        <h3>離散時間フーリエ変換（DTFT）</h3>
-          $$X(\omega) = \sum_{n=-\infty}^{\infty} x[n]\,e^{-i\omega n}$$
-        <p>逆変換</p>
-          $$x[n] = \frac{1}{2\pi} \int_{-\pi}^{\pi} X(\omega)\,e^{i\omega n}\,d\omega$$
-      </div>
-      <p>
-        これ見て理解できる方はフーリエ変換マニアですね。
-      </p>
-      <p>
-        導出などは追々作る<span style="color: red;">予定</span>です。
-      </p>
-      <p>例として、矩形波のフーリエ変換(フーリエ級数展開)は以下のようになります。</p>
-      <button class="dropdown-toggle">▼矩形波のフーリエ級数展開の計算▼</button>
-      <div class="dropdown-content equation" style="display:none;">
-        $$f(t)=\begin{cases}-1 &(-1\le t \lt0)\\1 &(0 \le t \lt 1)\end{cases}$$
-        <p>とする。周期は2。不連続な点で積分を分ける。</p>
-        <p>\(a_n\)を求める。
-        $$
-        \begin{eqnarray*}
-          a_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\cos\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
-              &=& -\int_{-1}^0\cos (n\pi t)\,dt+\int_0^1\cos (n\pi t)\,dt\\
-        \end{eqnarray*}
-        $$
-        <p>ここで、\(\cos(n\pi \cdot(-t)) = \cos(-n\pi t) = \cos(n\pi t)\)より(偶関数なので)</p>
-        $$\int_{-1}^0\cos (n\pi t)\,dt=\int_0^1\cos (n\pi t)\,dt$$
-        <p>よって</p>
-        $$a_n = -\int_0^1\cos (n\pi t)\,dt+\int_0^1\cos (n\pi t)\,dt = 0$$
-        <p>次に\(b_n\)を求める。</p>
-        $$
-        \begin{eqnarray*}
-          b_n &=& \frac{2}{2}\left(\int_{-1}^{0}(-1)\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt+\int_{0}^{1}1\cdot\sin\left(\frac{2n\pi}{2}t\right)\,dt\right)\\
-              &=& -\int_{-1}^0\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt
-        \end{eqnarray*}
-        $$
-        <p>\(\sin(n\pi \cdot(-t)) = \sin(-n\pi t) = -\sin(n\pi t)\)より(奇関数なので)</p>
-        $$-\int_{-1}^0\sin (n\pi t)\,dt = \int_0^1\sin (n\pi t)\,dt$$
-        <p>よって</p>
-        $$
-        \begin{eqnarray*}
-          b_n &=& \int_0^1\sin (n\pi t)\,dt+\int_0^1\sin (n\pi t)\,dt\\
-              &=& 2\int_0^1\sin (n\pi t)\,dt\\
-              &=& 2\left[-\frac{1}{n\pi}\cos (n\pi t)\right]_0^1\\
-              &=& -\frac{2}{n\pi }(\cos (n\pi ) - \cos 0)\\
-              &=& \frac{2}{n\pi }(1-\cos (n\pi ))
-        \end{eqnarray*}
-        $$
-        <p>である。また、</p>
-        $$
-        \begin{eqnarray*}
-          \cos (n\pi ) &=& \begin{cases}1 &(nが偶数) \\ -1 &(nが奇数)\end{cases} \\
-                       &=& (-1)^n
-        \end{eqnarray*}
-        $$
-        <p>より</p>
-        $$b_n = \frac{2}{n\pi } (1-(-1)^n)$$
-        <p>以上より、</p>
-        $$
-        \begin{eqnarray*}
-          f(t) &=& a_0 + \sum_{n=1}^{\infty} \left\{ a_n \cos(\frac{2n\pi}{2}t) + b_n \sin(\frac{2n\pi}{2}t) \right\}\\
-               &=& 0 + \sum_{n=1}^{\infty} \left(0\cdot \cos(n\pi t) + \frac{2}{n\pi } (1-(-1)^n)\cdot \sin(n\pi t)\right)\\
-               &=& \sum_{n=1}^{\infty} \frac{2}{n\pi } (1-(-1)^n)\sin(n\pi t)
-        \end{eqnarray*}
-        $$
-        <p>これが答えで十分だが、この式を見ると周波数が偶数のとき\((1-(-1)^n)=0\)なので奇数項だけを集める。</p>
-        <p>\(n=2m-1\)とすると</p>
-        $$
-        \begin{eqnarray*}
-          f(t) &=& \sum_{m=1}^{\infty} \frac{2}{(2m-1)\pi}(1-(-1)^{2m-1})\sin\left((2m-1)\pi t\right)\\
-               &=& \frac{2}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}(1+1)\sin\left((2m-1)\pi t\right)\\
-               &=& \frac{4}{\pi}\sum_{m=1}^{\infty} \frac{1}{2m-1}\sin\left((2m-1)\pi t\right)
-        \end{eqnarray*}
-        $$
-      </div>
-    </section>
-    <section id="section4">
-      <h2>体感する</h2>
-      <p>
-        フーリエ変換は、元の関数を分解して、ある周波数での大きさを知ることが出来ます。
-      </p>
-      <p>
-        この性質から元の関数を、分解した周波数・大きさで表現できないか考えてみましょう。
-      </p>
-      <p>
-        すると円を用いれば周波数、大きさを表現できるのではないかという考えに至ります。
-        なぜなら、円上で動く点を周波数F[Hz]で動かし、その円の大きさをrにすれば
-        その点の動きは周波数、大きさの情報を持つからです。
-      </p>
-      <p>
-        元の関数を表すためには全ての周波数を集める必要があるため、
-        ある周波数で動く円上の点に、そこを中心とした円を重ねて、その円上に動く点を、、、
-      </p>
-      <p>
-        という感じに全ての周波数での円を重ね合わせていきます。
-      </p>
-      <p>
-        この考えに基づいて、デモを作ってみました。下の黒いエリア上で何か一筆書きで書いてみてください。
-      </p>
-      <a href="/Tools/Epicycle/">全画面</a><br>
-      <canvas id="Epi" style="border: 1px solid black;"></canvas>
-      <p>
-        フーリエ変換の雰囲気を理解できましたか？このデモでは円を用いてフーリエ変換の結果を視覚化しました。さらに、y=f(x)と表される関数(陽関数)に対してフーリエ変換を行うことで、sinとcosでf(x)を表すこともできます。
-      </p>
-      <p>
-        この結果はとても有用です。その理由は、声などの音は<b>全て</b>、様々な周波数のsin波(cos波)が混ざったものであり、音に対してフーリエ変換を適用するとその音を構成する周波数やその大きさを得ることができます。
-      </p>
-      <p>
-        これによって、音声に入った雑音の振幅を小さくし、合成することで元の音声からノイズを取り除くことや特定の楽器の音を強調することができます。
-      </p>
-      <p>
-        他にも、画像に対して(二次元)フーリエ変換を適用することで画像をある周波数とその大きさ(振幅)に分解することができ、これは画像の保存などに使われています。
-      </p>
-    </section>
-    <section id="section5">
-      <h2>まとめ</h2>
-      <ul>
-        <li>フーリエ変換を用いると、波を構成する周波数とその大きさに分解できる。</li>
-        <li>不連続な点ではギブス現象が起こる。</li>
-        <li>フーリエ変換はデータの種類によって4つに分類される。</li>
-        <li>音のノイズを取り除いたり画像をデータ化できる。</li>
-      </ul>
-      <p>
-        いかがでしたでしょうか？
-      </p>
-      <p>
-        波の成分を抽出できたり、フーリエ変換は視覚的にも面白く、私が数学にハマるきっかけもフーリエ変換でした。
-      </p>
-      <p>
-        「好きな関数をsinとcosや円で表せる」「離散的な点を繋げれる」「ギブス現象」のように魅力的な部分 がまだまだあるので
-      </p>
-      <p>
-        是非、色々考察したりしてみてください！
-      </p>
-    </section>
-  </article>
-
-  <aside class="sidebar">
-    <section>
-      <h3>おすすめ記事</h3>
-    </section>
-    <section class="ads">
-      
-    </section>
-  </aside>
-</main>
-
-<script>
-  // 目次スクロール
-  document.querySelectorAll('.anchor').forEach(anchor => {
-    anchor.addEventListener('click', e => {
-      e.preventDefault();
-      const targetId = anchor.getAttribute('href').slice(1);
-      const target = document.getElementById(targetId);
-      const container = document.querySelector('article.article');
-      if (target && container) {
-        const offsetTop = target.offsetTop;
-        container.scrollTo({ top: offsetTop, behavior: 'smooth' });
-      }
-    });
-  });
-
-  // スマホ用目次トグル
-  document.querySelector('.toc-toggle').addEventListener('click', () => {
-    document.querySelector('.toc-wrapper').classList.toggle('active');
-  });
-
-  
-  //ドロップダウン
-  const toggleBtn = document.querySelector('.dropdown-toggle');
-  const content = document.querySelector('.dropdown-content');
-
-  toggleBtn.addEventListener('click', () => {
-    if (content.style.display === 'none' || content.style.display === '') {
-      content.style.display = 'block';
-    } else {
-      content.style.display = 'none';
-    }
-  });
-
-  window.MathJax = {
-    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
-    svg: { fontCache: 'global' }
-  };
-
-  window.addEventListener("DOMContentLoaded", () => {
-    const square = document.getElementById("square");
-    square.width = 300;
-    square.height = 100;
-    const viewer = new CompVis.View(square,{mode: "static", autoScale: false});
-    // Canvasにグラフを描く
-    viewer.addGraph((t) => {
-      if((t+150) % 120 <= 60) return -40;
-      return 40;
-    },-150,150, 1200);
-    viewer.renderAll()
-
-    const square2 = document.getElementById("square2");
-    square2.width = 300;
-    square2.height = 100;
-    const ctx2 = square2.getContext("2d");
-    ctx2.beginPath();
-    ctx2.strokeStyle = "red";
-    ctx2.lineWidth = 2;
-    ctx2.moveTo(0, 90);
-    ctx2.lineTo(50,90);
-    ctx2.moveTo(50,10);
-    ctx2.lineTo(150,10);
-    ctx2.moveTo(150,90);
-    ctx2.lineTo(250,90);
-    ctx2.moveTo(250,10);
-    ctx2.lineTo(300,10);
-    ctx2.stroke();
-
-    /*const viewer2 = new CompVis.View(square2);
-    // Canvasにグラフを描く
-    viewer2.addGraph((t) => {
-      if((t+150) % 30 <= 15) return -40;
-      return 40;
-    },-150,150, 1200,{autoScale: false});
-    viewer2.renderAll*/
-    
-    
-    const squareSum = document.getElementById("squareSum");
-    const numSlider = document.getElementById("numSlider");
-    let sumCount = parseInt(numSlider.value);
-    
-    squareSum.width = 300;
-    squareSum.height = 300;
-    const viewerSum = new CompVis.View(squareSum,{mode: "static", autoScale: false});
-    // Canvasにグラフを描く
-    viewerSum.addGraph((t) => {
-      if((t+150) % 150 <= 75) return -100;
-      return 100;
-    },-150,150, 1200,{color:"#000"});
-    const fseGraph = viewerSum.addGraph((t) => {
-      let returnNum = 0;
-      for(let k = 1; k < sumCount; k++){
-        returnNum += 200/(k*Math.PI)*((-1)**k-1)*Math.sin(k*Math.PI*t/75);
-      }
-      return returnNum;
-    },-150,150, 1200,{color:"#f00"});
-
-    viewerSum.renderAll()
-    
-    numSlider.addEventListener('input',()=>{
-      sumCount = parseInt(numSlider.value);
-      document.getElementById("showSliderNum").innerText = numSlider.value.padStart(3,"0")+":";
-      //viewerSum.update(fseGraph)
-      viewerSum.renderAll()
-    })
-  });
-
-
-
-  const canvasCircle = document.getElementById("circle");
-  canvasCircle.width = 300;
-  canvasCircle.height = 300;
-  const ctxCircle = canvasCircle.getContext("2d")
-
-  const startTime = Date.now();
-  setInterval(() => {
-    ctxCircle.clearRect(0,0,300,300);
-    ctxCircle.strokeStyle = '#fff';
-    ctxCircle.fillStyle = '#f00';
-    ctxCircle.lineWidth = 2;
-    ctxCircle.beginPath();
-    ctxCircle.arc(150, 150, 100, 0, 2 * Math.PI);
-    ctxCircle.stroke();
-    ctxCircle.closePath();
-
-    //ctxCircle.lineWidth = 0;
-    const theta = Math.PI*(Date.now()-startTime)/1000;
-    ctxCircle.beginPath();
-    ctxCircle.arc(150+100*Math.cos(theta), 150-100*Math.sin(theta), 5, 0, 2 * Math.PI);
-    ctxCircle.fill();
-    ctxCircle.closePath();
-  },10);
-
-  
-  const canvas = document.getElementById("Epi");
-  const ctx = canvas.getContext("2d");
-  /*canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;*/
-  canvas.width = 300;
-  canvas.height = 300;
-  
-
-      let drawing = false;
-      let userPoints = [];
-      let path = [];
-      let time = 0;
-      let fourier = [];
-      let ready = false;
-
-      const speed = 1;
-
-      function getPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        if (e.touches) {
-          const touch = e.touches[0];
-          return {
-            x: touch.clientX - rect.left,
-            y: touch.clientY - rect.top
-          };
-        } else {
-          return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-          };
-        }
-      }
-
-      canvas.addEventListener("mousedown", startDraw);
-      canvas.addEventListener("touchstart", startDraw);
-      canvas.addEventListener("mousemove", draw);
-      canvas.addEventListener("touchmove", draw, { passive: false });
-      canvas.addEventListener("mouseup", endDraw);
-      canvas.addEventListener("touchend", endDraw);
-
-      function startDraw(e) {
-        drawing = true;
-        userPoints = [];
-        path = [];
-        time = 0;
-        ready = false;
-        //info.textContent = '';
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-
-      function draw(e) {
-        if (!drawing) return;
-        e.preventDefault();
-        const { x, y } = getPos(e);
-        userPoints.push({ x: x - canvas.width / 2, y: y - canvas.height / 2 });
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#fff";
-        for (const p of userPoints) {
-          ctx.beginPath();
-          ctx.arc(p.x + canvas.width / 2, p.y + canvas.height / 2, 2, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-        
-      }
-
-      function endDraw(e) {
-        drawing = false;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (userPoints.length > 0) {
-          fourier = dft(userPoints);
-          showFourierInfo(fourier);
-          path = [];
-          time = 0;
-          ready = true;
-        }
-      }
-
-      function dft(points) {
-        const N = points.length;
-        const X = [];
-        for (let k = 0; k < N; k++) {
-          let re = 0, im = 0;
-          for (let n = 0; n < N; n++) {
-            const phi = (2 * Math.PI * k * n) / N;
-            const px = points[n].x;
-            const py = points[n].y;
-            re += px * Math.cos(phi) + py * Math.sin(phi);
-            im += py * Math.cos(phi) - px * Math.sin(phi);
-          }
-          re /= N;
-          im /= N;
-          const freq = k;
-          const amp = Math.sqrt(re * re + im * im);
-          const phase = Math.atan2(im, re);
-          X.push({ re, im, freq, amp, phase });
-        }
-        return X.sort((a, b) => b.amp - a.amp);
-      }
-
-      function showFourierInfo(fourier) {
-        /*let lines = ['index freq amp     phase'];
-        for (let i = 0; i < fourier.length; i++) {
-          const { freq, amp, phase } = fourier[i];
-          lines.push(
-            `${String(i).padStart(5)} ${String(String(freq <= fourier.length/2 - 1 ? freq : freq - fourier.length).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
-          );
-        }
-        info.textContent = lines.join('\n');*/
-      }
-
-      function drawEpicycles(x, y, rotation, fourier) {
-        for (let i = 0; i < fourier.length; i++) {
-          const { freq, amp, phase } = fourier[i];
-          const prevX = x;
-          const prevY = y;
-          const angle = 2 * Math.PI * freq * time + phase + rotation;
-          x += amp * Math.cos(angle);
-          y += amp * Math.sin(angle);
-
-          ctx.strokeStyle = "rgba(255,255,255,0.3)";
-          ctx.beginPath();
-          ctx.arc(prevX, prevY, amp, 0, 2 * Math.PI);
-          ctx.stroke();
-
-          ctx.beginPath();
-          ctx.moveTo(prevX, prevY);
-          ctx.lineTo(x, y);
-          ctx.stroke();
-        }
-        return { x, y };
-      }
-
-      function animate() {
-        if (ready && fourier.length > 0) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          const centerX = canvas.width / 2;
-          const centerY = canvas.height / 2;
-          const v = drawEpicycles(centerX, centerY, 0, fourier);
-          path.unshift(v);
-
-          ctx.beginPath();
-          ctx.moveTo(path[0].x, path[0].y);
-          for (let i = 1; i < path.length; i++) {
-            ctx.lineTo(path[i].x, path[i].y);
-          }
-          ctx.strokeStyle = "#0ff";
-          ctx.lineWidth = 2;
-          ctx.stroke();
-
-          const dt = speed / fourier.length;
-          time += dt;
-          if (time > 1) {
-            time = 0;
-            path.length = 0;
-          }
-        }
-
-        requestAnimationFrame(animate);
-      }
-
-      animate();
-    </script>
-    <amp-auto-ads type="adsense"
-      data-ad-client="ca-pub-2431365242443921">
-    </amp-auto-ads>
+    <script src="script-template.js"></script>
   </body>
 </html>
