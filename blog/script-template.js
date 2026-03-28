@@ -13,8 +13,8 @@ window.onload = () => {
   
   async function initBreadcrumb() {
     const breadcrumb = document.getElementById("breadcrumb");
-    const goTop = ddocument.createElement("span");
-    goTop.innerHTML = "TOP"
+    const goTop = document.createElement("span");
+    goTop.innerHTML = "TOP";
     goTop.addEventListener("click", () => {
       window.location.href = "/";
     });
