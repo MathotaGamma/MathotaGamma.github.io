@@ -107,6 +107,7 @@ const f_k = (p,a) => {
   }
 })();
 */
+
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 
 window.CompVis = class {
