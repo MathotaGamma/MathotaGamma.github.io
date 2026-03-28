@@ -7,13 +7,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
     <script src="https://mathotagamma.github.io/APIs/CompVisJS/latest/CompVisJS.js"></script>
     <link rel="stylesheet" href="/blog/style-template.css"></link>
+    <script src="/blog/script-template.js"></script>
   </head>
   <body>
     <header>
       <div>平方完成 | 二次関数(Part3)</div>
-      <nav>
-        <a href="../">ホーム</a>
-      </nav>
+      <nav id="breadcrumb"></nav>
     </header>
 
     <div class="toc-toggle">📑 目次を表示</div>
@@ -254,34 +253,5 @@
         </section>
       </aside>
     </main>
-
-    <script>
-      // スムーズスクロール（目次）
-      document.querySelectorAll('.anchor').forEach(anchor => {
-        anchor.addEventListener('click', e => {
-          e.preventDefault();
-          const target = document.getElementById(anchor.getAttribute('href').slice(1));
-          const container = document.querySelector('article.article');
-          if (target && container) {
-            container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
-          }
-        });
-      });
-
-      // モバイル用目次トグル
-      document.querySelector('.toc-toggle').addEventListener('click', () => {
-        document.querySelector('.toc-wrapper').classList.toggle('active');
-      });
-
-      // ドロップダウン展開処理
-      document.querySelectorAll('.dropdown-toggle').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const content = btn.nextElementSibling;
-          if (content && content.classList.contains('dropdown-content')) {
-            content.style.display = (content.style.display === 'block') ? 'none' : 'block';
-          }
-        });
-      });
-    </script>
   </body>
 </html>
