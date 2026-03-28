@@ -2,10 +2,22 @@
   "index": "ホーム",
   "blog": {
     "index": "ブログ集",
+    "template": "テンプレート",
     "fourier": "フーリエ変換",
     "zeta": "ゼータ関数",
-    "high-math": "高校数学",
-    "high-chemistry": "高校化学"
+    "high-math": {
+      "index": "高校数学",
+      "parabola": {
+        "index": "二次関数",
+        "intro": "二次関数について",
+        "equation": "二次方程式",
+        "complete": "平方完成"
+      }
+    },
+    "high-chemistry": {
+      "index": "高校化学",
+      "table": "元素周期表と性質"
+    }
   },
   "tools": {
     "index": "ツール集",
