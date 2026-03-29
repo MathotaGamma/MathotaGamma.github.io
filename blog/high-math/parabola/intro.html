@@ -7,13 +7,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
     <script src="https://mathotagamma.github.io/APIs/CompVisJS/latest/CompVisJS.js"></script>
     <link rel="stylesheet" href="/blog/style-template.css"></link>
+    <script type="module" src="/blog/script-template.js"></script>
   </head>
   <body>
     <header>
       <div>二次関数について | 二次関数(Part1)</div>
-      <nav>
-        <a href="../">ホーム</a>
-      </nav>
+      <nav id="breadcrumb"></nav>
     </header>
 
     <div class="toc-toggle">📑 目次を表示</div>
@@ -204,16 +203,24 @@
             return t**2/4 + 4;
           },-5,5,1200,{color: "#000000"}
         );
+        let x0 = -3;
+        let isUp = true;
         viewer1.addGraph(
           (t) => {
-            return (t-0.5)/4+4+1/16;
-          },-3,4,1,{color: "#ff4444"}
+            return x0/2*(t-x0)+x0**2/4+4;
+          },-5,5,1,{color: "#ff4444"}
         );
-        viewer1.addGraph(
-          (t) => {
-            return 3*(t-3)/2+4+9/4;
-          },1,4.8,1,{color: "#44ff44"}
-        );
+        setInterval(() => {
+          x0 += isUp?0.1:-0.1;
+          if(x0 > 4) {
+            x0=4;
+            isUp = false;
+          }
+          if(x0 < -4) {
+            x0=-4;
+            isUp = true;
+          }
+        }, 150);
         viewer1.addGraph(
           (t) => {
             return t/2;
