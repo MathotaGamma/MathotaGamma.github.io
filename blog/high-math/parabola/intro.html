@@ -205,7 +205,7 @@
         );
         let x0 = -3;
         let isUp = true;
-        viewer1.addGraph(
+        const graph1 = viewer1.addGraph(
           (t) => {
             return x0/2*(t-x0)+x0**2/4+4;
           },-5,5,1,{color: "#ff4444"}
@@ -220,6 +220,7 @@
             x0=-4;
             isUp = true;
           }
+          viewer1.renderGraph(graph1);
         }, 150);
         viewer1.addGraph(
           (t) => {
