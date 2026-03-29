@@ -6,14 +6,14 @@
     <title>二次関数まとめ | 二次関数</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
     <script src="https://mathotagamma.github.io/APIs/CompVisJS/latest/CompVisJS.js"></script>
+    
+    <script src="/blog/script-template.js"></script>
     <link rel="stylesheet" href="/blog/style-template.css"></link>
   </head>
   <body>
     <header>
       <div>二次関数・方程式</div>
-      <nav>
-        <a href="../">ホーム</a>
-      </nav>
+      <nav id="breakcrumb"></nav>
     </header>
     
     <div class="toc-toggle">📑 目次を表示</div>
@@ -62,130 +62,5 @@
         </section>
       </aside>
     </main>
-
-    <script>
-      // スムーズスクロール（目次）
-      document.querySelectorAll('.anchor').forEach(anchor => {
-        anchor.addEventListener('click', e => {
-          e.preventDefault();
-          const target = document.getElementById(anchor.getAttribute('href').slice(1));
-          const container = document.querySelector('article.article');
-          if (target && container) {
-            container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
-          }
-        });
-      });
-
-      // モバイル用目次トグル
-      document.querySelector('.toc-toggle').addEventListener('click', () => {
-        document.querySelector('.toc-wrapper').classList.toggle('active');
-      });
-
-      // ドロップダウン展開処理
-      document.querySelectorAll('.dropdown-toggle').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const content = btn.nextElementSibling;
-          if (content && content.classList.contains('dropdown-content')) {
-            content.style.display = (content.style.display === 'block') ? 'none' : 'block';
-          }
-        });
-      });
-
-      window.onload = () => {
-        const parabola1 = document.getElementById("parabola1");
-        parabola1.width = 200;
-        parabola1.height = 300;
-        const viewer1 = new CompVis.View(parabola1, {
-          mode: "static",
-          autoScale: false,
-          showAxis: true,
-          rangeX: [-3, 7],
-          rangeY: [-10, 9],
-        });
-
-        viewer1.addGraph(
-          (t) => {
-            return t**2 - 4*t - 5
-          },-3,7,1200,{color: "#00aaff",}
-        );
-        viewer1.addGraph(
-          (t) => {
-            return 0
-          },-3,7,1,{color: "#ff0000",}
-        );
-        viewer1.renderAll();
-        
-        const parabola2 = document.getElementById("parabola2");
-        parabola2.width = 200;
-        parabola2.height = 200;
-        const viewer2 = new CompVis.View(parabola2, {
-          mode: "static",
-          autoScale: false,
-          showAxis: true,
-          rangeX: [-1.7,3.7],
-          rangeY: [-3, 9],
-        });
-        
-        viewer2.addGraph(
-          (t) => {
-            return t**2 - 2*t + 3
-          },-1.7,3.7,1200,{color: "#00aaff",}
-        );
-        viewer2.addGraph(
-          (t) => {
-            return 0
-          },-2,4,1,{color: "#ff0000",}
-        );
-        viewer2.renderAll();
-        
-        
-        const hyperbolicParabola = document.getElementById("hyperbolic-parabola");
-        const view = new CompVis.ViewThree(hyperbolicParabola);
-        
-        view.ready.then(() => {
-          view.addGraph(t => t**2-2*t+3, -1, 3, 200, { color:0xff0000 });
-          view.addGraph(t => [1, -(t**2) + 2, t], -2.5, 2.5, 400, { color:0x00ffff });
-          view.addGraph(t => [1+Math.cos(t)/6, 0, -Math.sqrt(2)+Math.sin(t)/6], 0, 2*Math.PI, 400, { color: 0xffff00 });
-          view.addGraph(t => [1+Math.cos(t)/6, 0, Math.sqrt(2)+Math.sin(t)/6], 0, 2*Math.PI, 400, { color: 0xffff00 });
-        });
-        
-        
-        const parabola3 = document.getElementById("parabola3");
-        parabola3.width = 200;
-        parabola3.height = 200;
-        const viewer3 = new CompVis.View(parabola3, {
-          mode: "static",
-          autoScale: false,
-          showAxis: false,
-          rangeX: [-2,2],
-          rangeY: [-1, 4],
-        });
-        
-        viewer3.addGraph(
-          (t) => {
-            return t**2
-          },-2,2,1200,{color: "#00aaff",}
-        );
-        viewer3.renderAll();
-        
-        const parabola4 = document.getElementById("parabola4");
-        parabola4.width = 200;
-        parabola4.height = 200;
-        const viewer4 = new CompVis.View(parabola4, {
-          mode: "static",
-          autoScale: false,
-          showAxis: false,
-          rangeX: [-2,2],
-          rangeY: [-4, 1],
-        });
-        
-        viewer4.addGraph(
-          (t) => {
-            return -(t**2)
-          },-2,2,1200,{color: "#00aaff",}
-        );
-        viewer4.renderAll();
-      };
-    </script>
   </body>
 </html>
