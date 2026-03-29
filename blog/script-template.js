@@ -20,6 +20,7 @@ window.onload = () => {
     });
     const sitemap = await getSitemap();
     if (!sitemap) {
+      breadcrumb.innerHTML = "";
       breadcrumb.appendChild(goTop);
       return;
     }
@@ -43,6 +44,7 @@ window.onload = () => {
         currentSitemap = structuredClone(currentSitemap[pathList[ind]]);
       }
       if(!currentSitemap) {
+        breadcrumb.innerHTML = "";
         breadcrumb.appendChild(goTop);
         return;
       }
@@ -59,6 +61,7 @@ window.onload = () => {
       }
       
       if (!name) {
+        breadcrumb.innerHTML = "";
         breadcrumb.appendChild(goTop);
         return;
       }
