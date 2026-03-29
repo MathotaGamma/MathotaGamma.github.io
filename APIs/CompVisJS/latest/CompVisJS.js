@@ -2027,6 +2027,10 @@ CompVis.View = class {
     }
     return points;
   }
+
+  clear() {
+    this.ctx.clearRect(0, 0, this.W, this.H);
+  }
   
   //----------------
   // グラフ全体描画
