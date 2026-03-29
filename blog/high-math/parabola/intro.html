@@ -103,7 +103,7 @@
             上図の一次関数のグラフは傾きが変わっていません。
           </p>
           <p>
-            しかし二次関数では、赤と緑の線から分かるように\(x\)の値に応じて傾きが異なります。
+            しかし二次関数では、赤の線から分かるように\(x\)の値に応じて傾きが異なります。
           </p>
           <p>
             例えば\(x\)が「1から2」と「3から4」に変化した場合について考えてみましょう。
@@ -128,7 +128,7 @@
           <canvas id="parabola3"></canvas>
           <button class="dropdown-toggle">▼重要なこと▼</button>
           <div class="dropdown-content equation" style="display:none;">
-            上に凸の放物線、可愛くね？
+            上に凸の放物線、可愛い
           </div><br><br>
           <small id="annotation1">
             (注)【1】「上に凸な関数」を「凹関数」と呼ぶ場合もあります。
@@ -159,33 +159,6 @@
     </main>
 
     <script>
-      // スムーズスクロール（目次）
-      document.querySelectorAll('.anchor').forEach(anchor => {
-        anchor.addEventListener('click', e => {
-          e.preventDefault();
-          const target = document.getElementById(anchor.getAttribute('href').slice(1));
-          const container = document.querySelector('article.article');
-          if (target && container) {
-            container.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
-          }
-        });
-      });
-
-      // モバイル用目次トグル
-      document.querySelector('.toc-toggle').addEventListener('click', () => {
-        document.querySelector('.toc-wrapper').classList.toggle('active');
-      });
-
-      // ドロップダウン展開処理
-      document.querySelectorAll('.dropdown-toggle').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const content = btn.nextElementSibling;
-          if (content && content.classList.contains('dropdown-content')) {
-            content.style.display = (content.style.display === 'block') ? 'none' : 'block';
-          }
-        });
-      });
-
       window.onload = () => {
         const linearParabola = document.getElementById("linear-parabola");
         linearParabola.width = 200;
@@ -211,7 +184,7 @@
           },-5,5,1,{color: "#ff4444"}
         );
         setInterval(() => {
-          x0 += isUp?0.1:-0.1;
+          x0 += isUp?0.075:-0.075;
           if(x0 > 3) {
             x0=3;
             isUp = false;
@@ -222,7 +195,7 @@
           }
           viewer1.clear();
           viewer1.renderAll();
-        }, 100);
+        }, 50);
         viewer1.addGraph(
           (t) => {
             return t/2;
