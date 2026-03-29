@@ -212,16 +212,17 @@
         );
         setInterval(() => {
           x0 += isUp?0.1:-0.1;
-          if(x0 > 4) {
-            x0=4;
+          if(x0 > 3) {
+            x0=3;
             isUp = false;
           }
-          if(x0 < -4) {
-            x0=-4;
+          if(x0 < -3) {
+            x0=-3;
             isUp = true;
           }
-          viewer1.renderGraph(graph1);
-        }, 150);
+          viewer1.clear();
+          viewer1.renderAll();
+        }, 100);
         viewer1.addGraph(
           (t) => {
             return t/2;
