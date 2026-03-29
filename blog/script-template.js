@@ -12,9 +12,11 @@ window.onload = () => {
   }
   
   async function initBreadcrumb() {
+    const color = "#008";
     const breadcrumb = document.getElementById("breadcrumb");
     const goTop = document.createElement("span");
     goTop.innerHTML = "TOP";
+    goTop.style.color = color;
     goTop.addEventListener("click", () => {
       window.location.href = "/";
     });
@@ -68,7 +70,7 @@ window.onload = () => {
       span.innerHTML = name;
       span.dataset.path = path;
       if(ind != pathList.length-1) {
-        span.style.color = "#008"
+        span.style.color = color;
         span.addEventListener("click", (e) => {
           window.location.href = e.target.dataset.path;
         });
