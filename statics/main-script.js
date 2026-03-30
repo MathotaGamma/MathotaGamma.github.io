@@ -45,7 +45,11 @@ async function initBreadcrumb() {
 
   for (let ind = 0; ind < pathList.length; ind++) {
     if (ind !== 0) {
-      currentSitemap = structuredClone(currentSitemap[pathList[ind]]);
+      if (currentSitemap._index == pathList[ind]) {
+        currentSitemap = currentSitemap._name;
+      } else {
+        currentSitemap = structuredClone(currentSitemap[pathList[ind]]);
+      }
     }
     if (!currentSitemap) {
       breadcrumb.innerHTML = "";
