@@ -1,7 +1,7 @@
 // サイトマップを取得する関数
 async function getSitemap() {
   try {
-    const response = await fetch('/sitemap.json');
+    const response = await fetch('/statics/sitemap.json');
     if (!response.ok) throw new Error("Network response was not ok");
     const sitemap = await response.json();
     return sitemap;
