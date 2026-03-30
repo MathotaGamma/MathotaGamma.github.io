@@ -56,7 +56,7 @@
     },
     "JS-Window": {
       "_name": "Javascript欄埋め込み",
-      "_index": "explanation",
+      "_index": "explanation"
     }
   }
 }
