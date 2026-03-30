@@ -1,6 +1,6 @@
 async function getSitemap() {
   try {
-    const response = await fetch('/statics/sitemap.json');
+    const response = await fetch('/sitemap.json');
     if (!response.ok) throw new Error("Network response was not ok");
     const sitemap = await response.json();
     return sitemap;
@@ -46,7 +46,7 @@ async function initBreadcrumb() {
   for (let ind = 0; ind < pathList.length; ind++) {
     if (ind !== 0) {
       if (currentSitemap._index == pathList[ind]) {
-        currentSitemap = currentSitemap._name;
+        break;
       } else {
         currentSitemap = structuredClone(currentSitemap[pathList[ind]]);
       }
@@ -73,16 +73,18 @@ async function initBreadcrumb() {
       breadcrumb.appendChild(goTop);
       return;
     }
+    
     span.innerHTML = name;
-    span.dataset.path = path;
+    span.dataset.path = path+currentSitemap._index; // そのディレクトリのhomeに飛ばす
+    
     if (ind != pathList.length - 1 && currentSitemap._index != null) {
       span.style.color = color;
       span.addEventListener("click", (e) => {
-        window.location.href = e.target.dataset.path+currentSitemap._index;
+        window.location.href = e.target.dataset.path;
       });
     }
+    if (ind != 0) breadcrumb.appendChild(splitter.cloneNode(true));
     breadcrumb.appendChild(span);
-    if (ind != pathList.length - 1) breadcrumb.appendChild(splitter.cloneNode(true));
   }
 }
 
