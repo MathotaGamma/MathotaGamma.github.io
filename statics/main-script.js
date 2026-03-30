@@ -57,11 +57,11 @@ async function initBreadcrumb() {
 
     if (ind != pathList.length - 1) {
       path += pathList[ind] + "/";
-      name = currentSitemap.index;
+      name = currentSitemap._name;
     } else {
       path += pathList[ind] + (endSlash ? "/" : "");
-      name = currentSitemap.index;
-      if (!name) name = currentSitemap;
+      name = currentSitemap._name; // jsonに続きがある場合
+      if (!name) name = currentSitemap; // 末端だった場合
     }
 
     if (!name) {
@@ -71,10 +71,10 @@ async function initBreadcrumb() {
     }
     span.innerHTML = name;
     span.dataset.path = path;
-    if (ind != pathList.length - 1) {
+    if (ind != pathList.length - 1 && currentSitemap._index != null) {
       span.style.color = color;
       span.addEventListener("click", (e) => {
-        window.location.href = e.target.dataset.path;
+        window.location.href = e.target.dataset.path+currentSitemap._index;
       });
     }
     breadcrumb.appendChild(span);
