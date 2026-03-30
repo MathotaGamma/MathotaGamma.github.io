@@ -1,7 +1,7 @@
 // サイトマップを取得する関数
 async function getSitemap() {
   try {
-    const response = await fetch('/statics/sitemap.json');
+    const response = await fetch('/sitemap.json');
     if (!response.ok) throw new Error("Network response was not ok");
     const sitemap = await response.json();
     return sitemap;
@@ -46,7 +46,11 @@ async function initBreadcrumb() {
 
   for (let ind = 0; ind < pathList.length; ind++) {
     if (ind !== 0) {
-      currentSitemap = structuredClone(currentSitemap[pathList[ind]]);
+      if (currentSitemap._index == pathList[ind]) {
+        break;
+      } else {
+        currentSitemap = structuredClone(currentSitemap[pathList[ind]]);
+      }
     }
     if (!currentSitemap) {
       breadcrumb.innerHTML = "";
@@ -58,11 +62,11 @@ async function initBreadcrumb() {
 
     if (ind != pathList.length - 1) {
       path += pathList[ind] + "/";
-      name = currentSitemap.index;
+      name = currentSitemap._name;
     } else {
       path += pathList[ind] + (endSlash ? "/" : "");
-      name = currentSitemap.index;
-      if (!name) name = currentSitemap;
+      name = currentSitemap._name; // jsonに続きがある場合
+      if (!name) name = currentSitemap; // 末端だった場合
     }
 
     if (!name) {
@@ -70,16 +74,18 @@ async function initBreadcrumb() {
       breadcrumb.appendChild(goTop);
       return;
     }
+    
     span.innerHTML = name;
-    span.dataset.path = path;
-    if (ind != pathList.length - 1) {
+    span.dataset.path = path+currentSitemap._index; // そのディレクトリのhomeに飛ばす
+    
+    if (ind != pathList.length - 1 && currentSitemap._index != null) {
       span.style.color = color;
       span.addEventListener("click", (e) => {
         window.location.href = e.target.dataset.path;
       });
     }
+    if (ind != 0) breadcrumb.appendChild(splitter.cloneNode(true));
     breadcrumb.appendChild(span);
-    if (ind != pathList.length - 1) breadcrumb.appendChild(splitter.cloneNode(true));
   }
 }
 
