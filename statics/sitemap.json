@@ -11,7 +11,8 @@
       "_name": "高校数学",
       "_index": "",
       "parabola": {
-        "index": "二次関数",
+        "_name": "二次関数",
+        "_index": "",
         "intro": "二次関数について",
         "equation": "二次方程式",
         "complete": "平方完成"
