@@ -43,7 +43,13 @@
   },
   "APIs": {
     "index": "API集",
-    "CompVisJS": "数学・描画ライブラリ",
-    "JS-Window": "Javascript欄埋め込み"
+    "CompVisJS": {
+      "index": "数学・描画ライブラリ",
+      "explanation": "ライブラリ説明"
+    },
+    "JS-Window": {
+      "index": "Javascript欄埋め込み",
+      "explanation": "ライブラリ説明"
+    }
   }
 }
