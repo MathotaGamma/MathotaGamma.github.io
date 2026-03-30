@@ -7,6 +7,7 @@ async function getSitemap() {
     return sitemap;
   } catch (error) {
     console.error('Sitemap fetch error:', error);
+    alert(error.message)
     return null;
   }
 }
