@@ -1,15 +1,15 @@
 {
-  "#name": "ホーム",
-  "#index": "",
+  "_name": "ホーム",
+  "_index": "",
   "blog": {
-    "#name": "ブログ集",
-    "#index": "",
+    "_name": "ブログ集",
+    "_index": "",
     "template": "テンプレート",
     "fourier": "フーリエ変換",
     "zeta": "ゼータ関数",
     "high-math": {
-      "#name": "高校数学",
-      "#index": "",
+      "_name": "高校数学",
+      "_index": "",
       "parabola": {
         "index": "二次関数",
         "intro": "二次関数について",
@@ -18,14 +18,14 @@
       }
     },
     "high-chemistry": {
-      "#name": "高校化学",
-      "#index": "",
+      "_name": "高校化学",
+      "_index": "",
       "table": "元素周期表と性質"
     }
   },
   "tools": {
-    "#name": "ツール集",
-    "#index": "",
+    "_name": "ツール集",
+    "_index": "",
     "epicycle": "エピサイクル",
     "image-to-pdf": "画像→PDF",
     "logic-circuit": "論理回路シミュレータ",
@@ -39,8 +39,8 @@
     "sort-algorithm": "ソートアルゴリズム"
   },
   "activities": {
-    "#name": "アクティビティー集",
-    "#index": "",
+    "_name": "アクティビティー集",
+    "_index": "",
     "reversi": "リバーシ",
     "life-shave": "3D 対戦ゲーム",
     "mountain-runner": "山を滑走する",
@@ -48,15 +48,15 @@
     "dodge": "障害物を避ける"
   },
   "APIs": {
-    "#name": "API集",
-    "#index": "",
+    "_name": "API集",
+    "_index": null,
     "CompVisJS": {
-      "#name": "数学・描画ライブラリ",
-      "#index": "explanation"
+      "_name": "数学・描画ライブラリ",
+      "_index": "explanation"
     },
     "JS-Window": {
-      "#name": "Javascript欄埋め込み",
-      "#index": "explanation",
+      "_name": "Javascript欄埋め込み",
+      "_index": "explanation",
     }
   }
 }
