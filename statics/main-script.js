@@ -1,4 +1,4 @@
-// パンくずリストをid="breadcrumb"(基本はnav要素)に追加
+// nav id="breadcrumb"にパンくずリストを設定する。
 async function getSitemap() {
   try {
     const res = await fetch('/statics/sitemap.json');
@@ -108,6 +108,7 @@ async function initBreadcrumb(href=null) {
     errorSpan.innerHTML = error;
     errorSpan.style.marginLeft = "5px";
     errorSpan.style.fontSize = "12px";
+    errorSpan.style.color = "black";
     breadcrumb.innerHTML = "";
     breadcrumb.appendChild(goTop);
     breadcrumb.appendChild(errorSpan);
@@ -119,6 +120,7 @@ async function initBreadcrumb(href=null) {
       const span = document.createElement("span");
       span.innerHTML = nameList[ind];
       span.dataset.path = pathList[ind];
+      span.style.color = "black";
       if (stateList[ind]) {
         span.style.color = color;
         span.addEventListener("click", (e) => {
