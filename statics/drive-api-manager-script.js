@@ -25,7 +25,7 @@ class DriveAPIManager {
     }
   }
 
-  async auth() {
+  async auth(silent=true) {
     if (this.accessToken) return { ok: true };
 
     if (this.authPromise) return this.authPromise;
@@ -36,7 +36,7 @@ class DriveAPIManager {
     
     this.authPromise = new Promise((resolve) => {
       this._authResolve = resolve;
-      this.tokenClient.requestAccessToken();
+      this.tokenClient.requestAccessToken({prompt: (silent?'':'consent')});
     });
     
     return this.authPromise;
