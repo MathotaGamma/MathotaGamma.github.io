@@ -49,7 +49,11 @@
         const ret = await manager.getFileId("a.txt");
         
         logger(JSON.stringify(ret));
-      },2000)
+      },2000);
+
+      document.getElementById('auth_btn').onclick = () => tokenClient.requestAccessToken();
+      document.getElementById('load_btn').onclick = () => manager.getFileId("a.txt");
+      document.getElementById('save_btn').onclick = () => manager.getFileId("railway_save_data.json");
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
