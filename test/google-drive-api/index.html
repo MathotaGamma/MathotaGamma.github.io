@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <title>鉄道ゲーム 同期テスト</title>
+    <style>
+      body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+      .controls { margin-bottom: 20px; display: flex; gap: 10px; }
+      #log { background: #f0f0f0; padding: 10px; height: 300px; overflow-y: scroll; border: 1px solid #ccc; font-family: monospace; font-size: 12px; }
+      button { padding: 10px 20px; cursor: pointer; font-weight: bold; }
+      h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+    </style>
+  </head>
+  <body>
+
+    <h1>鉄道ゲーム - サーバーレス隠し保存</h1>
+    
+    <div class="controls">
+      <button id="auth_btn">1. Googleと連携</button>
+      <button id="save_btn" disabled>2. 隠し保存 (Save)</button>
+      <button id="load_btn" disabled>3. 読み込み (Load)</button>
+    </div>
+
+    <div id="log">システムログ...<br></div>
+
+    <script src="./script.js"></script>
+    <script>
+      const logElement = document.getElementById('log');
+      function logger(msg) {
+        const now = new Date().toLocaleTimeString();
+        logElement.innerHTML += `[${now}] ${msg}<br>`;
+        logElement.scrollTop = logElement.scrollHeight;
+      }
+
+      
+      const manager = new DriveAPIManager(progress);
+      window.gapiLoaded = () => {
+        manager.gapiLoaded();
+      }
+      window.gsiLoaded = () => {
+        manager.gsiLoaded();
+      }
+
+      function progress(kind) {
+        logger(kind);
+      }
+
+      setTimeout(async () => {
+        const ret = await manager.getFileId("a.txt");
+        
+        console.error(JSON.stringify(ret));
+      },2000)
+    </script>
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
+    <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
+
+    
+  </body>
+</html>
