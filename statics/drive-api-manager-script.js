@@ -13,6 +13,14 @@ class DriveAPIManager {
     this.authPromise = null;
   }
 
+  checker() {
+    const token = gapi.client.getToken();
+    if (!token?.access_token) {
+      return { ok: false, error: "not_authenticated" };
+    }
+    return { ok: true }
+  }
+
   _handleAuth(res) {
     this.authPromise = null;
 
@@ -72,6 +80,8 @@ class DriveAPIManager {
 
   async createFolder(path) {
     try {
+      const check = this.checker();
+      if(!check.ok) return check;
       const parts = path.split("/");
       const parent = "appDataFolder";
       for (let name of parts) {
@@ -120,7 +130,8 @@ class DriveAPIManager {
 
   async getFileId(path) {
     try {
-      if (!this.accessToken) return { ok: false, error: "auth同意を得ていません。" };
+      const check = this.checker();
+      if(!check.ok) return check;
       const parts = path.split("/");
       let parent = "appDataFolder";
 
@@ -153,7 +164,9 @@ class DriveAPIManager {
 
   async getFile(pathOrId, type="path") {
     try {
-      if (!this.accessToken) return { ok: false, error: "auth同意を得ていません。" };
+      const check = this.checker();
+      if(!check.ok) return check;
+      
       if(type !== "path" && type !== "id") throw new Error("getFileの第二引数にはpathまたはidのどちらかを入れてください。");
       let fileId;
       if (type === "path") {
@@ -207,7 +220,8 @@ class DriveAPIManager {
 
   async saveFile(path, data, metadata={}) {
     try {
-      if (!this.accessToken) return { ok: false, error: "auth同意を得ていません。" };
+      const check = this.checker();
+      if(!check.ok) return check;
       
 
       let file;
