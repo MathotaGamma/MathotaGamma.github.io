@@ -42,9 +42,9 @@ header nav a:hover {
   color: #f7931e;
 }
 
-header nav#breadcrumb {
+nav#breadcrumb {
   font-size: 14px;
-  background: rgba(255 250 205 0.4);
+  background: rgba(255 250 205 0.7);
 }
 
 main {
