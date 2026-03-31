@@ -50,7 +50,7 @@
   },
   "APIs": {
     "_name": "API集",
-    "_index": null,
+    "_index": "",
     "CompVisJS": {
       "_name": "数学・描画ライブラリ",
       "_index": "explanation"
