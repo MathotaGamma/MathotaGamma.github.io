@@ -120,7 +120,7 @@ class DriveAPIManager {
 
   async getFileId(path) {
     try {
-      if (this.accessToken) return { ok: false, error: "auth同意を得ていません。" };
+      if (!this.accessToken) return { ok: false, error: "auth同意を得ていません。" };
       const parts = path.split("/");
       let parent = "appDataFolder";
 
@@ -153,7 +153,7 @@ class DriveAPIManager {
 
   async getFile(pathOrId, type="path") {
     try {
-      if (this.accessToken) return { ok: false, error: "auth同意を得ていません。" };
+      if (!this.accessToken) return { ok: false, error: "auth同意を得ていません。" };
       if(type !== "path" && type !== "id") throw new Error("getFileの第二引数にはpathまたはidのどちらかを入れてください。");
       let fileId;
       if (type === "path") {
@@ -207,7 +207,7 @@ class DriveAPIManager {
 
   async saveFile(path, data, metadata={}) {
     try {
-      if (this.accessToken) return { ok: false, error: "auth同意を得ていません。" };
+      if (!this.accessToken) return { ok: false, error: "auth同意を得ていません。" };
       
 
       let file;
