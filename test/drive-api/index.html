@@ -52,8 +52,8 @@
       },2000);
 
       document.getElementById('auth_btn').onclick = () => manager.auth();
-      document.getElementById('load_btn').onclick = () => {logger(Object.keys(manager.getFileId("a.txt")))}
-      document.getElementById('save_btn').onclick = () => {logger(JSON.stringify(manager.getFileId("railway_save_data.json")))}
+      document.getElementById('load_btn').onclick = async () => {logger(Object.keys(await manager.getFileId("a.txt")))}
+      document.getElementById('save_btn').onclick = () => {logger(JSON.stringify(await manager.getFileId("railway_save_data.json")))}
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
