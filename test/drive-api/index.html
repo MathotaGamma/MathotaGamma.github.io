@@ -48,7 +48,7 @@
       setTimeout(async () => {
         const ret = await manager.getFileId("a.txt");
         
-        console.error(JSON.stringify(ret));
+        logger(JSON.stringify(ret));
       },2000)
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
