@@ -1,3 +1,4 @@
+// パンくずリストをid="breadcrumb"(基本はnav要素)に追加
 async function getSitemap() {
   try {
     const res = await fetch('/statics/sitemap.json');
