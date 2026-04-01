@@ -122,6 +122,48 @@ class DriveAPIManager {
     return "unknown_error";
   }
 
+  async getPath(fileId) {
+    try {
+      const check = this.checker();
+      if (!check.ok) return check;
+
+      let currentId = fileId;
+      const pathParts = [];
+
+      while (currentId) {
+        // ファイルのメタデータ（名前と親）を取得
+        const res = await gapi.client.drive.files.get({
+          fileId: currentId,
+          fields: 'id, name, parents',
+          // appDataFolder内のファイルを探すための指定
+          spaces: 'appDataFolder' 
+        });
+
+        const file = res.result;
+
+        // 親がいない、または親が 'appDataFolder' 自体なら終了
+        if (!file.parents || file.parents.includes('appDataFolder')) {
+          pathParts.unshift(file.name);
+          break;
+        }
+
+        // 現在の名前を配列の先頭に追加し、親を次のターゲットにする
+        pathParts.unshift(file.name);
+        currentId = file.parents[0];
+      }
+
+      const fullPath = pathParts.join('/');
+      return { ok: true, path: fullPath };
+
+    } catch (error) {
+      return {
+        ok: false,
+        error: this.normalizeError(error),
+        place: "getPath"
+      };
+    }
+  }
+
   async createFolder(path) {
     try {
       const check = this.checker();
@@ -447,6 +489,31 @@ class DriveAPIManager {
     }
   }
 
+  async getStructure() {
+    try {
+      const check = this.checker();
+      if (!check.ok) return check;
+
+      const res = await gapi.client.drive.files.list({
+        spaces: 'appDataFolder',
+        fields: 'files(id, name)',
+        pageSize: 100
+      });
+
+      const files = res.result.files || [];
+      return {
+        ok: true,
+        paths: files.map(file => this.getPath(file.id))
+      }
+    } catch(error) {
+      return {
+        ok: false,
+        error: normalizeError(error),
+        place: "getStructure > catch error"
+      }
+    }
+  }
+
   async resetAppData() {
     try {
       const check = this.checker();
@@ -482,9 +549,9 @@ class DriveAPIManager {
 
         if (!delRes.ok) {
           const errText = await delRes.text();
-          failedList.push({name: file.name, error: errText});
+          failedList.push({path: this.getPath(file.id), error: errText});
         } else {
-          this.progress(`deleted: ${file.name}`);
+          this.progress(`deleted: ${this.getPath(file.id)}`);
         }
       }
 
