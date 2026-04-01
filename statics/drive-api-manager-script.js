@@ -489,7 +489,7 @@ class DriveAPIManager {
     }
   }
 
-  async getStructure() {
+  async getStructure(fileOnly=true) {
     try {
       const check = this.checker();
       if (!check.ok) return check;
@@ -503,13 +503,22 @@ class DriveAPIManager {
       });
 
       const files = res.result.files || [];
-      this.progress('file-id to path convert start');
+      if (files.length === 0) {
+        this.progress("get_no_structure");
+        return {
+          ok: true,
+          message: "empty"
+        }
+      }
+      this.progress(files.length+'file-id to path convert start');
       const paths = [];
       for (let file of files) {
+        if (fileOnly && file.mimeType === 'application/vnd.google-apps.folder') continue;
         const pathRes = await this.getPath(file.id);
         if (!pathRes.ok) paths.push(null);
         else paths.push(pathRes.path);
       }
+      this.progress("get-structure_complete");
       return {
         ok: true,
         paths: paths
@@ -542,7 +551,10 @@ class DriveAPIManager {
 
       if (files.length === 0) {
         this.progress("reset_no_files");
-        return { ok: true, message: "empty" };
+        return {
+          ok: true,
+          message: "empty"
+        };
       }
 
       const failedList = [];
