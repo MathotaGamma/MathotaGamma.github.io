@@ -127,7 +127,7 @@ class DriveAPIManager {
       const check = this.checker();
       if(!check.ok) return check;
       const parts = path.split("/");
-      const parent = "appDataFolder";
+      let parent = "appDataFolder";
       for (let name of parts) {
         const res = await gapi.client.drive.files.list({
           q: `name = '${name}' and '${parent}' in parents and trashed = false`,
