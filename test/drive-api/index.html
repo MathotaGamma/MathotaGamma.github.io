@@ -46,6 +46,7 @@
       <button id="save_btn">2. 保存 (Save)</button>
       <button id="load_btn">3. 読込 (Load)</button>
       <button id="reset_btn">4. リセット</button>
+      <button id="get_btn">5. 階層取得</button>
       <input type="text" placeholder="path" id="path-input" />
     </div>
 
@@ -87,7 +88,6 @@
 
       document.getElementById('auth_btn').onclick = () => manager.auth();
       document.getElementById('save_btn').onclick = async () => {
-        alert("ok");
         logger(JSON.stringify(await manager.saveFile(pathElem.value, textElem.value)))
       }
       document.getElementById('load_btn').onclick = async () => {
@@ -96,6 +96,7 @@
         logger(JSON.stringify(ret));
       }
       document.getElementById('reset_btn').onclick = async () => await manager.resetAppData();
+      document.getElementById('get_btn').onclick = async () => logger(await manager.getStructure());
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
