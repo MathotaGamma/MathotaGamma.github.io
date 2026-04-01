@@ -446,4 +446,44 @@ class DriveAPIManager {
       return { ok: false, error: this.normalizeError(error), place: "saveFile > catch" };
     }
   }
+
+  async resetAppData() {
+    try {
+      const check = this.checker();
+      if (!check.ok) return check;
+
+      this.progress("reset_start");
+
+      // 1. appDataFolder 内の全ファイル（フォルダ含む）を取得
+      const res = await gapi.client.drive.files.list({
+        spaces: 'appDataFolder',
+        fields: 'files(id, name)',
+        pageSize: 100 // 1回で消しきれないほど多ければループが必要ですが、通常はこれで足ります
+      });
+
+      const files = res.result.files;
+      if (!files || files.length === 0) {
+        this.progress("reset_no_files");
+        return { ok: true, message: "no_files_to_delete" };
+      }
+
+      // 2. 取得したファイルを一つずつ削除
+      for (const file of files) {
+        await gapi.client.drive.files.delete({
+          fileId: file.id
+        });
+        this.progress(`deleted: ${file.name}`);
+      }
+
+      this.progress("reset_complete");
+      return { ok: true };
+
+    } catch (error) {
+      return {
+        ok: false,
+        error: this.normalizeError(error),
+        place: "resetAppData"
+      };
+    }
+  }
 }
