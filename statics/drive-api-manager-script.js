@@ -305,6 +305,7 @@ class DriveAPIManager {
       // 3. メタデータの準備
       const finalMetadata = {
         name: fileName,
+        mimeType: fileBlob.type || 'text/plain',
         ...metadata
       };
       if (!fileId) finalMetadata.parents = [parentId];
@@ -318,8 +319,9 @@ class DriveAPIManager {
         delimiter,
         'Content-Type: application/json; charset=UTF-8\r\n\r\n',
         JSON.stringify(finalMetadata),
-        '\r\n' + delimiter,
-        'Content-Type: ', (fileBlob.type || 'application/octet-stream'), '\r\n\r\n',
+        '\r\n',
+        delimiter,
+        'Content-Type: ', fileMetadata.mimeType, '\r\n\r\n',
         fileBlob, // ここでバイナリBlobをそのまま入れる
         closeDelim
       ], { type: `multipart/related; boundary=${boundary}` });
