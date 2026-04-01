@@ -560,7 +560,7 @@ class DriveAPIManager {
           const errText = await delRes.text();
           failedList.push({path: this.getPath(file.id), error: errText});
         } else {
-          this.progress(`deleted: ${this.getPath(file.id)}`);
+          this.progress(`deleted: ${await this.getPath(file.id)}`);
         }
       }
 
