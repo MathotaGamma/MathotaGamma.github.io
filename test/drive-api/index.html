@@ -85,7 +85,10 @@
       const textElem = document.getElementById("text");
 
       document.getElementById('auth_btn').onclick = () => manager.auth();
-      document.getElementById('save_btn').onclick = async () => {logger(JSON.stringify(await manager.saveFile(pathElem.value, textElem.value)))}
+      document.getElementById('save_btn').onclick = async () => {
+        alert("ok");
+        logger(JSON.stringify(await manager.saveFile(pathElem.value, textElem.value)))
+      }
       document.getElementById('load_btn').onclick = async () => {
         const ret = await manager.getFile(textElem.value);
         if (ret.ok) textElem.value = await ret.file.text();
