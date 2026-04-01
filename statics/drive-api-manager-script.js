@@ -349,7 +349,7 @@ class DriveAPIManager {
       return {
         ok: false,
         error: this.normalizeError(error),
-        placem "saveFile > catch error"
+        place: "saveFile > catch error"
       };
     }
   }
