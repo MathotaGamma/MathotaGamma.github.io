@@ -59,6 +59,7 @@
     <script>
       const logElement = document.getElementById('log');
       function logger(msg) {
+        if (typeof msg === "object") msg = JSON.stringify(msg);
         const now = new Date().toLocaleTimeString();
         logElement.innerHTML += `[${now}] ${msg}<br>`;
         logElement.scrollTop = logElement.scrollHeight;
@@ -88,7 +89,7 @@
 
       document.getElementById('auth_btn').onclick = () => manager.auth();
       document.getElementById('save_btn').onclick = async () => {
-        logger(JSON.stringify(await manager.saveFile(pathElem.value, textElem.value)))
+        logger(await manager.saveFile(pathElem.value, textElem.value));
       }
       document.getElementById('load_btn').onclick = async () => {
         const ret = await manager.getFile(textElem.value);
@@ -96,7 +97,7 @@
         logger(JSON.stringify(ret));
       }
       document.getElementById('reset_btn').onclick = async () => await manager.resetAppData();
-      document.getElementById('get_btn').onclick = async () => {logger(await manager.getStructure())};
+      document.getElementById('get_btn').onclick = async () => {logger(JSON.stringify(await manager.getStructure()))}
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
