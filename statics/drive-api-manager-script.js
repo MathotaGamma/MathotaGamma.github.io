@@ -21,6 +21,23 @@ class DriveAPIManager {
     return { ok: true }
   }
 
+  async #getEmail() {
+    if (!this.accessToken) return {
+      ok: false,
+      error: 'no_accessToken'
+    }
+    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    const data = await response.json();
+    return {
+      ok: true,
+      email: data.email
+    }
+  }
+
   _handleAuth(res) {
     this.authPromise = null;
 
@@ -33,7 +50,7 @@ class DriveAPIManager {
     }
   }
 
-  async auth(silent=true) {
+  async auth(silent = true) {
     if (this.accessToken) return { ok: true };
 
     if (this.authPromise) return this.authPromise;
@@ -41,13 +58,40 @@ class DriveAPIManager {
     if (!this.tokenClient) {
       return { ok: false, error: "gsi_not_ready" };
     }
-    
+
     this.authPromise = new Promise((resolve) => {
-      this._authResolve = resolve;
-      this.tokenClient.requestAccessToken({prompt: (silent?'':'consent')});
+      this.tokenClient.callback = async (response) => {
+        if (response.access_token) {
+          this.accessToken = response.access_token;
+          
+          const ret = await this.#getEmail(response.access_token);
+          if (!ret.ok) {
+            resolve({ ok: false, error: ret.error });
+          } else {
+            this.userEmail = ret.email;
+            resolve({ ok: true, token: response.access_token });
+          }
+          this.authPromise = null;
+        } else {
+          resolve({ ok: false, error: "no_token" });
+          this.authPromise = null;
+        }
+      };
+
+      const requestConfig = {
+        prompt: (silent ? '' : 'consent')
+      };
+      if (this.userEmail && silent) {
+        requestConfig.hint = this.userEmail;
+      }
+
+      this.tokenClient.requestAccessToken(requestConfig);
     });
-    
-    return this.authPromise;
+
+    return {
+      ok: true,
+      promise: this.authPromise
+    };
   }
 
   gapiLoaded() {
