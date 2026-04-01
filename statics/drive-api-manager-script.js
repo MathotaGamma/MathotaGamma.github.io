@@ -56,7 +56,7 @@ class DriveAPIManager {
     if (this.authPromise) return this.authPromise;
 
     if (!this.tokenClient) {
-      return { ok: false, error: "gsi_not_ready" };
+      return { ok: false, error: "gsi_not_ready", place: "auth" };
     }
 
     this.authPromise = new Promise((resolve) => {
@@ -73,7 +73,7 @@ class DriveAPIManager {
           }
           this.authPromise = null;
         } else {
-          resolve({ ok: false, error: "no_token" });
+          resolve({ ok: false, error: "no_token", place: "auth > Promise" });
           this.authPromise = null;
         }
       };
@@ -156,7 +156,7 @@ class DriveAPIManager {
         
           if (!createRes.ok) {
             const err = await createRes.text();
-            return { ok: false, error: err };
+            return { ok: false, error: err, place: "createFolder" };
           }
 
           const data = await createRes.json();
@@ -167,7 +167,8 @@ class DriveAPIManager {
     } catch(error) {
       return {
         ok: false,
-        error: this.normalizeError(error)
+        error: this.normalizeError(error),
+        place: "createFolder > error-catch"
       }
     }
   }
@@ -189,7 +190,8 @@ class DriveAPIManager {
 
         if (!res.result.files.length) return {
           ok: false,
-          error: "not_found"
+          error: "not_found",
+          place: "getFileId > res"
         };
         parent = res.result.files[0].id;
       }
@@ -201,7 +203,8 @@ class DriveAPIManager {
     } catch(error) {
       return {
         ok: false,
-        error: this.normalizeError(error)
+        error: this.normalizeError(error),
+        place: "getFileId > error-catch"
       };
     }
   }
@@ -217,7 +220,8 @@ class DriveAPIManager {
         const ret = await this.getFileId(pathOrId);
         if(!ret.ok) return {
           ok: false,
-          error: ret.error
+          error: ret,
+          place: "getFile > call getFileId"
         }
         fileId = ret.fileId;
       }
@@ -240,7 +244,8 @@ class DriveAPIManager {
         const err = await res.text();
         return {
           ok: false,
-          error: err
+          error: err,
+          place: "getFile > res"
         }
       }
       
@@ -257,7 +262,8 @@ class DriveAPIManager {
     } catch(error) {
       return {
         ok: false,
-        error: this.normalizeError(error)
+        error: this.normalizeError(error),
+        place: "getFile"
       }
     }
   }
@@ -332,11 +338,19 @@ class DriveAPIManager {
         body: multipartBlob
       });
 
-      if (!res.ok) return { ok: false, error: await res.text() };
+      if (!res.ok) return {
+        ok: false,
+        error: await res.text(),
+        place: "saveFile > fetch res"
+      };
       return { ok: true, data: await res.json() };
 
     } catch (error) {
-      return { ok: false, error: this.normalizeError(error) };
+      return {
+        ok: false,
+        error: this.normalizeError(error),
+        placem "saveFile > catch error"
+      };
     }
   }
 }
