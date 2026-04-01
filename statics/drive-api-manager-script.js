@@ -506,13 +506,13 @@ class DriveAPIManager {
       this.progress('file-id to path convert start');
       const paths = [];
       for (let file of files) {
-        const res = await this.getPath(file.id);
-        if (!res.ok) paths.push(null);
-        else paths.push(res.path);
+        const pathRes = await this.getPath(file.id);
+        if (!pathRes.ok) paths.push(null);
+        else paths.push(pathRes.path);
       }
       return {
         ok: true,
-        paths: files.map(file => await this.getPath(file.id))
+        paths: paths
       }
     } catch(error) {
       return {
