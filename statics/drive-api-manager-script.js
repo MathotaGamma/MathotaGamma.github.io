@@ -454,36 +454,45 @@ class DriveAPIManager {
 
       this.progress("reset_start");
 
-      // 1. appDataFolder 内の全ファイル（フォルダ含む）を取得
+      // 1. ファイル一覧を取得
       const res = await gapi.client.drive.files.list({
         spaces: 'appDataFolder',
         fields: 'files(id, name)',
-        pageSize: 100 // 1回で消しきれないほど多ければループが必要ですが、通常はこれで足ります
+        pageSize: 100
       });
 
-      const files = res.result.files;
-      if (!files || files.length === 0) {
+      const files = res.result.files || [];
+      this.progress(`Found ${files.length} files to delete.`);
+
+      if (files.length === 0) {
         this.progress("reset_no_files");
-        return { ok: true, message: "no_files_to_delete" };
+        return { ok: true, message: "empty" };
       }
 
-      // 2. 取得したファイルを一つずつ削除
+      const failedList = [];
+
+      // 2. 削除実行（1つずつ確実に await する）
       for (const file of files) {
-        await gapi.client.drive.files.delete({
-          fileId: file.id
+        const delRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`
+          }
         });
-        this.progress(`deleted: ${file.name}`);
+
+        if (!delRes.ok) {
+          const errText = await delRes.text();
+          failedList.push({name: file.name, error: errText});
+        } else {
+          this.progress(`deleted: ${file.name}`);
+        }
       }
 
       this.progress("reset_complete");
-      return { ok: true };
+      return { ok: true, failedList};
 
     } catch (error) {
-      return {
-        ok: false,
-        error: this.normalizeError(error),
-        place: "resetAppData"
-      };
+      return { ok: false, error: this.normalizeError(error) };
     }
   }
 }
