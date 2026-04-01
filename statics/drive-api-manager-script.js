@@ -262,65 +262,81 @@ class DriveAPIManager {
     }
   }
 
-  async saveFile(path, data, metadata={}) {
+  async saveFile(path, data, metadata = {}) {
     try {
       const check = this.checker();
-      if(!check.ok) return check;
-      
+      if (!check.ok) return check;
 
-      let file;
+      // 1. データのBlob化（型に応じた処理）
+      let fileBlob;
       if (data instanceof Blob) {
-      file = data;
+        fileBlob = data;
       } else if (typeof data === "string") {
-        file = new Blob([data], { type: "text/plain" });
+        fileBlob = new Blob([data], { type: "text/plain" });
       } else if (data instanceof ArrayBuffer) {
-        file = new Blob([data]);
+        fileBlob = new Blob([data]);
       } else if (data instanceof Object) {
-        file = new Blob([JSON.stringify(data)], { type: "application/json" });
+        fileBlob = new Blob([JSON.stringify(data)], { type: "application/json" });
       } else {
         return { ok: false, error: "unsupported_data_type" };
       }
-        
-      const formData = new FormData();
-      formData.append(
-        'metadata',
-        new Blob([JSON.stringify(metadata)], { type: 'application/json' })
-      );
-      formData.append('file', file);
 
-      const ret = await this.getFileId(path);
-      const fileId = ret.ok ? ret.fileId : null;
-    
-      const url = fileId 
+      // 2. パス解決とID取得
+      const pathParts = path.split("/");
+      const fileName = pathParts.pop();
+      const folderPath = pathParts.join("/");
+
+      let parentId = "appDataFolder";
+      if (folderPath) {
+        const folderRet = await this.createFolder(folderPath);
+        if (!folderRet.ok) return folderRet;
+        parentId = folderRet.folderId;
+      }
+
+      const fileIdRet = await this.getFileId(path);
+      const fileId = fileIdRet.ok ? fileIdRet.fileId : null;
+
+      // 3. メタデータの準備
+      const finalMetadata = {
+        name: fileName,
+        ...metadata
+      };
+      if (!fileId) finalMetadata.parents = [parentId];
+
+      // 4. 【重要】Blobを配列で連結して、一つの大きなBlobを作る
+      const boundary = '-------314159265358979323846';
+      const delimiter = `--${boundary}\r\n`;
+      const closeDelim = `\r\n--${boundary}--`;
+
+      const multipartBlob = new Blob([
+        delimiter,
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n',
+        JSON.stringify(finalMetadata),
+        '\r\n' + delimiter,
+        'Content-Type: ', (fileBlob.type || 'application/octet-stream'), '\r\n\r\n',
+        fileBlob, // ここでバイナリBlobをそのまま入れる
+        closeDelim
+      ], { type: `multipart/related; boundary=${boundary}` });
+
+      // 5. リクエスト送信
+      const url = fileId
         ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
         : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-        
-      const method = fileId ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
-        method,
+        method: fileId ? 'PATCH' : 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`
+          // Content-TypeはmultipartBlobの型から自動で設定されるため不要（または手動指定）
         },
-        body: formData
+        body: multipartBlob
       });
-      
-      if (!res.ok) {
-        return {
-          ok: false,
-          error: await res.text()
-        };
-      }
-      
-      return {
-        ok: true,
-        data: await res.json()
-      };
-    } catch(error) {
-      return {
-        ok: false,
-        error: this.normalizeError(error)
-      }
+
+      if (!res.ok) return { ok: false, error: await res.text() };
+      return { ok: true, data: await res.json() };
+
+    } catch (error) {
+      return { ok: false, error: this.normalizeError(error) };
     }
   }
 }
