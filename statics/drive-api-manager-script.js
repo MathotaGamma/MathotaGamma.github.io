@@ -494,6 +494,8 @@ class DriveAPIManager {
       const check = this.checker();
       if (!check.ok) return check;
 
+      this.progress('get-structure_start');
+      
       const res = await gapi.client.drive.files.list({
         spaces: 'appDataFolder',
         fields: 'files(id, name)',
@@ -501,9 +503,10 @@ class DriveAPIManager {
       });
 
       const files = res.result.files || [];
+      this.progress('file-id to path convert start');
       return {
         ok: true,
-        paths: files.map(file => this.getPath(file.id))
+        paths: files.map(file => await this.getPath(file.id))
       }
     } catch(error) {
       return {
