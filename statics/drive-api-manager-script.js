@@ -51,8 +51,7 @@ class DriveAPIManager {
   }
 
   async auth(silent = true) {
-    if (this.accessToken) return { ok: true };
-
+    if (this.accessToken) return { ok: true, token: this.accessToken };
     if (this.authPromise) return this.authPromise;
 
     if (!this.tokenClient) {
@@ -61,26 +60,46 @@ class DriveAPIManager {
 
     this.authPromise = new Promise((resolve) => {
       this.tokenClient.callback = async (response) => {
+        // 1. エラーが返ってきた場合の処理
+        if (response.error !== undefined) {
+          this.authPromise = null; // リセット
+
+          // サイレントモードで失敗し、かつ対話が必要なエラーだった場合
+          if (silent && (response.error === 'immediate_failed' || response.error === 'interaction_required')) {
+            console.log("サイレント認証失敗。同意画面を表示します...");
+            // ★自動で silent = false にして再試行
+            const retry = await this.auth(false); 
+            resolve(retry);
+          } else {
+            resolve({ ok: false, error: response.error });
+          }
+          return;
+        }
+
+        // 2. トークンが取得できた場合の処理
         if (response.access_token) {
           this.accessToken = response.access_token;
-          
           const ret = await this.#getEmail(response.access_token);
+        
           if (!ret.ok) {
             resolve({ ok: false, error: ret.error });
           } else {
             this.userEmail = ret.email;
             resolve({ ok: true, token: response.access_token });
           }
-          this.authPromise = null;
         } else {
           resolve({ ok: false, error: "no_token", place: "auth > Promise" });
-          this.authPromise = null;
         }
+      
+        this.authPromise = null; // 完了後にリセット
       };
 
+      // リクエストの設定
       const requestConfig = {
-        prompt: (silent ? 'none' : 'consent')
+        // 最初は 'none' で試すが、失敗して retry された時は '' (必要なら出す) を指定
+        prompt: (silent ? 'none' : '') 
       };
+
       if (this.userEmail && silent) {
         requestConfig.hint = this.userEmail;
       }
@@ -88,12 +107,9 @@ class DriveAPIManager {
       this.tokenClient.requestAccessToken(requestConfig);
     });
 
-    return {
-      ok: true,
-      promise: this.authPromise
-    };
+    return this.authPromise;
   }
-
+  
   gapiLoaded() {
     gapi.load('client', () => {
       gapi.client.init({
