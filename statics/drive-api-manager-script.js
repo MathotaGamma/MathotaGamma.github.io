@@ -268,7 +268,7 @@ class DriveAPIManager {
     }
   }
 
-  async saveFile(path, data, metadata = {}) {
+  /*async saveFile(path, data, metadata = {}) {
     try {
       const check = this.checker();
       if (!check.ok) return check;
@@ -356,6 +356,94 @@ class DriveAPIManager {
         error: this.normalizeError(error),
         place: "saveFile > catch error"
       };
+    }
+  }*/
+
+  async saveFile(path, data, metadata = {}) {
+    try {
+      const check = this.checker();
+      if (!check.ok) return check;
+
+      // 1. データのBlob化
+      let fileBlob;
+      if (data instanceof Blob) {
+        fileBlob = data;
+      } else if (typeof data === "string") {
+        fileBlob = new Blob([data], { type: "text/plain" });
+      } else if (data instanceof ArrayBuffer) {
+        fileBlob = new Blob([data]);
+      } else if (data instanceof Object) {
+        fileBlob = new Blob([JSON.stringify(data)], { type: "application/json" });
+      }
+
+      // 2. パス解決
+      const pathParts = path.split("/");
+      const fileName = pathParts.pop();
+      const folderPath = pathParts.join("/");
+
+      let parentId = "appDataFolder";
+      if (folderPath) {
+        const folderRet = await this.createFolder(folderPath);
+        if (!folderRet.ok) return folderRet;
+        parentId = folderRet.folderId;
+      }
+
+      const fileIdRet = await this.getFileId(path);
+      const fileId = fileIdRet.ok ? fileIdRet.fileId : null;
+
+      // 3. メタデータの構築 (mimeTypeを明示)
+      const finalMetadata = {
+        name: fileName,
+        mimeType: fileBlob.type || 'application/octet-stream',
+        ...metadata
+      };
+      if (!fileId) finalMetadata.parents = [parentId];
+
+      // 4. 【最重要】マルチパートBlobの厳密な構築
+      const boundary = '-------314159265358979323846';
+      const delimiter = `--${boundary}\r\n`;
+      const closeDelim = `\r\n--${boundary}--`;
+
+      // パートごとに配列にして連結（改行 \r\n を正確に入れる）
+      const parts = [
+        delimiter,
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n',
+        JSON.stringify(finalMetadata),
+        '\r\n',
+        delimiter,
+        'Content-Type: ', finalMetadata.mimeType, '\r\n\r\n',
+        fileBlob,
+        closeDelim
+      ];
+
+      const multipartBlob = new Blob(parts, { type: `multipart/related; boundary=${boundary}` });
+
+      // 5. リクエスト
+      const url = fileId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+        : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+
+      const res = await fetch(url, {
+        method: fileId ? 'PATCH' : 'POST',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`
+          // Content-Type は指定しなくても、bodyがBlobなら自動で設定されます
+        },
+        body: multipartBlob
+      });
+
+      if (!res.ok) {
+        const errorDetail = await res.text();
+        console.error("Save Error Detail:", errorDetail);
+        return { ok: false, error: errorDetail, place: "saveFile > fetch" };
+      }
+
+      const resultData = await res.json();
+      console.log("Save Success:", resultData);
+      return { ok: true, data: resultData };
+
+    } catch (error) {
+      return { ok: false, error: this.normalizeError(error), place: "saveFile > catch" };
     }
   }
 }
