@@ -79,7 +79,7 @@ class DriveAPIManager {
       };
 
       const requestConfig = {
-        prompt: (silent ? '' : 'consent')
+        prompt: (silent ? 'none' : 'consent')
       };
       if (this.userEmail && silent) {
         requestConfig.hint = this.userEmail;
