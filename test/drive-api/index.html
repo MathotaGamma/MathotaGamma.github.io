@@ -96,7 +96,7 @@
         logger(JSON.stringify(ret));
       }
       document.getElementById('reset_btn').onclick = async () => await manager.resetAppData();
-      document.getElementById('get_btn').onclick = async () => logger(await manager.getStructure());
+      document.getElementById('get_btn').onclick = async () => {logger(await manager.getStructure())};
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
