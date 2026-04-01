@@ -217,13 +217,13 @@ class DriveAPIManager {
       if(type !== "path" && type !== "id") throw new Error("getFileの第二引数にはpathまたはidのどちらかを入れてください。");
       let fileId;
       if (type === "path") {
-        const ret = await this.getFileId(pathOrId);
+        const res = await this.getFileId(pathOrId);
         if(!ret.ok) return {
           ok: false,
-          error: ret,
+          error: res,
           place: "getFile > call getFileId"
         }
-        fileId = ret.fileId;
+        fileId = res.fileId;
       }
       else fileId = pathOrId;
       const meta = await gapi.client.drive.files.get({
@@ -343,7 +343,10 @@ class DriveAPIManager {
         error: await res.text(),
         place: "saveFile > fetch res"
       };
-      return { ok: true, data: await res.json() };
+      return {
+        ok: true,
+        data: await res.json()
+      };
 
     } catch (error) {
       return {
