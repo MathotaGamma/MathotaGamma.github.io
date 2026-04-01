@@ -4,11 +4,37 @@
     <meta charset="UTF-8">
     <title>鉄道ゲーム 同期テスト</title>
     <style>
-      body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-      .controls { margin-bottom: 20px; display: flex; gap: 10px; }
-      #log { background: #f0f0f0; padding: 10px; height: 300px; overflow-y: scroll; border: 1px solid #ccc; font-family: monospace; font-size: 12px; }
-      button { padding: 10px 20px; cursor: pointer; font-weight: bold; }
-      h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+      body {
+        font-family: sans-serif;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .controls {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 10px;
+      }
+      main {
+        display: flex;
+      }
+      #log {
+        background: #f0f0f0;
+        padding: 10px;
+        height: 300px;
+        overflow-y: scroll;
+        border: 1px solid #ccc;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      button {
+        padding: 10px 20px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      h1 {
+        border-bottom: 2px solid #333;
+        padding-bottom: 10px;
+      }
     </style>
   </head>
   <body>
@@ -19,9 +45,13 @@
       <button id="auth_btn">1. Googleと連携</button>
       <button id="save_btn">2. 隠し保存 (Save)</button>
       <button id="load_btn">3. 読み込み (Load)</button>
+      <input type="text" placeholder="path" id="path-input" />
     </div>
 
-    <div id="log">システムログ...<br></div>
+    <main>
+      <div id="log">システムログ...<br></div>
+      <textarea id="text"></textarea>
+    </main>
 
     <script src="/statics/drive-api-manager-script.js"></script>
     <script>
@@ -51,9 +81,16 @@
         logger(JSON.stringify(ret));
       },2000);
 
+      const pathElem = document.getElementById("path-input");
+      const textElem = document.getElementById("text");
+
       document.getElementById('auth_btn').onclick = () => manager.auth();
-      document.getElementById('load_btn').onclick = async () => {logger(JSON.stringify(await manager.getFileId("a.txt")))}
-      document.getElementById('save_btn').onclick = async () => {logger(JSON.stringify(await manager.getFileId("railway_save_data.json")))}
+      document.getElementById('save_btn').onclick = async () => {logger(JSON.stringify(await manager.saveFile(pathElem.value, textElem.value)))}
+      document.getElementById('load_btn').onclick = async () => {
+        const ret = await manager.getFile(textElem.value);
+        if (ret.ok) textElem.value = await ret.file.text();
+        logger(JSON.stringify(ret));
+      }
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
