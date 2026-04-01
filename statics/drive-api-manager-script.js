@@ -516,7 +516,7 @@ class DriveAPIManager {
         if (fileOnly && file.mimeType === 'application/vnd.google-apps.folder') continue;
         const pathRes = await this.getPath(file.id);
         if (!pathRes.ok) paths.push(null);
-        else paths.push(pathRes.path);
+        else paths.push({path: pathRes.path, type: file.mimeType});
       }
       this.progress("get-structure_complete");
       return {
