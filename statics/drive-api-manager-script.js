@@ -214,11 +214,11 @@ class DriveAPIManager {
       const check = this.checker();
       if(!check.ok) return check;
       
-      if(type !== "path" && type !== "id") throw new Error("getFileの第二引数にはpathまたはidのどちらかを入れてください。");
+      if(type !== "path" && type !== "fileId") throw new Error('getFileの第二引数には"path"または"fileId"のどちらかを入れてください。');
       let fileId;
       if (type === "path") {
         const res = await this.getFileId(pathOrId);
-        if(!ret.ok) return {
+        if(!res.ok) return {
           ok: false,
           error: res,
           place: "getFile > call getFileId"
@@ -241,11 +241,11 @@ class DriveAPIManager {
       );
 
       if (!content.ok) {
-        const err = await res.text();
+        const err = await content.text();
         return {
           ok: false,
           error: err,
-          place: "getFile > res"
+          place: "getFile > content"
         }
       }
       
