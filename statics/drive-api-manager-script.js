@@ -502,7 +502,21 @@ class DriveAPIManager {
         pageSize: 100
       });
 
-      const files = res.result.files || [];
+      let files = [];
+      let pageToken = null;
+
+      do {
+        const res = await gapi.client.drive.files.list({
+          'q': "...",
+          'fields': 'nextPageToken, files(id, name, mimeType)',
+          'pageToken': pageToken // ここに「しおり」を渡す
+        });
+        files = files.concat(res.result.files);
+        
+        pageToken = res.result.nextPageToken; 
+      } while (pageToken);
+
+      
       if (files.length === 0) {
         this.progress("get_no_structure");
         return {
