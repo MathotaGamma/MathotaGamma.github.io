@@ -45,6 +45,7 @@
       <button id="auth_btn">1. Googleと連携</button>
       <button id="save_btn">2. 保存 (Save)</button>
       <button id="load_btn">3. 読込 (Load)</button>
+      <button id="reset_btn">4. リセット</button>
       <input type="text" placeholder="path" id="path-input" />
     </div>
 
@@ -94,6 +95,7 @@
         if (ret.ok) textElem.value = await ret.file.text();
         logger(JSON.stringify(ret));
       }
+      document.getElementById('reset_btn').onclick = async () => await manager.resetAppData();
     </script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
     <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
