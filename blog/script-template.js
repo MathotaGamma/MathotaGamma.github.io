@@ -1,7 +1,7 @@
 // nav id="breadcrumb"にパンくずリストを設定する。
 async function getSitemap() {
   try {
-    const res = await fetch('/statics/sitemap.json');
+    const res = await fetch('https://mathotagamma.github.io/statics/sitemap.json');
     if (!res.ok) throw new Error();
     return await res.json();
   } catch (e) {
