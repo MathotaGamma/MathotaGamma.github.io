@@ -225,6 +225,10 @@ canvas {
   font-weight: bold;
 }
 
+.under-bar {
+  text-decoration: underline;
+}
+
 .color {
   color: attr(data-color);
 }
