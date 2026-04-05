@@ -216,3 +216,15 @@ canvas {
   border-radius: 5px;
   padding: 5px;
 }
+
+.small {
+  font-size: 0.8rem;
+}
+
+.bold {
+  font-weight: bold;
+}
+
+.color {
+  color: attr(data-color);
+}
