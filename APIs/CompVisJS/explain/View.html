@@ -28,8 +28,6 @@
       <p>
         CompVisの使い方についての詳細は<a href="./" target="_blank">こちら</a>
       </p>
-      <h2>メソッド一覧</h2>
-      <div id="divList"></div>
       <p>
         以下、変数を下記のように定める。
         <ul>
@@ -39,20 +37,8 @@
         追加は「 &lt;- new ver:~~」、削除は取り消し線と「 &lt;- ver:~~」、変更は「 - ver:~~ -」または「 - ver:~~ -&gt;」で表す。
       </p>
       <ul>
-        <li>
-          <a href="#yes-arg" class="anchor">引数ありのメソッド</a>
-          <ul>
-            <li>C.round(n)</li>
-            <li>C.add(c)</li>
-            <li>C.dif(c)</li>
-            <li>C.pro(c)</li>
-            <li>C.div(c)</li>
-            <li>C.log_n(x)</li>
-            <li>C.pow_by(c)</li>
-            <li>C.pow_of(c)</li>
-            <li>C.rotate(x)</li>
-          </ul>
-        </li>
+        <li>CONSTRUCTOR</li>
+        <li>help</li>
       </ul>
       <h2>一覧</h2>
       <ul>
@@ -148,14 +134,13 @@
           </ul>
         </li>
       </ul>
-      以下、keyとvalue(*はdefault値) - mode<string>: *"static"(グラフ表示域固定) or "dynamic"(グラフ表示域変動(タッチ操作)(初期状態の描画範囲は画面中央に原点、1単位100px)) - autoScale<bool>: *true(グラフ全体を表示するよう表示域設定(static時のみ)) or false() - showAxis<bool>: *true()
-
+      <!--
+        keyとvalue(*はdefault値) - mode<string>: *"static"(グラフ表示域固定) or "dynamic"(グラフ表示域変動(タッチ操作)(初期状態の描画範囲は画面中央に原点、1単位100px)) - autoScale<bool>: *true(グラフ全体を表示するよう表示域設定(static時のみ)) or false() - showAxis<bool>: *true()
+      -->
     </main>
 
     <script src="https://makeplayonline.onrender.com/Static/API/JS-Window/latest/JS-Window.js"></script>
     <script>
-      let text = 'statics => '+CompVis._list[0].join(',')+'\nmethods => '+CompVis._list[1].join(',');
-      document.getElementById('divList').innerText = text;
       let element = document.getElementById('API_URL');
       function copy_func(copy_text){
         if (navigator.clipboard) {
