@@ -54,7 +54,101 @@
           </ul>
         </li>
       </ul>
-canvas要素とoptionsを引数にとる。optionsはobject型(連想配列)。以下、keyとvalue(*はdefault値) - mode<string>: *"static"(グラフ表示域固定) or "dynamic"(グラフ表示域変動(タッチ操作)(初期状態の描画範囲は画面中央に原点、1単位100px)) - autoScale<bool>: *true(グラフ全体を表示するよう表示域設定(static時のみ)) or false() - showAxis<bool>: *true()
+      <h2>一覧</h2>
+      <ul>
+        <li>
+          <h3>CONSTRUCTOR</h3>
+          <js-window>const v = new CompVis.Vector(canvas_elem, options);</js-window>
+          <p>
+            canvas要素とoptionsを引数にとる。optionsはobject型(連想配列)。
+          </p>
+          <ul>
+            <li>
+              <h4>mode (string型)</h4>
+              <ul>
+                <li>
+                  <h5>"static" (default)</h5>
+                  <p>
+                    描画するグラフの表示域が固定となる。
+                  </p>
+                  <p>
+                    後述のautoScaleがfalseの場合、表示域はrangeX/Yで決定される。
+                  </p>
+                  <p>
+                    autoScaleがtrueの場合はautoScaleを参照。
+                  </p>
+                </li>
+                <li>
+                  <h5>"dynamic"</h5>
+                  <p>
+                    グラフ画面(canvas)上をドラッグ等することで表示域やスケールを変更することができる。
+                  </p>
+                  <p>
+                    modeが"dynamic"の場合、以下の値は無視される。
+                  </p>
+                  <ul>
+                    <li>autoScale</li>
+                    <li>rangeX/Y</li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <h4>autoScale (boolean型)</h4>
+              <p>
+                modeがstaticの時のみ有効となる。
+              </p>
+              <ul>
+                <li>
+                  <h5>true (default)</h5>
+                  <p>
+                    グラフの表示域を、全てのグラフの変域の最大最小に合わせる。つまり、常に全てのグラフの全体が描画される。
+                  </p>
+                  <p>
+                    autoScaleがtrueの場合、以下の値が無視される。
+                  </p>
+                  <ul>
+                    <li>rangeX/Y</li>
+                  </ul>
+                </li>
+                <li>
+                  <h5>false</h5>
+                  <p>
+                    グラフの表示域を後述のrangeX/Yに固定する。
+                  </p>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <h4>rangeX/Y (長さが2の配列(中身は数値)型)</h4>
+              <p>
+                modeがstaticかつautoScaleがfalseの時のみ有効となる。
+              </p>
+              <p>
+                初期値は以下のとおり。(基本的にcanvasのピクセル数が単位の数である。)
+              </p>
+              <ul>
+                <li>rangeX: [-this.W, this.W] (基本的にdpi=1でthis.W=canvas.width)</li>
+                <li>rangeY: [-this.H, this.H] (基本的にdpi=1でthis.H=canvas.height)</li>
+              </ul>
+              <p>
+                rangeXは横、rangeYは縦を設定する。それぞれ、長さ2の数値の配列を値として与える。
+              </p>
+              <p>
+                1つ目の数値は左端(もしくは下端)を表し、2つ目の数値は右端(もしくは上端)を表す。
+              </p>
+            </li>
+            <li>
+              <h4>showGrid (boolean型)</h4>
+              <ul>
+                <li>true (default)</li>
+                
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+      以下、keyとvalue(*はdefault値) - mode<string>: *"static"(グラフ表示域固定) or "dynamic"(グラフ表示域変動(タッチ操作)(初期状態の描画範囲は画面中央に原点、1単位100px)) - autoScale<bool>: *true(グラフ全体を表示するよう表示域設定(static時のみ)) or false() - showAxis<bool>: *true()
 
     </main>
 
