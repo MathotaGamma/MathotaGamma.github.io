@@ -10,7 +10,26 @@
       クライアントが編集&実行を試すことができるJavascriptコード欄を作成する。
     </p>
     <p>
-      
+      例:
     </p>
+    <div style="border: 1.5px;">&lt;js-window&gt;alert("This is JS-Window");<br>
+console.log("Hello World!");<br>
+function sum( a, b ) {<br>
+  return a + b;<br>
+}<br>
+let N = 0;<br>
+for (let n = 1; n <= 100; n++) N = sum( N, n );<br>
+console.log( "result", N );<br>
+&lt;/js-window&gt;
+    </div>
+    <js-window>alert("This is JS-Window");
+console.log("Hello World!");
+function sum( a, b ) {
+  return a + b;
+}
+let N = 0;
+for (let n = 1; n <= 100; n++) N = sum( N, n );
+console.log( "result", N );
+</js-window>
   </body>
 </html>
