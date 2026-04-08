@@ -18,7 +18,8 @@
     <p>
       例: $lt;script type="module" src="https://mathotagamma.github.io/APIs/JS-Window/1-01-02/JS-Window.js"&gt;&lt;/script&gt;
     </p>
-    <div style="border: 1.5px;">&lt;js-window&gt;console.log("Hello World!");<br>
+    <div style="border: 1.5px;">&lt;js-window&gt;<br>
+console.log("Hello World!");<br>
 function sum( a, b ) {<br>
 &nbsp;return a + b;<br>
 }<br>
@@ -30,12 +31,15 @@ console.log( "result", N );<br>
 &lt;/js-window&gt;
     </div>
     <br><br>
-    <js-window>console.log("Hello World!");
+    <js-window>
+console.log("Hello World!");
 function sum( a, b ) {
   return a + b;
 }
 let N = 0;
-for (let n = 1; n <= 100; n++) N = sum( N, n );
+for (let n = 1; n <= 100; n++) {
+  N = sum( N, n );
+}
 console.log( "result", N );
 </js-window>
   </body>
