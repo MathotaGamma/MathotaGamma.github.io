@@ -21,7 +21,7 @@ class JSWindow extends HTMLElement {
     // Worker用のコード
     const workerCode = `
       // CompVisJSのインポート
-      importScripts('https://makeplayonline.onrender.com/static/APIs/CompVisJS/latest/CompVisJS.js');
+      importScripts('https://makeplayonline.onrender.com/statics/APIs/CompVisJS/latest/CompVisJS.js');
 
       self.onmessage = function(event) {
         const { code } = event.data;
