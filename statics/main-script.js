@@ -36,63 +36,70 @@ async function initBreadcrumb(href=null) {
     implicit = true;
     paths.pop();
   }
-  
+
   function getList() {
-    const pathList = [];
-    const nameList = [];
-    const stateList = []; // この関数の最後以外では、エンドのパスでもtrueを入れる。
-    let currentPath = "";
-    let currentSitemap = sitemap;
+    try {
+      const pathList = [];
+      const nameList = [];
+      const stateList = []; // この関数の最後以外では、エンドのパスでもtrueを入れる。
+      let currentPath = "";
+      let currentSitemap = sitemap;
 
-    stateList.push(true);
-    pathList.push("/"+currentSitemap._index);
-    nameList.push(currentSitemap._name)
+      stateList.push(true);
+      pathList.push("/"+currentSitemap._index);
+      nameList.push(currentSitemap._name)
 
-    let preIndex = currentSitemap._index;
+      let preIndex = currentSitemap._index;
     
-    
-    for(let ind = 0; ind < paths.length; ind++) {
-      const path = paths[ind];
-      currentSitemap = currentSitemap[path];
-      currentPath += "/"+path;
-      if (ind == paths.length-1) {
-        if (implicit) {
-          if (!Object.keys(currentSitemap).includes("_index") || currentSitemap._index === "") {
-            stateList.push(true);
-            pathList.push(currentPath+"/");
-            if(Object.keys(currentSitemap).includes("_name")) nameList.push(currentSitemap._name);
-            else nameList.push(currentSitemap);
-          } else {
-            error = "#2";
-            return;
-          }
-        } else {
-          if (path != preIndex) {
-            if (typeof currentSitemap === "string") {
+      for(let ind = 0; ind < paths.length; ind++) {
+        const path = paths[ind];
+        if(!Object.keys(currentSitemap).includes(path)) {
+          error = "#2";
+          return;
+        }
+        currentSitemap = currentSitemap[path];
+        currentPath += "/"+path;
+        if (ind == paths.length-1) {
+          if (implicit) {
+            if (!Object.keys(currentSitemap).includes("_index") || currentSitemap._index === "") {
               stateList.push(true);
-              pathList.push(currentPath);
-              nameList.push(currentSitemap)
+              pathList.push(currentPath+"/");
+              if(Object.keys(currentSitemap).includes("_name")) nameList.push(currentSitemap._name);
+              else nameList.push(currentSitemap);
             } else {
               error = "#3";
               return;
             }
+          } else {
+            if (path != preIndex) {
+              if (typeof currentSitemap === "string") {
+                stateList.push(true);
+                pathList.push(currentPath);
+                nameList.push(currentSitemap)
+              } else {
+                error = "#4";
+                return;
+              }
+            }
+          }
+        } else {
+          preIndex = currentSitemap._index;
+          nameList.push(currentSitemap._name);
+          if (currentSitemap._index == null) {
+            pathList.push("null");
+            stateList.push(false);
+          } else {
+            stateList.push(true);
+            pathList.push(currentPath+"/"+currentSitemap._index);
           }
         }
-      } else {
-        preIndex = currentSitemap._index;
-        nameList.push(currentSitemap._name);
-        if (currentSitemap._index == null) {
-          pathList.push("null");
-          stateList.push(false);
-        } else {
-          stateList.push(true);
-          pathList.push(currentPath+"/"+currentSitemap._index);
-        }
       }
+      stateList[stateList.length-1] = false;
+      return {stateList, pathList, nameList}
+    } catch(e) {
+      error = "#0";
+      return;
     }
-
-    stateList[stateList.length-1] = false;
-    return {stateList, pathList, nameList}
   }
   
   const ret = await getList();
