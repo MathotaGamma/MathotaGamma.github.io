@@ -5,6 +5,8 @@ class JSWindow extends HTMLElement {
     this.shadow = this.attachShadow({ mode: "open" });
   }
 
+  static version = "1.01.02";
+
   connectedCallback() {
     const shadow = this.shadow;
 
