@@ -114,7 +114,7 @@ window.CompVis = class {
   constructor() {
   }
 
-  static ver = "1-02-01";
+  static ver = "1.02.01";
 
   static round(num, n=0) {
     if(!Number.isInteger(n)) throw new Error("at CompVis.round ... The number of digits must be specified as an integer value.");
