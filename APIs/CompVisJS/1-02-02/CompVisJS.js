@@ -1,0 +1,3129 @@
+//変更点:ViewとViewThreeのaddGraphの引数の構造を変更し、それぞれのgraphの管理をidにした。また、ViewにaddArrowメソッドを追加し、CompVisにgetIdをstaticで,deleteIdをメソッドで追加。また、View,ViewThreeにはdeleteGraph(id)を追加し、ViewThreeにgetState(id=undefined)を追加。
+//注意点
+/*
+例:
+viewer.addGraph(
+  (t) => 
+    {
+      return t**2 - 4*t + 5;
+    }
+  ,{ start: -3, end: 5, samples: 1200, color: "#00aaff" }
+);
+
+必ずアロー関数は
+(変数) => { return ~~~ ;}
+で書くこと。('{}','return',';'必須)
+*/
+/*
+CompVis.ViewThreeはTHREE.jsを使用しています。
+※内部に組み込んでいるため、別で用意する必要はありません。
+THREE : "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
+OrbitControls : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
+CSS2DRenderer : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
+
+使用例
+
+const myDiv = document.getElementById("my-div");
+const viewThree = new CompVis.ViewThree(myDiv);
+
+// 非同期で実行しても安全に追加されます
+const v1 = viewThree.addGraph(
+  (t) => [
+    4*Math.cos(2*t)*Math.cos(t+Math.PI/4),
+    4*Math.sin(2*t),
+    4*Math.cos(2*t)*Math.sin(t+Math.PI/4)
+  ], { start: -Math.PI, end: Math.PI, samples: 100, color: 0xdd4477 }
+);
+
+const v2 = viewThree.addGraph((t) => Math.exp(t/8), { start: -20, end: 20, samples: 200, color: 0x7fffd4 });
+console.log(v1.id, v2.id);
+const promises = [v1.promise, v2.promise];
+Promise.all(promises).then((res) => {
+  console.log(res);
+  console.log(viewThree.getState()); // 全てのstateがpending->readyになっているはず。
+  viewThree.deleteGraph(v1.id); // または引数にres[0].idでも
+  viewThree.update();
+});
+
+viewThree.exec((THREE, scene, camera, renderer, controls) => {
+  let geometry = new THREE.BoxGeometry(1,1,1);
+  let material = new THREE.MeshLambertMaterial({color: 0x4444ff});
+  const cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
+});
+*/
+/*
+CompVis.regressionのサンプル(非同期関数)
+レーベンバーグ・マルカート法(LM法)を使用。
+例として、円回帰( (x-x0)^2+(y-y0)^2-R^2 = 0 )
+
+let P = [{x:0,y:2},{x:2,y:0},{x:-3,y:0},{x:-2,y:-3},{x:3,y:-2}]; // サンプル点列
+let a0 = new CompVis.Vector(0,0,1); // パラメータとその初期値(x0,y0,R)
+const f_k = (p,a) => {
+  // 渡す数式は、陰関数でf(x,y)=0としたときのf(x,y)を！
+  return (p.x-a.at(0))**2+(p.y-a.at(1))**2 - a.at(2)**2;
+}
+
+// 即時関数、非同期
+(async () => {
+  try{
+    const { a, s_list } = await CompVis.regression(a0, f_k, P, {
+      lambda: 1, // lambdaの初期値
+      nu: 10, // 学習率
+      repeat: 100 // LM法の繰り返しの適用数
+    });
+    console.log("パラメータ",a);
+    console.log("最終誤差",s_list[s_list.length-1]/P.length);
+
+    // --- ここからはおまけ(回帰で求めたものを、実際に描画する。例では、canvas id="myCanvas"に描画) ---
+
+    const canvas = document.getElementById("myCanvas");
+    // キャンバスサイズ設定
+    canvas.width = 600;
+    canvas.height = 600;
+
+    // インスタンス化 (dynamicモード推奨)
+    const view = new CompVis.View(canvas, {
+      mode: "dynamic",
+      showAxis: true,
+      autoScale: false
+    });
+
+    // --- 方程式 (x-x0)^2 + (y-y0)^2 - R^2 = 0) ---
+    view.addGraph(
+      (x,y) => (x-a.at(0))**2+(y-a.at(1))**2 - a.at(2)**2,
+      null, null, 
+      1, // 解像度(1px刻み)
+      { isImplicit: true, color: "blue" }
+    );
+
+    // サンプル点列を描画
+    for(let k = 0; k < P.length; k++) {
+      const p = P[k];
+      view.addPoint(p.x,p.y, { 
+        color: "green", 
+        radius: 5
+      });
+    }
+    
+    view.renderAll();
+    
+  } catch(e) {
+    console.log(e.message)
+  }
+})();
+*/
+
+//For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
+
+window.CompVis = class {
+  constructor() {
+    this.type = "CompVis";
+  }
+  
+  static _idSet = new Set();     // 全ID一意管理
+  static _idType = new Map();    // id -> type
+
+  static getId(type, len = 10) {
+    const chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let id;
+
+    do {
+      id = "";
+      for (let i = 0; i < len; i++) {
+        id += chars[Math.floor(Math.random() * chars.length)];
+      }
+    } while (this._idSet.has(id));
+
+    this._idSet.add(id);
+    this._idType.set(id, type);
+
+    return id;
+  }
+
+  static getType(id) {
+    return this._idType.get(id);
+  }
+
+  static deleteId(id) {
+    this._idSet.delete(id);
+    this._idType.delete(id);
+  }
+
+  static round(num, n=0) {
+    if(!Number.isInteger(n)) throw new Error("at CompVis.round ... The number of digits must be specified as an integer value.");
+    if(n >= 0) {
+      return Number(num.toFixed(n));
+    } else {
+      const N = -n;
+      return Math.round(num/10**N)*10**N;
+    }
+  }
+
+  static VectorToQuater(V) {
+    return new CompVis.Quater(Vector.values);
+  }
+
+  static VectorToMatrix(V, column = true) { // column ? 列ベクトル(n*1) : 行ベクトル(1*n)
+    return new CompVis.Matrix(
+      column ? V.values.map(k => [k]) : [V.clone.values]
+    );
+  }
+
+  static MatrixToVector(A, column = true) {
+    if(column) {
+      if(A.size[1] != 1) throw new Error("MatrixToVector < CompVis");
+      return new CompVis.Vector(A.values.flat());
+    } else {
+      if(A.size[0] != 1) throw new Error("MatrixToVector < CompVis");
+      return new CompVis.Vector(A.values[0]);
+    }
+  }
+
+  static ArrayToVector(L) {
+    if (CompVis.Vector.is(L)) return L;
+    else if (Array.isArray(L)) return new CompVis.Vector(L).clone;
+    else throw new Error("ArrayToVector > CompVis");
+  }
+
+  static QuaterToVector(Q) {
+    return Q.VectorInstance;
+  }
+  
+  static QuaterToMatrix3x3(q) {
+    const Q = q.clone;
+    const w = Q.w;
+    const x = Q.x;
+    const y = Q.y;
+    const z = Q.z;
+
+    const x2 = x + x;
+    const y2 = y + y;
+    const z2 = z + z;
+    
+    const xx = x * x2;
+    const xy = x * y2;
+    const xz = x * z2;
+    const yy = y * y2;
+    const yz = y * z2;
+    const zz = z * z2;
+    const wx = w * x2;
+    const wy = w * y2;
+    const wz = w * z2;
+
+    const R = [
+        [1 - (yy + zz), xy - wz, xz + wy],
+        [xy + wz, 1 - (xx + zz), yz - wx],
+        [xz - wy, yz + wx, 1 - (xx + yy)]
+    ];
+    
+    return new CompVis.Matrix(R);
+  }
+
+  static async regression(a, f_k, P, { lambda = 1, nu = 10, S = null, repeat=100} = {}) {
+    const s_list = [];
+    const N = P.length;
+    const I = CompVis.Matrix.identity(a.len);
+
+    const f = (a) => {
+      return new CompVis.Matrix(
+        P.map(p => [ f_k(p, a) ])
+      );
+    };
+
+    if (S == null) {
+      S = (a) => {
+        const r = f(a);
+        let s = 0;
+        for (let i = 0; i < N; i++) {
+          s += r.at(i, 0) ** 2;
+        }
+        return s / 2;
+      };
+    }
+
+    function jacobian(f, a, eps = 1e-6) {
+      const f0 = f(a);
+      const J = new Array(a.len);
+
+      for (let m = 0; m < a.len; m++) {
+        let a_eps = a.clone;
+        a_eps.setValue(m, a.at(m) + eps);
+
+        J[m] = CompVis.MatrixToVector(
+            f(a_eps).sub(f0).scale(1 / eps)
+          ).values;
+      }
+
+      return new CompVis.Matrix(J).transpose;
+    }
+
+    const tick = () => Promise.resolve();
+
+    function update() {
+      const S_a = S(a);
+      s_list.push(S_a);
+
+      const J = jacobian(f, a);
+      const napla = J.transpose.pro(f(a));
+      const JJ = J.transpose.pro(J);
+      const M = JJ.add(I.scale(lambda));
+
+      const a_trial = CompVis.MatrixToVector(CompVis.VectorToMatrix(a).sub(M.inverse.pro(napla)));
+
+      if (S_a > S(a_trial)) {
+        a = a_trial.clone;
+        lambda /= nu;
+      } else {
+        lambda *= nu;
+      }
+    }
+
+    for (let k = 0; k < repeat; k++) {
+      update();
+      await tick();
+    }
+    s_list.push(S(a));
+
+    return { a, s_list };
+  }
+
+  eval(Text, vars={}) { // ※absは、 | x | ではなく [ x ]
+    // 例:CompVis.eval("-1+2(3-4*5)[max(6,7+8)-9]/x");
+    return CompVis.Eval.run(Text, vars)
+  }
+
+  tokens(Text) {
+    return CompVis.Eval.getTokens(Text);
+  }
+
+  ast(Text) {
+    return CompVis.Eval.getAst(Text);
+  }
+}
+
+CompVis.Eval = class {
+  constructor() {
+    this.type = "Eval";
+  }
+  
+  static character = "[a-zA-Z\\u0391-\\u03A9\\u03B1-\\u03C9]"
+  
+  static numReg = "(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)" // 0.~, 非0
+  
+  static tokenRules = {
+    space: {re: /^\s+/},
+    comma: {re: /^,/},
+    parStart : {re: /^\(/},
+    parEnd :   {re: /^\)/},
+    add:   {re: /^\+/},
+    sub:   {re: /^\-/},
+    pro:   {re: /^\*/},
+    div:   {re: /^\//},
+    pow:   {re: /^\^/},
+    absStart:   {re: /^\[/},
+    absEnd:     {re: /^\]/},
+    // cosecがcos判定とならないように、cosより前に判定
+    csc:   {re: /^(csc|cosec)/, func: true, par: true},
+    sec:   {re: /^sec/, func: true, par: true},
+    cot:   {re: /^cot/, func: true, par: true},
+    arccsc:{re: /^(arccsc|acsc|arccosec|acosec)/, func: true, par: true},
+    arcsec:{re: /^(arcsec|asec)/, func: true, par: true},
+    arccot:{re: /^(arccot|acot)/, func: true, par: true},
+    sin:   {re: /^sin/, func: true, par: true},
+    cos:   {re: /^cos/, func: true, par: true},
+    tan:   {re: /^tan/, func: true, par: true},
+    arcsin:{re: /^(arcsin|asin)/, func: true, par: true},
+    arccos:{re: /^(arccos|acos)/, func: true, par: true},
+    arctan2: {re: /^(acrtan2|atan2)/, func: true},
+    arctan:{re: /^(arctan|atan)/, func: true, par: true},
+    log10: {re: /^log10/, func: true, par: true},
+    log:   {re: /^log/, func: true, par: true},
+    ln:    {re: /^ln/, func: true, par: true},
+    exp:   {re: /^exp/, func: true, par: true},
+    arg:   {re: /^arg/, func: true, par: true},
+    max:   {re: /^max/, func: true},
+    min:   {re: /^min/, func: true},
+    e:     {re: /^e(?!_)/},
+    i:     {re: /^i(?!_)/},
+    pi:    {re: /^pi|π/},
+    num:   {re: new RegExp(`^${this.numReg}`)},
+    value: {re: new RegExp(`^(?:${this.character}(?:(?:0|[1-9][0-9]*)(?!${this.character})|_(?:${this.character}|${this.numReg})*)?)`)},
+  }
+  
+  static bpList = {
+    add: {value: "+", bp: 10},
+    sub: {value: "-", bp: 10},
+    pro: {value: "*", bp: 50},
+    div: {value: "/", bp: 50},
+    pow: {value: "^", bp: 70},
+      
+    plus: {value: "+", bp: 100},
+    minus: {value: "-", bp: 100},
+  }
+  
+  static throwTokenError(location="", detailed="") {
+    const err = new Error("Unexpected Token."+(location ? " Location: "+location+" ." : "")+"\n"+detailed);
+    // console.log(err.stack)
+    throw err;
+  }
+  
+  static #tokenizer(Text) {
+    const numReg = this.numReg; // 数値の正規表現の文字列
+    const tokenRules = structuredClone(this.tokenRules);
+    
+    const tokens = [];
+    let i = 0;
+    let text = Text;
+    
+    while(i < Text.length) {
+      text = Text.slice(i);
+      let match = false;
+      if(text[0] === "|") throw new Error("Use [x] instead of |x| in the Abs function!")
+      for(const name of Object.keys(tokenRules)) {
+        const re = tokenRules[name].re;
+        const m = text.match(re);
+        if(m) {
+          match = true;
+          const method = m[0];
+          const token = {
+            type: name,
+            value: method,
+          }
+          if (tokenRules[name].func) token.func = tokenRules[name].func;
+          if (tokenRules[name].par)  token.par  = tokenRules[name].par;
+          tokens.push(structuredClone(token));
+          i += method.length;
+          break;
+        }
+      }
+      if(!match) {
+        this.throwTokenError("#tokenizer", text);
+        break;
+      }
+    }
+    
+    return tokens;
+  }
+  
+  static parser(Text) {
+    const struct = {};
+    const tokens = this.getTokens(Text);
+    
+    const parse = this.#parseExpression(tokens);
+    
+    return parse
+  }
+  
+  static #applyImplicitRules(originTokens) {
+    const origin = structuredClone(originTokens);
+    const tokens = [];
+    if(origin.length == 0) return tokens;
+    
+    if(origin[0].type === "add") origin[0].type = "plus";
+    if(origin[0].type === "sub") origin[0].type = "minus";
+    
+    for(let k = 0; k < origin.length - 1; k++) {
+      const a = origin[k];
+      if(a.type === "space") continue;
+      const b = origin[k+1];
+      if(a.type === "parStart" || a.type === "absStart") {
+        if(b.type === "add") b.type = "plus";
+        else if(b.type === "sub") b.type = "minus";
+      }
+      
+      tokens.push(structuredClone(origin[k]));
+      
+      if (b.type === "space") {
+        const c = origin[k+2];
+        if (c && this.#isOmitMul(a, c)) {
+          tokens.push({ type:"pro", value:"*" });
+        }
+      } else if(this.#isOmitMul(a, b)) {
+        tokens.push({
+          type: "pro",
+          value: "*"
+        });
+      }
+    }
+    tokens.push(structuredClone(origin[origin.length-1]));
+    return tokens;
+  }
+  
+  static #isOmitMul(a, b) {
+    if (["add", "sub", "pro", "div", "pow", "parEnd", "absEnd", "comma"].includes(b.type)) {
+    return false;
+  }
+  
+  // aが「開き記号」や「演算子」の場合は、その直後に掛け算を入れない
+  if (["parStart", "absStart", "add", "sub", "pro", "div", "pow", "comma", "plus", "minus"].includes(a.type)) {
+    return false;
+  }
+    return (
+      (a.type === "num" && b.type === "value") ||       // 2x
+      (a.type === "value" && b.type === "value") ||     // xy
+      (a.type === "parEnd" && b.type === "value") ||    // )x
+      (a.type === "value" && b.type === "parStart") ||  // x(
+      (a.type === "num" && b.type === "parStart") ||    // 2(
+      (a.type === "parEnd" && b.type === "parStart") || // )(
+      (a.type === "absEnd" && b.type === "value") ||    // ]x
+      (a.type === "value" && b.type === "absStart") ||  // x[
+      (a.type === "num" && b.type === "absStart") ||    // 2[
+      (a.type === "absEnd" && b.type === "absStart") || // ][
+      (a.type === "absEnd" && b.type === "parStart") || // ](
+      (a.type === "parEnd" && b.type === "absStart") || // )[
+      (!a.func && b.func) // xsin
+    );
+  }
+  
+  static #isErrorPair(a, b) {
+    return (
+      (a.type === "num" && b.type === "num") ||
+      (a.type === "value" && b.type === "num")
+    );
+  }
+  
+  static #parseExpression(tokens, minBp = 0) {
+    let left = this.#parsePrimary(tokens); // 数値や括弧などを取得
+
+    while (tokens.length > 0) {
+      const opToken = tokens[0];
+      const opInfo = this.bpList[opToken.type];
+      
+      if (!opInfo || opInfo.bp < minBp) break; // 次の演算子の方が弱ければ終了
+
+      tokens.shift(); // 演算子を消費
+      const nextBp = (opToken.type === "pow") ? opInfo.bp : opInfo.bp + 1;
+      const right = this.#parseExpression(tokens, nextBp);
+    
+      // 二項演算子のノードを作成
+      left = {
+        type: "BinaryExpression",
+        operator: opInfo.value,
+        left: left,
+        right: right
+      };
+    }
+    return left;
+  }
+  
+  static #parsePrimary(tokens) {
+    const token = tokens.shift(); // 先頭のトークンを取り出す
+
+    if (!token) throw new Error("式が途中で終わっています");
+
+    // 1. 数値や定数、変数
+    if (token.type === "num" || token.type === "value" || token.type === "pi" || token.type === "e" || token.type === "i") {
+      return { type: "Leaf", value: token.value, kind: token.type };
+    }
+
+    // 2. 単項演算子 (プラス・マイナス)
+    if (token.type === "minus" || token.type === "plus") {
+      // 結合力 100で右側を解析
+      const right = this.#parseExpression(tokens, 100); 
+      return { type: "UnaryExpression", operator: token.value, argument: right };
+    }
+
+    // 3. 括弧 (通常の計算順序の制御)
+    // ここにカンマ処理は入れない（(1, 2) という式は定義しないため）
+    if (token.type === "parStart") {
+      const expr = this.#parseExpression(tokens, 0); // 括弧内を解析
+      const next = tokens.shift();
+      if (!next || next.type !== "parEnd") throw new Error("閉じ括弧がありません");
+      return expr;
+    }
+
+    // 4. 関数 (sin, max など)
+    if (token.func) {
+      const next = tokens[0];
+      let args = [];
+
+      // 次が開き括弧なら、引数リストとして解析
+      if (next && next.type === "parStart") {
+        tokens.shift(); // '(' を消費
+
+        // 引数が空でないかチェック ( max() 対策 )
+        if (tokens[0] && tokens[0].type !== "parEnd") {
+          while (true) {
+            // 式を解析してリストに追加
+            args.push(this.#parseExpression(tokens, 0));
+
+            // カンマがあれば消費して次へ、なければループ終了
+            if (tokens[0] && tokens[0].type === "comma") {
+              tokens.shift(); 
+            } else {
+              break; 
+            }
+          }
+        }
+
+        const end = tokens.shift(); // ')' を消費
+        if (!end || end.type !== "parEnd") throw new Error(`関数 ${token.value} の閉じ括弧がありません`);
+      
+      } else {
+        // 括弧がない場合 (sin x など) - 優先度80で1つの引数を取る
+        args.push(this.#parseExpression(tokens, 80)); 
+      }
+      
+      return { type: "FunctionCall", name: token.type, arguments: args };
+    }
+
+    // 5. 絶対値 [x]
+    if (token.type === "absStart") {
+      const expr = this.#parseExpression(tokens, 0);
+      const next = tokens.shift();
+      
+      // トークンタイプは absEnd で判定
+      if (!next || next.type !== "absEnd") throw new Error("絶対値の閉じ記号 '|' がありません");
+      
+      // 関数として扱うため、arguments は配列にする
+      return { type: "FunctionCall", name: "abs", arguments: [expr] };
+    }
+
+    this.throwTokenError("#parsePrimary", "tokens: "+JSON.stringify(tokens));
+  }
+  
+  static #evaluate(node, vars = {}) {
+    switch (node.type) {
+      case "Leaf":
+        // 数値の場合
+        if (node.kind === "num") return parseFloat(node.value);
+        // 定数の場合
+        if (node.kind === "pi") return Math.PI;
+        if (node.kind === "e") return Math.E;
+        // 変数の場合
+        if (node.kind === "value") {
+          if (vars[node.value] !== undefined) return vars[node.value];
+          throw new Error(`変数 '${node.value}' が定義されていません`);
+        }
+        return 0;
+
+      case "UnaryExpression":
+        const argValue = this.#evaluate(node.argument, vars);
+        return node.operator === "-" ? -argValue : argValue;
+
+      case "BinaryExpression":
+        const left = this.#evaluate(node.left, vars);
+        const right = this.#evaluate(node.right, vars);
+        switch (node.operator) {
+          case "+": return left + right;
+          case "-": return left - right;
+          case "*": return left * right;
+          case "/": return left / right;
+          case "^": return Math.pow(left, right);
+        }
+        return 0;
+
+      case "FunctionCall":
+        const args = node.arguments.map(arg => this.#evaluate(arg, vars));
+        const v = args[0];
+        // tokenRules で定義した関数名に応じて Math 関数を呼び出す
+        switch (node.name) {
+          case "sin": return Math.sin(v);
+          case "cos": return Math.cos(v);
+          case "tan": return Math.tan(v);
+          case "log": return Math.log(v);
+          case "ln":  return Math.log(v);
+          case "log10": return Math.log10(v);
+          case "abs": return Math.abs(v);
+          case "exp": return Math.exp(v);
+          case "sqrt": return Math.sqrt(v);
+          case "arcsin": return Math.asin(v);
+          case "arccos": return Math.acos(v);
+          case "arctan": return Math.atan(v);
+          case "arctan2": return Math.atan2(args[0],args[1]);
+          case "max": return Math.max(...args);
+        }
+        return 0;
+    }
+  }
+  
+  static run(Text, vars={}) {
+    const ast = this.parser(Text);
+    return this.#evaluate(ast, vars);
+  }
+  
+  static getTokens(Text) {
+    const originTokens = this.#tokenizer(Text);
+    const tokens = this.#applyImplicitRules(originTokens);
+    
+    for(let k = 0; k < tokens.length-1; k++) if(this.#isErrorPair(tokens[k], tokens[k+1])) {
+      this.throwTokenError();
+      break;
+    }
+    
+    return tokens;
+  }
+  
+  static getAst(Text) {
+    return this.parser(Text);
+  }
+}
+
+CompVis.Complex = class {
+  constructor(k_real, k_imag) {
+    this.type = "Complex";
+    this._real = k_real;
+    this._imag = k_imag;
+  }
+  static ver = '1.01.02';
+  static time = '2025/9/17/18:30';
+  
+  //Methods that throw errors about functions whose arguments must be real numbers
+  #Error_Argument_real(k){
+    if(isNaN(k)){
+      throw new Error('CompVisJS-Argument error->The argument of this method must be a real number.')
+    }
+  }
+
+  get value(){
+    return [this._real,this._imag];
+  }
+  
+  static _value(k){
+    if(Array.isArray(k)){
+      let list_k = [];
+      for(let k_k = 0; k_k < k.length; k_k++){
+        list_k.push(k[k_k].value);
+      }
+      return list_k;
+    } else{
+      return k.value;
+    }
+  }
+  
+  get #mini_str(){
+    let k;
+    if(this._real == 0){
+      if(this._imag == 0){
+        k = "0";
+      } else {
+        k = String(this._imag)+"i";
+      }
+    } else {
+      k = String(this._real);
+      if(this._imag > 0){
+        k += "+"+String(this._imag)+"i";
+      } else if(this._imag < 0){
+        k += String(this._imag)+"i";
+      }
+    }
+    return k;
+  }
+  get str(){
+    return CompVis.Complex._str(this);
+  }
+  static _str(k){
+    if(Array.isArray(k)){
+      let list_k = [];
+      for(let k_k = 0; k_k < k.length; k_k++){
+        list_k.push(k[k_k].#mini_str);
+      }
+      return list_k;
+    } else {
+      return k.#mini_str;
+    }
+  }
+  
+  round(k=0){
+    let k_k;
+    if(k >= 0){
+      k_k = new CompVis.Complex(this._real.toFixed(k),this._imag.toFixed(k));
+    } else { // k < 0
+      k_k = new CompVis.Complex(Math.round(this._real/10**k)*10**k,Math.round(this._imag*10**k)/10**k)
+    }
+    return k_k;
+  }
+  static _round(value_k,k=0){
+    if(Array.isArray(value_k)){
+      let list_k = [];
+      for(let ind_k = 0; ind_k < value_k.length; ind_k++){
+        list_k.push(value_k[ind_k].round(k));
+      }
+      return list_k;
+    } else {
+      return value_k.round(k);
+    }
+  }
+  
+  #RtoI(k){
+    if(!isNaN(k)){
+      k = new CompVis.Complex(k,0);
+    }
+    return k;
+  }
+  
+  static _toComp(k){
+    if(Array.isArray(k[0])){
+      return k.map((j) => {
+        return new CompVis.Complex(j[0],j[1]);
+      })
+    } else {
+      return new CompVis.Complex(k[0],k[1]);
+    }
+  }
+  
+  get real(){
+    return this._real;
+  }
+  get imag(){
+    return this._imag;
+  }
+  get conj(){
+    return new CompVis.Complex(this._real,-this._imag);
+  }
+  get abs(){
+    return Math.sqrt(this._real*this._real+this._imag*this._imag);
+  }
+  get arg(){
+    return Math.atan2(this._imag,this._real);
+  }
+  get log(){
+    return new CompVis.Complex(Math.log(this.abs),this.arg);
+  }
+  get exp(){
+    return new CompVis.Complex(Math.cos(this._imag),Math.sin(this._imag)).pro(Math.exp(this._real));
+  }
+  
+  
+  static _DFT(l,return_type='normal'){
+    if(return_type != 'normal' && return_type != 'text_list') throw new Error("CompVisJS-Argument error->The second argument of the DFT method must be either 'normal' or 'text_list'.");
+    let N = l.length;
+    let abs = [];
+    let arg = [];
+    let return_value = [];
+    let F = [];
+    for(let k = 0; k < N; k++){
+      F.push(new CompVis.Complex(0,0));
+    
+      for(let j = 0; j < N; j++){
+        F[k] = F[k].add(new CompVis.Complex(0,1).pro(-2*Math.PI*j*k/N).exp.pro(l[j]));
+      }
+      F[k] = F[k].div(N);
+      if(return_type == 'normal') {
+        return_value.push({value:F[k],abs:F[k].abs,arg:F[k].arg});
+      } else {
+        return_value.push(`value:${F[k].str},abs:${F[k].abs},arg:${F[k].arg}`);
+      }
+    }
+    return return_value;
+  }
+  static _Real(k){
+    if(!Array.isArray(k)){
+      return k.real;
+    } else {
+      return k.map((j) => {
+        return j.real;
+      });
+    }
+  }
+  static _Imag(k){
+    if(!Array.isArray(k)){
+      return k.imag;
+    } else {
+      return k.map((j) => {
+        return j.imag;
+      });
+    }
+  }
+  
+  
+  add(k){
+    k = this.#RtoI(k);
+    return new CompVis.Complex(this._real+k.real,this._imag+k.imag);
+  }
+  sub(k){
+    k = this.#RtoI(k);
+    return new CompVis.Complex(this._real-k.real,this._imag-k.imag);
+  }
+  pro(k){
+    k = this.#RtoI(k);
+    return new CompVis.Complex(this._real*k.real-this._imag*k.imag,this._real*k.imag+this._imag*k.real);
+  }
+  div(k){
+    k = this.#RtoI(k);
+    let k_k = this.pro(k.conj);
+    let k_abs2 = k.abs*k.abs;
+    return new CompVis.Complex(k_k.real/k_abs2,k_k.imag/k_abs2);
+  }
+  log_n(k){
+    this.#Error_Argument_real(k);
+    return new CompVis.Complex(Math.log(this.abs)/Math.log(k),this.arg/Math.log(k));
+  }
+  pow_by(k){
+    k = this.#RtoI(k);
+    let k_k = k.pro(this.log);
+    return k_k.exp;
+  }
+  pow_of(k){
+    k = this.#RtoI(k);
+    let k_k = this.pro(k.log);
+    return k_k.exp;
+  }
+  rotate(k){
+    this.#Error_Argument_real(k);
+    k = new CompVis.Complex(0,1).pro(k).exp;
+    return this.pro(k);
+  }
+}
+
+CompVis.Vector = class {
+  constructor(...elems) {
+    this.type = "Vector";
+    if(Array.isArray(elems[0])) {
+      this.values = elems[0];
+    } else if(Number.isFinite(elems[0])) {
+      this.values = elems;
+    } else if(typeof elems[0] == "object") {
+      const elem = elems[0];
+      this.values = [];
+      if(elem.x == null) throw new Error("constructor < Vector : Ex...{x:1,y:2,z:3}");
+      this.values.push(elem.x);
+      if(elem.y != null) {
+        this.values.push(elem.y);
+        if(elem.z != null) {
+          this.values.push(elem.z);
+        }
+      }
+    }
+  }
+
+  static is(obj) {
+    return typeof obj === "object" && obj !== null && obj instanceof CompVis.Vector;
+  }
+  
+  get len() {
+    return this.values.length;
+  }
+  
+  get clone() {
+    return new CompVis.Vector(structuredClone(this.values));
+  }
+  
+  get str() {
+    return this.values.join(", ");
+  }
+
+  get strs() {
+    const v = this.values;
+    if (v.length == 2) {
+      return `x:${v[0]} y:${v[1]}`;
+    } else if (v.length == 3) {
+      return `x:${v[0]} y:${v[1]} z:${v[2]}`;
+    }
+    return this.str;
+  }
+
+  get x() {
+    return this.values[0];
+  }
+  
+  get y() {
+    if(this.len < 2) throw new Error("y < Vector");
+    return this.values[1];
+  }
+  
+  get z() {
+    if(this.len < 3) throw new Error("z < Vector");
+    return this.values[2];
+  }
+
+  at(k) { // ※ 0始まり
+    return this.values[k];
+  }
+
+  lerp(u, t) { // 線形補完 v*(1-t)+u*t
+    return this.clone.scale(1-t).add(u.clone.scale(t)).clone;
+  }
+  
+  getValue(ind) {
+    return structuredClone(this.values)[ind];
+  }
+
+  setValue(ind, k) { // 破壊的
+    const values = this.values;
+    values[ind] = k;
+  }
+  
+  add(u) {
+    const v = this.clone;
+    if(Number.isFinite(u)) {
+      return new CompVis.Vector(v.values.map(k => k+u));
+    } else {
+      if(v.len != u.len) throw new Error("add < Vector");
+      return new CompVis.Vector(v.values.map((k, ind) => k+u.values[ind]));
+    }
+  }
+  
+  sub(u) {
+    const v = this.clone;
+    if(Number.isFinite(u)) {
+      return new CompVis.Vector(v.values.map(k => k-u));
+    } else {
+      if(v.len != u.len) throw new Error("sub < Vector");
+      return new CompVis.Vector(v.values.map((k, ind) => k-u.values[ind]));
+    }
+  }
+  
+  dot(u) {
+    const v = this.clone;
+    if(v.len != u.len) throw new Error("dot < Vector");
+    let ret = 0;
+    for(let ind = 0; ind < v.len; ind++) {
+      ret += v.values[ind]*u.values[ind];
+    }
+    return ret;
+  }
+  
+  cross(u) {
+    const v = this.clone;
+    if(v.len != 3 || u.len != 3) throw new Error("cross < Vector");
+    const v_val = v.values;
+    const u_val = u.values;
+    return new CompVis.Vector(v_val[1]*u_val[2]-v_val[2]*u_val[1],v_val[2]*u_val[0]-v_val[0]*u_val[2],v_val[0]*u_val[1]-v_val[1]*u_val[0]);
+  }
+  
+  cross_l(u) {
+    return u.cross(this);
+  }
+  
+  scale(k) {
+    const v = this.clone.values;
+    return new CompVis.Vector(v.map(value => value*k));
+  }
+
+  round(n=0) {
+    const v = this.clone.values;
+    return new CompVis.Vector(v.map(value => CompVis.round(value, n)));
+  }
+  
+  get abs() {
+    return Math.sqrt(this.values.reduce((pre, cur) => pre+cur**2,0));
+  }
+  
+  get negate() {
+    return this.scale(-1);
+  }
+  
+  get normalize() {
+    if(this.abs < 10e-8) return new CompVis.Vector(0,0,0);
+    return this.scale(1/this.abs);
+  }
+}
+
+CompVis.Quater = class {
+  constructor(a=null,b=null,c=null,d=null) {
+    this.type = "Quater";
+    if (a != null&&typeof a=='object') {
+      if(Array.isArray(a)) {
+        b = a[1];
+        c = a[2];
+        d = a[3];
+        a = a[0];
+      } else {
+        this.w = "w" in a ? a.w : 0;
+        this.x = "x" in a ? a.x : 0;
+        this.y = "y" in a ? a.y : 0;
+        this.z = "z" in a ? a.z : 0;
+        return;
+      }
+    }
+
+    if(a!=null&&b!=null&&c==null&&d==null) {
+      if(typeof a=="number"&&typeof b=="object") {
+        if(Array.isArray(b)) {
+          c = b[1];
+          d = b[2];
+          b = b[0];
+        } else {
+          this.w = a;
+          this.x = "x" in b ? b.x : 0;
+          this.y = "y" in b ? b.y : 0;
+          this.z = "z" in b ? b.z : 0;
+          return;
+        }
+      }
+    }
+
+    if(a==null&&b==null&&c==null&&d==null) {
+      this.w = 0;
+      this.x = 0;
+      this.y = 0;
+      this.z = 0;
+      return;
+    } else if(a!=null&&b==null&&c==null&&d==null) {
+      if(typeof a=="number") {
+        this.w = a;
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+        return;
+      }
+    } else if(a!=null&&b!=null&&c!=null&&d==null) {
+      if(typeof a=="number"&&typeof b=="number"&&typeof c=="number") {
+        this.w = 0;
+        this.x = a;
+        this.y = b;
+        this.z = c;
+        return;
+      }
+    } else if(a!=null&&b!=null&&c!=null&&d!=null) {
+      if(typeof a=="number"&&typeof b=="number"&&typeof c=="number"&&typeof d=="number") {
+        this.w = a;
+        this.x = b;
+        this.y = c;
+        this.z = d;
+        return;
+      }
+    }
+
+    throw new Error("constructor < Quater");
+  }
+
+  get val() {
+    return {
+      w: this.w,
+      x: this.x,
+      y: this.y,
+      z: this.z
+    }
+  }
+
+  get scalar() {
+    return this.w;
+  }
+
+  get vector() {
+    const Q = this.clone;
+    Q.w = 0;
+    return Q;
+  }
+
+  get VectorInstance() {
+    const Q = this.clone;
+    return new CompVis.Vector(Q.x, Q.y, Q.z);
+  }
+
+  get str() {
+    const [w,x,y,z] = [this.w,this.x,this.y,this.z];
+    if(w == 0 && x == 0 && y == 0 && z == 0) return "0"
+    let text = "";
+    if(w != 0) text += w.toString();
+    if(x != 0) text += (x > 0 && text != "" ? "+" : "") + x.toString()+"i";
+    if(y != 0) text += (y > 0 && text != "" ? "+" : "") + y.toString()+"j";
+    if(z != 0) text += (z > 0 && text != "" ? "+" : "") + z.toString()+"k";
+    return text;
+  }
+
+  get strs() {
+    return `w:${this.w} x:${this.x} y:${this.y} z:${this.z}`;
+  }
+
+  strFormat(text) {
+    const values = this.val;
+    let result = "";
+    let i = 0;
+
+    while (i < text.length) {
+      let bsCount = 0;
+
+      // $ の直前のバックスラッシュの数を数える
+      while (i < text.length && text[i] === "\\") {
+        bsCount++;
+        i++;
+      }
+
+      if (i < text.length && text[i] === "$") {
+        // $ の後の変数名を取得
+        let j = i + 1;
+        let varName = "";
+        while (j < text.length && /[a-zA-Z0-9_]/.test(text[j])) {
+          varName += text[j];
+          j++;
+        }
+
+        if (varName) {
+          if (bsCount % 2 === 0) {
+            // 偶数 → 置換
+            result += "\\".repeat(bsCount / 2) + (values[varName] !== undefined ? values[varName] : "$" + varName);
+          } else {
+            // 奇数 → エスケープ扱いで $varName を残す
+            result += "\\".repeat(Math.floor(bsCount / 2)) + "$" + varName;
+          }
+          i = j; // 変数名の最後まで進める
+          continue;
+        }
+      }
+
+      // バックスラッシュだけ書き出す
+      result += "\\".repeat(bsCount);
+      if (i < text.length) result += text[i++];
+    }
+
+    return result;
+  }
+
+  get clone() {
+    return new CompVis.Quater(this.val);
+  }
+
+  round(n) {
+    return new CompVis.Quater(this.clone.val.map(value => CompVis.rounc(value,n)));
+  }
+
+  _w(w) {
+    const Q = this.clone;
+    Q.w = w;
+    return Q;
+  }
+
+  _x(x) {
+    const Q = this.clone;
+    Q.x = x;
+    return Q;
+  }
+
+  _y(y) {
+    const Q = this.clone;
+    Q.y = y;
+    return Q;
+  }
+
+  _z(z) {
+    const Q = this.clone;
+    Q.z = z;
+    return Q;
+  }
+
+  static convert(q) {
+    if(!(q instanceof CompVis.Quater)) {
+      try {
+        q = new CompVis.Quater(q);
+      } catch(e) {
+        throw new Error("convert < Quater");
+      }
+    }
+    return q; 
+  }
+
+  static rotAxis(axis, theta) {
+    if(axis.w != 0) throw new Error("rotAxis < Quater");
+    return axis.normalize.pro(Math.sin(theta/2)).add(Math.cos(theta/2));
+  }
+
+  static rot(axis, p) {
+    if(p instanceof window.CompVis.Vector) {
+      p = CompVis.VectorToQuater(p);
+    }
+    return axis.pro(p).pro(axis.inv);
+  }
+
+  static rotInv(axis, p) {
+    return axis.inv.pro(p).pro(axis);
+  }
+
+  static rotAxisFromEuler(order, ...thetas) {
+    // 例:Com~ter.getFromEuler("xyz",θx,θy,θz);
+    const axes = [];
+    for(let k = 0; k < 3; k++) {
+      switch(order.charAt(k)) {
+        case "x":
+          axes.push(new CompVis.Quater(1,0,0));
+          break;
+        case "y":
+          axes.push(new CompVis.Quater(0,1,0));
+          break;
+        case "z":
+          axes.push(new CompVis.Quater(0,0,1));
+          break;
+        default:
+          throw new Error("rotAxisFromEuler < Quater");
+      }
+    }
+    return [0,1,2].reduce((q,ind) => 
+                            CompVis.Quater.rotAxis(axes[ind], thetas[ind]).pro(q) // 逆順になるように
+                          ,new CompVis.Quater(1));
+  }
+
+  add(q) {
+    q = CompVis.Quater.convert(q);
+    const s = this.clone;
+    s.w += q.w;
+    s.x += q.x;
+    s.y += q.y;
+    s.z += q.z;
+    return s;
+  }
+
+  sub(q) {
+    q = CompVis.Quater.convert(q);
+    const s = this.clone;
+    s.w -= q.w;
+    s.x -= q.x;
+    s.y -= q.y;
+    s.z -= q.z;
+    return s;
+  }
+
+  pro(q) { // pro_rと全く同じ！ Q*q
+    if(typeof q == "number") {
+      return new CompVis.Quater(this.w*q, this.x*q, this.y*q, this.z*q);
+    }
+
+    const Q = this.clone;
+
+    const s = new CompVis.Quater();
+    s.w = q.w*Q.w-q.x*Q.x-q.y*Q.y-q.z*Q.z;
+    s.x = q.w*Q.x+q.x*Q.w-q.y*Q.z+q.z*Q.y;
+    s.y = q.w*Q.y+q.y*Q.w+q.x*Q.z-q.z*Q.x;
+    s.z = q.w*Q.z+q.z*Q.w-q.x*Q.y+q.y*Q.x;
+    return s;
+  }
+
+  pro_r(q) { // Q*q
+    return this.pro(q);
+  }
+
+  pro_l(q) { // q*Q
+    if(typeof q == "number") {
+      return new CompVis.Quater(this.w*q, this.x*q, this.y*q, this.z*q);
+    }
+    const Q = this.clone;
+    const s = new CompVis.Quater();
+    s.w = Q.w*q.w-Q.x*q.x-Q.y*q.y-Q.z*q.z;
+    s.x = Q.w*q.x+Q.x*q.w-Q.y*q.z+Q.z*q.y;
+    s.y = Q.w*q.y+Q.y*q.w+Q.x*q.z-Q.z*q.x;
+    s.z = Q.w*q.z+Q.z*q.w-Q.x*q.y+Q.y*q.x;
+    return s;
+  }
+
+  div(q) {
+    if(typeof q == "number") return this.pro(1/q);
+    return this.pro(q.inv);
+  }
+
+  div_by(q) {
+    if(typeof q == "number") return this.inv.pro(q);
+    return q.div(this);
+  }
+
+  get exp() {
+    const r = this.vector.norm;
+    const exp = Math.exp(this.w);
+    if(r == 0) return new CompVis.Quater(exp);
+    const c = Math.cos(r);
+    const s = Math.sin(r);
+    return new CompVis.Quater(exp*c,exp*s*this.x/r,exp*s*this.y/r,exp*s*this.z/r);
+  }
+
+  get log() {
+    return this.vector.normalize.pro(this.angle).add(Math.log(this.norm));
+  }
+
+  logN(n) {
+    return this.log.div(Math.log(n));
+  }
+
+  logBranch(k) {
+    if(!Number.isInteger(k)) throw new Error("logBranch < Quater ｜ Argument is not Integer.");
+    return this.vector.normalize.pro(this.angle+2*Math.PI*k).add(Math.log(this.norm));
+  }
+
+  get norm() {
+    return Math.sqrt(this.w**2+this.x**2+this.y**2+this.z**2);
+  }
+
+  get conj() {
+    return new CompVis.Quater(this.w,-this.x,-this.y,-this.z);
+  }
+
+  get normalize() {
+    return this.pro(1/this.norm); // this.proがthisと異なるインスタンスを作成している！
+  }
+
+  get inv() {
+    return this.conj.pro(1/this.norm**2); // this.proがthisと異なるインスタンスを作成している！
+  }
+
+  get angle() { // this.normalizeがthisと異なるインスタンスを作成している！
+    const R = this.norm;
+    if(R == 0) return 0;
+    const r = this.vector.norm;
+    return Math.atan2(r/R, this.w/R);
+  }
+
+  round(n=0) {
+    if(!Number.isInteger(n)) throw new Error("round < Quater ｜ Argument is not Integer.");
+    if(n > 0) { // 小数点以下n桁で(n+1桁目を四捨五入)
+      return new CompVis.Quater(
+        parseFloat(this.w.toFixed(n)),
+        parseFloat(this.x.toFixed(n)),
+        parseFloat(this.y.toFixed(n)),
+        parseFloat(this.z.toFixed(n))
+      );
+    }
+
+    // n <= 0;
+    const pow10 = 10**n; // 小数。(10^-⚪︎);
+    const zeros = "0".repeat(-n);
+    return new CompVis.Quater(
+      parseInt((this.w*pow10).toFixed()+zeros),
+      parseInt((this.x*pow10).toFixed()+zeros),
+      parseInt((this.y*pow10).toFixed()+zeros),
+      parseInt((this.z*pow10).toFixed()+zeros)
+    );
+  }
+}
+
+CompVis.View = class {
+  constructor(canvasElem, options = {}) {
+    this.type = "View";
+    this.canvas = canvasElem;
+    this.ctx = this.canvas.getContext("2d");
+    this.dpi = window.devicePixelRatio || 1;
+    this.graphs = new Map();
+    this.points = new Map();
+    this.arrows = new Map();
+
+    // 初期座標・拡大率（gridコード準拠）
+    this.offsetX = 0;
+    this.offsetY = 0;
+
+    // 1単位＝100px（初期）
+    this.xScale = 100;
+    this.yScale = 100;
+
+    // 制限値
+    this.MIN_SCALE = 1e-4;
+    this.MAX_SCALE = 1e6;
+
+    // タッチ操作用変数
+    this.lastTouchDist = null;
+    this.lastTouchCenter = null;
+    this.lastPanPos = null;
+
+    this.resize();
+    window.addEventListener("resize", () => this.resize());
+
+    //mode -> static : mainOption適用。
+    //     -> dynamic: mainOption適用しない。
+    this.mode = options.mode !== undefined ? options.mode : "static";
+    this.autoScale = options.autoScale !== undefined ? options.autoScale : true;
+    this.showGrid = options.showGrid !== undefined ? options.showGrid : true;
+    this.showAxis = options.showAxis !== undefined ? options.showAxis : true;
+    this.showLabel = options.showLabel !== undefined ? options.showLabel : true;
+    this.rangeX = options.rangeX !== undefined ? options.rangeX : [-this.W / 2, this.W / 2];
+    this.rangeY = options.rangeY !== undefined ? options.rangeY : [-this.H / 2, this.H / 2];
+
+    if (this.mode === "dynamic") {
+      // イベント登録
+      this.canvas.addEventListener("wheel", e => this.onWheel(e));
+      this.canvas.addEventListener("touchstart", e => this.onTouchStart(e), {
+        passive: false
+      });
+      this.canvas.addEventListener("touchmove", e => this.onTouchMove(e), {
+        passive: false
+      });
+      this.canvas.addEventListener("touchend", e => this.onTouchEnd(e));
+    }
+  }
+
+  static help() {
+    return {
+      list: Object.getOwnPropertyNames(CompVis.View.prototype),
+      url: "",
+      explain: {
+        CONSTRUCTOR: 'canvas要素とoptionsを引数にとる。optionsはobject型(連想配列)。以下、keyとvalue(*はdefault値) - mode<string>: *"static"(グラフ表示域固定) or "dynamic"(グラフ表示域変動(タッチ操作)(初期状態の描画範囲は画面中央に原点、1単位100px)) - autoScale<bool>: *true(グラフ全体を表示するよう表示域設定(static時のみ)) or false()',
+        resize: "canvasのサイズやdpiの変更を読み取る",
+        addGraph: ""
+      }
+    }
+  }
+
+  //----------------
+  // resize
+  //----------------
+  resize() {
+    const rect = this.canvas.getBoundingClientRect();
+    this.canvas.width = rect.width * this.dpi;
+    this.canvas.height = rect.height * this.dpi;
+    this.canvas.style.width = rect.width + "px";
+    this.canvas.style.height = rect.height + "px";
+    this.ctx.setTransform(this.dpi, 0, 0, this.dpi, 0, 0);
+    this.W = this.canvas.width / this.dpi;
+    this.H = this.canvas.height / this.dpi;
+    this.renderAll();
+  }
+
+  //----------------
+  // グラフ追加
+  //----------------
+
+  // a -> options.start, b -> options.end, span -> samples, isImplicitとisParametricをまとめてoptions.typeに(function,implicit,parametric), options.autoRange追加
+  addGraph(f, options = {}) {
+    const type = options.type ?? "function";
+    // 陰関数の場合、ループ計算を行わずに登録
+    const id = CompVis.getId(this.type);
+    if (type == "implicit") {
+      const graph = {
+        type: "implicit",
+        f,
+        // 陰関数の場合、samplesは解像度(stepPx)の目安として利用可能だが、
+        // 省略時はデフォルト値を使用するためここでは保存のみ
+        resolution: options.samples || 8, 
+        color: options.color !== undefined ? options.color : "#000",
+        /*isImplicit: true,
+        isParametric: false,*/
+        lineWidth: options.lineWidth !== undefined ? options.lineWidth : 2,
+      };
+      this.graphs.set(id, graph);
+      return id;
+    }
+
+    /*for (let i = 0; i <= samples; i++) {
+      const t = start + (end - start) * i / samples;
+      let res;
+      try {
+        res = f(t);
+      } catch {
+        continue;
+      }
+      if (res instanceof Array) {
+        options.isParametric = true;
+        break;
+      }
+    }*/
+    
+    const autoRange = options.autoRange || options.start == null || options.end == null || options.samples == null;
+    const graph = {
+      type,
+      f, // グラフの関数
+      start: options.start, // 定義域の初め
+      end: options.end, // 定義域の終わり
+      samples: options.samples, // 定義域を何分割するか
+      // 定義域の指定(start,end,samplesのこと)を適用するか
+      autoRange,
+      color: options.color !== undefined ? options.color : "#000", // 線の色
+      
+      //isParametric: options.isParametric !== undefined ? options.isParametric : true,
+      // グラフの線の太さ
+      lineWidth: options.lineWidth !== undefined ? options.lineWidth : 2,
+    };
+    this.graphs.set(id, graph);
+    //this.renderAll();
+    return id;
+  }
+  
+  addPoint(x, y, options = {}) {
+    const id = CompVis.getId(this.type);
+    const point = {
+      x: x,
+      y: y,
+      color: options.color || "#f00",     // デフォルト赤
+      radius: options.radius || 4,        // デフォルト半径4px
+      fill: options.fill !== undefined ? options.fill : true // デフォルト塗りつぶし
+    };
+    this.points.set(id, point);
+    return id;
+  }
+
+  addArrow(type, init, termOrVec, options = {}) {
+    if (type != "vector" && type != "point") throw new Error('addArrow < View ｜ "type" argument must be "vector" or "point".');
+    if (!CompVis.Vector.is(termOrVec) && Array.isArray(termOrVec) && termOrVec.length === 2) termOrVec = new CompVis.Vector(termOrVec).clone;
+    if (!CompVis.Vector.is(init) && Array.isArray(init) && init.length === 2) init = new CompVis.Vector(init).clone;
+    const vector = type == "vector" ? termOrVec : termOrVec.sub(init);
+    const p = CompVis.ArrayToVector(init);
+    const q = p.add(vector);
+
+    const id = CompVis.getId(this.type);
+
+    const arrow = {
+      p,
+      vector,
+      q,
+      color: options.color || "#000",
+      weight: options.weight || 2,
+      theta: options.theta || Math.PI/6,
+      // tipSize: 先端の長さの関数
+      tipSize: options.tipSize || ((len, theta) => Math.min(len/Math.cos(theta/2), 15)),
+      fill: options.fill !== undefined ? options.fill : true,
+      triangle: options.triangle !== undefined ? options.triangle : true
+    }
+
+    this.arrows.set(id, arrow);
+    return id;
+  }
+
+  updatePoint(id, x, y, options={}) {
+    if (CompVis.getType(id) !== this.type) throw new Error("updatePoint < View ｜ type of id doesn't match.");
+    
+  }
+
+  getGraphPoints(id) {
+    const graph = this.graphs.get(id);
+    // 陰関数の場合は事前に点を計算できないため空配列を返す
+    if (graph.isImplicit) return [];
+
+    const points = [];
+    const { f, start, end, samples } = graph;
+
+    for (let i = 0; i <= samples; i++) {
+      const t = start + (end - start) * i / samples;
+      let res;
+      try {
+        res = f(t);
+      } catch {
+        continue;
+      }
+      if (Array.isArray(res) && res.length >= 2) {
+        points.push({ x: res[0], y: res[1] });
+      } else if (typeof res === "number") {
+        points.push({ x: t, y: res });
+      }
+    }
+    return points;
+  }
+
+  clear() {
+    this.ctx.clearRect(0, 0, this.W, this.H);
+  }
+  
+  //----------------
+  // グラフ全体描画
+  //----------------
+  renderAll() {
+    this.ctx.clearRect(0, 0, this.W, this.H);
+
+    // staticモードの場合のみスケールを計算
+    if (this.mode === "static") {
+      let minX = Infinity,
+        maxX = -Infinity,
+        minY = Infinity,
+        maxY = -Infinity;
+
+      for (const [id,_] of this.graphs) {
+        const points = this.getGraphPoints(id);
+        if (points.length > 0) {
+          minX = Math.min(minX, ...points.map(p => p.x));
+          maxX = Math.max(maxX, ...points.map(p => p.x));
+          minY = Math.min(minY, ...points.map(p => p.y));
+          maxY = Math.max(maxY, ...points.map(p => p.y));
+        }
+      }
+      
+      for (const [_,p] of this.points) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+      }
+      
+      // 陰関数のみの場合は範囲計算をスキップ（またはデフォルト範囲を使用）
+      if (minX === Infinity && !this.autoScale) {
+          // do nothing, rely on rangeX/Y
+      } else if (this.autoScale && minX !== Infinity) {
+        this.xScale = (this.W - 20) / ((maxX - minX) || 1);
+        this.yScale = (this.H - 20) / ((maxY - minY) || 1);
+        this.offsetX = (minX + maxX) / 2;
+        this.offsetY = (minY + maxY) / 2;
+      } else {
+        const fixedMinX = Math.min(this.rangeX[0], this.rangeX[1]);
+        const fixedMaxX = Math.max(this.rangeX[0], this.rangeX[1]);
+        const fixedMinY = Math.min(this.rangeY[0], this.rangeY[1]);
+        const fixedMaxY = Math.max(this.rangeY[0], this.rangeY[1]);
+        this.xScale = this.W / (fixedMaxX - fixedMinX);
+        this.yScale = this.H / (fixedMaxY - fixedMinY);
+        this.offsetX = (this.rangeX[0] + this.rangeX[1]) / 2;
+        this.offsetY = (this.rangeY[0] + this.rangeY[1]) / 2;
+      }
+    }
+
+    // グリッド・軸を先に描画
+    if (this.showGrid) {
+      this.drawGrid();
+    }
+    if (this.showAxis) {
+      this.drawAxis();
+    }
+    if (this.showLabel) {
+      this.drawLabel();
+    }
+
+    // グラフを描画
+    const viewData = [];
+    for (const [id,_] of this.graphs) {
+      viewData.push(this.renderGraph(id));
+    }
+    
+    this.renderPoints();
+    this.renderArrows();
+
+    return viewData;
+  }
+
+  calcRange() {
+    let wid = this.W / (2 * this.xScale);
+    let hei = this.H / (2 * this.yScale);
+
+    return {
+      canvas_start: -wid + this.offsetX,
+      canvas_end: wid + this.offsetX
+    };
+  }
+
+  //----------------
+  // グリッド描画（元gridコードをほぼそのまま）
+  //----------------
+  calcSpacing() {
+    const idealPx = 15;
+    let factorList = [];
+    [this.xScale, this.yScale].forEach((k) => {
+      const raw = idealPx / k;
+      const exp = Math.floor(Math.log10(raw));
+      const base = raw / Math.pow(10, exp);
+      let factor;
+      if (base <= 1) factor = 1;
+      else if (base <= 2) factor = 2;
+      else if (base <= 5) factor = 5;
+      else factor = 10;
+      factorList.push(factor * Math.pow(10, exp));
+    });
+    return {
+      x: factorList[0],
+      y: factorList[1]
+    };
+  }
+
+  drawLabel() {
+    const ctx = this.ctx;
+    const spacing = this.calcSpacing();
+    const spacingPx = {
+      x: spacing.x * this.xScale,
+      y: spacing.y * this.yScale
+    };
+    const originX = this.W / 2 - this.offsetX * this.xScale;
+    const originY = this.H / 2 + this.offsetY * this.yScale;
+
+    ctx.font = '12px sans-serif';
+    const fontSize = 12;
+    const margin = 8; // 文字周囲の余裕
+    ctx.textBaseline = 'top';
+
+    // 縦グリッド線
+    let firstX = originX % spacingPx.x;
+    for (let x = firstX; x <= this.W; x += spacingPx.x) {
+      const gridX = Math.round((x - originX) / this.xScale / spacing.x) * spacing.x;
+      const idx = Math.round(gridX / spacing.x);
+
+      if (idx % 5 === 0 && Math.abs(gridX) > 1e-10) {
+        ctx.fillStyle = '#000';
+        const text = parseFloat(gridX.toFixed(6)).toString();
+        const metrics = ctx.measureText(text);
+        let tx = x + margin;
+        let ty = originY + margin;
+
+        // 文字が画面外に出ないように調整
+        if (tx + metrics.width > this.W) tx = this.W - metrics.width - margin;
+        if (tx < 0) tx = margin;
+        if (ty + fontSize > this.H) ty = this.H - fontSize - margin;
+        if (ty < 0) ty = margin;
+
+        ctx.fillText(text, tx, ty);
+      }
+    }
+
+    // 横グリッド線
+    let firstY = originY % spacingPx.y;
+    for (let y = firstY; y <= this.H; y += spacingPx.y) {
+      const gridY = Math.round((originY - y) / this.yScale / spacing.y) * spacing.y;
+      const idx = Math.round(gridY / spacing.y);
+
+      if (idx % 5 === 0 && Math.abs(gridY) > 1e-10) {
+        ctx.fillStyle = '#000';
+        const text = parseFloat(gridY.toFixed(6)).toString();
+        const metrics = ctx.measureText(text);
+        let tx = originX + margin;
+        let ty = y + margin;
+
+        // 文字が画面外に出ないように調整
+        if (tx + metrics.width > this.W) tx = this.W - metrics.width - margin;
+        if (tx < 0) tx = margin;
+        if (ty + fontSize > this.H) ty = this.H - fontSize - margin;
+        if (ty < 0) ty = margin;
+
+        ctx.fillText(text, tx, ty);
+      }
+    }
+
+    // 0ラベル
+    ctx.fillStyle = '#000';
+    const originText = '0';
+    const originMetrics = ctx.measureText(originText);
+    let ox = originX + margin;
+    let oy = originY + margin;
+
+    if (ox + originMetrics.width > this.W) ox = this.W - originMetrics.width - margin;
+    if (ox < 0) ox = margin;
+    if (oy + fontSize > this.H) oy = this.H - fontSize - margin;
+    if (oy < 0) oy = margin;
+    let oPosX = -this.offsetX * this.xScale + this.W / 2;
+    let oPosY = -this.offsetY * this.yScale + this.H / 2;
+    if ((0 < oPosX && oPosX < this.W) || (0 < oPosY && oPosY < this.H)) {
+      ctx.fillText(originText, ox, oy);
+    }
+  }
+
+  drawGrid() {
+    const ctx = this.ctx;
+    const spacing = this.calcSpacing();
+    const spacingPx = {
+      x: spacing.x * this.xScale,
+      y: spacing.y * this.yScale
+    };
+    const originX = this.W / 2 - this.offsetX * this.xScale;
+    const originY = this.H / 2 + this.offsetY * this.yScale;
+
+    ctx.font = '12px sans-serif';
+    const fontSize = 12;
+    const margin = 8; // 文字周囲の余裕
+    ctx.textBaseline = 'top';
+
+    // 縦グリッド線
+    let firstX = originX % spacingPx.x;
+    for (let x = firstX; x <= this.W; x += spacingPx.x) {
+      const gridX = Math.round((x - originX) / this.xScale / spacing.x) * spacing.x;
+      const idx = Math.round(gridX / spacing.x);
+
+      ctx.beginPath();
+      ctx.strokeStyle = (idx % 5 === 0) ? '#aaa' : '#ddd';
+      ctx.lineWidth = (idx % 5 === 0) ? 2 : 1;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, this.H);
+      ctx.stroke();
+    }
+
+    // 横グリッド線
+    let firstY = originY % spacingPx.y;
+    for (let y = firstY; y <= this.H; y += spacingPx.y) {
+      const gridY = Math.round((originY - y) / this.yScale / spacing.y) * spacing.y;
+      const idx = Math.round(gridY / spacing.y);
+
+      ctx.beginPath();
+      ctx.strokeStyle = (idx % 5 === 0) ? '#aaa' : '#ddd';
+      ctx.lineWidth = (idx % 5 === 0) ? 2 : 1;
+      ctx.moveTo(0, y);
+      ctx.lineTo(this.W, y);
+      ctx.stroke();
+    }
+  }
+
+  drawAxis() {
+    const ctx = this.ctx;
+    const originX = this.W / 2 - this.offsetX * this.xScale;
+    const originY = this.H / 2 + this.offsetY * this.yScale;
+    // 軸線は変更せず
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    ctx.moveTo(0, originY);
+    ctx.lineTo(this.W, originY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(originX, 0);
+    ctx.lineTo(originX, this.H);
+    ctx.stroke();
+  }
+
+  //----------------
+  // グラフ描画
+  //----------------
+  renderGraph(id) {
+    const graph = this.graphs.get(id);
+    // 陰関数描画へ分岐
+    if (graph.type === "implicit") {
+      return this.renderImplicit(id);
+    }
+
+    let {
+      type,
+      f,
+      start,
+      end,
+      samples,
+      autoRange,
+      color,
+      isParametric
+    } = graph;
+
+    // dynamicモードで非パラメトリックの場合、描画範囲を現在のビューポートに合わせる
+    if (this.mode === "dynamic" && autoRange) {
+      const k = this.calcRange();
+      start = k.canvas_start;
+      end = k.canvas_end;
+      samples = this.W; // 画面幅に応じて描画点を調整
+    }
+
+    const ctx = this.ctx;
+    const points = [];
+
+    for (let i = 0; i <= samples; i++) {
+      const t = start + (end - start) * i / samples;
+      let res;
+      try {
+        res = f(t);
+      } catch {
+        continue;
+      }
+      
+      if (Array.isArray(res) && type !== "parametric") throw new Error("renderGraph < View ｜ typeと関数の戻り値の型が合っていない。")
+      if (typeof res === "number" && type !== "function") throw new Error("renderGraph < View ｜ typeと関数の戻り値の型が合っていない。")
+      if (type === "parametric") {
+        points.push({
+          x: res[0],
+          y: res[1]
+        });
+      } else if (type === "function") {
+        points.push({
+          x: t,
+          y: res
+        });
+      }
+    }
+
+    if (points.length < 2) return;
+
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+
+    for (let i = 0; i < points.length; i++) {
+      const px = this.W / 2 + (points[i].x - this.offsetX) * this.xScale;
+      const py = this.H / 2 - (points[i].y - this.offsetY) * this.yScale;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+
+    ctx.stroke();
+
+    return {
+      isParametric,
+      graph,
+    };
+  }
+
+  //----------------
+  // 陰関数描画 (Marching Squares)
+  //----------------
+  renderImplicit(id) {
+    const graph = this.graphs.get(id);
+    const { f, color, resolution, lineWidth } = graph;
+    const ctx = this.ctx;
+    const step = resolution || 1; // グリッドサイズ(px)
+
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth || 2;
+
+    // 画面座標系でのループ
+    // 画面外も少し含めるためにマージンを取る
+    const margin = step;
+    
+    // 値キャッシュ用変数
+    let rowVals = new Float32Array(Math.ceil((this.W + margin * 2) / step) + 1);
+    let nextRowVals = new Float32Array(rowVals.length);
+
+    // 座標変換ヘルパー: Screen(px) -> World
+    const sxToWx = (sx) => (sx - this.W / 2) / this.xScale + this.offsetX;
+    const syToWy = (sy) => this.offsetY - (sy - this.H / 2) / this.yScale;
+
+    // 線形補間ヘルパー: v1, v2の間で0になる比率tを求め、座標を返す
+    // p1, p2は座標値(xまたはy)
+    const lerp = (v1, v2, p1, p2) => {
+      if (Math.abs(v2 - v1) < 1e-9) return (p1 + p2) / 2;
+      const t = (0 - v1) / (v2 - v1);
+      return p1 + t * (p2 - p1);
+    };
+
+    // 最初の行を計算
+    let xIdx = 0;
+    for (let x = -margin; x <= this.W + margin; x += step) {
+      const wx = sxToWx(x);
+      const wy = syToWy(-margin);
+      try { rowVals[xIdx] = f(wx, wy); } catch { rowVals[xIdx] = NaN; }
+      xIdx++;
+    }
+
+    for (let y = -margin; y <= this.H + margin; y += step) {
+      xIdx = 0;
+      // 次の行を計算
+      for (let x = -margin; x <= this.W + margin; x += step) {
+        const wx = sxToWx(x);
+        const wy = syToWy(y + step);
+        try { nextRowVals[xIdx] = f(wx, wy); } catch { nextRowVals[xIdx] = NaN; }
+        xIdx++;
+      }
+
+      xIdx = 0;
+      for (let x = -margin; x <= this.W + margin - step; x += step) {
+        // 四隅の値 (TL: TopLeft, TR: TopRight, BR: BottomRight, BL: BottomLeft)
+        // Canvas座標系なのでTopはy, Bottomはy+step
+        const vTL = rowVals[xIdx];
+        const vTR = rowVals[xIdx + 1];
+        const vBR = nextRowVals[xIdx + 1];
+        const vBL = nextRowVals[xIdx];
+
+        if (!isNaN(vTL) && !isNaN(vTR) && !isNaN(vBR) && !isNaN(vBL)) {
+          // MS Index
+          let idx = 0;
+          if (vBL > 0) idx |= 1;
+          if (vBR > 0) idx |= 2;
+          if (vTR > 0) idx |= 4;
+          if (vTL > 0) idx |= 8;
+
+          // 描画処理 (LineTo/MoveTo)
+          if (idx !== 0 && idx !== 15) {
+            // 各辺上の補間点
+            // Top Edge (x to x+step, y)
+            const ptT = { x: lerp(vTL, vTR, x, x + step), y: y };
+            // Right Edge (x+step, y to y+step)
+            const ptR = { x: x + step, y: lerp(vTR, vBR, y, y + step) };
+            // Bottom Edge (x+step to x, y+step) -> 方向はx昇順で計算
+            const ptB = { x: lerp(vBL, vBR, x, x + step), y: y + step };
+            // Left Edge (x, y+step to y)
+            const ptL = { x: x, y: lerp(vTL, vBL, y, y + step) };
+
+            switch (idx) {
+              case 1:  ctx.moveTo(ptL.x, ptL.y); ctx.lineTo(ptB.x, ptB.y); break; // BL inside
+              case 2:  ctx.moveTo(ptB.x, ptB.y); ctx.lineTo(ptR.x, ptR.y); break; // BR inside
+              case 3:  ctx.moveTo(ptL.x, ptL.y); ctx.lineTo(ptR.x, ptR.y); break; // BL & BR
+              case 4:  ctx.moveTo(ptR.x, ptR.y); ctx.lineTo(ptT.x, ptT.y); break; // TR inside
+              case 5:  ctx.moveTo(ptL.x, ptL.y); ctx.lineTo(ptT.x, ptT.y);        // BL & TR (saddle?)
+                       ctx.moveTo(ptB.x, ptB.y); ctx.lineTo(ptR.x, ptR.y); break;
+              case 6:  ctx.moveTo(ptB.x, ptB.y); ctx.lineTo(ptT.x, ptT.y); break; // BR & TR
+              case 7:  ctx.moveTo(ptL.x, ptL.y); ctx.lineTo(ptT.x, ptT.y); break; // Except TL
+              case 8:  ctx.moveTo(ptT.x, ptT.y); ctx.lineTo(ptL.x, ptL.y); break; // TL inside
+              case 9:  ctx.moveTo(ptT.x, ptT.y); ctx.lineTo(ptB.x, ptB.y); break; // TL & BL
+              case 10: ctx.moveTo(ptT.x, ptT.y); ctx.lineTo(ptR.x, ptR.y);        // TL & BR (saddle?)
+                       ctx.moveTo(ptL.x, ptL.y); ctx.lineTo(ptB.x, ptB.y); break;
+              case 11: ctx.moveTo(ptT.x, ptT.y); ctx.lineTo(ptR.x, ptR.y); break; // Except BR
+              case 12: ctx.moveTo(ptR.x, ptR.y); ctx.lineTo(ptL.x, ptL.y); break; // TL & TR
+              case 13: ctx.moveTo(ptR.x, ptR.y); ctx.lineTo(ptB.x, ptB.y); break; // Except BL
+              case 14: ctx.moveTo(ptB.x, ptB.y); ctx.lineTo(ptL.x, ptL.y); break; // Except TR
+            }
+          }
+        }
+        xIdx++;
+      }
+      // 行送り: nextRowを現在のrowにする
+      let temp = rowVals;
+      rowVals = nextRowVals;
+      nextRowVals = temp;
+    }
+    
+    ctx.stroke();
+
+    return {
+      isImplicit: true,
+      graph
+    };
+  }
+  
+  renderPoints() {
+    const ctx = this.ctx;
+    for (const [_,p] of this.points) {
+      const px = this.W / 2 + (p.x - this.offsetX) * this.xScale;
+      const py = this.H / 2 - (p.y - this.offsetY) * this.yScale;
+      
+      if (px < -p.radius || px > this.W + p.radius || py < -p.radius || py > this.H + p.radius) continue;
+
+      ctx.beginPath();
+      ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+      
+      if (p.fill) {
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+  }
+
+  adjustCoordinate(v) {
+    return new CompVis.Vector(
+      this.W / 2 + (v.x - this.offsetX) * this.xScale,
+      this.H / 2 - (v.y - this.offsetY) * this.yScale
+    );
+  }
+
+  renderArrows() {
+    const ctx = this.ctx;
+    for (const [_,arrow] of this.arrows) {
+      const {p, vector, q, color, weight, theta, tipSize, fill, triangle} = arrow;
+      
+      const [px, py] = this.adjustCoordinate(p).values;
+      
+      const [qx, qy] = this.adjustCoordinate(q).values;
+
+      const v = new CompVis.Vector(qx-px,qy-py);
+      const d = v.normalize;
+      // scale調整後のベクトルの長さ(px)
+      const len = v.abs;
+      const tip = tipSize(len, theta); // 先端の長さ(px単位で計算する)
+
+      const sin = Math.sin(theta/2);
+      const cos = Math.cos(theta/2);
+
+      const tipVec0 = new CompVis.Vector(qx-(cos*tip*d.x-sin*tip*d.y), qy-(sin*tip*d.x+cos*tip*d.y));
+      const tipVec1 = new CompVis.Vector(qx-(cos*tip*d.x+sin*tip*d.y), qy-(-sin*tip*d.x+cos*tip*d.y));
+
+      ctx.lineWidth = weight;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      // 先端の形によって場合分け
+      if (fill) {
+        // 先端の三角形の手前の線までしか描画しないのは、lineWidthによって矢印の先から線がはみ出ないようにするため。
+        ctx.lineTo(...tipVec0.add(tipVec1).scale(1/2).values);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(qx, qy);
+        ctx.lineTo(...tipVec0.values);
+        ctx.lineTo(...tipVec1.values);
+        ctx.lineTo(qx, qy);
+        ctx.fill();
+      } else {
+        if (triangle) {
+          // 先端の三角形の手前の線までしか描画しないのは、lineWidthによって矢印の先から線がはみ出ないようにするため。
+          ctx.lineTo(...tipVec0.add(tipVec1).scale(1/2).values);
+          ctx.lineTo(...tipVec0.values);
+          ctx.lineTo(qx, qy);
+          ctx.lineTo(...tipVec1.values);
+          ctx.lineTo(...tipVec0.add(tipVec1).scale(1/2).values);
+          ctx.stroke();
+        } else {
+          ctx.lineTo(qx, qy);
+          ctx.lineTo(...tipVec0.values);
+          ctx.moveTo(qx, qy);
+          ctx.lineTo(...tipVec1.values);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  //----------------
+  // テキスト描画
+  //----------------
+  drawText(text, x, y, options = {}) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.fillStyle = options.color || "#fff";
+    ctx.font = `${options.size || 16}px sans-serif`;
+    ctx.textAlign = options.align || "left";
+    ctx.textBaseline = options.baseline || "top";
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  // ===== Wheel操作 =====
+  onWheel(e) {
+    e.preventDefault();
+
+    // ホイールによるズーム
+    const zoom = e.deltaY > 0 ? 0.9 : 1.1;
+    const mx = e.clientX;
+    const my = e.clientY;
+
+    const worldBeforeX = (mx - this.W / 2) / this.xScale + this.offsetX;
+    const worldBeforeY = this.offsetY - (my - this.H / 2) / this.yScale;
+
+    this.xScale *= zoom;
+    this.yScale *= zoom;
+
+    this.offsetX = worldBeforeX - (mx - this.W / 2) / this.xScale;
+    this.offsetY = worldBeforeY + (my - this.H / 2) / this.yScale;
+
+    this.xScale = Math.min(Math.max(this.xScale, this.MIN_SCALE), this.MAX_SCALE);
+    this.yScale = Math.min(Math.max(this.yScale, this.MIN_SCALE), this.MAX_SCALE);
+
+    this.renderAll();
+  }
+
+  // ===== Wheelによるドラッグ =====
+  onMouseDown(e) {
+    this.isDragging = true;
+    this.lastPanPos = {
+      x: e.clientX,
+      y: e.clientY
+    };
+  }
+  onMouseMove(e) {
+    if (this.isDragging) {
+      this.offsetX -= (e.clientX - this.lastPanPos.x) / this.xScale;
+      this.offsetY += (e.clientY - this.lastPanPos.y) / this.yScale;
+      this.lastPanPos = {
+        x: e.clientX,
+        y: e.clientY
+      };
+      this.renderAll();
+    }
+  }
+  onMouseUp(e) {
+    this.isDragging = false;
+  }
+
+  onTouchStart(e) {
+    if (e.touches.length === 1) {
+      this.lastPanPos = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY
+      };
+    } else if (e.touches.length === 2) {
+      this.lastTouchDist = this.getDist(e.touches[0], e.touches[1]);
+      this.lastTouchCenter = this.getCenter(e.touches[0], e.touches[1]);
+      // 2本指の方向ベクトルで軸ロック
+      if (this.lastTouchDist > 20) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        this.lockAxis = null;
+
+        if (Math.abs(dx) > Math.abs(dy) * 2) this.lockAxis = 'x';
+        else if (Math.abs(dy) > Math.abs(dx) * 2) this.lockAxis = 'y';
+      }
+
+      // ピンチ開始時のワールド座標を保存
+      this.pinchWorldBeforeX = (this.lastTouchCenter.x - this.W / 2) / this.xScale + this.offsetX;
+      this.pinchWorldBeforeY = this.offsetY - (this.lastTouchCenter.y - this.H / 2) / this.yScale;
+    }
+  }
+
+  onTouchMove(e) {
+    e.preventDefault();
+
+    // 最初にタッチの状態を厳密にチェック
+    // 2本指でのピンチ操作が意図されているか？
+    if (e.touches.length === 2 && this.lastTouchDist !== null && this.lastTouchCenter !== null) {
+      // 2本指でのピンチ操作
+      const newDist = this.getDist(e.touches[0], e.touches[1]);
+      const newCenter = this.getCenter(e.touches[0], e.touches[1]);
+      const zoom = newDist / this.lastTouchDist;
+
+      if (this.lockAxis === 'x') this.xScale *= zoom;
+      else if (this.lockAxis === 'y') this.yScale *= zoom;
+      else {
+        this.xScale *= zoom;
+        this.yScale *= zoom;
+      }
+
+      // ズームとパンの複合計算
+      const panX = (newCenter.x - this.lastTouchCenter.x) / this.xScale;
+      const panY = (newCenter.y - this.lastTouchCenter.y) / this.yScale;
+
+      this.offsetX -= panX;
+      this.offsetY += panY;
+
+      this.xScale = Math.min(Math.max(this.xScale, this.MIN_SCALE), this.MAX_SCALE);
+      this.yScale = Math.min(Math.max(this.yScale, this.MIN_SCALE), this.MAX_SCALE);
+
+      this.lastTouchDist = newDist;
+      this.lastTouchCenter = newCenter;
+
+    } else if (e.touches.length === 1 && this.lastPanPos !== null) {
+      // 1本指でのパン操作
+      const dx = e.touches[0].clientX - this.lastPanPos.x;
+      const dy = e.touches[0].clientY - this.lastPanPos.y;
+
+      this.offsetX -= dx / this.xScale;
+      this.offsetY += dy / this.yScale;
+
+      this.lastPanPos = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY
+      };
+    } else {
+      // 予期せぬ状態の場合、すべての状態をリセットして次の操作に備える
+      this.lastTouchDist = null;
+      this.lastTouchCenter = null;
+      this.lastPanPos = null;
+      this.pinchWorldBeforeX = null;
+      this.pinchWorldBeforeY = null;
+      this.lockAxis = null;
+    }
+
+    this.renderAll();
+  }
+
+  onTouchEnd(e) {
+    if (e.touches.length === 0) {
+      // すべての指が離れた場合
+      this.lastTouchDist = null;
+      this.lastTouchCenter = null;
+      this.pinchWorldBeforeX = null;
+      this.pinchWorldBeforeY = null;
+      this.lockAxis = null;
+      this.lastPanPos = null;
+    } else if (e.touches.length === 1) {
+      // 1本指になった場合（パン操作に備えて初期化）
+      this.lastTouchDist = null;
+      this.lastTouchCenter = null;
+      this.pinchWorldBeforeX = null;
+      this.pinchWorldBeforeY = null;
+      this.lockAxis = null;
+      this.lastPanPos = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY
+      };
+    }
+  }
+
+  //----------------
+  // タッチ距離取得
+  //----------------
+  getDist(p1, p2) {
+    return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+  }
+
+  //----------------
+  // タッチ中心取得
+  //----------------
+  getCenter(p1, p2) {
+    return {
+      x: (p1.clientX + p2.clientX) / 2,
+      y: (p1.clientY + p2.clientY) / 2
+    };
+  }
+}
+
+CompVis.ViewThree = class {
+  constructor(container, options = {}) {
+    this.type = "ViewThree";
+    this.container = container;
+    this.options = options;
+    this.animation = true;
+
+    // --- エラー表示用のコンテナ作成 ---
+    this.errorContainer = document.createElement("div");
+    Object.assign(this.errorContainer.style, {
+      position: "absolute", top: "0", left: "0", width: "100%",
+      zIndex: "1000", pointerEvents: "none", color: "red",
+      backgroundColor: "rgba(0,0,0,0.8)", padding: "10px", display: "none"
+    });
+    this.container.appendChild(this.errorContainer);
+
+    // --- コンテナのスタイル強制 ---
+    const computedStyle = window.getComputedStyle(this.container);
+    if ((!this.container.style.height || computedStyle.height === "0px") && !(options.zeroHeight ?? false)) {
+      this.container.style.width = "100%";
+      this.container.style.height = "400px";
+    }
+    this.container.style.position = "relative";
+    this.container.style.overflow = "hidden";
+    this.container.style.backgroundColor = "#222"; // ロード前から黒くする
+
+    // --- 設定値 ---
+    this.labelDown = options.labelDown || 0;
+    this.labelSize = options.labelSize || "12px";
+    this.initialCameraPosition = options.cameraPosition || { x: 15, y: 15, z: 15 }; // 少し引き気味に
+    this.initialCameraTarget = options.cameraTarget || { x: 0, y: 0, z: 0 };
+
+    this.modules = {};
+    this.graphs = new Map();
+    this.axisGroup = null;
+    this.globalMaxDistance = 10; // ★重要: 初期値を0にしない（グリッドを出すため）
+
+    // 初期化開始
+    this.initPromise = this.#init().catch(err => this.showError("Init Error: " + err.message));
+  }
+
+  getState(id) {
+    // 全取得
+    if (id === undefined) {
+      const result = {};
+      for (const [key, value] of this.graphs.entries()) {
+        if (value === null) {
+          result[key] = { ok: true, state: "pending" };
+        } else {
+          if (value.visible) result[key] = {
+            ok: true,
+            state: "ready",
+            visible: true
+          };
+          else result[key] = {
+            ok: true,
+            state: "ready",
+            visible: false
+          }
+        }
+      }
+
+      return {
+        ok: true,
+        graphs: result
+      };
+    }
+
+    // 単体取得
+    if (!this.graphs.has(id)) {
+      return {
+        ok: false,
+        error: "getState < ViewThree ｜ 無効なidです。"
+      };
+    }
+
+    const value = this.graphs.get(id);
+
+    if (value === null) {
+      return {
+        ok: true,
+        state: "pending"
+      };
+    }
+
+    return {
+      ok: true,
+      state: "ready",
+      visible: value.visible
+    };
+  }
+
+  showError(msg) {
+    console.error(msg);
+    this.errorContainer.style.display = "block";
+    this.errorContainer.innerHTML += `<div>${msg}</div>`;
+  }
+
+  async #init() {
+    // 依存関係のロード
+    const v = '0.152.2';
+    const urls = {
+      three: `https://esm.sh/three@${v}`,
+      OrbitControls: `https://esm.sh/three@${v}/examples/jsm/controls/OrbitControls.js?deps=three@${v}`,
+      CSS2DRenderer: `https://esm.sh/three@${v}/examples/jsm/renderers/CSS2DRenderer.js?deps=three@${v}`
+    };
+
+    try {
+      const [threeModule, orbitModule, css2dModule] = await Promise.all([
+        import(urls.three),
+        import(urls.OrbitControls),
+        import(urls.CSS2DRenderer)
+      ]);
+
+      this.modules.three = threeModule;
+      this.modules.OrbitControls = orbitModule.OrbitControls;
+      this.modules.CSS2DRenderer = css2dModule.CSS2DRenderer;
+      this.modules.CSS2DObject = css2dModule.CSS2DObject;
+
+      this.#initScene();
+    } catch (e) {
+      throw new Error(`Failed to load Three.js libraries. Check internet connection. (${e.message})`);
+    }
+  }
+
+  #initScene() {
+    try {
+      const THREE = this.modules.three;
+      const OrbitControls = this.modules.OrbitControls;
+      const CSS2DRenderer = this.modules.CSS2DRenderer;
+      
+      // シーン
+      this.scene = new THREE.Scene();
+      this.scene.background = new THREE.Color(0x222222);
+
+      // カメラ
+      const w = this.container.clientWidth;
+      const h = this.container.clientHeight;
+      this.camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
+      this.camera.position.set(
+        this.initialCameraPosition.x,
+        this.initialCameraPosition.y,
+        this.initialCameraPosition.z
+      );
+      this.camera.lookAt(new THREE.Vector3(0,0,0));
+
+      // WebGL Renderer
+      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      this.renderer.setSize(w, h);
+      this.renderer.setPixelRatio(window.devicePixelRatio);
+      Object.assign(this.renderer.domElement.style, { position: "absolute", top: "0", left: "0" });
+      this.container.appendChild(this.renderer.domElement);
+
+      // Label Renderer
+      this.labelRenderer = new CSS2DRenderer();
+      this.labelRenderer.setSize(w, h);
+      Object.assign(this.labelRenderer.domElement.style, {
+        position: "absolute",
+        top: "0",
+        left: "0",
+        pointerEvents: "none", // クリックを透過させる
+      });
+      this.container.appendChild(this.labelRenderer.domElement);
+
+      // Controls (OrbitControlsはWebGLRendererのキャンバスでイベントを受け取る)
+      this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+      this.controls.target.set(this.initialCameraTarget.x, this.initialCameraTarget.y, this.initialCameraTarget.z);
+      this.controls.update();
+
+      // ライト
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      dirLight.position.set(15, 20, 15);
+      this.scene.add(dirLight);
+      this.scene.add(new THREE.AmbientLight(0x888888));
+
+      // グループ作成
+      this.axisGroup = new THREE.Group();
+      this.scene.add(this.axisGroup);
+
+      // ★初期描画: 何もグラフがなくてもとりあえずグリッドを描く
+      this.#updateAxesAndGrid();
+
+      // リサイズイベント
+      window.addEventListener("resize", () => this.#onResize());
+
+      // アニメーション開始
+      this.startAnimate();
+
+    } catch (e) {
+      this.showError("Scene Setup Error: " + e.message);
+    }
+  }
+
+  #onResize() {
+    if (!this.camera || !this.renderer) return;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h);
+    this.labelRenderer.setSize(w, h);
+  }
+
+  #makeLabel(text) {
+    const CSS2DObject = this.modules.CSS2DObject;
+    const div = document.createElement("div");
+    div.style.color = "#aaaaaa";
+    div.style.fontSize = this.labelSize;
+    div.style.fontFamily = "sans-serif";
+    div.textContent = text;
+    div.style.userSelect = "none";
+    return new CSS2DObject(div);
+  }
+
+  #calcNiceStep(range) {
+    if (range <= 0) return 1;
+    const exponent = Math.floor(Math.log10(range));
+    const fraction = range / Math.pow(10, exponent);
+    let niceFraction;
+    if (fraction <= 1) niceFraction = 1;
+    else if (fraction <= 2) niceFraction = 2;
+    else if (fraction <= 5) niceFraction = 5;
+    else niceFraction = 10;
+    return niceFraction * Math.pow(10, exponent);
+  }
+
+  #create2DGrid(size, step, plane) {
+    const THREE = this.modules.three;
+    const points = [];
+    const n = Math.ceil(size / step);
+    
+    // グリッド線の座標を計算
+    for (let i = -n; i <= n; i++) {
+      const val = i * step;
+      // 範囲外にはみ出す線はカットしてもよいが、簡易的にすべて描画
+      if (plane === "XZ") {
+        points.push(-size, 0, val, size, 0, val); // 横線
+        points.push(val, 0, -size, val, 0, size); // 縦線
+      } else if (plane === "XY") {
+        points.push(-size, val, 0, size, val, 0);
+        points.push(val, -size, 0, val, size, 0);
+      } else if (plane === "YZ") {
+        points.push(0, -size, val, 0, size, val);
+        points.push(0, val, -size, 0, val, size);
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+    // 透明度のある線にする
+    const material = new THREE.LineBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.3 });
+    return new THREE.LineSegments(geometry, material);
+  }
+
+  #updateAxesAndGrid() {
+    try {
+      if (!this.axisGroup || !this.modules.three) return;
+      const THREE = this.modules.three;
+      
+      this.axisGroup.clear(); // 既存のオブジェクトを削除
+
+      // グラフがない場合でも最低限のサイズ(10)を確保
+      const range = Math.max(10, this.globalMaxDistance);
+      const step = this.#calcNiceStep(range / 2); // 目盛りの間隔
+      const size = Math.ceil(range / step) * step; // グリッド全体のサイズ
+
+      // 軸を描画 (X:赤, Y:緑, Z:青)
+      const axesData = [
+        { end: [size, 0, 0], color: 0xff4444, text: "X" },
+        { end: [0, size, 0], color: 0x44ff44, text: "Y" },
+        { end: [0, 0, size], color: 0x4444ff, text: "Z" }
+      ];
+
+      axesData.forEach(ax => {
+        // 軸線
+        const points = [0, 0, 0, ...ax.end];
+        const geo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+        const mat = new THREE.LineBasicMaterial({ color: ax.color, linewidth: 2 });
+        this.axisGroup.add(new THREE.Line(geo, mat));
+
+        // 軸ラベル
+        const label = this.#makeLabel(ax.text);
+        label.position.set(ax.end[0] * 1.05, ax.end[1] * 1.05, ax.end[2] * 1.05);
+        this.axisGroup.add(label);
+      });
+
+      // 目盛り数値の描画
+      const count = Math.ceil(size / step);
+      for (let i = -count; i <= count; i++) {
+        if (i === 0) continue; // 原点はスキップ
+        const v = i * step;
+        const txt = (Math.abs(v) < 0.0001 || Math.abs(v) > 10000) ? v.toExponential(1) : parseFloat(v.toFixed(4));
+        
+        // X軸上の目盛り
+        let l = this.#makeLabel(txt); l.position.set(v, 0, 0); this.axisGroup.add(l);
+        // Y軸上の目盛り
+        l = this.#makeLabel(txt); l.position.set(0, v, 0); this.axisGroup.add(l);
+        // Z軸上の目盛り
+        l = this.#makeLabel(txt); l.position.set(0, 0, v); this.axisGroup.add(l);
+      }
+
+      // グリッド描画 (XZ平面、XY平面、YZ平面)
+      this.axisGroup.add(this.#create2DGrid(size, step, "XZ"));
+      this.axisGroup.add(this.#create2DGrid(size, step, "XY"));
+      this.axisGroup.add(this.#create2DGrid(size, step, "YZ"));
+
+    } catch (e) {
+      this.showError("Grid Update Error: " + e.message);
+    }
+  }
+
+  addGraph(f, options = {}) {
+    const id = CompVis.getId(this.type);
+    this.graphs.set(id, null);
+    const promise = (async () => {
+      try {
+        await this.initPromise; // 初期化待ち
+        const THREE = this.modules.three;
+
+        const points = [];
+        let localMax = 0;
+
+        const start = options.start;
+        const end = options.end;
+        const samples = options.samples;
+
+        for (let i = 0; i <= samples; i++) {
+          const t = start + ((end - start) * i) / samples;
+          let val;
+          try {
+            val = f(t);
+          } catch {
+            continue;
+          }
+
+          let x, y, z;
+          if (Array.isArray(val) && val.length >= 3) {
+            [x, y, z] = val;
+          } else if (typeof val === "number") {
+            x = t; y = val; z = 0;
+          } else {
+            continue;
+          }
+
+          if (isNaN(x) || isNaN(y) || isNaN(z)) continue;
+
+          points.push(x, y, z);
+          localMax = Math.max(localMax, Math.abs(x), Math.abs(y), Math.abs(z));
+        }
+
+        if (points.length === 0) {
+          CompVis.deleteId(id);
+          return {
+            ok: false,
+            id,
+            error: "addGraph < ViewThree ｜ No valid points generated for graph."
+          };
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+        const material = new THREE.LineBasicMaterial({ color: options.color || 0x00ffff, linewidth: 2 });
+        const line = new THREE.Line(geometry, material);
+        
+        if (!this.graphs.has(id)) {
+          // すでに削除されている
+          geometry.dispose();
+          material.dispose();
+          return {
+            ok: false,
+            id,
+            error: "deleted before creation"
+          };
+        }
+        
+        this.scene.add(line);
+        this.graphs.set(id, line);
+
+        // グリッド範囲の自動更新
+        if (localMax > this.globalMaxDistance) {
+          this.globalMaxDistance = localMax;
+          this.#updateAxesAndGrid();
+        
+          // カメラ自動調整 (オプションでオフに可能)
+          if (!options.disableAutoCamera) {
+            // カメラのターゲットは変えずに、距離だけ離す
+            const vec = new THREE.Vector3().copy(this.camera.position).normalize();
+            const dist = Math.max(20, this.globalMaxDistance * 2); 
+            this.camera.position.copy(vec.multiplyScalar(dist));
+            this.controls.update();
+          }
+        }
+        return {
+          ok: true,
+          id
+        }
+      } catch (e) {
+        this.showError("Add Graph Error: " + e.message);
+        return {
+          ok: false,
+          id,
+          error: "addGraph < ViewThree ｜ Error: " + e.message
+        }
+      }
+    })();
+    
+    return {
+      ok: true,
+      id,
+      promise
+    };
+  }
+
+  deleteGraph(id) {
+    const line = this.graphs.get(id);
+    
+    // まだ生成前 → 削除予約だけする
+    if (line === null) {
+      this.graphs.delete(id);
+      CompVis.deleteId(id);
+      return {
+        ok: true,
+        id
+      };
+    }
+    
+    if (!line) {
+      return {
+        ok: false,
+        id,
+        error: "deleteGraph < ViewThree ｜ 無効なidです。"
+      };
+    }
+    
+    this.scene.remove(line);
+    
+    // メモリ解放
+    if (line.geometry) line.geometry.dispose();
+    if (line.material) line.material.dispose();
+    
+    this.graphs.delete(id);
+    CompVis.deleteId(id);
+    return { ok: true };
+  }
+
+  hideGraph(id) {
+    const line = this.graphs.get(id);
+    
+    if (!line) {
+      return {
+        ok: false,
+        error: "hideGraph < ViewThree ｜ 無効なidです。"
+      };
+    }
+
+    if (line === null) {
+      return {
+        ok: false,
+        error: "hideGraph < ViewThree ｜ まだ生成中です。"
+      };
+    }
+
+    line.visible = false;
+
+    return {
+      ok: true
+    };
+  }
+  
+  #animate() {
+    // requestAnimationFrame自体がエラーを起こすとループが止まらないのでtry-catchする
+    requestAnimationFrame(() => {
+      try {
+        if(this.hasAnimationError) return;
+        if(!this.animation) return;
+        this.#animateInner();
+        if(this.animation) this.#animate();
+      } catch(e) {
+        if(!this.hasAnimationError) {
+          this.showError("Animation Error: " + e.message);
+          this.hasAnimationError = true;
+        }
+      }
+    });
+  }
+
+  #animateInner() {
+    if (this.hasAnimationError) return;
+    if (this.controls) this.controls.update();
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+      this.labelRenderer.render(this.scene, this.camera);
+    }
+  }
+
+  update() {
+    if (this.hasAnimationError) return {
+      ok: false,
+      error: "oneStep < ViewThree ｜ unknown error."
+    }
+    if (this.controls) this.controls.update();
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+      this.labelRenderer.render(this.scene, this.camera);
+    }
+    return {
+      ok: true
+    }
+  }
+  
+  startAnimate() {
+    this.animation = true;
+    this.#animate();
+  }
+  
+  stopAnimate() {
+    this.animation = false;
+  }
+  
+  async exec(callback) {
+    try {
+      // 初期化が完了するのを待つ
+      await this.initPromise;
+      const THREE = this.modules.three;
+      // コールバック関数に必要な主要オブジェクトを渡して実行
+      // nullチェックをして、オブジェクトが揃っているか確認
+      if (THREE && this.scene && this.camera && this.renderer && this.controls) {
+        callback(THREE, this.scene, this.camera, this.renderer, this.controls);
+      } else {
+        console.warn("ViewThree is initialized, but some core objects (scene/camera/renderer/controls) are missing.");
+      }
+    } catch (e) {
+      this.showError("Exec Method Error: " + e.message);
+      console.error("Exec Method Error:", e);
+    }
+  }
+}
+
+CompVis.Matrix = class {
+  constructor (A = [[0]], B=null){
+    this.type = "Matrix";
+    if (A === undefined || A === null) {
+      A = [[0]];  // 手動でデフォルト値を設定
+    }
+    if(Number.isInteger(A) && Number.isInteger(B) && A >= 1 && B >= 1) { // A*Bの行列
+      let mat = new Array(A);
+      for(let i = 0; i < B; i++) {
+        mat[i] = new Array(B).fill(0);
+      }
+      this._matrix = structuredClone(mat);
+      this._size = [A,B];
+      return;
+    }
+    if (!Array.isArray(A) || A.length == 0 || !Array.isArray(A[0]) || A[0].length == 0) {
+      throw new Error("CompVisJS_Matrix-Argument error->Invalid matrix format.");
+    } else {
+      let columnLength = A[0].length;
+      for (let i = 1; i < A.length; i++) {
+        if (!Array.isArray(A[i]) || A[i].length !== columnLength) {
+          throw new Error('CompVisJS_Matrix-Shape error->Invalid matrix format.');
+        }
+      }
+      this._matrix = A;
+      this._size = [A.length,columnLength];
+      return;
+    }
+  }
+
+  at(R,C) { // R行C列目の数 ※ 0始まり
+    return this._matrix[R][C];
+  }
+
+  static identity(n) {
+    const A = new CompVis.Matrix(n,n);
+    for(let k = 0; k < n; k++) {
+      A.setValue(k,k,1);
+    }
+    return A;
+  };
+
+  get clone() {
+    return new CompVis.Matrix(structuredClone(this._matrix));
+  }
+  
+  get matrix(){
+    return this._matrix;
+  }
+  get values() {
+    return this.matrix; // get matrix()を呼び出す。
+  }
+  get size(){
+    return this._size;
+  }
+  get str() {
+    return this._matrix.map(row => row.join(", ")).join("\n");
+  }
+  get toString() {
+    return JSON.stringify(this._matrix);
+  }
+
+  scale(n) {
+    return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col => col*n)}));
+  }
+
+  round(n) {
+    return new CompVis.Matrix(this.clone._matrix.map(row => {return row.map(col => CompVis.round(col,n))}));
+  }
+
+  add(B) {
+    if (!(B instanceof CompVis.Matrix)) {
+      throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
+    }
+    let A = structuredClone(this._matrix);
+    let [m, n] = this.size;
+    let [p, q] = B.size;
+    B = structuredClone(B._matrix);
+    
+    if (m !== p || n !== q) {
+      throw new Error("CompVisJS_Matrix-Shape error->Matrix addition dimension mismatch.");
+    }
+    
+    for(let i = 0; i < m; i++) {
+      for(let j = 0; j < n; j++) {
+        A[i][j] = A[i][j]+B[i][j];
+      }
+    }
+
+    return new CompVis.Matrix(A);
+  }
+
+  sub(B) {
+    if (!(B instanceof CompVis.Matrix)) {
+      throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
+    }
+    let A = structuredClone(this._matrix);
+    let [m, n] = this.size;
+    let [p, q] = B.size;
+    B = structuredClone(B._matrix);
+    
+    if (m !== p || n !== q) {
+      throw new Error("CompVisJS_Matrix-Shape error->Matrix addition dimension mismatch.");
+    }
+    
+    for(let i = 0; i < m; i++) {
+      for(let j = 0; j < n; j++) {
+        A[i][j] = A[i][j]-B[i][j];
+      }
+    }
+
+    return new CompVis.Matrix(A);
+  }
+
+  #miniPro(B) {
+    let A = this._matrix;
+    let [m, n] = this.size;
+    let [p, q] = B.size;
+    B = B.values;
+    
+    if (n !== p) {
+      throw new Error("CompVisJS_Matrix-Shape error->Matrix multiplication dimension mismatch.");
+    }
+
+    let result = Array.from({ length: m }, () => Array(q).fill(0));
+    for (let i = 0; i < m; i++) {
+      for (let j = 0; j < q; j++) {
+        for (let k = 0; k < n; k++) {
+          result[i][j] += A[i][k] * B[k][j];
+        }
+      }
+    }
+
+    return new CompVis.Matrix(result);
+  }
+  
+  pro(B) {
+    if (B instanceof CompVis.Vector) {
+      return CompVis.MatrixToVector(this.#miniPro(CompVis.VectorToMatrix(B)));
+    }
+
+    if (!(B instanceof CompVis.Matrix)) {
+      throw new Error("CompVisJS_Matrix-Argument error->The argument must be a Matrix instance.");
+    }
+
+    return this.#miniPro(B);
+  }
+
+  mulVector(v) { // M*v
+    const M = this._matrix;
+    
+    const V = v.values;
+    if(V.length != 3) throw new Error("mulVector < Matrix : vector's length must be 3");
+    
+    const resultX = M[0][0] * V[0] + M[0][1] * V[1] + M[0][2] * V[2];
+    const resultY = M[1][0] * V[0] + M[1][1] * V[1] + M[1][2] * V[2];
+    const resultZ = M[2][0] * V[0] + M[2][1] * V[1] + M[2][2] * V[2];
+    
+    return new CompVis.Vector(resultX, resultY, resultZ); 
+  }
+  
+  setValue(i,j,v) { // 破壊的
+    this._matrix[i][j] = v;
+  }
+  
+  get _det() {
+    let n = this._matrix.length;
+    let A = this._matrix.map(row => [...row]); // 行列をコピー
+    let det_k = 1;
+    
+    for (let i = 0; i < n; i++) {
+      let maxRow = i;
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) {
+          maxRow = k;
+        }
+      }
+        
+      if (A[maxRow][i] === 0) return 0;
+
+      if (i !== maxRow) {
+        [A[i], A[maxRow]] = [A[maxRow], A[i]];
+        det_k *= -1;
+      }
+
+      det_k *= A[i][i];
+
+      let pivot = A[i][i];
+      for (let k = i + 1; k < n; k++) {
+        let factor = A[k][i] / pivot;
+        for (let j = i; j < n; j++) {
+          A[k][j] -= factor * A[i][j];
+        }
+      }
+    }
+
+    return det_k;
+  }
+
+  get transpose() {
+    const I = this._matrix;
+    if (I.length === 0 || I[0] === undefined) {
+        return new CompVis.Matrix([]);
+    }
+    
+    const R = I.length;    
+    const C = I[0].length; 
+    const I_T = [...Array(C).keys()].map(i => {
+        return [...Array(R).keys()].map(j => {
+            return I[j][i]; 
+        });
+    });
+    return new CompVis.Matrix(I_T);
+  }
+  
+  get inverse() {
+    let n = this._matrix.length;
+    // 正方行列でない場合はエラー
+    if (this._matrix[0].length !== n) {
+      throw new Error("CompVisJS_Matrix-Shape error->Inverse can only be calculated for square matrices.");
+    }
+    
+    let augmented = this._matrix.map((row, i) => [
+      ...row,
+      ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
+    ]);
+    
+
+    // ガウス・ジョルダン法
+    for (let i = 0; i < n; i++) {
+      // 1. ピボット選択 (行の入れ替え)
+      let maxRow = i;
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+          maxRow = k;
+        }
+      }
+
+      // 行列式が0の場合、逆行列は存在しない
+      if (augmented[maxRow][i] === 0) {
+        throw new Error("CompVisJS_Matrix-Determinant error->Matrix is singular, inverse does not exist.");
+      }
+
+      // 行の入れ替え
+      [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+
+      // 2. 対角成分を1にする (正規化)
+      let pivot = augmented[i][i];
+      for (let j = i; j < 2 * n; j++) {
+        augmented[i][j] /= pivot;
+      }
+
+      // 3. 対角成分以外を0にする
+      for (let k = 0; k < n; k++) {
+        if (k !== i) {
+          let factor = augmented[k][i];
+          for (let j = i; j < 2 * n; j++) {
+            augmented[k][j] -= factor * augmented[i][j];
+          }
+        }
+      }
+    }
+
+    // 拡大行列の右半分 (逆行列 I) を抽出
+    let I = augmented.map(row => row.slice(n));
+     
+    return new CompVis.Matrix(I);
+  }
+
+  get gram() { // グラム行列
+    // Gram = A^T A
+    return this.transpose.pro(this);
+  }
+
+  get fNorm() { // Frobenius
+    let sum = 0;
+    for (let i = 0; i < this._matrix.length; i++) {
+      for (let j = 0; j < this._matrix[0].length; j++) {
+        sum += this._matrix[i][j] ** 2;
+      }
+    }
+    return Math.sqrt(sum);
+  }
+
+}
+
+CompVis._list = [
+  Object.getOwnPropertyNames(CompVis)
+]
