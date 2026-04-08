@@ -7,7 +7,7 @@
   <meta name="description" content="Fourier変換をわかりやすく解説。視覚的に理解できるエピサイクルや離散フーリエ変換の体感も">
   <title>Fourier変換</title>
   <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"></script>
-  <script type="text/javascript" src="https://mathotagamma.github.io/APIs/CompVisJS/latest/CompVisJS.js"></script>
+  <script type="text/javascript" src="https://mathotagamma.github.io/APIs/CompVisJS/1-02-02/CompVisJS.js"></script>
   
   <script async custom-element="amp-auto-ads"
     src="https://cdn.ampproject.org/v0/amp-auto-ads-0.1.js">
@@ -714,7 +714,7 @@
     viewer.addGraph((t) => {
       if((t+150) % 120 <= 60) return -40;
       return 40;
-    },-150,150, 1200);
+    },{start: -150, end: 150, samples: 1200});
     viewer.renderAll()
 
     const square2 = document.getElementById("square2");
@@ -754,14 +754,14 @@
     viewerSum.addGraph((t) => {
       if((t+150) % 150 <= 75) return -100;
       return 100;
-    },-150,150, 1200,{color:"#000"});
+    }, { start: -150, end: 150, samples: 1200, color:"#000" });
     const fseGraph = viewerSum.addGraph((t) => {
       let returnNum = 0;
       for(let k = 1; k < sumCount; k++){
         returnNum += 200/(k*Math.PI)*((-1)**k-1)*Math.sin(k*Math.PI*t/75);
       }
       return returnNum;
-    },-150,150, 1200,{color:"#f00"});
+    }, { start: -150, end: 150, samples: 1200, color:"#f00" });
 
     viewerSum.renderAll()
     
@@ -901,14 +901,6 @@
       }
 
       function showFourierInfo(fourier) {
-        /*let lines = ['index freq amp     phase'];
-        for (let i = 0; i < fourier.length; i++) {
-          const { freq, amp, phase } = fourier[i];
-          lines.push(
-            `${String(i).padStart(5)} ${String(String(freq <= fourier.length/2 - 1 ? freq : freq - fourier.length).padStart(4)} ${amp.toFixed(3).padStart(7)} ${phase.toFixed(2).padStart(6)}`
-          );
-        }
-        info.textContent = lines.join('\n');*/
       }
 
       function drawEpicycles(x, y, rotation, fourier) {
