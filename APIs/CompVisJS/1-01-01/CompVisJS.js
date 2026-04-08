@@ -1,4 +1,3 @@
-//変更点:グラフ描画機能のoptionの種類追加(rangeX,rangeY)
 //For more information on the _graph method, see <https://makeplayonline.onrender.com/Blog/Contents/API/CompVisJS/explanation>.
 class CompVis {
   constructor(k_real, k_imag) {
@@ -6,7 +5,7 @@ class CompVis {
     this._imag = k_imag;
   }
   
-  static ver = '1.03.02';
+  static ver = '1.01.01';
   static time = '2025/7/19/15:30:00';
   
   //Methods that throw errors about functions whose arguments must be real numbers
