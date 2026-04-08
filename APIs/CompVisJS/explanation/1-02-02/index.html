@@ -28,7 +28,6 @@
         CompVisのMatrixクラスの使い方についての詳細は<a href="./explanation_matrix" target="_blank">こちら</a>-->
       </p>
       <h2>メソッド一覧</h2>
-      <div id="divList"></div>
       <p>
         以下、変数を下記のように定める。
         <ul>
@@ -631,8 +630,6 @@ view.addGraph((t) => Math.sin(t),
 
     <script src="https://mathotagamma.github.io/APIs/JS-Window/1-01-01/JS-Window.js"></script>
     <script>
-      let text = 'statics => '+CompVis._list[0].join(',')+'\nmethods => '+CompVis._list[1].join(',');
-      document.getElementById('divList').innerText = text;
       let element = document.getElementById('API_URL');
       function copy_func(copy_text){
         if (navigator.clipboard) {
