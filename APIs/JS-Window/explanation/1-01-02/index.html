@@ -20,13 +20,16 @@
     </p>
     <div style="border: 1.5px;">&lt;js-window&gt;console.log("Hello World!");<br>
 function sum( a, b ) {<br>
-  return a + b;<br>
+&nbsp;return a + b;<br>
 }<br>
 let N = 0;<br>
-for (let n = 1; n <= 100; n++) N = sum( N, n );<br>
+for (let n = 1; n <= 100; n++) {
+&nbsp;N = sum( N, n );
+}<br>
 console.log( "result", N );<br>
 &lt;/js-window&gt;
     </div>
+    <br><br>
     <js-window>console.log("Hello World!");
 function sum( a, b ) {
   return a + b;
