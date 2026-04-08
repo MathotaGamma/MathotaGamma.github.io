@@ -1,4 +1,4 @@
-//変更点:グラフ描画機能のrenderAllのコード変更(drawGridを先に実行し、それに伴う変数の計算のコードを追加)、renderGraphの動作変更(drawGridに必要だった変数の計算処理を削除)、ViewThree(3Dグラフ描画機能)追加
+//変更点:ViewとViewThreeのaddGraphの引数の構造を変更し、それぞれのgraphの管理をidにした。また、ViewにaddArrowメソッドを追加し、CompVisにgetIdをstaticで,deleteIdをメソッドで追加。また、View,ViewThreeにはdeleteGraph(id)を追加し、ViewThreeにgetState(id=undefined)を追加。
 //注意点
 /*
 例:
@@ -22,7 +22,6 @@ OrbitControls : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/control
 CSS2DRenderer : "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/renderers/CSS2DRenderer.js"
 
 使用例
-
 const myDiv = document.getElementById("my-div");
 const viewThree = new CompVis.ViewThree(myDiv);
 
@@ -120,6 +119,8 @@ window.CompVis = class {
   constructor() {
     this.type = "CompVis";
   }
+
+  static ver = "1.02.02";
   
   static _idSet = new Set();     // 全ID一意管理
   static _idType = new Map();    // id -> type
