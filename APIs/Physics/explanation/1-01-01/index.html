@@ -5,6 +5,26 @@
     <meta charset="utf-8">
     <script type="module" src="/statics/main-script.js"></script>
     <style>
+      body {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        padding: 0;
+        margin: 0;
+      }
+
+      .side {
+        min-width: 150px;
+        width: 30%;
+        overflow-y: scroll;
+      }
+
+      main {
+        width: 70%;
+        overflow: scroll;
+      }
+      
       .bold {
         font-weight: bold;
       }
@@ -26,14 +46,16 @@
       }
 
       .this::before {
-        content: "this"
+        content: "this";
         font-weight: bold;
       }
     </style>
   </head>
   <body>
-    <h1>Physics | ver: 1.01.01</h1>
-    <nav id="breadcrumb"></nav>
+    <div>
+      <h1>Physics | ver: 1.01.01</h1>
+      <nav id="breadcrumb"></nav>
+    </div>
     <main>
       <h2>Physics.Vec3</h2>
       <h3>インスタンスの持つプロパティ - x:number, y:number, z:number</h3>
@@ -60,62 +82,70 @@
         <li>x,y,z - それぞれ、ベクトルのxyz成分</li>
       </ul>
       
-      <h4>add <span class="destructive"></span></h4>
-      <p>
-        ベクトルを自身に足す。
-      </p>
-      <p>引数 - v:Physics.Vec3</p>
       <ul>
-        <li>v - 足す数。</li>
+        <li>
+          <h4>add <span class="destructive"></span></h4>
+          <p>
+            ベクトルを自身に足す。
+          </p>
+          <p>引数 - v:Physics.Vec3</p>
+          <ul>
+            <li>v - 足す数。</li>
+          </ul>
+          <p>
+            戻り値 - <span class="this"></span>
+          </p>
+        </li>
+        <li>
+          <h4>sub <span class="destructive"></span></h4>
+          <p>
+            ベクトルを自身から引く。
+          </p>
+          <p>引数 - v:Physics.Vec3</p>
+          <ul>
+            <li>v - 引く数。</li>
+          </ul>
+          <p>
+            戻り値 - <span class="this"></span>
+          </p>
+        </li>
+        <li>
+          <h4>scale <span class="destructive"></span></h4>
+          <p>
+            自身をスカラー倍する。<span class="bold">deep-copy</span>である。
+          </p>
+          <p>引数 - k:number</p>
+          <ul>
+            <li>k - スカラー(掛ける数)</li>
+          </ul>
+          <p>
+            戻り値 - <span class="this"></span>
+          </p>
+        </li>
+        <li>
+          <h4>clone <span class="non-destructive"></span></h4>
+          <p>
+            自身の複製を生成する。
+          </p>
+          <p>引数 - なし</p>
+          <p>
+            戻り値 - Physics.Vec3インスタンス
+          </p>
+        </li>
+        <li>
+          <h4>copy <span class="destructive"></span></h4>
+          <p>
+            引数のベクトルを自身にコピーする。<span class="bold">deep-copy</span>である。
+          </p>
+          <p>引数 - v:Physics.Vec3</p>
+          <ul>
+            <li>v - コピーする元となるベクトル</li>
+          </ul>
+          <p>
+            戻り値 - <span class="this"></span>
+          </p>
+        </li>
       </ul>
-      <p>
-        戻り値 - <span class="this"></span>
-      </p>
-
-      <h4>sub <span class="destructive"></span></h4>
-      <p>
-        ベクトルを自身から引く。
-      </p>
-      <p>引数 - v:Physics.Vec3</p>
-      <ul>
-        <li>v - 引く数。</li>
-      </ul>
-      <p>
-        戻り値 - <span class="this"></span>
-      </p>
-
-      <h4>scale <span class="destructive"></span></h4>
-      <p>
-        自身をスカラー倍する。<span class="bold">deep-copy</span>である。
-      </p>
-      <p>引数 - k:number</p>
-      <ul>
-        <li>k - スカラー(掛ける数)</li>
-      </ul>
-      <p>
-        戻り値 - <span class="this"></span>
-      </p>
-
-      <h4>clone <span class="non-destructive"></span></h4>
-      <p>
-        自身の複製を生成する。
-      </p>
-      <p>引数 - なし</p>
-      <p>
-        戻り値 - Physics.Vec3インスタンス
-      </p>
-
-      <h4>copy <span class="destructive"></span></h4>
-      <p>
-        引数のベクトルを自身にコピーする。<span class="bold">deep-copy</span>である。
-      </p>
-      <p>引数 - v:Physics.Vec3</p>
-      <ul>
-        <li>v - コピーする元となるベクトル</li>
-      </ul>
-      <p>
-        戻り値 - <span class="this"></span>
-      </p>
     </main>
   </body>
 </html>
