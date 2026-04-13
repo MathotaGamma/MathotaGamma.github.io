@@ -5,7 +5,14 @@
     <meta charset="utf-8">
     <script type="module" src="/statics/main-script.js"></script>
     <script src="/APIs/Physics/1-01-01/Physics.js"></script>
-    <script type="module" src="/APIs/JS-Window/1-01-01/JS-Window.js"></script>
+    <script type="module">
+      import { registerLibs } from "https://mathotagamma.github.io/APIs/JS-Window/1-02-01/JS-Window.js";
+      
+      registerLibs([
+        "https://mathotagamma.github.io/APIs/CompVisJS/1-02-02/CompVisJS.js",
+        "https://mathotagamma.github.io/APIs/Physics/1-01-01/Physics.js"
+      ]);
+    </script>
     <style>
       html, body {
         height: 100%;
