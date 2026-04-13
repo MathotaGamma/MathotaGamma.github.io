@@ -4,7 +4,7 @@ window.Physics = class {
     this.dimension = dimension;
   }
 
-  static ver = "1.01.01";
+  static version = "1.01.01";
 }
 
 Physics.Vec3 = class {
