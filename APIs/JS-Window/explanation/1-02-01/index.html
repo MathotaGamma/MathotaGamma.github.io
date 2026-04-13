@@ -28,17 +28,17 @@
       <li>js-window内で外部ライブラリを使用できるように。</li>
       <li>Objectのconsole.logの表示を、できるだけ展開して表示するように。</li>
     </ol>
-    <h3>使い方例例</h3>
+    <h3>使い方例</h3>
     <p>
 &lt;script type="module"&gt;<br>
-  import { registerLibs } from "https://mathotagamma.github.io/APIs/JS-Window/1-02-01/JS-Window.js";<br>
+&nbsp;&nbsp;import { registerLibs } from "https://mathotagamma.github.io/APIs/JS-Window/1-02-01/JS-Window.js";<br>
 <br>
-  // Library登録。<br>
-  // 使用しているURLは一例。<br>
-  registerLibs([<br>
-    "https://mathotagamma.github.io/APIs/CompVisJS/1-02-02/CompVisJS.js",<br>
-    "https://mathotagamma.github.io/APIs/Physics/1-01-01/Physics.js"<br>
-  ]);<br>
+&nbsp;&nbsp;// Library登録。<br>
+&nbsp;&nbsp;// 使用しているURLは一例。<br>
+&nbsp;&nbsp;registerLibs([<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"https://mathotagamma.github.io/APIs/CompVisJS/1-02-02/CompVisJS.js",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"https://mathotagamma.github.io/APIs/Physics/1-01-01/Physics.js"<br>
+&nbsp;&nbsp;]);<br>
 &lt;/script&gt;
     </p>
     <p>
@@ -49,11 +49,11 @@
     <div style="border: 1.5px;">&lt;js-window&gt;<br>
 console.log("Hello World!");<br>
 function sum( a, b ) {<br>
-&nbsp;return a + b;<br>
+&nbsp;&nbsp;return a + b;<br>
 }<br>
 let N = 0;<br>
 for (let n = 1; n <= 100; n++) {<br>
-&nbsp;N = sum( N, n );<br>
+&nbsp;&nbsp;N = sum( N, n );<br>
 }<br>
 console.log( "result", N );<br>
 console.log( new CompVis.Complex(1,3).arg );<br>
