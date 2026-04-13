@@ -6,6 +6,7 @@ class JSWindow extends HTMLElement {
   }
 
   static version = "1.01.02";
+  static CompVis_version = "1.02.02";
 
   connectedCallback() {
     const shadow = this.shadow;
