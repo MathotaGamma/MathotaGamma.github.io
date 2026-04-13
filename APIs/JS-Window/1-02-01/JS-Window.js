@@ -1,5 +1,4 @@
 // JS-Window.js（type="module"）
-
 const GLOBAL_LIBS = [];
 const LIB_CACHE = new Map();
 
@@ -21,12 +20,7 @@ class JSWindow extends HTMLElement {
   constructor() {
     super();
     this.shadow = this.attachShadow({ mode: "open" });
-    this.textarea = null;
-  }
-
-  class JSWindow extends HTMLElement {
-  constructor() {
-    super();
+    this.textarea = document.createElement("textarea");
   }
   
   static get observedAttributes() {
@@ -39,18 +33,15 @@ class JSWindow extends HTMLElement {
   }
   
   attribute() {
-    const row = this.getAttribute("row") ?? "10";
+    const row = this.getAttribute("row") ?? "6";
     const col = this.getAttribute("col") ?? "40";
     this.textarea.rows = row;
     this.textarea.cols = col;
   }
   
   connectedCallback() {
+    const textarea = this.textarea;
     this.attribute();
-    const textarea = document.createElement("textarea");
-    this.textarea = textarea;
-    textarea.rows = 10;
-    textarea.cols = 40;
     textarea.value = this.textContent.trim();
 
     const button = document.createElement("button");
