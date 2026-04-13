@@ -72,6 +72,18 @@
         }
       }
     },
+    "Physics": {
+      "_name": "物理エンジン",
+      "_index": null,
+      "explanation": {
+        "_name": "使い方説明",
+        "_index": "",
+        "1-01-01": {
+          "_name": "ver:1.01.01",
+          "_index": ""
+        }
+      }
+    },
     "JS-Window": {
       "_name": "Javascript欄埋め込み",
       "_index": null,
