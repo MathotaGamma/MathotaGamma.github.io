@@ -1,37 +1,22 @@
-// JS-Window.js（type="module"で読み込む）
-/*
-<script type="module">
-  import { registerLibs } from "https://mathotagamma.github.io/APIs/JS-Window/1-02-01/JS-Window.js";
+// JS-Window.js（type="module"）
 
-  // Library登録。
-  registerLibs([
-    "https://mathotagamma.github.io/APIs/CompVisJS/1-02-02/CompVisJS.js",
-    "https://mathotagamma.github.io/APIs/Physics/1-01-01/Physics.js"
-  ]);
-</script>
-*/
-
-// ===== グローバル管理 =====
 const GLOBAL_LIBS = [];
 const LIB_CACHE = new Map();
 
-// ライブラリ登録（headerで1回だけ呼ぶ）
 export function registerLibs(urls = []) {
   GLOBAL_LIBS.length = 0;
   GLOBAL_LIBS.push(...urls);
 }
 
-// ライブラリ読み込み（キャッシュ付き）
 async function loadLib(url) {
   if (LIB_CACHE.has(url)) return LIB_CACHE.get(url);
 
   const text = await fetch(url).then(r => r.text());
-  const fixed = text.replace(/window/g, "self"); // Worker用
+  const fixed = text.replace(/\bwindow\b/g, "self");
   LIB_CACHE.set(url, fixed);
   return fixed;
 }
 
-// ===== Custom Element =====
 class JSWindow extends HTMLElement {
   constructor() {
     super();
@@ -56,41 +41,62 @@ class JSWindow extends HTMLElement {
         .replace(/“|”/g, '"')
         .replace(/‘|’/g, "'");
 
-      // 登録済みライブラリ取得
-      const libTexts = await Promise.all(
-        GLOBAL_LIBS.map(loadLib)
-      );
+      const libTexts = await Promise.all(GLOBAL_LIBS.map(loadLib));
 
       const workerCode = `
         ${libTexts.join("\n")}
 
-        self.onmessage = function(event) {
+        function safeStringify(obj) {
+          const seen = new WeakSet();
+          return JSON.stringify(obj, (key, value) => {
+            if (typeof value === "object" && value !== null) {
+              if (seen.has(value)) return "[Circular]";
+              seen.add(value);
+            }
+            if (typeof value === "function") {
+              return "[Function " + (value.name || "anonymous") + "]";
+            }
+            if (value instanceof Map) return Object.fromEntries(value);
+            if (value instanceof Set) return Array.from(value);
+            return value;
+          }, 2);
+        }
+
+        self.onmessage = async function(event) {
           const { code } = event.data;
 
-          const logs = [];
           const originalLog = console.log;
+
+          // リアルタイムログ
           console.log = (...args) => {
-            logs.push(args.join(" "));
+            const msg = args.map(a => {
+              if (typeof a === "object" && a !== null) {
+                return safeStringify(a);
+              }
+              return String(a);
+            }).join(" ");
+
+            self.postMessage({ type: "log", message: msg });
           };
 
           try {
-            const result = eval(code);
-
-            logs.forEach(log => {
-              self.postMessage({ type: "log", message: log });
-            });
+            // async対応
+            const result = await (async () => eval(code))();
 
             self.postMessage({
               type: "result",
               success: true,
-              result
+              result:
+                (typeof result === "object" && result !== null)
+                  ? safeStringify(result)
+                  : result
             });
 
           } catch (error) {
             self.postMessage({
               type: "result",
               success: false,
-              error: error.message
+              error: safeStringify(error)
             });
           } finally {
             console.log = originalLog;
@@ -98,26 +104,28 @@ class JSWindow extends HTMLElement {
         };
       `;
 
-      const blob = new Blob([workerCode], {
-        type: "application/javascript"
-      });
+      const worker = new Worker(
+        URL.createObjectURL(new Blob([workerCode], { type: "application/javascript" }))
+      );
 
-      const worker = new Worker(URL.createObjectURL(blob));
-
-      output.innerHTML = "";
+      output.textContent = "";
 
       worker.onmessage = (event) => {
         const { type, success, result, error, message } = event.data;
 
         if (type === "log") {
-          output.innerHTML += message + "<br>";
-        } else if (type === "result") {
+          output.textContent += message + "\n";
+        } else {
           if (success) {
+            // evalの結果を表示
+            /*
             if (result !== undefined) {
-              output.innerHTML += "結果: " + result + "<br>";
+              
+              output.textContent += "結果: " + result + "\n";
             }
+            */
           } else {
-            output.innerHTML += "エラー: " + error + "<br>";
+            output.textContent += "エラー: " + error + "\n";
           }
           worker.terminate();
         }
@@ -127,10 +135,7 @@ class JSWindow extends HTMLElement {
     });
 
     this.shadow.innerHTML = "";
-    this.shadow.appendChild(textarea);
-    this.shadow.appendChild(document.createElement("br"));
-    this.shadow.appendChild(button);
-    this.shadow.appendChild(output);
+    this.shadow.append(textarea, document.createElement("br"), button, output);
   }
 }
 
