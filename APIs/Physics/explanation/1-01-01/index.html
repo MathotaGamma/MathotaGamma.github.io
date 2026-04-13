@@ -4,6 +4,8 @@
     <title>Physics | ver: 1.01.01</title>
     <meta charset="utf-8">
     <script type="module" src="/statics/main-script.js"></script>
+    <script src="/APIs/Physics/1-01-01/Physics.js"></script>
+    <script type="module" src="/APIs/JS-Window/1-01-01/JS-Window.js"></script>
     <style>
       html, body {
         height: 100%;
@@ -67,27 +69,28 @@
       <ul>
         <li>x,y,z - ベクトルのx,y,z成分</li>
       </ul>
-      <h3>プロパティ</h3>
+      <js-window>const v = new Physics.Vec3(1,2,3);
+console.log(v);</js-window>
+
       <ul>
-        <li></li>
-      </ul>
-      
-      <h4>CONSTRUCTOR( x, y, z );</h4>
-      <p>引数 - x:number, y:number, z:number</p>
-      <ul>
-        <li>x,y,z - それぞれ、ベクトルのxyz成分</li>
-      </ul>
-      <h4>e <span class="getter"></span></h4>
-      <p>
-        ベクトルの各成分を一次元配列で返す。
-      </p>
-      <p>引数 - なし</p>
-      <p>戻り値 - array&lt;x:number, y:number, z:number&gt;</p>
-      <ul>
-        <li>x,y,z - それぞれ、ベクトルのxyz成分</li>
-      </ul>
-      
-      <ul>
+        <li>
+          <h4>CONSTRUCTOR( x, y, z );</h4>
+          <p>引数 - x:number, y:number, z:number</p>
+          <ul>
+            <li>x,y,z - それぞれ、ベクトルのxyz成分</li>
+          </ul>
+          <h4>e <span class="getter"></span></h4>
+          <p>
+            ベクトルの各成分を一次元配列で返す。
+          </p>
+          <p>引数 - なし</p>
+          <p>戻り値 - array&lt;x:number, y:number, z:number&gt;</p>
+          <ul>
+            <li>x,y,z - それぞれ、ベクトルのxyz成分</li>
+          </ul>
+          <js-window>const v = new Physics.Vec3(1,2,3);
+console.log("x",v.x,"y",v.y,"z",v.z);</js-window>
+        </li>
         <li>
           <h4>add <span class="destructive"></span></h4>
           <p>
@@ -100,6 +103,12 @@
           <p>
             戻り値 - <span class="this"></span>
           </p>
+          <js-window>const v = new Physics.Vec3(1,2,3);
+const u = new Physics.Vec3(2,4,6);
+
+// 足し算
+v.add(u);
+console.log(v);</js-window>
         </li>
         <li>
           <h4>sub <span class="destructive"></span></h4>
@@ -113,6 +122,12 @@
           <p>
             戻り値 - <span class="this"></span>
           </p>
+          <js-window>const v = new Physics.Vec3(1,2,3);
+const u = new Physics.Vec3(2,4,6);
+
+// 引き算
+v.sub(u);
+console.log(v);</js-window>
         </li>
         <li>
           <h4>scale <span class="destructive"></span></h4>
@@ -126,6 +141,11 @@
           <p>
             戻り値 - <span class="this"></span>
           </p>
+          <js-window>const v = new Physics.Vec3(1,2,3);
+
+// 3倍
+v.scale(3);
+console.log(v);</js-window>
         </li>
         <li>
           <h4>clone <span class="non-destructive"></span></h4>
@@ -136,6 +156,16 @@
           <p>
             戻り値 - Physics.Vec3インスタンス
           </p>
+          <js-window>const v = new Physics.Vec3(1,2,3);
+const u = new Physics.Vec3(2,4,6);
+
+// vベクトルを複製。ディープコピー
+const v_clone = v.clone();
+// .cloneはディープコピーであるため、元のvは変更されない。
+v_clone.add(u);
+
+console.log("clone", v_clone);
+console.log("origin", v);</js-window>
         </li>
         <li>
           <h4>copy <span class="destructive"></span></h4>
@@ -149,6 +179,17 @@
           <p>
             戻り値 - <span class="this"></span>
           </p>
+          <js-window>const v = new Physics.Vec3(1,2,3);
+const u = new Physics.Vec3(2,4,6);
+
+// vをuベクトルと同じ値にする。
+v.copy(u);
+console.log(v);
+
+// .copyはディープコピーであるため、uの変更がvに影響しない。
+u.x = -3
+console.log("u", u);
+console.log("v", v);</js-window>
         </li>
       </ul>
     </main>
