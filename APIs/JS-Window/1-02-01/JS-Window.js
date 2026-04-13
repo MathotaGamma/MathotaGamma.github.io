@@ -21,11 +21,35 @@ class JSWindow extends HTMLElement {
   constructor() {
     super();
     this.shadow = this.attachShadow({ mode: "open" });
+    this.textarea = null;
   }
 
+  class JSWindow extends HTMLElement {
+  constructor() {
+    super();
+  }
+  
+  static get observedAttributes() {
+    return ["row", "col"];
+  }
+  
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (oldValue === newValue) return;
+    this.attribute();
+  }
+  
+  attribute() {
+    const row = this.getAttribute("row") ?? "10";
+    const col = this.getAttribute("col") ?? "40";
+    this.textarea.rows = row;
+    this.textarea.cols = col;
+  }
+  
   connectedCallback() {
+    this.attribute();
     const textarea = document.createElement("textarea");
-    textarea.rows = 5;
+    this.textarea = textarea;
+    textarea.rows = 10;
     textarea.cols = 40;
     textarea.value = this.textContent.trim();
 
