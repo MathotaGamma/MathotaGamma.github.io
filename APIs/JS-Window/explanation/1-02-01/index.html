@@ -27,7 +27,7 @@
     <ol>
       <li>js-window内で外部ライブラリを使用できるように。</li>
       <li>Objectのconsole.logができるだけ展開して表示されるように。</li>
-      <li>js-windowにrowとcol属性を指定することが可能に(省略時、row=7,col=40)。</li>
+      <li>js-windowにrowとcol属性を指定することが可能に(default値はrow=6,col=40)。</li>
     </ol>
     <h3>使い方例</h3>
     <p>
@@ -76,8 +76,8 @@ console.log( new CompVis.Complex(1,3).arg );
 </js-window>
     <h3>rowとcol属性の例</h3>
     <p>指定なし</p>
-    <js-window></js-window>
+    <js-window>console.log("row",6,"col",40);</js-window>
     <p>row="3",col="20"</p>
-    <js-window row="3" col="20"></js-window>
+    <js-window row="3" col="20">console.log("row",3,"col",20);</js-window>
   </body>
 </html>
