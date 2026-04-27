@@ -44,6 +44,9 @@ header nav a:hover {
 
 nav#breadcrumb {
   font-size: 14px;
+}
+
+nav#breadcrumb.default-bg {
   background: rgb( 255 250 205 );
 }
 
