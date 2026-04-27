@@ -4,6 +4,7 @@ navの属性で色を指定できる。
 data-bg-color: "背景色"
 data-color-able: "リンクで飛べる階層の文字" (default: "#008")
 data-color-disable: "リンクで飛べない階層の文字&エラー番号の色" (default: "black")
+data-color-splitter: "「<」の色" (default: "black")
 
 付属のstylesheetを読み込んだ場合、
 class="default-bg"でクリーム色の背景色になる。
@@ -39,7 +40,7 @@ async function initBreadcrumb(href=null) {
   const color = {
     able: breadcrumb.dataset.colorAble ?? "#008",
     disable: breadcrumb.dataset.colorDisable ?? "black",
-    splitter: breadcrumb.dataset.splitter ?? "black",
+    splitter: breadcrumb.dataset.colorSplitter ?? "black",
     bg: breadcrumb.dataset.bgColor
   };
 
