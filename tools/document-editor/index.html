@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document Editor</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&family=Noto+Serif+JP:wght@300;400;700&display=swap" />
-    <link rel="stylesheet" href="/statics/main-style.css" />
-    <script type="module" src="/statics/main-script.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&family=Noto+Serif+JP:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       /* ===== Variables ===== */
       :root {
@@ -49,10 +50,6 @@
       }
 
       /* ===== Top toolbar ===== */
-      .flex-breakline {
-        flex-basis: 100%;
-        height: 0;
-      }
       #topbar {
         position: fixed;
         top: 0;
@@ -515,8 +512,8 @@
 
     <!-- ========== TOPBAR ========== -->
     <div id="topbar">
-      <nav id="breadcrumb" data-color-able="orange" data-color-disable="red" data-color-splitter="var(--toolbar-text)"></nav>
-      <div class="flex-breakline"></div>
+      <button class="tb-btn" onclick="paperClear()">白紙にする</button>
+      <button class="tb-btn" onclick="deleteLocalStorage()">データ消去</button>
       <span class="tb-label">履歴</span>
       <button class="tb-btn" id="btn-undo" onclick="doUndo()" title="Ctrl+Z" disabled>
         <svg viewBox="0 0 24 24">
@@ -599,8 +596,8 @@
       </select>
       <select class="tb-sel" id="sel-tori" onchange="applyTextOrientation()" title="テキストの向き">
         <option value="mixed">自動</option>
-        <option value="upright">縦</option>
-        <option value="sideways">横</option>
+        <option value="sideways">縦</option>
+        <option value="upright">横</option>
       </select>
       <input
         type="color"
@@ -637,10 +634,10 @@
       <div class="tb-sep"></div>
 
       <span class="tb-label">順序</span>
-      <button class="tb-btn" onclick="zFront()"   title="最前面">▲▲</button>
-      <button class="tb-btn" onclick="zForward()" title="前へ">▲</button>
-      <button class="tb-btn" onclick="zBackward()" title="後ろへ">▼</button>
-      <button class="tb-btn" onclick="zBack()"    title="最背面">▼▼</button>
+      <button class="tb-btn" onclick="zFront()"   title="最前面">最前面</button>
+      <button class="tb-btn" onclick="zForward()" title="前へ">前面</button>
+      <button class="tb-btn" onclick="zBackward()" title="後ろへ">背面</button>
+      <button class="tb-btn" onclick="zBack()"    title="最背面">最背面</button>
 
       <div class="tb-sep"></div>
 
@@ -693,8 +690,8 @@
         style="font-size:11px;"
       >
         <option value="mixed">自動</option>
-        <option value="upright">縦</option>
-        <option value="sideways">横</option>
+        <option value="sideways">縦</option>
+        <option value="upright">横</option>
       </select>
       <select
         class="tb-sel"
@@ -793,6 +790,35 @@
             全要素の外形スタイルと innerHTML を JSON で管理する。
             ただし innerHTML は text-inner のみ（入力確定後）。
       ============================================================ */
+
+      function paperClear() {
+        if (undoStack && undoStack[undoStack.length-1] === "[]") return;
+        undoStack.push("[]");
+        if (undoStack.length > MAX_HIS) undoStack.shift();
+        redoStack.length = 0;
+        restoreData("[]");
+        saveToLocalStorage();
+        checkUndoRedo();
+      }
+
+      function deleteLocalStorage() {
+        if (confirm("データを消去します。\nこの操作は取り消せません。")) {
+          localStorage.removeItem("/tools/document-editor/:undo-stack");
+          localStorage.removeItem("/tools/document-editor/:redo-stack");
+          undoStack.length = 0;
+          undoStack.push("[]");
+          redoStack.length = 0;
+          restoreData("[]");
+          checkUndoRedo();
+          alert("消去しました。");
+        }
+      }
+      
+      function saveToLocalStorage() {
+        localStorage.setItem("/tools/document-editor/:undo-stack", JSON.stringify(undoStack));
+        localStorage.setItem("/tools/document-editor/:redo-stack", JSON.stringify(redoStack));
+      }
+      
       function checkUndoRedo() {
         document.getElementById("btn-undo").disabled = undoStack.length <= 1;
         document.getElementById("btn-redo").disabled = !redoStack.length;
@@ -824,6 +850,7 @@
         undoStack.push(s);
         if (undoStack.length > MAX_HIS) undoStack.shift();
         redoStack.length = 0;
+        saveToLocalStorage();
         checkUndoRedo();
       }
 
@@ -831,6 +858,7 @@
         /* 既存要素を全削除 */
         paper.querySelectorAll('.pel, .snap-guide').forEach(e => e.remove());
         sel = null;
+        if (s == null) return;
         const arr = JSON.parse(s);
         arr.forEach(d => {
           if (d.imgSrc) {
@@ -841,11 +869,45 @@
         });
       }
 
+      function loadFromLocalStorage() {
+        let data;
+        
+        try {
+          const undo = localStorage.getItem("/tools/document-editor/:undo-stack");
+          const redo = localStorage.getItem("/tools/document-editor/:redo-stack");
+          if (undo === null || redo === null) {
+            return false;
+          }
+          data = {
+            undo: JSON.parse(undo),
+            redo: JSON.parse(redo)
+          }
+        } catch {
+          return;
+        }
+        
+        undoStack.splice(0);
+        for (let undo of data.undo) {
+          undoStack.push(undo);
+        }
+        
+        redoStack.splice(0);
+        for (let redo of data.redo) {
+          redoStack.push(redo);
+        }
+        if (undoStack.length <= 1) return;
+        
+        checkUndoRedo();
+        restoreData(undoStack[undoStack.length-1]);
+        return true;
+      }
+
       function rebuildText(d) {
         const el = makeShell(d);
         const inner = document.createElement('div');
         inner.className    = 'text-inner' + (d.isVert ? ' vert' : '');
         inner.contentEditable = 'true';
+        inner.dataset.placeholder = "テキストを入力";
         if (d.textStyle) inner.setAttribute('style', d.textStyle);
         inner.innerHTML    = d.textHTML || '';
         el.appendChild(inner);
@@ -880,6 +942,7 @@
         const cur = undoStack.pop();
         redoStack.push(cur);
         checkUndoRedo();
+        saveToLocalStorage();
         restoreData(undoStack[undoStack.length - 1]);
       }
 
@@ -888,6 +951,7 @@
         const nxt = redoStack.pop();
         undoStack.push(nxt);
         checkUndoRedo();
+        saveToLocalStorage();
         restoreData(nxt);
       }
 
@@ -1821,17 +1885,14 @@
          初期化
       ============================================================ */
       (function init() {
-        const el    = addTextEl(70, 70);
-        const inner = el.querySelector('.text-inner');
-        if (inner) {
-          inner.dataset.placeholder = 'テキストを入力';
-        }
+        // 初期の表示
         try {
           document.getElementById("sel-tori").disabled = true;
           document.getElementById("sel-tori").style.color = "var(--toolbar-disabled)";
           document.getElementById("fbar-tori").disabled = true;
           document.getElementById("fbar-tori").style.color = "var(--toolbar-disabled)";
         } catch {}
+        if (!loadFromLocalStorage()) addTextEl(70, 70);
         saveData();
       })();
     </script>
