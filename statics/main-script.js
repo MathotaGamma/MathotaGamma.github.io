@@ -39,7 +39,7 @@ async function initBreadcrumb(href=null) {
   const color = {
     able: breadcrumb.dataset.colorAble ?? "#008",
     disable: breadcrumb.dataset.colorDisable ?? "black",
-    bg: breadcrumb.dataset.bgColor ?? "transparent"
+    bg: breadcrumb.dataset.bgColor
   };
 
   // パス分解
@@ -119,7 +119,7 @@ async function initBreadcrumb(href=null) {
   const ret = await getList();
 
   breadcrumb.style.display = "inline-block";
-  breadcrumb.style.backgroundColor = color.bg;
+  if (color.bg) breadcrumb.style.backgroundColor = color.bg;
   
   if (error != null) {
     const goTop = document.createElement("span");
