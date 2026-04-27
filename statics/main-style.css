@@ -6,6 +6,9 @@
 
 nav#breadcrumb {
   font-size: 14px;
+}
+
+nav#breadcrumb.bg {
   background: rgb( 255 250 205 );
 }
 
