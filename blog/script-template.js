@@ -40,7 +40,7 @@ async function initBreadcrumb(href=null) {
   const color = {
     able: breadcrumb.dataset.colorAble ?? "#008",
     disable: breadcrumb.dataset.colorDisable ?? "black",
-    splitter: breadcrumb.dataset.splitter ?? "black",
+    splitter: breadcrumb.dataset.colorSplitter ?? "black",
     bg: breadcrumb.dataset.bgColor
   };
 
@@ -142,11 +142,12 @@ async function initBreadcrumb(href=null) {
     const {stateList, pathList, nameList} = ret;
     const splitter = document.createElement("span");
     splitter.innerHTML = "<";
+    splitter.style.color = color.splitter;
     for (let ind = 0; ind < stateList.length; ind++) {
       const span = document.createElement("span");
       span.innerHTML = nameList[ind];
       span.dataset.path = pathList[ind];
-      span.style.color = color.splitter;
+      span.style.color = color.disable;
       if (stateList[ind]) {
         span.style.color = color.able;
         span.addEventListener("click", (e) => {
