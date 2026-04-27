@@ -43,7 +43,6 @@ async function initBreadcrumb(href=null) {
     splitter: breadcrumb.dataset.colorSplitter ?? "black",
     bg: breadcrumb.dataset.bgColor
   };
-  alert(color.splitter);
 
   // パス分解
   const paths = (href??location.pathname).split("/");
