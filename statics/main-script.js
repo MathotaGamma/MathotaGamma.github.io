@@ -26,7 +26,11 @@ async function initBreadcrumb(href=null) {
   const sitemap = await getSitemap();
   if (!sitemap) error = "#1";
 
-  const color = "#008";
+  const color = {
+    able: breadcrumb.dataset.colorAble ?? "#008",
+    disable: breadcrumb.dataset.colorDisable ?? "black",
+    bg: breadcrumb.dataset.bgColor ?? "transparent"
+  };
 
   // パス分解
   const paths = (href??location.pathname).split("/");
@@ -104,10 +108,12 @@ async function initBreadcrumb(href=null) {
   
   const ret = await getList();
   
+  breadcrumb.style.backgroundColor = color.bg;
+  
   if (error != null) {
     const goTop = document.createElement("span");
     goTop.innerHTML = "TOP";
-    goTop.style.color = color;
+    goTop.style.color = color.able;
     goTop.addEventListener("click", () => {
       window.location.href = "/";
     });
@@ -115,7 +121,7 @@ async function initBreadcrumb(href=null) {
     errorSpan.innerHTML = error;
     errorSpan.style.marginLeft = "5px";
     errorSpan.style.fontSize = "12px";
-    errorSpan.style.color = "black";
+    errorSpan.style.color = color.disable;
     breadcrumb.innerHTML = "";
     breadcrumb.appendChild(goTop);
     breadcrumb.appendChild(errorSpan);
@@ -127,9 +133,9 @@ async function initBreadcrumb(href=null) {
       const span = document.createElement("span");
       span.innerHTML = nameList[ind];
       span.dataset.path = pathList[ind];
-      span.style.color = "black";
+      span.style.color = color.disable;
       if (stateList[ind]) {
-        span.style.color = color;
+        span.style.color = color.able;
         span.addEventListener("click", (e) => {
           window.location.href = e.target.dataset.path;
         });
