@@ -49,6 +49,10 @@
       }
 
       /* ===== Top toolbar ===== */
+      .flex-breakline {
+        flex-basis: 100%;
+        height: 0;
+      }
       #topbar {
         position: fixed;
         top: 0;
@@ -511,7 +515,8 @@
 
     <!-- ========== TOPBAR ========== -->
     <div id="topbar">
-      <nav id="breadcrumb"></nav><br>
+      <nav id="breadcrumb"></nav>
+      <div class="flex-breakline"></div>
       <span class="tb-label">履歴</span>
       <button class="tb-btn" id="btn-undo" onclick="doUndo()" title="Ctrl+Z" disabled>
         <svg viewBox="0 0 24 24">
