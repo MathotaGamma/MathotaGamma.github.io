@@ -8,7 +8,7 @@ nav#breadcrumb {
   font-size: 14px;
 }
 
-nav#breadcrumb.bg {
+nav#breadcrumb.default-bg {
   background: rgb( 255 250 205 );
 }
 
