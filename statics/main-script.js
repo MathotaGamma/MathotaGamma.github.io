@@ -1,4 +1,14 @@
 // nav id="breadcrumb"にパンくずリストを設定する。
+/*
+navの属性で色を指定できる。
+data-bg-color: "背景色"
+data-color-able: "リンクで飛べる階層の文字" (default: "#008")
+data-color-disable: "リンクで飛べない階層の文字&エラー番号の色" (default: "black")
+
+付属のstylesheetを読み込んだ場合、
+class="default-bg"でクリーム色の背景色になる。
+*/
+
 async function getSitemap() {
   try {
     const res = await fetch('/statics/sitemap.json');
@@ -107,7 +117,8 @@ async function initBreadcrumb(href=null) {
   }
   
   const ret = await getList();
-  
+
+  breadcrumb.style.display = "inline-block";
   breadcrumb.style.backgroundColor = color.bg;
   
   if (error != null) {
