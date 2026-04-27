@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document Editor</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&family=Noto+Serif+JP:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ===== Variables ===== */
+      :root {
+        --bg: #b8b8b8;
+        --toolbar-bg: #1e1e2e;
+        --toolbar-border: #383855;
+        --toolbar-text: #cdd6f4;
+        --toolbar-disabled: grey;
+        --toolbar-hover: #313244;
+        --accent: #89dceb;
+        --accent2: #cba6f7;
+        --danger: #f38ba8;
+        --handle: #89dceb;
+        --snap: rgba(203,166,247,0.6);
+        --font-ui: 'Noto Sans JP', sans-serif;
+      }
+
+      /* ===== Reset ===== */
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: var(--font-ui);
+        background: var(--bg);
+        background-image: repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 18px,
+          rgba(0,0,0,0.035) 18px,
+          rgba(0,0,0,0.035) 19px
+        );
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        overflow-x: hidden;
+      }
+
+      /* ===== Top toolbar ===== */
+      #topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 2000;
+        background: var(--toolbar-bg);
+        border-bottom: 1px solid var(--toolbar-border);
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 5px 10px;
+        flex-wrap: wrap;
+        user-select: none;
+        min-height: 46px;
+      }
+
+      .tb-sep {
+        width: 1px;
+        height: 22px;
+        background: var(--toolbar-border);
+        margin: 0 4px;
+        flex-shrink: 0;
+      }
+
+      .tb-label {
+        font-size: 9px;
+        color: #555575;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-right: 2px;
+        white-space: nowrap;
+      }
+
+      .tb-btn {
+        background: none;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        color: var(--toolbar-text);
+        cursor: pointer;
+        font-size: 12px;
+        padding: 4px 7px;
+        transition: background 0.12s, border-color 0.12s, color 0.12s;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-family: var(--font-ui);
+        line-height: 1;
+      }
+
+      .tb-btn:hover {
+        background: var(--toolbar-hover);
+        border-color: var(--toolbar-border);
+      }
+
+      .tb-btn.act {
+        background: #2a2a3e;
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .tb-btn:disabled {
+        color: var(--toolbar-disabled);
+        cursor: default;
+        pointer-events: none;
+      }
+
+      .tb-btn svg {
+        width: 13px;
+        height: 13px;
+        fill: currentColor;
+        flex-shrink: 0;
+      }
+
+      .tb-sel {
+        background: #12121e;
+        border: 1px solid var(--toolbar-border);
+        border-radius: 4px;
+        color: var(--toolbar-text);
+        font-size: 11px;
+        padding: 3px 5px;
+        cursor: pointer;
+        font-family: var(--font-ui);
+        outline: none;
+      }
+
+      .tb-sel:focus {
+        border-color: var(--accent);
+      }
+
+      .tb-color {
+        width: 24px;
+        height: 24px;
+        border: 1px solid var(--toolbar-border);
+        border-radius: 4px;
+        cursor: pointer;
+        padding: 2px;
+        background: none;
+        flex-shrink: 0;
+      }
+
+      .size-btn {
+        background: none;
+        border: 1px solid var(--toolbar-border);
+        border-radius: 4px;
+        color: #6c7086;
+        cursor: pointer;
+        font-size: 10px;
+        padding: 3px 7px;
+        font-family: var(--font-ui);
+        transition: all 0.12s;
+      }
+
+      .size-btn.act {
+        border-color: var(--accent2);
+        color: var(--accent2);
+        background: rgba(203,166,247,0.1);
+      }
+
+      /* ===== Workspace ===== */
+      #workspace {
+        margin-top: 52px;
+        padding: 36px 16px 80px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: calc(100vh - 52px);
+        width: 100%;
+      }
+
+      /* ===== Paper ===== */
+      #paper {
+        position: relative;
+        background: #fff;
+        box-shadow:
+          0 2px 6px rgba(0,0,0,0.15),
+          0 10px 44px rgba(0,0,0,0.3);
+        width: 794px;
+        min-height: 1123px;
+        transition: width 0.25s, min-height 0.25s;
+        flex-shrink: 0;
+      }
+
+      #paper.b5 {
+        width: 669px;
+        min-height: 945px;
+      }
+
+      /* ===== Snap guides ===== */
+      .snap-guide {
+        position: absolute;
+        background: var(--snap);
+        pointer-events: none;
+        z-index: 1500;
+      }
+
+      .snap-guide.v {
+        width: 1px;
+        top: 0;
+        bottom: 0;
+      }
+
+      .snap-guide.h {
+        height: 1px;
+        left: 0;
+        right: 0;
+      }
+
+      /* ===== Paper element base ===== */
+      .pel {
+        position: absolute;
+        outline: none;
+        cursor: default;
+      }
+
+      .pel.sel {
+        box-shadow:
+          0 0 0 2px var(--handle),
+          0 0 0 3px rgba(137,220,235,0.25);
+      }
+
+      /* ===== ドラッグハンドル ===== */
+      .drag-handle {
+        position: absolute;
+        top: -20px;
+        left: 0;
+        right: 0;
+        height: 18px;
+        background: #2a2a3e;
+        border: 1px solid var(--toolbar-border);
+        border-bottom: none;
+        border-radius: 3px 3px 0 0;
+        cursor: move;
+        display: none;
+        align-items: center;
+        padding: 0 6px;
+        gap: 4px;
+        user-select: none;
+        z-index: 30;
+      }
+
+      .drag-handle::before {
+        content: '⠿⠿';
+        color: #555575;
+        font-size: 10px;
+      }
+
+      .drag-handle-label {
+        font-size: 9px;
+        color: #555575;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+      }
+
+      .pel.sel .drag-handle {
+        display: flex;
+      }
+
+      /* ===== リサイズハンドル ===== */
+      .rh {
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        background: #fff;
+        border: 2px solid var(--handle);
+        border-radius: 2px;
+        z-index: 20;
+        display: none;
+      }
+
+      .pel.sel .rh {
+        display: block;
+      }
+
+      .rh.nw { top: -4px;  left: -4px;              cursor: nw-resize; }
+      .rh.n  { top: -4px;  left: calc(50% - 4px);   cursor: n-resize; }
+      .rh.ne { top: -4px;  right: -4px;              cursor: ne-resize; }
+      .rh.w  { top: calc(50% - 4px); left: -4px;    cursor: w-resize; }
+      .rh.e  { top: calc(50% - 4px); right: -4px;   cursor: e-resize; }
+      .rh.sw { bottom: -4px; left: -4px;             cursor: sw-resize; }
+      .rh.s  { bottom: -4px; left: calc(50% - 4px); cursor: s-resize; }
+      .rh.se { bottom: -4px; right: -4px;            cursor: se-resize; }
+
+      /* ===== z-badge ===== */
+      .z-badge {
+        position: absolute;
+        top: -20px;
+        right: 0;
+        background: #11111b;
+        color: var(--accent2);
+        font-size: 9px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        pointer-events: none;
+        display: none;
+        font-family: var(--font-ui);
+      }
+
+      .pel.sel .z-badge {
+        display: block;
+      }
+
+      /* ===== テキスト要素 ===== */
+      .text-el {
+        min-width: 60px;
+        min-height: 24px;
+        width: 220px;
+      }
+
+      /*
+        text-inner の設計方針:
+        - contentEditable='true' で直接編集
+        - ドラッグは drag-handle から行う
+        - overflow: visible でテキストがはみ出せる（コンテナを広げる）
+        - user-select: text を明示して選択を可能にする
+      */
+      .text-inner {
+        width: 100%;
+        min-height: 24px;
+        outline: none;
+        border: none;
+        background: transparent;
+        font-family: 'Noto Serif JP', serif;
+        font-size: 16px;
+        color: #222;
+        line-height: 1.7;
+        letter-spacing: 0.04em;
+        white-space: pre-wrap;
+        word-break: break-all;
+        overflow-wrap: break-word;
+        display: block;
+        overflow: visible;
+        cursor: text;
+        user-select: text;
+        -webkit-user-select: text;
+        /* カーソルを text に固定して move カーソルが被らないようにする */
+        position: relative;
+        z-index: 1;
+      }
+
+      /*
+        縦書きモード:
+        mixed だと半角英数が 90度横に寝るが、
+        upright だとすべての文字が縦に正立する。
+      */
+      .text-inner.vert {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+      }
+
+      .text-inner:empty::before {
+        content: attr(data-placeholder);
+        color: #888; /* プレースホルダーの色 */
+        pointer-events: none; /* クリックを通過させる */
+        display: block; /* 改行対応 */
+      }
+
+
+      /* ===== 画像要素 ===== */
+      .img-el {
+        min-width: 40px;
+        min-height: 40px;
+        width: 200px;
+        height: 150px;
+      }
+
+      .img-el img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      /* ===== コンテキストメニュー ===== */
+      #ctx {
+        position: fixed;
+        z-index: 9000;
+        background: var(--toolbar-bg);
+        border: 1px solid var(--toolbar-border);
+        border-radius: 8px;
+        padding: 5px 0;
+        min-width: 170px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        display: none;
+        font-family: var(--font-ui);
+      }
+
+      #ctx.show {
+        display: block;
+        animation: pop 0.1s ease;
+      }
+
+      @keyframes pop {
+        from { opacity: 0; transform: scale(0.94) translateY(-4px); }
+        to   { opacity: 1; transform: scale(1)    translateY(0); }
+      }
+
+      .ci {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 8px 14px;
+        color: var(--toolbar-text);
+        font-size: 13px;
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+
+      .ci:hover {
+        background: var(--toolbar-hover);
+        color: var(--accent);
+      }
+
+      .ci svg {
+        width: 13px;
+        height: 13px;
+        fill: currentColor;
+        opacity: 0.75;
+      }
+
+      .ci.red:hover {
+        background: rgba(243,139,168,0.1);
+        color: var(--danger);
+      }
+
+      .csep {
+        height: 1px;
+        background: var(--toolbar-border);
+        margin: 3px 0;
+      }
+
+      /* ===== フローティングフォーマットバー ===== */
+      #fbar {
+        position: fixed;
+        z-index: 8900;
+        background: var(--toolbar-bg);
+        border: 1px solid var(--toolbar-border);
+        border-radius: 7px;
+        padding: 4px 7px;
+        display: none;
+        align-items: center;
+        gap: 3px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+      }
+
+      #fbar.show {
+        display: flex;
+        animation: pop 0.1s ease;
+      }
+
+      /* ===== Download overlay ===== */
+      #dl-ov {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 9500;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 14px;
+        color: #fff;
+        font-size: 15px;
+        font-family: var(--font-ui);
+      }
+
+      #dl-ov.show {
+        display: flex;
+      }
+
+      .spin {
+        width: 36px;
+        height: 36px;
+        border: 3px solid rgba(255,255,255,0.15);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: rot 0.75s linear infinite;
+      }
+
+      @keyframes rot { to { transform: rotate(360deg); } }
+
+      /* ===== Hidden file input ===== */
+      #img-inp { display: none; }
+
+      /* ===== Scrollbar ===== */
+      ::-webkit-scrollbar { width: 7px; height: 7px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+
+      ::selection { background: rgba(137,220,235,0.35); }
+    </style>
+  </head>
+  <body>
+
+    <!-- ========== TOPBAR ========== -->
+    <div id="topbar">
+      <nav id="breadcrumb"></nav><br>
+      <span class="tb-label">履歴</span>
+      <button class="tb-btn" id="btn-undo" onclick="doUndo()" title="Ctrl+Z" disabled>
+        <svg viewBox="0 0 24 24">
+          <path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>
+        </svg>
+        戻す
+      </button>
+      <button class="tb-btn" id="btn-redo" onclick="doRedo()" title="Ctrl+Y" disabled>
+        <svg viewBox="0 0 24 24">
+          <path d="M18.4 10.6C16.55 9 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 15.7c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 15.5h9v-9l-3.6 4.1z"/>
+        </svg>
+        やり直し
+      </button>
+
+      <div class="tb-sep"></div>
+
+      <span class="tb-label">追加</span>
+      <button class="tb-btn" onclick="addTextEl()" title="テキスト追加">
+        <svg viewBox="0 0 24 24">
+          <path d="M5 4v3h5.5v12h3V7H19V4z"/>
+        </svg>
+        テキスト
+      </button>
+      <button class="tb-btn" onclick="triggerImg()" title="画像挿入">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-1.1 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+        </svg>
+        画像
+      </button>
+      <input type="file" id="img-inp" accept="image/*" onchange="insertImg(event)" />
+
+      <div class="tb-sep"></div>
+
+      <span class="tb-label">書式</span>
+      <button class="tb-btn" onclick="fmtBold()" title="太字 Ctrl+B">
+        <svg viewBox="0 0 24 24">
+          <path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/>
+        </svg>
+        B
+      </button>
+      <button class="tb-btn" onclick="fmtItalic()" title="斜体 Ctrl+I">
+        <svg viewBox="0 0 24 24">
+          <path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/>
+        </svg>
+        I
+      </button>
+      <button class="tb-btn" onclick="fmtStrike()" title="打ち消し線">
+        <svg viewBox="0 0 24 24">
+          <path d="M10 19h4v-3h-4v3zM5 4v3h5v3h4V7h5V4H5zM3 14h18v-2H3v2z"/>
+        </svg>
+        S̶
+      </button>
+      <button class="tb-btn" id="btn-vert" onclick="toggleVert()" title="縦書き/横書き切り替え">
+        縦/横
+      </button>
+
+      <div class="tb-sep"></div>
+
+      <span class="tb-label">フォント</span>
+      <select class="tb-sel" id="sel-font" onchange="applyFont()" title="フォント">
+        <option value="'Noto Serif JP',serif">Noto Serif</option>
+        <option value="'Noto Sans JP',sans-serif">Noto Sans</option>
+        <option value="Georgia,serif">Georgia</option>
+        <option value="'Courier New',monospace">Courier</option>
+      </select>
+      <select class="tb-sel" id="sel-sz" onchange="applyFontSize()" title="文字サイズ">
+        <option value="10">10</option>
+        <option value="12">12</option>
+        <option value="14">14</option>
+        <option value="16" selected>16</option>
+        <option value="18">18</option>
+        <option value="20">20</option>
+        <option value="24">24</option>
+        <option value="28">28</option>
+        <option value="32">32</option>
+        <option value="36">36</option>
+        <option value="48">48</option>
+        <option value="64">64</option>
+        <option value="72">72</option>
+      </select>
+      <select class="tb-sel" id="sel-tori" onchange="applyTextOrientation()" title="テキストの向き">
+        <option value="mixed">自動</option>
+        <option value="sideways">縦</option>
+        <option value="upright">横</option>
+      </select>
+      <input
+        type="color"
+        class="tb-color"
+        id="sel-col"
+        value="#222222"
+        title="文字色"
+        onchange="applyColor(this.value)"
+      />
+
+      <div class="tb-sep"></div>
+
+      <span class="tb-label">間隔</span>
+      <select class="tb-sel" id="sel-lh" onchange="applyLH()" title="行間">
+        <option value="0.5">行 0.5</option>
+        <option value="0.8">行 0.8</option>
+        <option value="1" selected>行 1.0</option>
+        <option value="1.2">行 1.2</option>
+        <option value="1.5">行 1.5</option>
+        <option value="1.7">行 1.7</option>
+        <option value="2">行 2.0</option>
+        <option value="2.5">行 2.5</option>
+        <option value="3">行 3.0</option>
+      </select>
+      <select class="tb-sel" id="sel-ls" onchange="applyLS()" title="字間">
+        <option value="0">字 0</option>
+        <option value="0.02">字 .02</option>
+        <option value="0.04" selected>字 .04</option>
+        <option value="0.08">字 .08</option>
+        <option value="0.12">字 .12</option>
+        <option value="0.20">字 .20</option>
+      </select>
+
+      <div class="tb-sep"></div>
+
+      <span class="tb-label">順序</span>
+      <button class="tb-btn" onclick="zFront()"   title="最前面">▲▲</button>
+      <button class="tb-btn" onclick="zForward()" title="前へ">▲</button>
+      <button class="tb-btn" onclick="zBackward()" title="後ろへ">▼</button>
+      <button class="tb-btn" onclick="zBack()"    title="最背面">▼▼</button>
+
+      <div class="tb-sep"></div>
+
+      <span class="tb-label">用紙</span>
+      <button class="size-btn act" id="btn-a4" onclick="setSize('a4')">A4</button>
+      <button class="size-btn"     id="btn-b5" onclick="setSize('b5')">B5</button>
+
+      <div class="tb-sep"></div>
+
+      <button class="tb-btn" onclick="dlPNG()" title="PNG保存">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+        </svg>
+        PNG保存
+      </button>
+
+    </div><!-- /#topbar -->
+
+    <!-- ========== WORKSPACE ========== -->
+    <div id="workspace">
+      <div id="paper"></div>
+    </div>
+
+    <!-- ========== FLOATING FORMAT BAR ========== -->
+    <div id="fbar">
+      <button class="tb-btn" onclick="fmtBold()">
+        <svg viewBox="0 0 24 24" style="width:12px;height:12px;fill:currentColor">
+          <path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/>
+        </svg>
+      </button>
+      <button class="tb-btn" onclick="fmtItalic()">
+        <svg viewBox="0 0 24 24" style="width:12px;height:12px;fill:currentColor">
+          <path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/>
+        </svg>
+      </button>
+      <button class="tb-btn" onclick="fmtStrike()">S̶</button>
+      <input
+        type="color"
+        class="tb-color"
+        id="fbar-col"
+        value="#222222"
+        style="width:22px;height:22px;"
+        title="文字色"
+        onchange="applyColor(this.value)"
+      />
+      <select
+        class="tb-sel"
+        id="fbar-tori"
+        onchange="applyTextOrientationVal(this.value)"
+        style="font-size:11px;"
+      >
+        <option value="mixed">自動</option>
+        <option value="sideways">縦</option>
+        <option value="upright">横</option>
+      </select>
+      <select
+        class="tb-sel"
+        id="fbar-sz"
+        onchange="applyFontSizeVal(parseInt(this.value))"
+        style="font-size:11px;"
+      >
+        <option value="10">10</option>
+        <option value="12">12</option>
+        <option value="14">14</option>
+        <option value="16" selected>16</option>
+        <option value="18">18</option>
+        <option value="20">20</option>
+        <option value="24">24</option>
+        <option value="28">28</option>
+        <option value="36">36</option>
+        <option value="48">48</option>
+      </select>
+    </div>
+
+    <!-- ========== CONTEXT MENU ========== -->
+    <div id="ctx">
+      <div class="ci" onclick="ctxAddText()">
+        <svg viewBox="0 0 24 24">
+          <path d="M5 4v3h5.5v12h3V7H19V4z"/>
+        </svg>
+        テキスト追加
+      </div>
+      <div class="ci" onclick="triggerImg(); closeCtx()">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-1.1 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+        </svg>
+        画像挿入
+      </div>
+      <div class="csep"></div>
+      <div class="ci" id="ci-front"  onclick="zFront();   closeCtx()">最前面へ</div>
+      <div class="ci" id="ci-back"   onclick="zBack();    closeCtx()">最背面へ</div>
+      <div class="csep"></div>
+      <div class="ci" onclick="doUndo(); closeCtx()">
+        <svg viewBox="0 0 24 24">
+          <path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>
+        </svg>
+        元に戻す
+      </div>
+      <div class="csep"></div>
+      <div class="ci red" id="ci-del" onclick="delSelected(); closeCtx()">
+        <svg viewBox="0 0 24 24">
+          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+        </svg>
+        削除
+      </div>
+    </div>
+
+    <!-- ========== DOWNLOAD OVERLAY ========== -->
+    <div id="dl-ov">
+      <div class="spin"></div>
+      <span>PNG 生成中…</span>
+    </div>
+
+    <!-- html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+      'use strict';
+
+      /* ============================================================
+         グローバル状態
+      ============================================================ */
+      const paper = document.getElementById('paper');
+      const ctx   = document.getElementById('ctx');
+      const fbar  = document.getElementById('fbar');
+
+      let sel         = null;   // 選択中の .pel
+      let idCnt       = 0;
+      let zCnt        = 10;
+      let ctxPos      = null;   // 紙面相対のタップ位置
+      let isComposing = false;  // IME 入力中フラグ
+
+      const undoStack = [];
+      const redoStack = [];
+      const MAX_HIS   = 80;
+      const SNAP_D    = 8;      // スナップ距離 px
+
+      /* ============================================================
+         ユーティリティ
+      ============================================================ */
+      function clientToPaper(cx, cy) {
+        const r = paper.getBoundingClientRect();
+        return { x: cx - r.left, y: cy - r.top };
+      }
+
+      /* ============================================================
+         Undo / Redo
+         ── contentEditable の innerHTML をスナップショット保存すると
+            IME 途中の「幽霊テキスト」が残る問題が起きるため、
+            全要素の外形スタイルと innerHTML を JSON で管理する。
+            ただし innerHTML は text-inner のみ（入力確定後）。
+      ============================================================ */
+      function checkUndoRedo() {
+        document.getElementById("btn-undo").disabled = undoStack.length <= 1;
+        document.getElementById("btn-redo").disabled = !redoStack.length;
+      }
+      
+      function saveData() {
+        const els = [];
+        paper.querySelectorAll('.pel').forEach(el => {
+          const inner  = el.querySelector('.text-inner');
+          const imgTag = el.querySelector('img');
+          els.push({
+            id:       el.id,
+            cls:      el.className.replace(/\bsel\b/g, '').trim(),
+            left:     el.style.left,
+            top:      el.style.top,
+            width:    el.style.width,
+            height:   el.style.height,
+            zIndex:   el.style.zIndex,
+            /* テキスト要素 */
+            textHTML:  inner   ? inner.innerHTML              : null,
+            textStyle: inner   ? inner.getAttribute('style')  : null,
+            isVert:    inner   ? inner.classList.contains('vert') : false,
+            /* 画像要素 */
+            imgSrc:    imgTag  ? imgTag.src                   : null
+          });
+        });
+        const s = JSON.stringify(els);
+        if (undoStack.length && undoStack[undoStack.length - 1] === s) return;
+        undoStack.push(s);
+        if (undoStack.length > MAX_HIS) undoStack.shift();
+        redoStack.length = 0;
+        checkUndoRedo();
+      }
+
+      function restoreData(s) {
+        /* 既存要素を全削除 */
+        paper.querySelectorAll('.pel, .snap-guide').forEach(e => e.remove());
+        sel = null;
+        const arr = JSON.parse(s);
+        arr.forEach(d => {
+          if (d.imgSrc) {
+            rebuildImg(d);
+          } else {
+            rebuildText(d);
+          }
+        });
+      }
+
+      function rebuildText(d) {
+        const el = makeShell(d);
+        const inner = document.createElement('div');
+        inner.className    = 'text-inner' + (d.isVert ? ' vert' : '');
+        inner.contentEditable = 'true';
+        if (d.textStyle) inner.setAttribute('style', d.textStyle);
+        inner.innerHTML    = d.textHTML || '';
+        el.appendChild(inner);
+        finishPel(el, 'テキスト');
+        attachEvents(el);
+      }
+
+      function rebuildImg(d) {
+        const el = makeShell(d);
+        const img = document.createElement('img');
+        img.src       = d.imgSrc;
+        img.draggable = false;
+        el.appendChild(img);
+        finishPel(el, '画像');
+        attachEvents(el);
+      }
+
+      function makeShell(d) {
+        const el = document.createElement('div');
+        el.id           = d.id;
+        el.className    = d.cls;
+        el.style.left   = d.left;
+        el.style.top    = d.top;
+        el.style.width  = d.width;
+        el.style.height = d.height;
+        el.style.zIndex = d.zIndex;
+        return el;
+      }
+
+      function doUndo() {
+        if (undoStack.length <= 1) return;
+        const cur = undoStack.pop();
+        redoStack.push(cur);
+        checkUndoRedo();
+        restoreData(undoStack[undoStack.length - 1]);
+      }
+
+      function doRedo() {
+        if (!redoStack.length) return;
+        const nxt = redoStack.pop();
+        undoStack.push(nxt);
+        checkUndoRedo();
+        restoreData(nxt);
+      }
+
+      /* ============================================================
+         選択管理
+      ============================================================ */
+      function select(el) {
+        if (sel && sel !== el) deselect();
+        sel = el;
+        el.classList.add('sel');
+        syncTB(el);
+      }
+
+      function deselect() {
+        if (!sel) return;
+        sel.classList.remove('sel');
+        sel = null;
+      }
+
+      function syncTB(el) {
+        if (!el) return;
+        const inner = el.querySelector('.text-inner');
+        if (!inner) return;
+        const st = inner.style;
+        st.textOrientation = document.getElementById('sel-tori');
+        if (st.lineHeight)    document.getElementById('sel-lh').value   = st.lineHeight;
+        if (st.letterSpacing) document.getElementById('sel-ls').value   = parseFloat(st.letterSpacing);
+        if (st.fontFamily)    document.getElementById('sel-font').value = st.fontFamily;
+        if (st.fontSize)      document.getElementById('sel-sz').value   = parseInt(st.fontSize);
+      }
+
+      /* ============================================================
+         テキスト要素の生成
+      ============================================================ */
+      function addTextEl(px, py) {
+        const el = document.createElement('div');
+        el.className  = 'pel text-el';
+        el.id         = 'el' + (++idCnt);
+        el.style.left   = (px != null ? px : 80) + 'px';
+        el.style.top    = (py != null ? py : 80) + 'px';
+        el.style.width  = '220px';
+        el.style.zIndex = ++zCnt;
+
+        const inner = document.createElement('div');
+        inner.className       = 'text-inner';
+        inner.contentEditable = 'true';
+        inner.style.fontFamily    = "'Noto Serif JP',serif";
+        inner.style.textOrientation = 'mixed';
+        inner.style.fontSize      = '16px';
+        inner.style.lineHeight    = '1';
+        inner.style.letterSpacing = '0.04em';
+        inner.style.color         = '#222222';
+        //inner.innerHTML = 'テキストを入力';
+        inner.dataset.placeholder = 'テキストを入力';
+
+        el.appendChild(inner);
+        finishPel(el, 'テキスト');
+        attachEvents(el);
+        select(el);
+
+        /*
+          フォーカスは requestAnimationFrame で遅延させる。
+          即 focus() だとモバイル Safari で IME が二重起動することがある。
+        */
+        requestAnimationFrame(() => {
+          inner.focus();
+          const range = document.createRange();
+          range.selectNodeContents(inner);
+          const s = window.getSelection();
+          s.removeAllRanges();
+          s.addRange(range);
+        });
+
+        saveData();
+        return el;
+      }
+
+      function ctxAddText() {
+        const p = ctxPos || { x: 80, y: 80 };
+        addTextEl(p.x, p.y);
+        closeCtx();
+      }
+
+      /* ============================================================
+         画像要素の生成
+      ============================================================ */
+      function triggerImg() {
+        document.getElementById('img-inp').click();
+      }
+
+      function insertImg(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          const el = document.createElement('div');
+          el.className  = 'pel img-el';
+          el.id         = 'el' + (++idCnt);
+          const p = ctxPos || { x: 80, y: 80 };
+          el.style.left   = p.x + 'px';
+          el.style.top    = p.y + 'px';
+          el.style.width  = '200px';
+          el.style.height = '150px';
+          el.style.zIndex = ++zCnt;
+
+          const img = document.createElement('img');
+          img.src       = ev.target.result;
+          img.draggable = false;
+          el.appendChild(img);
+
+          finishPel(el, '画像');
+          attachEvents(el);
+          select(el);
+          saveData();
+        };
+        reader.readAsDataURL(file);
+        event.target.value = '';
+      }
+
+      /* ============================================================
+         要素に共通パーツを追加して paper に append
+      ============================================================ */
+      function finishPel(el, label) {
+        addDragHandle(el, label);
+        addZBadge(el, parseInt(el.style.zIndex));
+        addRH(el);
+        paper.appendChild(el);
+      }
+
+      /* ドラッグハンドル */
+      function addDragHandle(el, label) {
+        const dh = document.createElement('div');
+        dh.className = 'drag-handle';
+        const lb = document.createElement('span');
+        lb.className   = 'drag-handle-label';
+        lb.textContent = label;
+        dh.appendChild(lb);
+        el.appendChild(dh);
+
+        /* マウスドラッグ */
+        dh.addEventListener('mousedown', function(e) {
+          e.stopPropagation();
+          e.preventDefault();
+          select(el);
+          startDrag(e, el);
+        });
+
+        /* タッチドラッグ */
+        dh.addEventListener('touchstart', function(e) {
+          e.stopPropagation();
+          select(el);
+          startDragTouch(e, el);
+        }, { passive: true });
+      }
+
+      /* z-badge */
+      function addZBadge(el, z) {
+        const b = document.createElement('div');
+        b.className   = 'z-badge';
+        b.textContent = 'z:' + z;
+        el.appendChild(b);
+      }
+
+      function updateZBadge(el) {
+        const b = el.querySelector('.z-badge');
+        if (b) b.textContent = 'z:' + el.style.zIndex;
+      }
+
+      /* リサイズハンドル */
+      function addRH(el) {
+        ['nw','n','ne','w','e','sw','s','se'].forEach(function(dir) {
+          const h = document.createElement('div');
+          h.className   = 'rh ' + dir;
+          h.dataset.dir = dir;
+
+          h.addEventListener('mousedown', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            select(el);
+            startResize(e, el, dir);
+          });
+
+          h.addEventListener('touchstart', function(e) {
+            e.stopPropagation();
+            select(el);
+            startResizeTouch(e, el, dir);
+          }, { passive: false });
+
+          el.appendChild(h);
+        });
+      }
+
+      /* ============================================================
+         イベント attach（各要素に一回だけ呼ぶ）
+      ============================================================ */
+      function attachEvents(el) {
+        const inner   = el.querySelector('.text-inner');
+        const isText  = !!inner;
+
+        /* --- mousedown --- */
+        el.addEventListener('mousedown', function(e) {
+          /* リサイズ・ドラッグハンドルはスキップ */
+          if (e.target.classList.contains('rh')) return;
+          if (e.target.closest('.drag-handle'))  return;
+
+          select(el);
+
+          if (isText && (e.target === inner || inner.contains(e.target))) {
+            /*
+              text-inner 内クリック:
+              テキスト編集を優先。ドラッグしない。
+              カーソル位置はブラウザが決める。
+            */
+            return;
+          }
+
+          /* それ以外（画像要素 or テキスト外枠）: ドラッグ開始 */
+          e.preventDefault();
+          startDrag(e, el);
+        });
+
+        /* --- touchstart --- */
+        el.addEventListener('touchstart', function(e) {
+          if (e.target.classList.contains('rh')) return;
+          if (e.target.closest('.drag-handle'))  return;
+
+          select(el);
+
+          if (isText && (e.target === inner || inner.contains(e.target))) {
+            /* テキスト内タップ: フォーカスを許可してドラッグしない */
+            return;
+          }
+
+          /* 画像 or テキスト外枠: ドラッグ開始 */
+          startDragTouch(e, el);
+        }, { passive: true });
+
+        /* --- 右クリック --- */
+        el.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          select(el);
+          ctxPos = clientToPaper(e.clientX, e.clientY);
+          openCtx(e.clientX, e.clientY, true);
+        });
+
+        /* --- テキスト専用イベント --- */
+        if (isText) {
+          /* IME */
+          inner.addEventListener('compositionstart', function() {
+            isComposing = true;
+          });
+
+          inner.addEventListener('compositionend', function() {
+            isComposing = false;
+            saveData();
+          });
+
+          /*
+            input イベント:
+            IME 確定前（composing 中）はスナップショットを取らない。
+            スナップショットを取ると innerHTML に未確定文字列が含まれ、
+            undo 後に「幽霊テキスト」が残るバグの原因になる。
+          */
+          inner.addEventListener('input', function() {
+            if (!isComposing) {
+              /* debounce: 連続入力中は遅延してスナップ */
+              clearTimeout(inner._saveTimer);
+              inner._saveTimer = setTimeout(function() {
+                saveData();
+              }, 400);
+
+              // 入力を空にしても<br>だけ残るため、placeholder出すために完全に空にする。
+              if(inner.innerHTML == '<br>') inner.innerHTML = '';
+            }
+          });
+
+          /* テキスト選択 → フローティングバー */
+          inner.addEventListener('mouseup',  updateFbar);
+          inner.addEventListener('keyup',    updateFbar);
+          inner.addEventListener('touchend', function() {
+            /* touchend 直後はまだ selection が確定しないことがある */
+            setTimeout(updateFbar, 80);
+          });
+
+          /* フォーカスが外れたら確実に保存 */
+          inner.addEventListener('blur', function() {
+            clearTimeout(inner._saveTimer);
+            saveData();
+          });
+        }
+      }
+
+      /* ============================================================
+         ドラッグ（マウス）
+      ============================================================ */
+      const dragSt = {
+        active: false, el: null,
+        sx: 0, sy: 0, ox: 0, oy: 0
+      };
+
+      function startDrag(e, el) {
+        dragSt.active = true;
+        dragSt.el = el;
+        dragSt.sx = e.clientX;
+        dragSt.sy = e.clientY;
+        dragSt.ox = parseInt(el.style.left) || 0;
+        dragSt.oy = parseInt(el.style.top)  || 0;
+        document.addEventListener('mousemove', onDragMove);
+        document.addEventListener('mouseup',   onDragEnd);
+      }
+
+      function onDragMove(e) {
+        if (!dragSt.active) return;
+        const nx = dragSt.ox + (e.clientX - dragSt.sx);
+        const ny = dragSt.oy + (e.clientY - dragSt.sy);
+        const sn = doSnap(dragSt.el, nx, ny);
+        dragSt.el.style.left = sn.x + 'px';
+        dragSt.el.style.top  = sn.y + 'px';
+      }
+
+      function onDragEnd() {
+        if (!dragSt.active) return;
+        dragSt.active = false;
+        clearSnap();
+        document.removeEventListener('mousemove', onDragMove);
+        document.removeEventListener('mouseup',   onDragEnd);
+        saveData();
+      }
+
+      /* ============================================================
+         ドラッグ（タッチ）
+      ============================================================ */
+      const touchDragSt = {
+        active: false, el: null,
+        sx: 0, sy: 0, ox: 0, oy: 0, tid: null
+      };
+
+      function startDragTouch(e, el) {
+        const t = e.touches[0];
+        touchDragSt.active = true;
+        touchDragSt.el  = el;
+        touchDragSt.sx  = t.clientX;
+        touchDragSt.sy  = t.clientY;
+        touchDragSt.ox  = parseInt(el.style.left) || 0;
+        touchDragSt.oy  = parseInt(el.style.top)  || 0;
+        touchDragSt.tid = t.identifier;
+        document.addEventListener('touchmove', onTouchDragMove, { passive: false });
+        document.addEventListener('touchend',  onTouchDragEnd);
+        document.addEventListener('touchcancel', onTouchDragEnd);
+      }
+
+      function onTouchDragMove(e) {
+        if (!touchDragSt.active) return;
+        let t = null;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === touchDragSt.tid) {
+            t = e.changedTouches[i];
+            break;
+          }
+        }
+        if (!t) return;
+        e.preventDefault();
+        const nx = touchDragSt.ox + (t.clientX - touchDragSt.sx);
+        const ny = touchDragSt.oy + (t.clientY - touchDragSt.sy);
+        const sn = doSnap(touchDragSt.el, nx, ny);
+        touchDragSt.el.style.left = sn.x + 'px';
+        touchDragSt.el.style.top  = sn.y + 'px';
+      }
+
+      function onTouchDragEnd() {
+        if (!touchDragSt.active) return;
+        touchDragSt.active = false;
+        clearSnap();
+        document.removeEventListener('touchmove',   onTouchDragMove);
+        document.removeEventListener('touchend',    onTouchDragEnd);
+        document.removeEventListener('touchcancel', onTouchDragEnd);
+        saveData();
+      }
+
+      /* ============================================================
+         スナップ
+      ============================================================ */
+      function doSnap(el, nx, ny) {
+        clearSnap();
+        const pw = paper.offsetWidth;
+        const ph = paper.offsetHeight;
+        const ew = el.offsetWidth;
+        const eh = el.offsetHeight;
+        const vSnaps = [0, (pw - ew) / 2, pw - ew];
+        const hSnaps = [0, (ph - eh) / 2, ph - eh];
+        let fx = nx;
+        let fy = ny;
+
+        for (const v of vSnaps) {
+          if (Math.abs(nx - v) < SNAP_D) {
+            fx = v;
+            showSnap('v', v + ew / 2);
+            break;
+          }
+        }
+        for (const v of hSnaps) {
+          if (Math.abs(ny - v) < SNAP_D) {
+            fy = v;
+            showSnap('h', v + eh / 2);
+            break;
+          }
+        }
+        return { x: fx, y: fy };
+      }
+
+      function showSnap(type, pos) {
+        const g = document.createElement('div');
+        g.className = 'snap-guide ' + type;
+        if (type === 'v') g.style.left = pos + 'px';
+        else              g.style.top  = pos + 'px';
+        paper.appendChild(g);
+      }
+
+      function clearSnap() {
+        paper.querySelectorAll('.snap-guide').forEach(function(g) {
+          g.remove();
+        });
+      }
+
+      /* ============================================================
+         リサイズ（マウス）
+      ============================================================ */
+      const rzSt = {
+        active: false, el: null, dir: '',
+        sx: 0, sy: 0, ow: 0, oh: 0, ox: 0, oy: 0
+      };
+
+      function startResize(e, el, dir) {
+        rzSt.active = true;
+        rzSt.el  = el;
+        rzSt.dir = dir;
+        rzSt.sx  = e.clientX;
+        rzSt.sy  = e.clientY;
+        rzSt.ow  = el.offsetWidth;
+        rzSt.oh  = el.offsetHeight;
+        rzSt.ox  = parseInt(el.style.left) || 0;
+        rzSt.oy  = parseInt(el.style.top)  || 0;
+        document.addEventListener('mousemove', onRzMove);
+        document.addEventListener('mouseup',   onRzEnd);
+      }
+
+      function onRzMove(e) {
+        if (!rzSt.active) return;
+        applyResize(
+          rzSt.el, rzSt.dir,
+          e.clientX - rzSt.sx,
+          e.clientY - rzSt.sy,
+          rzSt.ow, rzSt.oh, rzSt.ox, rzSt.oy
+        );
+      }
+
+      function onRzEnd() {
+        if (!rzSt.active) return;
+        rzSt.active = false;
+        document.removeEventListener('mousemove', onRzMove);
+        document.removeEventListener('mouseup',   onRzEnd);
+        saveData();
+      }
+
+      /* ============================================================
+         リサイズ（タッチ）
+      ============================================================ */
+      const rzTch = {
+        active: false, el: null, dir: '',
+        sx: 0, sy: 0, ow: 0, oh: 0, ox: 0, oy: 0, tid: null
+      };
+
+      function startResizeTouch(e, el, dir) {
+        e.preventDefault();
+        const t = e.touches[0];
+        rzTch.active = true;
+        rzTch.el  = el;
+        rzTch.dir = dir;
+        rzTch.sx  = t.clientX;
+        rzTch.sy  = t.clientY;
+        rzTch.ow  = el.offsetWidth;
+        rzTch.oh  = el.offsetHeight;
+        rzTch.ox  = parseInt(el.style.left) || 0;
+        rzTch.oy  = parseInt(el.style.top)  || 0;
+        rzTch.tid = t.identifier;
+        document.addEventListener('touchmove',   onRzTchMove, { passive: false });
+        document.addEventListener('touchend',    onRzTchEnd);
+        document.addEventListener('touchcancel', onRzTchEnd);
+      }
+
+      function onRzTchMove(e) {
+        if (!rzTch.active) return;
+        let t = null;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === rzTch.tid) {
+            t = e.changedTouches[i];
+            break;
+          }
+        }
+        if (!t) return;
+        e.preventDefault();
+        applyResize(
+          rzTch.el, rzTch.dir,
+          t.clientX - rzTch.sx,
+          t.clientY - rzTch.sy,
+          rzTch.ow, rzTch.oh, rzTch.ox, rzTch.oy
+        );
+      }
+
+      function onRzTchEnd() {
+        if (!rzTch.active) return;
+        rzTch.active = false;
+        document.removeEventListener('touchmove',   onRzTchMove);
+        document.removeEventListener('touchend',    onRzTchEnd);
+        document.removeEventListener('touchcancel', onRzTchEnd);
+        saveData();
+      }
+
+      function applyResize(el, dir, dx, dy, ow, oh, ox, oy) {
+        let w = ow;
+        let h = oh;
+        let x = ox;
+        let y = oy;
+
+        if (dir.includes('e')) w = Math.max(40, ow + dx);
+        if (dir.includes('s')) h = Math.max(20, oh + dy);
+        if (dir.includes('w')) {
+          w = Math.max(40, ow - dx);
+          x = ox + ow - w;
+        }
+        if (dir.includes('n')) {
+          h = Math.max(20, oh - dy);
+          y = oy + oh - h;
+        }
+
+        el.style.width  = w + 'px';
+        el.style.height = h + 'px';
+        el.style.left   = x + 'px';
+        el.style.top    = y + 'px';
+      }
+
+      /* ============================================================
+         テキスト書式コマンド
+      ============================================================ */
+      function fmtBold()   { document.execCommand('bold',          false, null); }
+      function fmtItalic() { document.execCommand('italic',        false, null); }
+      function fmtStrike() { document.execCommand('strikeThrough', false, null); }
+
+      /*
+        文字色の適用:
+        execCommand('foreColor') は選択範囲のみに色を付ける。
+        選択なし（全体色変更）の場合は text-inner.style.color を変更。
+      */
+      function applyColor(col) {
+        const s = window.getSelection();
+        if (s && !s.isCollapsed) {
+          document.execCommand('foreColor', false, col);
+        } else if (sel) {
+          const inner = sel.querySelector('.text-inner');
+          if (inner) inner.style.color = col;
+        }
+        if (sel) saveData();
+      }
+
+      function applyTextOrientation() {
+        const ori = document.getElementById('sel-tori').value;
+        applyTextOrientationVal(ori);
+      }
+
+      function applyTextOrientationVal(ori) {
+        const s = window.getSelection();
+        if (s && !s.isCollapsed) {
+          wrapWithStyle('textOrientation', ori);
+        } else if (sel) {
+          const inner = sel.querySelector('.text-inner');
+          if (inner) inner.style.textOrientation = ori;
+        }
+        if (sel) saveData();
+      }
+
+      /*
+        フォントサイズの適用:
+        選択範囲がある場合は選択範囲に span を挿入、
+        なければ text-inner 全体の font-size を変更。
+      */
+      function applyFontSize() {
+        const sz = parseInt(document.getElementById('sel-sz').value);
+        applyFontSizeVal(sz);
+      }
+
+      function applyFontSizeVal(sz) {
+        const s = window.getSelection();
+        if (s && !s.isCollapsed) {
+          wrapWithStyle('fontSize', sz + 'px');
+        } else if (sel) {
+          const inner = sel.querySelector('.text-inner');
+          if (inner) inner.style.fontSize = sz + 'px';
+        }
+        if (sel) saveData();
+      }
+
+      /*
+        選択範囲を <span style="prop: val"> で包む。
+        Range.surroundContents() は複数ノードをまたぐと失敗するため
+        extractContents() + appendChild() のフォールバックを用意。
+      */
+      function wrapWithStyle(prop, val) {
+        const s = window.getSelection();
+        if (!s || s.rangeCount === 0 || s.isCollapsed) return;
+        const range = s.getRangeAt(0);
+        const span  = document.createElement('span');
+        span.style[prop] = val;
+        try {
+          range.surroundContents(span);
+        } catch (_) {
+          const frag = range.extractContents();
+          span.appendChild(frag);
+          range.insertNode(span);
+        }
+        s.removeAllRanges();
+        const nr = document.createRange();
+        nr.selectNodeContents(span);
+        s.addRange(nr);
+      }
+
+      function applyFont() {
+        if (!sel) return;
+        const inner = sel.querySelector('.text-inner');
+        if (!inner) return;
+        inner.style.fontFamily = document.getElementById('sel-font').value;
+        saveData();
+      }
+
+      function applyLH() {
+        if (!sel) return;
+        const inner = sel.querySelector('.text-inner');
+        if (!inner) return;
+        inner.style.lineHeight = document.getElementById('sel-lh').value;
+        saveData();
+      }
+
+      function applyLS() {
+        if (!sel) return;
+        const inner = sel.querySelector('.text-inner');
+        if (!inner) return;
+        inner.style.letterSpacing = document.getElementById('sel-ls').value + 'em';
+        saveData();
+      }
+
+      /* ============================================================
+         縦書き / 横書き切り替え
+
+         【修正点1 の解決】
+         text-orientation: upright を使うと、
+         数字・英字も縦向きに正立する（横に倒れない）。
+         mixed だと半角英数が 90° 回転して寝てしまう。
+      ============================================================ */
+      function toggleVert() {
+        if (!sel) return;
+        const inner = sel.querySelector('.text-inner');
+        if (!inner) return;
+        const going = !inner.classList.contains('vert');
+        inner.classList.toggle('vert', going);
+        if (going) {
+          /* 縦書き */
+          document.getElementById("sel-tori").disabled = false;
+          document.getElementById("sel-tori").style.color = "var(--toolbar-text)";
+          document.getElementById("fbar-tori").disabled = false;
+          document.getElementById("fbar-tori").style.color = "var(--toolbar-text)";
+        } else {
+          /* 横書きに戻す */
+          document.getElementById("sel-tori").disabled = true;
+          document.getElementById("sel-tori").style.color = "var(--toolbar-disabled)";
+          document.getElementById("fbar-tori").disabled = true;
+          document.getElementById("fbar-tori").style.color = "var(--toolbar-disabled)";
+          
+          inner.style.writingMode     = '';
+          inner.style.textOrientation = '';
+        }
+        /* .vert クラスの CSS が writing-mode と text-orientation を制御 */
+        saveData();
+      }
+
+      /* ============================================================
+         Z順序
+      ============================================================ */
+      function zFront() {
+        if (!sel) return;
+        sel.style.zIndex = ++zCnt;
+        updateZBadge(sel);
+        saveData();
+      }
+
+      function zBack() {
+        if (!sel) return;
+        const all  = [...paper.querySelectorAll('.pel')];
+        const minZ = Math.min(...all.map(function(e) { return parseInt(e.style.zIndex) || 0; }));
+        sel.style.zIndex = minZ - 1;
+        updateZBadge(sel);
+        saveData();
+      }
+
+      function zForward() {
+        if (!sel) return;
+        sel.style.zIndex = (parseInt(sel.style.zIndex) || 0) + 1;
+        updateZBadge(sel);
+        saveData();
+      }
+
+      function zBackward() {
+        if (!sel) return;
+        sel.style.zIndex = Math.max(1, (parseInt(sel.style.zIndex) || 0) - 1);
+        updateZBadge(sel);
+        saveData();
+      }
+
+      /* ============================================================
+         削除
+      ============================================================ */
+      function delSelected() {
+        if (!sel) return;
+        sel.remove();
+        sel = null;
+        saveData();
+      }
+
+      /* ============================================================
+         フローティングフォーマットバー
+      ============================================================ */
+      function updateFbar() {
+        if (isComposing) {
+          fbar.classList.remove('show');
+          return;
+        }
+        requestAnimationFrame(function() {
+          const s = window.getSelection();
+          if (!s || s.isCollapsed || !s.toString().trim()) {
+            fbar.classList.remove('show');
+            return;
+          }
+          const range = s.getRangeAt(0);
+          const rect  = range.getBoundingClientRect();
+          if (rect.width === 0 && rect.height === 0) {
+            fbar.classList.remove('show');
+            return;
+          }
+          const left = Math.max(4, rect.left + rect.width / 2 - 80);
+          const top  = rect.top + window.scrollY - 50;
+          fbar.style.left = left + 'px';
+          fbar.style.top  = top  + 'px';
+          fbar.classList.add('show');
+        });
+      }
+
+      document.addEventListener('selectionchange', function(e) {
+        const s = window.getSelection();
+        if (!s || s.isCollapsed || !s.toString().trim()) {
+          fbar.classList.remove('show');
+        }
+      });
+
+      /* ============================================================
+         コンテキストメニュー
+      ============================================================ */
+      function openCtx(cx, cy, hasEl) {
+        /* 要素依存メニューの表示制御 */
+        ['ci-front','ci-back','ci-del'].forEach(function(id) {
+          const el = document.getElementById(id);
+          if (el) el.style.display = hasEl ? '' : 'none';
+        });
+
+        ctx.style.left = cx + 'px';
+        ctx.style.top  = cy + 'px';
+        ctx.classList.add('show');
+
+        /* 画面外にはみ出す場合は位置を修正 */
+        const cw = ctx.offsetWidth;
+        const ch = ctx.offsetHeight;
+        if (cx + cw > window.innerWidth)  ctx.style.left = (cx - cw) + 'px';
+        if (cy + ch > window.innerHeight) ctx.style.top  = (cy - ch) + 'px';
+      }
+
+      function closeCtx() {
+        ctx.classList.remove('show');
+      }
+
+      /*
+        紙面タップでコンテキストメニューを即時表示（修正点4）。
+        長押し不要。
+      */
+      paper.addEventListener('dblclick', function(e) {
+        /* リサイズ・ドラッグハンドルはスキップ */
+        if (e.target.classList.contains('rh'))    return;
+        if (e.target.closest('.drag-handle'))      return;
+
+        /* text-inner への直接タップはスキップ（テキスト編集を優先） */
+        if (e.target.closest('.text-inner')) return;
+
+        const hitEl = e.target.closest('.pel');
+        ctxPos = clientToPaper(e.clientX, e.clientY);
+
+        if (hitEl) {
+          select(hitEl);
+          openCtx(e.clientX, e.clientY, true);
+        } else {
+          deselect();
+          openCtx(e.clientX, e.clientY, false);
+        }
+      }, { passive: true });
+
+      /* 紙面右クリック */
+      paper.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        const hitEl = e.target.closest('.pel');
+        ctxPos = clientToPaper(e.clientX, e.clientY);
+        if (hitEl) {
+          select(hitEl);
+          openCtx(e.clientX, e.clientY, true);
+        } else {
+          deselect();
+          openCtx(e.clientX, e.clientY, false);
+        }
+      });
+
+      // .drag-handle-labelをダブルクリックでctx(text版)表示
+      document.addEventListener('dblclick', (e) => {
+        const dhl = e.target.closest('.drag-handle-label');
+        if (!dhl) return;
+        
+        e.stopPropagation();
+        
+        const x = e.clientX;
+        const y = e.clientY;
+        
+        ctxPos = clientToPaper(x, y);
+        openCtx(x, y, true);
+      });
+
+      /* メニュー外クリック/タップで閉じる */
+      document.addEventListener('mousedown', function(e) {
+        if (!ctx.contains(e.target))  closeCtx();
+        if (!fbar.contains(e.target) && !e.target.closest('.text-inner')) {
+          fbar.classList.remove('show');
+        }
+        if (
+          !e.target.closest('.pel')
+          && !e.target.closest('#topbar')
+          && !e.target.closest('#ctx')
+          && !e.target.closest('#fbar')
+        ) {
+          deselect();
+        }
+      });
+
+      document.addEventListener('touchstart', function(e) {
+        /* コンテキストメニュー外のタッチで閉じる */
+        if (!ctx.contains(e.target) && !e.target.closest('#paper')) {
+          closeCtx();
+        }
+      }, { passive: true });
+
+      /* ============================================================
+         用紙サイズ切り替え
+      ============================================================ */
+      function setSize(s) {
+        document.getElementById('btn-a4').classList.toggle('act', s === 'a4');
+        document.getElementById('btn-b5').classList.toggle('act', s === 'b5');
+        paper.classList.toggle('b5', s === 'b5');
+      }
+
+      /* ============================================================
+         PNG ダウンロード
+      ============================================================ */
+      function dlPNG() {
+        const ov = document.getElementById('dl-ov');
+        ov.classList.add('show');
+
+        const prevSel = sel;
+        deselect();
+
+        /* ハンドル類を一時的に非表示 */
+        const toHide = [];
+        paper.querySelectorAll('.rh, .z-badge, .drag-handle').forEach(function(el) {
+          el.style.visibility = 'hidden';
+          toHide.push(el);
+        });
+
+        setTimeout(function() {
+          html2canvas(paper, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            logging: false
+          }).then(function(canvas) {
+            const a   = document.createElement('a');
+            a.download = 'paper-' + Date.now() + '.png';
+            a.href     = canvas.toDataURL('image/png');
+            a.click();
+          }).finally(function() {
+            toHide.forEach(function(el) { el.style.visibility = ''; });
+            if (prevSel && paper.contains(prevSel)) select(prevSel);
+            ov.classList.remove('show');
+          });
+        }, 150);
+      }
+
+      /* ============================================================
+         キーボードショートカット
+      ============================================================ */
+      document.addEventListener('keydown', function(e) {
+        const editing = document.activeElement
+          && document.activeElement.isContentEditable;
+
+        if (e.ctrlKey || e.metaKey) {
+          if (e.key === 'z') { e.preventDefault(); doUndo(); return; }
+          if (e.key === 'y') { e.preventDefault(); doRedo(); return; }
+          if (editing) {
+            if (e.key === 'b') { e.preventDefault(); fmtBold();   return; }
+            if (e.key === 'i') { e.preventDefault(); fmtItalic(); return; }
+          }
+        }
+
+        if (!editing && (e.key === 'Delete' || e.key === 'Backspace')) {
+          if (sel) { e.preventDefault(); delSelected(); }
+        }
+      });
+
+      /* ============================================================
+         初期化
+      ============================================================ */
+      (function init() {
+        const el    = addTextEl(70, 70);
+        const inner = el.querySelector('.text-inner');
+        if (inner) {
+          inner.dataset.placeholder = 'テキストを入力';
+        }
+        try {
+          document.getElementById("sel-tori").disabled = true;
+          document.getElementById("sel-tori").style.color = "var(--toolbar-disabled)";
+          document.getElementById("fbar-tori").disabled = true;
+          document.getElementById("fbar-tori").style.color = "var(--toolbar-disabled)";
+        } catch {}
+        saveData();
+      })();
+    </script>
+  </body>
+</html>
