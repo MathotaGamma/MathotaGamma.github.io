@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>カレンダー画像 印刷</title>
+    <style>
+      html, body {
+        height: 100%;
+        width: 100%;
+        overflow: scroll;
+      }
+      
+      .calendar {
+        width: 90%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>カレンダー画像</h1>
+    <h2>テンプレート</h2>
+    <div id="template">
+      
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/japanese-holidays@1.0.8/lib/japanese-holidays.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.5.0/dom-to-image-more.min.js"></script>
+    <script>
+      const day = {
+        en: ['SUN','MON','TUE','WED','THU','FRI','SAT'],
+        EN: ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
+        ja: ['日','月','火','水','木','金','土'],
+      }
+      
+      // 5, 6, auto
+      const rows = 'auto';
+      
+      async function screenShot(element) {
+        try {
+        // domtoimage.toPng は内部でSVGのforeignObjectを使用するため正確
+        const dataUrl = await domtoimage.toPng(element, {
+            quality: 1.0,
+            bgcolor: '#ffffff', // 背景が透過しないように白を指定
+        });
+
+        // ダウンロード処理
+        const link = document.createElement('a');
+        link.download = 'calendar.png';
+        link.href = dataUrl;
+        link.click();
+    } catch (error) {
+        console.error('画像生成に失敗しました', error);
+    }
+      }
+      
+      async function checkHoliday(year, month, date) {
+        const response = await fetch('https://holidays-jp.github.io/api/v1/date.json');
+        const holidayData = await response.json();
+        const D = new Date(year, month-1, date);
+        return holidayData[[
+          D.getFullYear(),
+          String(D.getMonth()+1).padStart(2, '0'),
+          String(D.getDate()).padStart(2, '0')
+        ].join('-')] ?? null;
+      }
+      
+      async function getCalendarInfo(year, month, options={}) {
+        if (options.rowSize && !isNaN(options.rowSize) && (options.rowSize < 5 || options.rowSize > 6)){
+          return null;
+        }
+        const leftDay = options.leftDay ?? 0;
+        //const color = Object.keys(options).includes('color') ? options.color : true;
+        const dayLanguage = options.dayLanguage ?? 'en';
+        const dayList = day[dayLanguage];
+        
+        const header = Array.from({length: 7}, (_, i) => [(leftDay+i)%7, dayList[(leftDay+i)%7]]);
+        // Dateのmonthは0が1月、1が2月、...
+        // 3月を知りたい時、4月0日→3月31日 となって日にちを取れる。
+        const maxDate = new Date(year, month, 0).getDate();
+        const preMaxDate = new Date(year, month-1, 0).getDate();
+        // Dayは、0が日曜日、1が月曜日、...
+        const startDay = new Date(year, month-1, 1).getDay();
+        const startInd = (startDay+7-leftDay)%7;
+        
+        // 何段でカレンダーを格納できるか
+        const needRow = (startInd+maxDate-1)/7+1 | 0;
+        
+        const rowSize = options.rowSize ? (options.rowSize == 'auto' ? needRow : parseInt(options.rowSize)) : 5;
+        
+        // 下にはみ出す分も書くので42個
+        const calendar = await Promise.all(
+          Array.from({length: 7*Math.max(rowSize, needRow)}, async (_, i) => {
+            const row = i/7 | 0;
+            const col = i%7;
+            let date = i-startInd+1;
+            let onMonth = true;
+            let thisMonth = month;
+            if (i < startInd) {
+              date = preMaxDate-(startInd-i)+1;
+              onMonth = false;
+              thisMonth = month-1;
+            }
+            if (onMonth && date > maxDate) {
+              date -= maxDate;
+              onMonth = false;
+              thisMonth = month+1;
+            }
+            
+            const day = (leftDay+i)%7;
+            let holiday = await checkHoliday(year, thisMonth, date);
+            if (day == 0 && !holiday) {
+              holiday = '';
+            }
+            const extra = i >= 7*rowSize;
+            
+            return {
+              day,
+              date,
+              holiday,
+              onMonth,
+              extra
+            }
+          })
+        );
+        
+        const meta = {
+          year: year,
+          month: month
+        }
+        
+        return {meta, rowSize, header, calendar}
+      }
+      
+      
+      function makeCalendar(info, options={}) {
+        const width = options.width ?? '90%';
+        
+        const saturdayColor = options.saturday ?? 'blue';
+        const holidayColor = options.holidayColor ?? 'red';
+        const sundayColor = options.sundayColor ?? holidayColor;
+        const squareAspect = options.squareAspect ?? '5 / 4';
+        
+        const captionFontSize = options.captionFontSize ?? '4cqw';
+        const dayFontSize = options.dayFontSize ?? '20cqw';
+        const defaultFontSize = options.defaultFontSize ?? '30cqmin';
+        const extraFontSize = options.extraFontSize ?? '25cqmin';
+        const holidayNameFontSize = options.holidayNameFontSize ?? '9cqmin';
+        const holidayName = options.holidayName !== undefined ? options.holidayName : false;
+        
+        //console.log(JSON.stringify(info))
+        const container = document.createElement('div');
+        container.classList.add('calendar');
+        container.style.display = "inline-block";
+        container.style.width = width+'px';
+        //container.style.border = '1px solid black';
+        container.style.containerType = 'inline-size';
+        container.style.position = 'relative';
+        
+        const caption = document.createElement('div');
+        const meta = info.meta;
+        caption.innerHTML = meta.year+'年'+meta.month+'月';
+        caption.style.textAlign = 'center';
+        caption.style.fontSize = captionFontSize;
+        container.appendChild(caption);
+        
+        const calendar = document.createElement('div');
+        calendar.style.border = '1px solid black';
+        calendar.style.display = 'flex';
+        calendar.style.flexDirection = 'column';
+        calendar.style.margin = 'auto 10px 10px 10px';
+        
+        const head = document.createElement('div');
+        head.style.display = 'flex';
+        
+        for (let day of info.header) {
+          const div = document.createElement('div');
+          div.style.border = '1px solid black';
+          div.style.textAlign = 'center';
+          div.style.flex = '1';
+          div.style.containerType = 'inline-size';
+          
+          const span = document.createElement('span');
+          span.innerHTML = day[1];
+          span.style.fontSize = dayFontSize;
+          if (day[0] == 0) 
+            span.style.color = sundayColor;
+          else if (day[0] == 6)
+            span.style.color = saturdayColor;
+          
+          div.appendChild(span);
+          head.appendChild(div);
+        }
+        
+        calendar.appendChild(head);
+        
+        const body = document.createElement('div');
+        body.style.display = 'grid';
+        body.style.gridTemplateColumns = 'repeat(7, 1fr)';
+        
+        
+        function addStyle(span, data) {
+          if (!data.onMonth) span.style.opacity = '0.3';
+          if (data.holiday === '')
+            span.style.color = sundayColor;
+          else if (data.holiday !== null)
+            span.style.color = holidayColor;
+          else if (data.day === 6)
+            span.style.color = saturdayColor;
+        }
+        for (let i = 0; i < info.calendar.length; i++) {
+          const data = info.calendar[i];
+          const div = document.createElement('div');
+          div.style.position = 'absolute';
+          div.style.display = 'flex';
+          div.style.flexFlow = 'column';
+          let square = null;
+          if (data.extra) {
+            div.style.right = '0';
+            div.style.bottom = '0';
+            
+            for (let child of body.children) {
+              if (child.dataset.index == String(i-7)) {
+                square = child;
+                break;
+              }
+            }
+          } else {
+            div.style.left = '0';
+            div.style.top = '0';
+            square = document.createElement('div');
+            square.dataset.index = String(i);
+            square.style.border = '1px solid black';
+            square.style.aspectRatio = squareAspect;
+            square.style.position = 'relative';
+            square.style.containerType = 'inline-size';
+          }
+          
+          const span = document.createElement('span');
+          
+          if (data.extra) span.style.textAlign = 'right';
+          
+          if (data.extra || (i+7 < info.calendar.length && info.calendar[i+7].extra))
+            span.style.fontSize = extraFontSize;
+          else
+            span.style.fontSize = defaultFontSize;
+          span.innerHTML = data.date;
+          
+          const holidaySpan = document.createElement('span');
+          holidaySpan.style.fontSize = holidayNameFontSize;
+          if (holidayName && data.holiday !== null) holidaySpan.innerHTML = data.holiday;
+          holidaySpan.classList.add(data.extra ? 'out' : 'in');
+          
+          addStyle(span, data);
+          
+          div.appendChild(span);
+          div.appendChild(holidaySpan);
+          square.appendChild(div);
+          body.appendChild(square);
+        }
+        
+        calendar.appendChild(body);
+        
+        container.appendChild(calendar);
+        return container;
+      }
+      
+      async function capture(element, download = false) {
+        // Promiseで包むことで、await capture(...) が可能になる
+        const hideDiv = document.createElement('div');
+        hideDiv.appendChild(element);
+        hideDiv.style.left = "-9999px";
+        hideDiv.style.zIndex = "-1";
+        document.body.appendChild(hideDiv);
+        return new Promise((resolve, reject) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(async () => {
+              try {
+                window.scrollTo(0, 0);
+
+                const rect = element.getBoundingClientRect();
+                const width = rect.width;
+                const height = rect.height;
+
+                // 1px潰れ対策で+1しているのは賢いやり方です
+                const options = {
+                  width: Math.ceil(width),
+                  height: Math.ceil(height),
+                  style: {
+                    'position': 'relative',
+                    'left': '0',
+                    'top': '0',
+                    'margin': '0',
+                    'transform': 'none',
+                    'bottom': 'auto',
+                    'right': 'auto',
+                    'background': 'white'
+                  },
+                  scale: 3 // 高画質設定
+                };
+
+                const dataUrl = await domtoimage.toPng(element, options);
+                hideDiv.remove();
+                if (download) {
+                  const link = document.createElement('a');
+                  link.download = 'calendar.png';
+                  link.href = dataUrl;
+                  link.click();
+                }
+
+                // ここで Promise を完了させる
+                resolve(dataUrl);
+              } catch (e) {
+                console.error("生成失敗:", e);
+                reject(e);
+              }
+            });
+          });
+        });
+      }
+      
+      async function getCalendarImg(year, month, info_1={}, info_2={}) {
+        // getInfo
+        /*
+          leftDay: 0 カレンダーの左端の曜日。0(日)~6(土)
+          rowSize: '5' カレンダーの段数(header除く)。'4','5','auto'のいずれか
+          dayLanguage: 'en' 曜日の言語。'en','EN','ja'のいずれか
+        */
+        // makeCalendar
+        /*
+          width: '90%' カレンダーの格納要素に対するwidth
+          squareAspect: '5 / 4' カレンダーの日にちの欄のアスペクト比
+          
+          色に関するもの
+            saturdayColor: 'blue'
+            holidayColor: 'red'
+            sundayColor: holidayColor;
+            
+          文字サイズに関するもの
+          captionFontSize: '4cqw' カレンダーの格納要素に対する大きさ
+          dayFontSize: '20cqw' 曜日の欄に対する大きさ。曜日の文字
+          defaultFontSize: '30cqmin' 日にちの欄の対する大きさ。通常の日にちの文字
+          extraFontSize: '25cqmin' 日にちの欄の対する大きさ。カレンダーに収まりきらない日付欄の文字
+          holidayNameFontSize: '9cqmin' 日にちの欄の対する大きさ。祝日の文字
+        
+          holidayName: false 何の祝日か表示
+        */
+        return new Promise((resolve) => {
+          getCalendarInfo(year, month, info_1).then((info) => {
+            const calendar = makeCalendar(info, info_2);
+            // 第二引数は、ダウンロードをconfirmするか
+            capture(calendar, true).then((url) => {
+              const img = document.createElement('img');
+              img.src = url;
+              resolve({img, url});
+            })
+          })
+        });
+      }
+        
+      const template = document.getElementById('template');
+      
+      getCalendarImg(2026, 5, {leftDay: 0, rowSize: 'auto'})
+        .then(({img, url}) => {
+          const a = document.createElement('a');
+          a.href = url;
+          img.style.width = "200px";
+          a.appendChild(img);
+          template.appendChild(a);
+        })
+        .catch((error) => {
+          console.error(error.message);
+        })
+    </script>
+  </body>
+</html>
