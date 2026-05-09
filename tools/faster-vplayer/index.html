@@ -30,7 +30,7 @@
       }
 
       /* ─────────────────────────────────────────
-         UPLOAD SCREEN
+          UPLOAD SCREEN
       ───────────────────────────────────────── */
       #upload-screen {
         position: fixed; inset: 0;
@@ -80,7 +80,7 @@
       .supported { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
 
       /* ─────────────────────────────────────────
-         LOADING SCREEN
+          LOADING SCREEN
       ───────────────────────────────────────── */
       #loading-screen {
         position: fixed; inset: 0;
@@ -120,7 +120,7 @@
         background: linear-gradient(90deg, var(--accent), #00b8ff);
         border-radius: 99px;
         box-shadow: 0 0 10px var(--accent);
-        transition: width .3s linear;
+        transition: width 0.1s linear;
       }
 
       .loading-status {
@@ -130,7 +130,7 @@
       .loading-status.ready { color: #00ff9d; }
 
       /* ─────────────────────────────────────────
-         PLAYER SCREEN
+          PLAYER SCREEN
       ───────────────────────────────────────── */
       #player-screen {
         position: fixed; inset: 0;
@@ -185,7 +185,7 @@
       .skip-label.show  { opacity: 1; }
 
       /* ─────────────────────────────────────────
-         CONTROLS
+          CONTROLS
       ───────────────────────────────────────── */
       .controls {
         background: linear-gradient(to top, #000, rgba(0,0,0,.92));
@@ -299,7 +299,7 @@
 
     <!-- ── UPLOAD ── -->
     <div id="upload-screen">
-      <div class="logo">VP<span>LAY</span></div>
+      <div class="logo">VP<span>LAY</span>-v1</div>
       <div class="drop-zone" id="drop-zone">
         <span class="drop-zone-icon">🎬</span>
         <h2>動画ファイルをドロップ</h2>
@@ -317,7 +317,7 @@
       <div class="progress-track">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
-      <div class="loading-status" id="loading-status">バッファリング中...</div>
+      <div class="loading-status" id="loading-status">メモリにバッファを構築中...</div>
     </div>
 
     <!-- ── PLAYER ── -->
@@ -375,7 +375,6 @@
 
     <script>
       (() => {
-        // ── DOM refs ──────────────────────────────────────────
         const uploadScreen  = document.getElementById('upload-screen');
         const loadingScreen = document.getElementById('loading-screen');
         const playerScreen  = document.getElementById('player-screen');
@@ -407,8 +406,7 @@
         const speedPopup    = document.getElementById('speed-popup');
         const btnNew        = document.getElementById('btn-new');
 
-        // ── State ─────────────────────────────────────────────
-        let objectUrl      = null;   // current File object URL (single copy in memory)
+        let objectUrl      = null;
         let isMuted        = false;
         let savedVol       = 1;
         let isDraggingSeek = false;
@@ -416,20 +414,14 @@
         let overlayTimer   = null;
         let skipTimer      = null;
         let cursorTimer    = null;
-        let progressTimer  = null;
 
-        // ── Utilities ─────────────────────────────────────────
         const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-        const toPct = (v, max)    => clamp((v / max) * 100, 0, 100);
-
         const fmt = s => {
           if (!isFinite(s) || isNaN(s)) return '0:00';
-          const h   = Math.floor(s / 3600);
-          const m   = Math.floor((s % 3600) / 60);
+          const h = Math.floor(s / 3600);
+          const m = Math.floor((s % 3600) / 60);
           const sec = Math.floor(s % 60);
-          return h
-            ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-            : `${m}:${String(sec).padStart(2, '0')}`;
+          return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
         };
 
         function setSlider(fill, thumb, p) {
@@ -437,10 +429,58 @@
           thumb.style.left = p + '%';
         }
 
-        function setProgress(p, status) {
-          progressBar.style.width = clamp(p, 0, 100) + '%';
-          loadingPct.textContent  = Math.round(clamp(p, 0, 100)) + '%';
-          if (status !== undefined) loadingStatus.textContent = status;
+        // --- 強制ロード・ロジック ---
+        async function handleFile(file) {
+          if (!file || !file.type.startsWith('video/')) return;
+
+          video.pause();
+          video.src = '';
+          if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+
+          uploadScreen.classList.add('hidden');
+          loadingScreen.classList.add('visible');
+          loadingPct.classList.remove('done');
+          loadingStatus.classList.remove('ready');
+          loadingFn.textContent = file.name;
+
+          try {
+            const total = file.size;
+            let loaded = 0;
+            const reader = file.stream().getReader();
+            const chunks = [];
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              loaded += value.length;
+              
+              const p = (loaded / total) * 100;
+              progressBar.style.width = p + '%';
+              loadingPct.textContent = Math.round(p) + '%';
+            }
+
+            const blob = new Blob(chunks, { type: file.type });
+            objectUrl = URL.createObjectURL(blob);
+            video.src = objectUrl;
+
+            video.onloadeddata = () => {
+              loadingStatus.textContent = '再生準備完了 ✓';
+              loadingStatus.classList.add('ready');
+              loadingPct.classList.add('done');
+              setTimeout(() => {
+                loadingScreen.classList.remove('visible');
+                playerScreen.classList.add('visible');
+                setVol(1);
+                updateSeek();
+                // メモリ上にあるのでシークバーのバッファも最初から100%
+                bufFill.style.width = '100%';
+              }, 400);
+            };
+          } catch (e) {
+            alert('ロードに失敗しました。');
+            location.reload();
+          }
         }
 
         function flashOverlay(icon) {
@@ -457,270 +497,85 @@
           skipTimer = setTimeout(() => el.classList.remove('show'), 700);
         }
 
-        // ── getBufferedEnd ────────────────────────────────────
-        // Returns the furthest buffered second (0 if none).
-        function getBufferedEnd() {
-          if (!video.duration || !video.buffered.length) return 0;
-          return video.buffered.end(video.buffered.length - 1);
-        }
-
-        // ── handleFile ────────────────────────────────────────
-        // Key insight: URL.createObjectURL(File) hands the browser a direct
-        // reference to the file on disk — zero memory copy. The browser's
-        // native media pipeline handles buffering exactly like a server-side
-        // stream, so there is no RAM explosion and no crash.
-        //
-        // Progress is measured via video.buffered as the browser reads ahead,
-        // with a polling loop so it stays responsive across all browsers.
-        function handleFile(file) {
-          if (!file || !file.type.startsWith('video/')) return;
-
-          // Tear down previous session cleanly
-          clearInterval(progressTimer);
-          video.pause();
-          video.removeAttribute('src');
-          video.load();
-          if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
-
-          // Show loading screen
-          uploadScreen.classList.add('hidden');
-          loadingScreen.classList.add('visible');
-          loadingPct.classList.remove('done');
-          loadingStatus.classList.remove('ready');
-          loadingFn.textContent = file.name;
-          setProgress(0, 'バッファリング中...');
-
-          // Create a zero-copy object URL directly from the File handle
-          objectUrl = URL.createObjectURL(file);
-          video.src = objectUrl;
-          video.preload = 'auto';
-          video.load();
-
-          // ── Progress polling ──
-          // Poll video.buffered every 200 ms.
-          // We wait until bufferedEnd / duration >= 1.0 (fully buffered).
-          progressTimer = setInterval(() => {
-            const dur = video.duration;
-            if (!dur || !isFinite(dur)) {
-              setProgress(2, 'メタデータを読み込み中...');
-              return;
-            }
-            const bufferedEnd = getBufferedEnd();
-            const p = toPct(bufferedEnd, dur);
-            setProgress(p, `バッファリング中... ${fmt(bufferedEnd)} / ${fmt(dur)}`);
-
-            if (p >= 99.5) {
-              clearInterval(progressTimer);
-              onFullyBuffered();
-            }
-          }, 200);
-
-          // canplaythrough fires when the browser believes it can play
-          // to the end without stalling — treat this as "good enough"
-          // in case buffered reporting is imprecise (e.g. on some codecs).
-          video.addEventListener('canplaythrough', onCanPlayThrough, { once: true });
-
-          // Error fallback
-          video.addEventListener('error', onVideoError, { once: true });
-        }
-
-        function onCanPlayThrough() {
-          // If buffered is already near 100% — just proceed.
-          // If not (browser reported canplaythrough early), keep polling
-          // until we either hit 99.5% or 3 s pass with no progress.
-          const dur = video.duration;
-          if (!dur) { onFullyBuffered(); return; }
-          const p = toPct(getBufferedEnd(), dur);
-          if (p >= 95) { clearInterval(progressTimer); onFullyBuffered(); }
-          // else let the poll loop continue
-        }
-
-        function onFullyBuffered() {
-          clearInterval(progressTimer);
-          video.removeEventListener('canplaythrough', onCanPlayThrough);
-          setProgress(100, '再生準備完了 ✓');
-          loadingPct.classList.add('done');
-          loadingStatus.classList.add('ready');
-
-          setTimeout(() => {
-            loadingScreen.classList.remove('visible');
-            playerScreen.classList.add('visible');
-            setVol(1);
-            updateSeek();
-          }, 350);
-        }
-
-        function onVideoError() {
-          clearInterval(progressTimer);
-          const code = video.error ? video.error.code : '?';
-          alert(`動画の読み込みに失敗しました (code ${code})。対応形式か確認してください。`);
-          loadingScreen.classList.remove('visible');
-          uploadScreen.classList.remove('hidden');
-          fileInput.value = '';
-        }
-
-        // ── Drop zone ─────────────────────────────────────────
-        dropZone.addEventListener('dragover', e => {
-          e.preventDefault(); dropZone.classList.add('drag-over');
-        });
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-        dropZone.addEventListener('drop', e => {
-          e.preventDefault(); dropZone.classList.remove('drag-over');
-          handleFile(e.dataTransfer.files[0]);
-        });
+        dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
         fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
 
-        btnNew.addEventListener('click', () => {
-          clearInterval(progressTimer);
-          video.pause(); video.src = '';
-          playerScreen.classList.remove('visible');
-          uploadScreen.classList.remove('hidden');
-          fileInput.value = '';
-        });
-
-        // ── Playback ──────────────────────────────────────────
         function togglePlay() {
           if (video.paused) { video.play(); flashOverlay('▶'); }
-          else              { video.pause(); flashOverlay('⏸'); }
+          else { video.pause(); flashOverlay('⏸'); }
         }
-
-        videoWrap.addEventListener('click', e => {
-          if (e.target === cursorDot) return;
-          togglePlay();
-        });
+        videoWrap.addEventListener('click', e => { if (e.target !== cursorDot) togglePlay(); });
         btnPlay.addEventListener('click', togglePlay);
+        video.addEventListener('play', () => btnPlay.textContent = '⏸');
+        video.addEventListener('pause', () => btnPlay.textContent = '▶');
 
-        video.addEventListener('play',  () => { btnPlay.textContent = '⏸'; });
-        video.addEventListener('pause', () => { btnPlay.textContent = '▶'; });
-        video.addEventListener('ended', () => { btnPlay.textContent = '▶'; });
-
-        // ── Skip 15s ─────────────────────────────────────────
         function skip(secs) {
           video.currentTime = clamp(video.currentTime + secs, 0, video.duration || 0);
           flashOverlay(secs > 0 ? '▶▶' : '◀◀');
           flashSkip(secs > 0 ? 'right' : 'left');
         }
-
         btnBack15.addEventListener('click', () => skip(-15));
-        btnFwd15.addEventListener('click',  () => skip(+15));
+        btnFwd15.addEventListener('click', () => skip(+15));
 
-        // ── Seek slider ───────────────────────────────────────
         function updateSeek() {
           if (!video.duration || isDraggingSeek) return;
-          const p = toPct(video.currentTime, video.duration);
+          const p = (video.currentTime / video.duration) * 100;
           setSlider(seekFill, seekThumb, p);
           timeLabel.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
-          if (video.buffered.length > 0) {
-            bufFill.style.width = toPct(getBufferedEnd(), video.duration) + '%';
-          }
         }
-
-        video.addEventListener('timeupdate',     updateSeek);
-        video.addEventListener('loadedmetadata', updateSeek);
+        video.addEventListener('timeupdate', updateSeek);
 
         function seekFromPointer(clientX) {
           const rect = seekWrap.getBoundingClientRect();
-          const r    = clamp((clientX - rect.left) / rect.width, 0, 1);
-          const t    = r * (video.duration || 0);
-          video.currentTime = t;
+          const r = clamp((clientX - rect.left) / rect.width, 0, 1);
+          video.currentTime = r * (video.duration || 0);
           setSlider(seekFill, seekThumb, r * 100);
-          timeLabel.textContent = `${fmt(t)} / ${fmt(video.duration)}`;
         }
+        seekWrap.addEventListener('mousedown', e => { isDraggingSeek = true; seekFromPointer(e.clientX); });
+        document.addEventListener('mousemove', e => { if (isDraggingSeek) seekFromPointer(e.clientX); });
+        document.addEventListener('mouseup', () => isDraggingSeek = false);
 
-        seekWrap.addEventListener('mousedown', e => {
-          e.preventDefault(); isDraggingSeek = true; seekFromPointer(e.clientX);
-        });
-        document.addEventListener('mousemove', e => {
-          if (isDraggingSeek) seekFromPointer(e.clientX);
-        });
-        document.addEventListener('mouseup', () => { isDraggingSeek = false; });
-
-        seekWrap.addEventListener('touchstart', e => {
-          e.preventDefault(); isDraggingSeek = true; seekFromPointer(e.touches[0].clientX);
-        }, { passive: false });
-        document.addEventListener('touchmove', e => {
-          if (isDraggingSeek) seekFromPointer(e.touches[0].clientX);
-        });
-        document.addEventListener('touchend', () => { isDraggingSeek = false; });
-
-        // ── Volume ────────────────────────────────────────────
         function setVol(v) {
-          v = clamp(v, 0, 1);
-          video.volume = v;
+          v = clamp(v, 0, 1); video.volume = v;
           setSlider(volFill, volThumb, v * 100);
           if (v > 0) savedVol = v;
-          isMuted = (v === 0);
-          btnMute.textContent = isMuted ? '🔇' : '🔊';
+          isMuted = (v === 0); btnMute.textContent = isMuted ? '🔇' : '🔊';
         }
+        volWrap.addEventListener('mousedown', e => { isDraggingVol = true; setVol((e.clientX - volWrap.getBoundingClientRect().left) / volWrap.offsetWidth); });
+        document.addEventListener('mousemove', e => { if (isDraggingVol) setVol((e.clientX - volWrap.getBoundingClientRect().left) / volWrap.offsetWidth); });
+        document.addEventListener('mouseup', () => isDraggingVol = false);
+        btnMute.addEventListener('click', () => isMuted ? setVol(savedVol) : setVol(0));
 
-        function volFromPointer(clientX) {
-          const rect = volWrap.getBoundingClientRect();
-          setVol((clientX - rect.left) / rect.width);
-        }
-
-        volWrap.addEventListener('mousedown', e => {
-          e.preventDefault(); isDraggingVol = true; volFromPointer(e.clientX);
-        });
-        document.addEventListener('mousemove', e => {
-          if (isDraggingVol) volFromPointer(e.clientX);
-        });
-        document.addEventListener('mouseup', () => { isDraggingVol = false; });
-
-        btnMute.addEventListener('click', () => {
-          isMuted ? setVol(savedVol || 1) : setVol(0);
-        });
-
-        // ── Speed ─────────────────────────────────────────────
-        btnSpeed.addEventListener('click', e => {
-          e.stopPropagation(); speedPopup.classList.toggle('open');
-        });
+        btnSpeed.addEventListener('click', e => { e.stopPropagation(); speedPopup.classList.toggle('open'); });
         document.addEventListener('click', () => speedPopup.classList.remove('open'));
-
         speedPopup.querySelectorAll('.speed-opt').forEach(opt => {
-          opt.addEventListener('click', e => {
-            e.stopPropagation();
+          opt.onclick = (e) => {
             const s = parseFloat(opt.dataset.speed);
-            video.playbackRate   = s;
-            btnSpeed.textContent = Number.isInteger(s) ? s + '.0x' : s + 'x';
+            video.playbackRate = s;
+            btnSpeed.textContent = s + 'x';
             speedPopup.querySelectorAll('.speed-opt').forEach(o => o.classList.remove('active'));
             opt.classList.add('active');
-            speedPopup.classList.remove('open');
-          });
+          };
         });
 
-        // ── Keyboard ──────────────────────────────────────────
         document.addEventListener('keydown', e => {
           if (!playerScreen.classList.contains('visible')) return;
-          if (e.target.tagName === 'INPUT') return;
-          switch (e.code) {
-            case 'Space':      e.preventDefault(); togglePlay(); break;
-            case 'ArrowLeft':  e.preventDefault(); skip(-15); break;
-            case 'ArrowRight': e.preventDefault(); skip(+15); break;
-            case 'ArrowUp':    e.preventDefault(); setVol(video.volume + .1); break;
-            case 'ArrowDown':  e.preventDefault(); setVol(video.volume - .1); break;
-            case 'KeyM':       isMuted ? setVol(savedVol || 1) : setVol(0); break;
-            case 'KeyF':       toggleFullscreen(); break;
-          }
+          if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+          if (e.code === 'ArrowLeft') skip(-15);
+          if (e.code === 'ArrowRight') skip(15);
         });
 
-        // ── Custom cursor ─────────────────────────────────────
         videoWrap.addEventListener('mousemove', e => {
           const r = videoWrap.getBoundingClientRect();
-          cursorDot.style.left    = (e.clientX - r.left) + 'px';
-          cursorDot.style.top     = (e.clientY - r.top) + 'px';
+          cursorDot.style.left = (e.clientX - r.left) + 'px';
+          cursorDot.style.top = (e.clientY - r.top) + 'px';
           cursorDot.style.opacity = '1';
           clearTimeout(cursorTimer);
-          cursorTimer = setTimeout(() => { cursorDot.style.opacity = '0'; }, 2000);
+          cursorTimer = setTimeout(() => cursorDot.style.opacity = '0', 2000);
         });
-        videoWrap.addEventListener('mouseleave', () => { cursorDot.style.opacity = '0'; });
-
-        // ── Fullscreen ────────────────────────────────────────
-        function toggleFullscreen() {
-          if (!document.fullscreenElement) playerScreen.requestFullscreen?.();
-          else                             document.exitFullscreen?.();
-        }
-        videoWrap.addEventListener('dblclick', toggleFullscreen);
-
+        btnNew.onclick = () => location.reload();
       })();
     </script>
   </body>
