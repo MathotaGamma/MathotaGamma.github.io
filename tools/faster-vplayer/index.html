@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VPLAY — v1</title>
+    <title>VPLAY — Video Player</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@300;400&display=swap');
 
@@ -30,7 +30,7 @@
       }
 
       /* ─────────────────────────────────────────
-          UPLOAD SCREEN
+         UPLOAD SCREEN
       ───────────────────────────────────────── */
       #upload-screen {
         position: fixed; inset: 0;
@@ -61,18 +61,27 @@
         background: var(--surface);
         position: relative;
       }
-      .drop-zone:hover, .drop-zone.drag-over {
+      .drop-zone:hover,
+      .drop-zone.drag-over {
         border-color: var(--accent);
         background: rgba(0,229,255,.03);
         transform: scale(1.01);
       }
-      .drop-zone-icon { font-size: 52px; margin-bottom: 20px; display: block; filter: drop-shadow(0 0 16px rgba(0,229,255,.4)); }
+      .drop-zone-icon {
+        font-size: 52px; margin-bottom: 20px; display: block;
+        filter: drop-shadow(0 0 16px rgba(0,229,255,.4));
+      }
       .drop-zone h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
       .drop-zone p  { color: var(--text-dim); font-size: 14px; font-family: 'JetBrains Mono', monospace; }
       .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
+      .supported {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px; color: var(--text-dim);
+      }
+
       /* ─────────────────────────────────────────
-          LOADING SCREEN
+         LOADING SCREEN
       ───────────────────────────────────────── */
       #loading-screen {
         position: fixed; inset: 0;
@@ -86,18 +95,43 @@
       }
       #loading-screen.visible { opacity: 1; visibility: visible; }
 
-      .loading-label { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); letter-spacing: 4px; text-transform: uppercase; }
-      .loading-filename { font-size: 18px; font-weight: 700; color: var(--text); max-width: 70vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .loading-pct { font-family: 'JetBrains Mono', monospace; font-size: 56px; font-weight: 300; color: var(--accent); line-height: 1; min-width: 5ch; text-align: right; }
+      .loading-label {
+        font-size: 11px; font-family: 'JetBrains Mono', monospace;
+        color: var(--text-dim); letter-spacing: 4px; text-transform: uppercase;
+      }
+      .loading-filename {
+        font-size: 18px; font-weight: 700; color: var(--text);
+        max-width: 70vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .loading-pct {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 56px; font-weight: 300; color: var(--accent);
+        line-height: 1; min-width: 5ch; text-align: right;
+        transition: color .3s;
+      }
       .loading-pct.done { color: #00ff9d; }
 
-      .progress-track { width: 420px; max-width: 82vw; height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; }
-      .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #00b8ff); box-shadow: 0 0 10px var(--accent); transition: width 0.1s linear; }
+      .progress-track {
+        width: 420px; max-width: 82vw; height: 3px;
+        background: var(--border); border-radius: 99px; overflow: hidden;
+      }
+      /* No CSS transition — width is set directly per event for smooth tracking */
+      .progress-bar {
+        height: 100%; width: 0%;
+        background: linear-gradient(90deg, var(--accent), #00b8ff);
+        border-radius: 99px;
+        box-shadow: 0 0 10px var(--accent);
+      }
 
-      .loading-status { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); }
+      .loading-status {
+        font-size: 12px; font-family: 'JetBrains Mono', monospace;
+        color: var(--text-dim); min-height: 1.5em;
+        transition: color .3s;
+      }
+      .loading-status.ready { color: #00ff9d; }
 
       /* ─────────────────────────────────────────
-          PLAYER SCREEN
+         PLAYER SCREEN
       ───────────────────────────────────────── */
       #player-screen {
         position: fixed; inset: 0;
@@ -108,77 +142,203 @@
       }
       #player-screen.visible { opacity: 1; visibility: visible; }
 
-      .video-wrap { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; background: #000; cursor: none; overflow: hidden; }
-      video { max-width: 100%; max-height: 100%; display: block; outline: none; }
+      .video-wrap {
+        flex: 1; min-height: 0;
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        background: #000;
+        cursor: none; overflow: hidden;
+      }
+      video {
+        max-width: 100%; max-height: 100%;
+        display: block; outline: none;
+      }
 
-      .cursor-dot { position: absolute; width: 8px; height: 8px; background: var(--accent); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.3s; z-index: 10; box-shadow: 0 0 8px var(--accent); }
+      .cursor-dot {
+        position: absolute;
+        width: 8px; height: 8px;
+        background: var(--accent); border-radius: 50%;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        opacity: 0; transition: opacity .3s;
+        z-index: 10; box-shadow: 0 0 8px var(--accent);
+      }
 
-      .center-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; border-radius: 50%; background: rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.15); font-size: 28px; pointer-events: none; opacity: 0; transition: opacity .25s; z-index: 20; }
+      .center-overlay {
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex; align-items: center; justify-content: center;
+        width: 80px; height: 80px; border-radius: 50%;
+        background: rgba(0,0,0,.55);
+        border: 2px solid rgba(255,255,255,.15);
+        font-size: 28px; pointer-events: none;
+        opacity: 0; transition: opacity .25s; z-index: 20;
+      }
       .center-overlay.show { opacity: 1; }
 
-      /* ─────────────────────────────────────────
-          CONTROLS
-      ───────────────────────────────────────── */
-      .controls { background: linear-gradient(to top, #000, rgba(0,0,0,.92)); padding: 10px 20px 16px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
-      .seek-row { display: flex; align-items: center; gap: 12px; }
-      .time-label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-mid); white-space: nowrap; min-width: 90px; }
+      .skip-label {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        font-size: 13px; font-family: 'JetBrains Mono', monospace;
+        color: rgba(255,255,255,.7);
+        pointer-events: none; opacity: 0; transition: opacity .3s;
+      }
+      .skip-label.left  { left: 24px; }
+      .skip-label.right { right: 24px; }
+      .skip-label.show  { opacity: 1; }
 
-      .slider-wrap { position: relative; flex: 1; height: 20px; display: flex; align-items: center; cursor: pointer; }
-      .slider-track { position: absolute; left: 0; right: 0; height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
-      .slider-fill { position: relative; height: 100%; background: linear-gradient(90deg, var(--accent), #00b8ff); border-radius: 99px; width: 0%; box-shadow: 0 0 8px rgba(0,229,255,.4); }
-      .slider-thumb { position: absolute; width: 14px; height: 14px; background: #fff; border-radius: 50%; top: 50%; transform: translate(-50%, -50%); left: 0%; pointer-events: none; }
+      /* ─────────────────────────────────────────
+         CONTROLS
+      ───────────────────────────────────────── */
+      .controls {
+        background: linear-gradient(to top, #000 0%, rgba(0,0,0,.92) 100%);
+        padding: 10px 20px 16px;
+        display: flex; flex-direction: column; gap: 10px;
+        flex-shrink: 0;
+      }
+
+      .seek-row { display: flex; align-items: center; gap: 12px; }
+
+      .time-label {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px; color: var(--text-mid);
+        white-space: nowrap; min-width: 90px;
+      }
+
+      .slider-wrap {
+        position: relative; flex: 1; height: 20px;
+        display: flex; align-items: center; cursor: pointer;
+      }
+      .slider-track {
+        position: absolute; left: 0; right: 0; height: 4px;
+        background: var(--border); border-radius: 99px; overflow: hidden;
+        transition: height .15s;
+      }
+      .slider-wrap:hover .slider-track { height: 6px; }
+
+      .slider-buffered {
+        position: absolute; left: 0; height: 100%;
+        background: rgba(255,255,255,.15);
+        border-radius: 99px; width: 0%;
+        pointer-events: none;
+      }
+      .slider-fill {
+        position: relative; height: 100%;
+        background: linear-gradient(90deg, var(--accent), #00b8ff);
+        border-radius: 99px; width: 0%;
+        box-shadow: 0 0 8px rgba(0,229,255,.4);
+      }
+      .slider-thumb {
+        position: absolute;
+        width: 14px; height: 14px;
+        background: #fff; border-radius: 50%;
+        top: 50%; transform: translate(-50%, -50%); left: 0%;
+        box-shadow: 0 0 0 3px rgba(0,229,255,.3);
+        pointer-events: none;
+        transition: transform .1s, box-shadow .1s;
+      }
+      .slider-wrap:hover .slider-thumb {
+        transform: translate(-50%, -50%) scale(1.3);
+        box-shadow: 0 0 0 4px rgba(0,229,255,.4);
+      }
 
       .btn-row { display: flex; align-items: center; gap: 6px; }
-      .btn { background: none; border: none; cursor: pointer; color: var(--text-mid); display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; font-size: 16px; transition: color .2s, background .2s; }
-      .btn:hover  { color: var(--accent); background: rgba(0,229,255,.08); }
-      .btn.primary { color: var(--text); font-size: 20px; width: 44px; height: 44px; }
 
+      .btn {
+        background: none; border: none; cursor: pointer;
+        color: var(--text-mid);
+        display: flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px; border-radius: 8px; font-size: 16px;
+        transition: color .2s, background .2s, transform .1s;
+        flex-shrink: 0;
+      }
+      .btn:hover  { color: var(--accent); background: rgba(0,229,255,.08); }
+      .btn:active { transform: scale(.9); }
+      .btn.primary { color: var(--text); font-size: 20px; width: 44px; height: 44px; }
+      .btn.primary:hover { color: var(--accent); }
+
+      .separator { flex: 1; }
+
+      .vol-group { display: flex; align-items: center; gap: 6px; }
       .vol-slider { width: 80px; }
-      .speed-btn { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 0 10px; width: auto; border: 1px solid var(--border); border-radius: 6px; }
-      
-      .speed-popup { position: absolute; bottom: calc(100% + 6px); right: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; opacity: 0; visibility: hidden; transition: 0.2s; z-index: 50; min-width: 90px; }
-      .speed-popup.open { opacity: 1; visibility: visible; }
-      .speed-opt { padding: 10px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-mid); cursor: pointer; }
-      .speed-opt:hover { background: rgba(0,229,255,.08); color: var(--accent); }
+
+      .speed-btn {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px; padding: 0 10px; width: auto;
+        border: 1px solid var(--border); border-radius: 6px;
+      }
+      .speed-btn:hover { border-color: var(--accent); }
+
+      .speed-popup {
+        position: absolute; bottom: calc(100% + 6px); right: 0;
+        background: var(--surface2);
+        border: 1px solid var(--border); border-radius: 10px;
+        overflow: hidden;
+        opacity: 0; visibility: hidden; transform: translateY(6px);
+        transition: opacity .2s, transform .2s, visibility .2s;
+        z-index: 50; min-width: 90px;
+      }
+      .speed-popup.open { opacity: 1; visibility: visible; transform: translateY(0); }
+
+      .speed-opt {
+        padding: 10px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px; color: var(--text-mid);
+        cursor: pointer; transition: background .15s, color .15s;
+      }
+      .speed-opt:hover  { background: rgba(0,229,255,.08); color: var(--accent); }
+      .speed-opt.active { color: var(--accent); }
+
+      .new-file-btn {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px; padding: 0 10px; width: auto;
+        border: 1px solid var(--border); border-radius: 6px;
+        letter-spacing: .5px;
+      }
     </style>
   </head>
   <body>
 
     <!-- ── UPLOAD ── -->
     <div id="upload-screen">
-      <div class="logo">VP<span>LAY</span> - v1</div>
+      <div class="logo">VP<span>LAY</span></div>
       <div class="drop-zone" id="drop-zone">
         <span class="drop-zone-icon">🎬</span>
         <h2>動画ファイルをドロップ</h2>
-        <p>RAMに完全展開してラグをゼロにします</p>
+        <p>またはクリックしてファイルを選択</p>
         <input type="file" id="file-input" accept="video/*">
       </div>
+      <div class="supported">MP4 · MOV · MKV · AVI · WEBM · その他</div>
     </div>
 
     <!-- ── LOADING ── -->
     <div id="loading-screen">
-      <div class="loading-label">Buffering into RAM</div>
+      <div class="loading-label">Loading</div>
       <div class="loading-filename" id="loading-filename">—</div>
       <div class="loading-pct" id="loading-pct">0%</div>
       <div class="progress-track">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
-      <div class="loading-status" id="loading-status">300MB以上の大容量ファイルを最適化中...</div>
+      <div class="loading-status" id="loading-status">動画を解析中...</div>
     </div>
 
     <!-- ── PLAYER ── -->
     <div id="player-screen">
       <div class="video-wrap" id="video-wrap">
         <div class="cursor-dot" id="cursor-dot"></div>
-        <video id="video"></video>
+        <video id="video" preload="auto" playsinline></video>
         <div class="center-overlay" id="center-overlay">▶</div>
+        <div class="skip-label left"  id="skip-left">◀◀ 15秒</div>
+        <div class="skip-label right" id="skip-right">15秒 ▶▶</div>
       </div>
 
       <div class="controls">
         <div class="seek-row">
           <span class="time-label" id="time-label">0:00 / 0:00</span>
           <div class="slider-wrap" id="seek-wrap">
-            <div class="slider-track"><div class="slider-fill" id="seek-fill"></div></div>
+            <div class="slider-track">
+              <div class="slider-buffered" id="buf-fill"></div>
+              <div class="slider-fill" id="seek-fill"></div>
+            </div>
             <div class="slider-thumb" id="seek-thumb"></div>
           </div>
         </div>
@@ -187,148 +347,429 @@
           <button class="btn"         id="btn-back15">⏮</button>
           <button class="btn primary" id="btn-play">▶</button>
           <button class="btn"         id="btn-fwd15">⏭</button>
-          <div style="flex:1"></div>
-          <button class="btn" id="btn-mute">🔊</button>
-          <div class="slider-wrap vol-slider" id="vol-wrap">
-            <div class="slider-track"><div class="slider-fill" id="vol-fill"></div></div>
-            <div class="slider-thumb" id="vol-thumb"></div>
+
+          <div class="separator"></div>
+
+          <div class="vol-group">
+            <button class="btn" id="btn-mute">🔊</button>
+            <div class="slider-wrap vol-slider" id="vol-wrap">
+              <div class="slider-track">
+                <div class="slider-fill" id="vol-fill"></div>
+              </div>
+              <div class="slider-thumb" id="vol-thumb"></div>
+            </div>
           </div>
+
           <div style="position:relative">
             <button class="btn speed-btn" id="btn-speed">1.0x</button>
             <div class="speed-popup" id="speed-popup">
+              <div class="speed-opt" data-speed="0.25">0.25x</div>
               <div class="speed-opt" data-speed="0.5">0.5x</div>
-              <div class="speed-opt" data-speed="1">1.0x</div>
+              <div class="speed-opt" data-speed="0.75">0.75x</div>
+              <div class="speed-opt active" data-speed="1">1.0x</div>
+              <div class="speed-opt" data-speed="1.25">1.25x</div>
               <div class="speed-opt" data-speed="1.5">1.5x</div>
-              <div class="speed-opt" data-speed="2.0">2.0x</div>
+              <div class="speed-opt" data-speed="2">2.0x</div>
             </div>
           </div>
-          <button class="btn speed-btn" onclick="location.reload()">📂 変更</button>
+
+          <button class="btn new-file-btn" id="btn-new">📂 変更</button>
         </div>
       </div>
     </div>
 
     <script>
       (() => {
-        const video = document.getElementById('video');
-        const fileInput = document.getElementById('file-input');
+        // ── DOM refs ──────────────────────────────────────────
+        const uploadScreen  = document.getElementById('upload-screen');
         const loadingScreen = document.getElementById('loading-screen');
-        const progressBar = document.getElementById('progress-bar');
-        const loadingPct = document.getElementById('loading-pct');
-        let objectUrl = null;
+        const playerScreen  = document.getElementById('player-screen');
+        const dropZone      = document.getElementById('drop-zone');
+        const fileInput     = document.getElementById('file-input');
+        const loadingFn     = document.getElementById('loading-filename');
+        const loadingPct    = document.getElementById('loading-pct');
+        const progressBar   = document.getElementById('progress-bar');
+        const loadingStatus = document.getElementById('loading-status');
+        const video         = document.getElementById('video');
+        const videoWrap     = document.getElementById('video-wrap');
+        const cursorDot     = document.getElementById('cursor-dot');
+        const centerOverlay = document.getElementById('center-overlay');
+        const skipLeft      = document.getElementById('skip-left');
+        const skipRight     = document.getElementById('skip-right');
+        const timeLabel     = document.getElementById('time-label');
+        const seekWrap      = document.getElementById('seek-wrap');
+        const seekFill      = document.getElementById('seek-fill');
+        const seekThumb     = document.getElementById('seek-thumb');
+        const bufFill       = document.getElementById('buf-fill');
+        const volWrap       = document.getElementById('vol-wrap');
+        const volFill       = document.getElementById('vol-fill');
+        const volThumb      = document.getElementById('vol-thumb');
+        const btnPlay       = document.getElementById('btn-play');
+        const btnBack15     = document.getElementById('btn-back15');
+        const btnFwd15      = document.getElementById('btn-fwd15');
+        const btnMute       = document.getElementById('btn-mute');
+        const btnSpeed      = document.getElementById('btn-speed');
+        const speedPopup    = document.getElementById('speed-popup');
+        const btnNew        = document.getElementById('btn-new');
 
-        // --- 強制ロード (大容量対応) ---
-        async function handleFile(file) {
-          if (!file) return;
-          if (objectUrl) URL.revokeObjectURL(objectUrl);
+        // ── State ─────────────────────────────────────────────
+        let fileObjectUrl  = null;   // URL.createObjectURL(File) — never fully loaded into RAM
+        let isMuted        = false;
+        let savedVol       = 1;
+        let isDraggingSeek = false;
+        let isDraggingVol  = false;
+        let overlayTimer   = null;
+        let skipTimer      = null;
+        let cursorTimer    = null;
 
-          document.getElementById('upload-screen').classList.add('hidden');
-          loadingScreen.classList.add('visible');
-          document.getElementById('loading-filename').textContent = file.name;
+        // ── Utilities ─────────────────────────────────────────
+        const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+        const toPct = (v, max)    => clamp((v / max) * 100, 0, 100);
 
-          try {
-            const total = file.size;
-            let loaded = 0;
-            
-            // TransformStreamを使って読み込み進捗を正確にキャッチ
-            const progressStream = new TransformStream({
-              transform(chunk, controller) {
-                loaded += chunk.byteLength;
-                const p = (loaded / total) * 100;
-                progressBar.style.width = p + '%';
-                loadingPct.textContent = Math.round(p) + '%';
-                controller.enqueue(chunk);
-              }
-            });
+        const fmt = s => {
+          if (!isFinite(s) || isNaN(s)) return '0:00';
+          const h   = Math.floor(s / 3600);
+          const m   = Math.floor((s % 3600) / 60);
+          const sec = Math.floor(s % 60);
+          return h
+            ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+            : `${m}:${String(sec).padStart(2, '0')}`;
+        };
 
-            const response = new Response(file.stream().pipeThrough(progressStream));
-            const blob = await response.blob(); 
-            objectUrl = URL.createObjectURL(blob);
-            video.src = objectUrl;
+        const fmtBytes = b =>
+          b < 1024 * 1024
+            ? (b / 1024).toFixed(1) + ' KB'
+            : (b / (1024 * 1024)).toFixed(1) + ' MB';
 
-            video.onloadeddata = () => {
-              loadingScreen.classList.remove('visible');
-              document.getElementById('player-screen').classList.add('visible');
-              video.play();
-            };
-          } catch (e) {
-            alert('メモリ不足または読み込みエラーです。');
-            location.reload();
-          }
+        const delay = ms => new Promise(r => setTimeout(r, ms));
+
+        function setSlider(fill, thumb, p) {
+          fill.style.width = p + '%';
+          thumb.style.left = p + '%';
         }
 
-        fileInput.onchange = e => handleFile(e.target.files[0]);
+        function setProgress(p, status) {
+          progressBar.style.width = p + '%';
+          loadingPct.textContent  = Math.round(p) + '%';
+          if (status !== undefined) loadingStatus.textContent = status;
+        }
 
-        // --- プレイヤーロジック ---
-        const btnPlay = document.getElementById('btn-play');
-        const togglePlay = () => {
-          if (video.paused) { video.play(); btnPlay.textContent = '⏸'; flash('▶'); }
-          else { video.pause(); btnPlay.textContent = '▶'; flash('⏸'); }
-        };
+        function flashOverlay(icon) {
+          centerOverlay.textContent = icon;
+          centerOverlay.classList.add('show');
+          clearTimeout(overlayTimer);
+          overlayTimer = setTimeout(() => centerOverlay.classList.remove('show'), 600);
+        }
 
-        const flash = (txt) => {
-          const ov = document.getElementById('center-overlay');
-          ov.textContent = txt; ov.classList.add('show');
-          setTimeout(() => ov.classList.remove('show'), 500);
-        };
+        function flashSkip(dir) {
+          const el = dir === 'left' ? skipLeft : skipRight;
+          el.classList.add('show');
+          clearTimeout(skipTimer);
+          skipTimer = setTimeout(() => el.classList.remove('show'), 700);
+        }
 
-        btnPlay.onclick = togglePlay;
-        document.getElementById('video-wrap').onclick = e => { if(e.target.id !== 'cursor-dot') togglePlay(); };
-        document.getElementById('btn-fwd15').onclick = () => { video.currentTime += 15; flash('+15s'); };
-        document.getElementById('btn-back15').onclick = () => { video.currentTime -= 15; flash('-15s'); };
+        // ── handleFile ────────────────────────────────────────
+        // KEY DESIGN:
+        //   URL.createObjectURL(file) gives the browser a direct pointer to
+        //   the file on disk. The browser streams it natively — no RAM copy,
+        //   no ArrayBuffer, no Blob — so 4 GB files work just fine.
+        //
+        //   Progress is read from video's own buffered TimeRanges as the
+        //   browser prefetches ahead, and from readyState milestones.
+        //   This is the only crash-safe approach for large local files.
+        function handleFile(file) {
+          if (!file || !file.type.startsWith('video/')) return;
 
-        video.ontimeupdate = () => {
-          const p = (video.currentTime / video.duration) * 100;
-          document.getElementById('seek-fill').style.width = p + '%';
-          document.getElementById('seek-thumb').style.left = p + '%';
-          const fmt = s => Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0');
-          document.getElementById('time-label').textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
-        };
+          // Revoke previous object URL to free OS file handle
+          if (fileObjectUrl) {
+            URL.revokeObjectURL(fileObjectUrl);
+            fileObjectUrl = null;
+          }
 
-        document.getElementById('seek-wrap').onmousedown = e => {
-          const move = e => {
-            const r = document.getElementById('seek-wrap').getBoundingClientRect();
-            video.currentTime = ((e.clientX - r.left) / r.width) * video.duration;
-          };
-          move(e);
-          window.onmousemove = move;
-          window.onmouseup = () => window.onmousemove = null;
-        };
+          // Reset video element completely to avoid stale state
+          video.pause();
+          video.removeAttribute('src');
+          video.load();
 
-        // 音量
-        const setVol = (v) => {
-          video.volume = Math.max(0, Math.min(1, v));
-          document.getElementById('vol-fill').style.width = (video.volume * 100) + '%';
-          document.getElementById('vol-thumb').style.left = (video.volume * 100) + '%';
-        };
-        document.getElementById('vol-wrap').onmousedown = e => {
-          const move = e => setVol((e.clientX - document.getElementById('vol-wrap').getBoundingClientRect().left) / 80);
-          move(e); window.onmousemove = move; window.onmouseup = () => window.onmousemove = null;
-        };
+          // Show loading UI
+          uploadScreen.classList.add('hidden');
+          loadingScreen.classList.add('visible');
+          loadingPct.classList.remove('done');
+          loadingStatus.classList.remove('ready');
+          loadingFn.textContent = file.name;
+          setProgress(0, '動画を解析中...');
 
-        // 速度
-        document.getElementById('btn-speed').onclick = () => document.getElementById('speed-popup').classList.toggle('open');
-        document.querySelectorAll('.speed-opt').forEach(opt => {
-          opt.onclick = () => {
-            video.playbackRate = parseFloat(opt.dataset.speed);
-            document.getElementById('btn-speed').textContent = opt.dataset.speed + 'x';
-            document.getElementById('speed-popup').classList.remove('open');
-          };
+          // Create object URL — this is just a pointer, NOT a memory copy
+          fileObjectUrl = URL.createObjectURL(file);
+
+          // Attach event listeners BEFORE setting src
+          attachLoadingListeners(file.size);
+
+          video.src = fileObjectUrl;
+          video.load();
+        }
+
+        // ── attachLoadingListeners ────────────────────────────
+        // Tracks video loading milestones and maps them to 0–100%.
+        //
+        //  0– 5%  : loadstart
+        //  5–20%  : loadedmetadata  (duration known, first frame decoded)
+        // 20–60%  : canplay         (enough to start playing)
+        // 60–100% : buffered grows until canplaythrough
+        //           (browser has buffered enough to play without stalling)
+        //
+        // The 60–100% range polls buffered TimeRanges on each 'progress'
+        // event so the bar moves smoothly as data arrives.
+        function attachLoadingListeners(fileSize) {
+          let progressInterval = null;
+
+          function onLoadStart() {
+            setProgress(5, `ファイルサイズ: ${fmtBytes(fileSize)}`);
+          }
+
+          function onLoadedMetadata() {
+            setProgress(20, `${fmt(video.duration)} — メタデータ読み込み完了`);
+          }
+
+          function onCanPlay() {
+            setProgress(60, 'バッファリング中...');
+            // Start polling buffered range for smooth 60→99%
+            if (!progressInterval) {
+              progressInterval = setInterval(pollBuffered, 200);
+            }
+          }
+
+          function pollBuffered() {
+            if (!video.duration) return;
+            try {
+              if (video.buffered.length > 0) {
+                const end = video.buffered.end(video.buffered.length - 1);
+                const frac = end / video.duration;
+                // Map buffered fraction to 60–99%
+                const p = 60 + frac * 39;
+                setProgress(p, `バッファリング中... ${Math.round(frac * 100)}%`);
+              }
+            } catch (e) { /* buffered may throw if src changed */ }
+          }
+
+          function onCanPlayThrough() {
+            clearInterval(progressInterval);
+            progressInterval = null;
+            setProgress(100, '準備完了!');
+            loadingPct.classList.add('done');
+            loadingStatus.classList.add('ready');
+
+            // Transition to player after brief moment
+            delay(300).then(() => {
+              cleanup();
+              loadingScreen.classList.remove('visible');
+              playerScreen.classList.add('visible');
+              setVol(1);
+              updateSeek();
+            });
+          }
+
+          function onError() {
+            clearInterval(progressInterval);
+            progressInterval = null;
+            cleanup();
+
+            const codes = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'SRC_NOT_SUPPORTED' };
+            const code  = video.error ? (codes[video.error.code] || video.error.code) : '不明';
+            alert(`動画の読み込みに失敗しました (${code})\nファイル形式を確認してください。`);
+            loadingScreen.classList.remove('visible');
+            uploadScreen.classList.remove('hidden');
+            fileInput.value = '';
+          }
+
+          function cleanup() {
+            video.removeEventListener('loadstart',       onLoadStart);
+            video.removeEventListener('loadedmetadata',  onLoadedMetadata);
+            video.removeEventListener('canplay',         onCanPlay);
+            video.removeEventListener('canplaythrough',  onCanPlayThrough);
+            video.removeEventListener('error',           onError);
+          }
+
+          video.addEventListener('loadstart',      onLoadStart);
+          video.addEventListener('loadedmetadata', onLoadedMetadata);
+          video.addEventListener('canplay',        onCanPlay);
+          video.addEventListener('canplaythrough', onCanPlayThrough);
+          video.addEventListener('error',          onError);
+        }
+
+        // ── Drop zone ─────────────────────────────────────────
+        dropZone.addEventListener('dragover', e => {
+          e.preventDefault();
+          dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', e => {
+          e.preventDefault();
+          dropZone.classList.remove('drag-over');
+          handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+        btnNew.addEventListener('click', () => {
+          video.pause();
+          video.removeAttribute('src');
+          video.load();
+          playerScreen.classList.remove('visible');
+          uploadScreen.classList.remove('hidden');
+          fileInput.value = '';
         });
 
-        // カスタムカーソル
-        const dot = document.getElementById('cursor-dot');
-        document.getElementById('video-wrap').onmousemove = e => {
-          const r = document.getElementById('video-wrap').getBoundingClientRect();
-          dot.style.left = (e.clientX - r.left) + 'px';
-          dot.style.top = (e.clientY - r.top) + 'px';
-          dot.style.opacity = 1;
-        };
+        // ── Playback ──────────────────────────────────────────
+        function togglePlay() {
+          if (video.paused) { video.play(); flashOverlay('▶'); }
+          else              { video.pause(); flashOverlay('⏸'); }
+        }
 
-        window.onkeydown = e => {
-          if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-          if (e.code === 'ArrowRight') video.currentTime += 15;
-          if (e.code === 'ArrowLeft') video.currentTime -= 15;
-        };
+        videoWrap.addEventListener('click', e => {
+          if (e.target === cursorDot) return;
+          togglePlay();
+        });
+        btnPlay.addEventListener('click', togglePlay);
+
+        video.addEventListener('play',  () => { btnPlay.textContent = '⏸'; });
+        video.addEventListener('pause', () => { btnPlay.textContent = '▶'; });
+        video.addEventListener('ended', () => { btnPlay.textContent = '▶'; });
+
+        // ── Skip 15s ──────────────────────────────────────────
+        function skip(secs) {
+          if (!video.duration) return;
+          video.currentTime = clamp(video.currentTime + secs, 0, video.duration);
+          flashOverlay(secs > 0 ? '▶▶' : '◀◀');
+          flashSkip(secs > 0 ? 'right' : 'left');
+        }
+
+        btnBack15.addEventListener('click', () => skip(-15));
+        btnFwd15.addEventListener('click',  () => skip(+15));
+
+        // ── Seek slider ───────────────────────────────────────
+        function updateSeek() {
+          if (!video.duration || isDraggingSeek) return;
+          const p = toPct(video.currentTime, video.duration);
+          setSlider(seekFill, seekThumb, p);
+          timeLabel.textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
+          try {
+            if (video.buffered.length > 0) {
+              bufFill.style.width =
+                toPct(video.buffered.end(video.buffered.length - 1), video.duration) + '%';
+            }
+          } catch (e) { /* ignore */ }
+        }
+
+        video.addEventListener('timeupdate',     updateSeek);
+        video.addEventListener('loadedmetadata', updateSeek);
+        video.addEventListener('progress',       updateSeek);
+
+        function seekFromPointer(clientX) {
+          if (!video.duration) return;
+          const rect = seekWrap.getBoundingClientRect();
+          const r    = clamp((clientX - rect.left) / rect.width, 0, 1);
+          const t    = r * video.duration;
+          video.currentTime = t;
+          setSlider(seekFill, seekThumb, r * 100);
+          timeLabel.textContent = `${fmt(t)} / ${fmt(video.duration)}`;
+        }
+
+        seekWrap.addEventListener('mousedown', e => {
+          e.preventDefault(); isDraggingSeek = true; seekFromPointer(e.clientX);
+        });
+        document.addEventListener('mousemove', e => {
+          if (isDraggingSeek) seekFromPointer(e.clientX);
+        });
+        document.addEventListener('mouseup', () => { isDraggingSeek = false; });
+
+        seekWrap.addEventListener('touchstart', e => {
+          e.preventDefault(); isDraggingSeek = true;
+          seekFromPointer(e.touches[0].clientX);
+        }, { passive: false });
+        document.addEventListener('touchmove', e => {
+          if (isDraggingSeek) seekFromPointer(e.touches[0].clientX);
+        });
+        document.addEventListener('touchend', () => { isDraggingSeek = false; });
+
+        // ── Volume ────────────────────────────────────────────
+        function setVol(v) {
+          v = clamp(v, 0, 1);
+          video.volume = v;
+          setSlider(volFill, volThumb, v * 100);
+          if (v > 0) savedVol = v;
+          isMuted = (v === 0);
+          btnMute.textContent = isMuted ? '🔇' : '🔊';
+        }
+
+        function volFromPointer(clientX) {
+          const rect = volWrap.getBoundingClientRect();
+          setVol((clientX - rect.left) / rect.width);
+        }
+
+        volWrap.addEventListener('mousedown', e => {
+          e.preventDefault(); isDraggingVol = true; volFromPointer(e.clientX);
+        });
+        document.addEventListener('mousemove', e => {
+          if (isDraggingVol) volFromPointer(e.clientX);
+        });
+        document.addEventListener('mouseup', () => { isDraggingVol = false; });
+
+        btnMute.addEventListener('click', () => {
+          isMuted ? setVol(savedVol || 1) : setVol(0);
+        });
+
+        // ── Speed ─────────────────────────────────────────────
+        btnSpeed.addEventListener('click', e => {
+          e.stopPropagation();
+          speedPopup.classList.toggle('open');
+        });
+        document.addEventListener('click', () => speedPopup.classList.remove('open'));
+
+        speedPopup.querySelectorAll('.speed-opt').forEach(opt => {
+          opt.addEventListener('click', e => {
+            e.stopPropagation();
+            const s = parseFloat(opt.dataset.speed);
+            video.playbackRate   = s;
+            btnSpeed.textContent = Number.isInteger(s) ? s + '.0x' : s + 'x';
+            speedPopup.querySelectorAll('.speed-opt').forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
+            speedPopup.classList.remove('open');
+          });
+        });
+
+        // ── Keyboard ──────────────────────────────────────────
+        document.addEventListener('keydown', e => {
+          if (!playerScreen.classList.contains('visible')) return;
+          if (e.target.tagName === 'INPUT') return;
+          switch (e.code) {
+            case 'Space':      e.preventDefault(); togglePlay(); break;
+            case 'ArrowLeft':  e.preventDefault(); skip(-15); break;
+            case 'ArrowRight': e.preventDefault(); skip(+15); break;
+            case 'ArrowUp':    e.preventDefault(); setVol(video.volume + .1); break;
+            case 'ArrowDown':  e.preventDefault(); setVol(video.volume - .1); break;
+            case 'KeyM':       isMuted ? setVol(savedVol || 1) : setVol(0); break;
+            case 'KeyF':       toggleFullscreen(); break;
+          }
+        });
+
+        // ── Custom cursor ─────────────────────────────────────
+        videoWrap.addEventListener('mousemove', e => {
+          const r = videoWrap.getBoundingClientRect();
+          cursorDot.style.left    = (e.clientX - r.left) + 'px';
+          cursorDot.style.top     = (e.clientY - r.top)  + 'px';
+          cursorDot.style.opacity = '1';
+          clearTimeout(cursorTimer);
+          cursorTimer = setTimeout(() => { cursorDot.style.opacity = '0'; }, 2000);
+        });
+        videoWrap.addEventListener('mouseleave', () => { cursorDot.style.opacity = '0'; });
+
+        // ── Fullscreen ────────────────────────────────────────
+        function toggleFullscreen() {
+          if (!document.fullscreenElement) playerScreen.requestFullscreen?.();
+          else                             document.exitFullscreen?.();
+        }
+        videoWrap.addEventListener('dblclick', toggleFullscreen);
+
       })();
     </script>
   </body>
