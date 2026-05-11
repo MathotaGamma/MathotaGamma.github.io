@@ -362,7 +362,7 @@ export default class Calendar {
               width: Math.ceil(width),
               height: Math.ceil(height),
               style: {
-                'position': 'relative',
+                'position': 'absolute',
                 'left': '-9999px',
                 'top': '-9999px',
                 'margin': '0',
