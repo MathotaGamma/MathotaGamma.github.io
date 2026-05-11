@@ -2,9 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
-    <title>カレンダー画像作成&ダウンロード</title>
-    <link rel="stylesheet" href="/statics/main-style.css" />
-    <script type="module" src="/statics/main-script.js"></script>
+    <title>カレンダー画像 印刷</title>
     <style>
       html, body {
         height: 100%;
@@ -19,7 +17,6 @@
     </style>
   </head>
   <body>
-    <nav id="breadcrumb"></nav>
     <h1>カレンダー画像</h1>
     <div>
       <h2>テンプレート</h2>
@@ -37,13 +34,8 @@
       async function main() {
         try {
           let calendar = new Calendar();
-          console.log(Calendar.help);
+          
           for(let i = 0; i < 3; i++) {
-            /*await calendar.getInfo();
-            calendar.render();
-            await calendar.capture();
-            const img = await calendar.getImg();*/
-            
             const container = document.createElement('div');
             container.style.display = "flex";
             container.style.flexDirection = "column";
@@ -53,7 +45,7 @@
             
             const data = await calendar.run({
               render: {
-                calendarFontFamily: "30cqmin cursive",
+                calendarFontFamily: "cursive",
                 holidayName: true
               },
               capture: {
