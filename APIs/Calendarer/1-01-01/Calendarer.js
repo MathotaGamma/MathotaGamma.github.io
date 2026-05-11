@@ -131,7 +131,7 @@ export default class Calendar {
   }
   
   fileNameFormat() {
-    return this.date.getFullYear()+'-'+this.date.getMonth()+'_calendar.png';
+    return this.year+'-'+this.month+'_calendar.png';
   }
   
   async getInfo(options={}) {
