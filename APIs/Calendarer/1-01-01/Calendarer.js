@@ -78,8 +78,9 @@ import JapaneseHolidays from "https://cdn.jsdelivr.net/gh/osamutake/japanese-hol
 import * as domtoimage from "https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/dist/dom-to-image-more.min.js";
 
 class Calendar {
-  constructor(year, month=null) {
-    this.date = Calendar.#getDate(year, month);
+  constructor(year=null, month=null) {
+    if (year === null && month === null) this.date = new Date();
+    else this.date = Calendar.#getDate(year, month);
   }
   
   static day = {
@@ -333,7 +334,7 @@ class Calendar {
     calendar.appendChild(body);
   
     container.appendChild(calendar);
-    this.element = container;
+    this.element = container.cloneNode(true);
     return container;
   }
   
@@ -407,12 +408,12 @@ class Calendar {
     
     return new Promise((resolve, reject) => {
       this.getInfo(options_1).then((info) => {
-        const calendar = this.render(options_2);
+        const element = this.render(options_2);
         // 第二引数は、ダウンロードをconfirmするか
         this.capture(true).then((url) => {
           const img = document.createElement('img');
           img.src = url;
-          resolve({meta: info.meta, img, url});
+          resolve({meta: info.meta, element, img, url});
         })
         .catch((error) => {
           reject(error);
