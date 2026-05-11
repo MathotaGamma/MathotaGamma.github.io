@@ -338,7 +338,7 @@ export default class Calendar {
     return this.element;
   }
   
-  async capture(download = false) {
+  async capture() {
     if (!this.info || !this.element) throw new Error("Error: Please run 'getInfo' and 'render'");
     const meta = this.info.meta;
     const element = this.element;
@@ -363,8 +363,8 @@ export default class Calendar {
               height: Math.ceil(height),
               style: {
                 'position': 'relative',
-                'left': '0',
-                'top': '0',
+                'left': '-9999px',
+                'top': '-9999px',
                 'margin': '0',
                 'transform': 'none',
                 'bottom': 'auto',
@@ -380,10 +380,6 @@ export default class Calendar {
             hideDiv.remove();
           
             this.url = dataUrl;
-            
-            if (download) this.downloadImg();
-
-            // ここで Promise を完了させる
             resolve(dataUrl);
           } catch (e) {
             reject(e);
@@ -401,7 +397,7 @@ export default class Calendar {
     link.click();
   }
   
-  /*async createImage(options_1=null, options_2=null, download=false) {
+  async createImg(options_1=null, options_2=null, download=false) {
     if (options_1 === null) options_1 = {};
     if (options_2 === null) options_2 = {};
     
@@ -409,7 +405,8 @@ export default class Calendar {
       this.getInfo(options_1).then((info) => {
         const element = this.render(options_2);
         // 引数は、ダウンロードをconfirmするか
-        this.capture(download).then((url) => {
+        this.capture().then((url) => {
+          if (download) this.downloadImg();
           const img = document.createElement('img');
           img.src = url;
           resolve({meta: info.meta, element, img, url});
@@ -422,5 +419,5 @@ export default class Calendar {
         reject(error);
       })
     });
-  }*/
+  }
 }
