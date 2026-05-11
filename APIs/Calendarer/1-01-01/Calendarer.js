@@ -1,16 +1,11 @@
-// optionsについて。
-/**
- * createImage(options_1, options_2, download);
- * では、
- *
- * options_1がgetInfo options
- *
- * options_2がrender options
- */
+/*
+optionsについて。
+ * run({ getInfo: ~, render: ~, capture: ~, download: {boolean} });
+ * の形でそれぞれのメソッドに対応するoptionsを受け取る。
+ * 
+ * downloadは、runを実行した際にダウンロードするかどうかをユーザーにconfirmする。
 
-/**
- * getInfo options
- *
+getInfo options
  * @param {number} [leftDay=0]
  * カレンダー左端の曜日
  * 0: 日曜 ～ 6: 土曜
@@ -25,13 +20,9 @@
  * en : SUN, MON ...
  * EN : SUNDAY, MONDAY ...
  * ja : 日, 月 ...
- */
 
-
-/**
- * render options
- *
- * @param {string|number} [width='90%']
+render options
+ * @param {string} [width='90%']
  * カレンダー全体の横幅
  *
  * @param {string} [squareAspect='5 / 4']
@@ -43,35 +34,45 @@
  * @param {string} [saturdayColor='blue']
  * 土曜日の文字色
  *
- * @param {string} [holidayColor='red']
- * 祝日の文字色
- *
  * @param {string} [sundayColor=holidayColor]
  * 日曜日の文字色
  *
+ * @param {string} [holidayColor='red']
+ * 祝日の文字色
  *
  * ===== フォントサイズ =====
  *
- * @param {string} [captionFontSize='4cqw']
- * タイトル（2026年5月など）の文字サイズ
+ * @param {string} [captionFont='4cqw sans-serif']
+ * タイトル（2026年5月など）の文字フォント
  *
- * @param {string} [dayFontSize='20cqw']
- * 曜日ヘッダー文字サイズ
+ * @param {string} [dayFont='20cqw sans-serif']
+ * 曜日ヘッダー文字フォント
  *
- * @param {string} [defaultFontSize='30cqmin']
- * 通常の日付文字サイズ
+ * @param {string} [defaultFont='30cqmin sans-serif']
+ * 通常の日付文字フォント
  *
- * @param {string} [extraFontSize='25cqmin']
- * はみ出し日付文字サイズ
+ * @param {string} [extraFont='25cqmin sans-serif']
+ * 畳んだ日の日付文字フォント
  *
- * @param {string} [holidayNameFontSize='9cqmin']
- * 祝日名文字サイズ
+ * @param {string} [holidayNameFont='9cqmin sans-serif']
+ * 祝日名文字フォント
+ *
+ * <任意>
+ * @param {string|null} [calendarFontFamily=null]
+ * カレンダー内のフォントを一括指定する(captionは除く)
  *
  *
  * ===== その他 =====
  *
  * @param {boolean} [holidayName=false]
  * true の場合は祝日名を表示
+
+capture options
+ * @param {number} [scale=4]
+ * 画像の解像度(値が大きいほど高解像度)
+ *
+ * @param {string} [size='1000px']
+ * カレンダーを描画する範囲。画像が書ける場合はこの値を大きくする。
  */
 
 // japanese-holidays-jsとdom-to-image-more(capture内)を使用。
