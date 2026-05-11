@@ -347,9 +347,8 @@ export default class Calendar {
     hideDiv.appendChild(element);
     hideDiv.style.position = "absolute"; 
     hideDiv.style.left = "-9999px";
-    hideDiv.style.top = "-9999px"; // 念のため上端も指定
+    hideDiv.style.top = "-9999px";
     hideDiv.style.zIndex = "-1";
-    hideDiv.style.opacity = "0"; // 念押しで透明度も0に
     document.body.appendChild(hideDiv);
     return new Promise((resolve, reject) => {
       requestAnimationFrame(() => {
