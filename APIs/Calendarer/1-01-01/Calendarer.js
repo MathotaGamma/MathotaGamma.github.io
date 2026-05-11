@@ -365,7 +365,7 @@ export default class Calendar {
     return this.cache.element;
   }
   
-  async capture(options) {
+  async capture(options={}) {
     if (!this.cache.info || !this.cache.element) throw new Error("Error: Please run 'getInfo' and 'render'");
     const scale = options.scale ?? 4;
     const meta = this.cache.info.meta;
