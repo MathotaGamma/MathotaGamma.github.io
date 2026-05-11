@@ -89,7 +89,12 @@ export default class Calendar {
   }
 
   copy() {
-    return structuredClone(this);
+    const clone = new Calendar(this.date);
+    clone.info = structuredClone(this.info);
+    if (this.element) clone.element = this.element.cloneNode(true);
+    clone.url = this.url;
+    if (this.img) clone.img = this.img.cloneNode(true);
+    return clone;
   }
   
   static day = {
