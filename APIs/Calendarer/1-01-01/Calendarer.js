@@ -73,12 +73,15 @@
  * @param {boolean} [holidayName=false]
  * true の場合は祝日名を表示
  */
+console.log(76,'hello');
 
 // japanese-holidays-jsとdom-to-image-more(capture内)を使用。
-import JapaneseHolidays from 'https://cdn.jsdelivr.net/npm/japanese-holidays@1.0.10/+esm'
+import JapaneseHolidays from 'https://cdn.jsdelivr.net/npm/japanese-holidays@1.0.10/+esm';
+console.log(80,'loaded');
 
 export default class Calendar {
   constructor(year=null, month=null) {
+    console.log(84,'constructor');
     if (year === null && month === null) this.date = new Date();
     else this.date = Calendar.#getDate(year, month);
   }
