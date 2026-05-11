@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <title>API ｜ NeoTopazm</title>
     <script type="module" src="https://mathotagamma.github.io/APIs/JS-Window/1-01-02/JS-Window.js"></script>
-    <script type="module" src="https://mathotagamma.github.io/APIs/Calendarer/1-01-01/Calendarer.js"></script>
   </head>
   <body>
     <h1>Welcome to the API page!</h1>
@@ -30,6 +29,7 @@
 }
 </js-window>
     <script>
+      import {Calendar} from 'https://mathotagamma.github.io/APIs/Calendarer/1-01-01/Calendarer.js';
       window.onload = () => {
         new Calendar().createImage().then((data) => {
           document.getElementById('calendar').appendChild(data.element);
