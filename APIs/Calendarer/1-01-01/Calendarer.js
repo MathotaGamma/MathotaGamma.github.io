@@ -349,7 +349,7 @@ export default class Calendar {
         if (calendarFontFamily) span.style.setProperty('font-family', calendarFontFamily, 'important');
       else
         span.style.font = defaultFont;
-        if (calendarFontFamily) span.style.setProperty('font-family', calendarFontFamily, 'important');
+        if (calendarFontFamily) span.style.setProperty('font-family', calendarFontFamily);
       span.innerHTML = data.date;
     
       const holidaySpan = document.createElement('span');
