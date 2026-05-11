@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <title>API ｜ NeoTopazm</title>
     <script type="module" src="https://mathotagamma.github.io/APIs/JS-Window/1-01-02/JS-Window.js"></script>
+    <script type="module" src="https://mathotagamma.github.io/APIs/Calendarer/1-01-01/Calendarer.js"></script>
   </head>
   <body>
     <h1>Welcome to the API page!</h1>
@@ -11,6 +12,11 @@
     <p>
       数式パーサー・複素数・ベクトル・行列・四元数計算、2次元・3次元空間にグラフ描画のAPI。
     </p>
+    <a href="./Calendarer/explanation/">Calendarer</a>
+    <p>
+      カレンダー(日本の祝日対応)の画像の生成や、Elementを生成する。
+    </p>
+    <div id="calendar"></div>
     <a href="./Physics/explanation/">Physics</a>
     <p>
       物理エンジン
@@ -23,5 +29,15 @@
   console.log(n);
 }
 </js-window>
+    <script>
+      window.onload = () => {
+        new Calendar().createImage().then((data) => {
+          document.getElementById('calendar').appendChild(data.element);
+        })
+        .catch((error) => {
+          console.error(error.message);
+        })
+      }
+    </script>
   </body>
 </html>
