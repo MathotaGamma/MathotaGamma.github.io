@@ -245,6 +245,9 @@ export default class Calendar {
     const defaultFont = options.defaultFont ?? '30cqmin sans-selif';
     const extraFont = options.extraFont ?? '25cqmin sans-selif';
     const holidayNameFont = options.holidayNameFont ?? '9cqmin sans-selif';
+
+    const calendarFontFamily = options.calendarFontFamily ?? null;
+    
     const holidayName = options.holidayName !== undefined ? options.holidayName : false;
   
     //console.log(JSON.stringify(info))
@@ -264,6 +267,7 @@ export default class Calendar {
     container.appendChild(caption);
   
     const calendar = document.createElement('div');
+    if (calendarFontFamily) calendar.style.fontFamily = calendarFontFamily+' !important';
     calendar.style.border = '1px solid black';
     calendar.style.display = 'flex';
     calendar.style.flexDirection = 'column';
@@ -529,6 +533,10 @@ render options
  *
  * @param {string} [holidayNameFont='9cqmin sans-selif']
  * 祝日名文字フォント
+ *
+ * <任意>
+ * @param {string|null} [calendarFontFamily=null]
+ * カレンダー内のフォントを一括指定する(captionは除く)
  *
  *
  * ===== その他 =====
