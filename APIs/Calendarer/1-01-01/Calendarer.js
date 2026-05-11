@@ -75,7 +75,7 @@
  */
 
 // japanese-holidays-jsとdom-to-image-more(capture内)を使用。
-import JapaneseHolidays from "https://cdn.jsdelivr.net/npm/japanese-holidays-js@1.0.10/+esm";
+import JapaneseHolidays from "https://cdn.jsdelivr.net/gh/osamutake/japanese-holidays-js@v1.0.10/lib/japanese-holidays.esm.min.js";
 
 
 export default class Calendar {
@@ -204,7 +204,7 @@ export default class Calendar {
     return info
   }
   
-  async render(options={}) {
+  render(options={}) {
     if (!this.info) throw new Error("Error: Please run 'getInfo'")
     const info = this.info;
     const width = options.width ?? '90%';
@@ -225,7 +225,7 @@ export default class Calendar {
     const container = document.createElement('div');
     container.classList.add('calendar');
     container.style.display = "inline-block";
-    container.style.width = width+'px';
+    container.style.width = width;
     //container.style.border = '1px solid black';
     container.style.containerType = 'inline-size';
     container.style.position = 'relative';
