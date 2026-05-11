@@ -75,7 +75,7 @@
  */
 
 import JapaneseHolidays from "https://cdn.jsdelivr.net/gh/osamutake/japanese-holidays-js@v1.0.10/lib/japanese-holidays.esm.min.js";
-import * as domtoimage from "https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/dist/dom-to-image-more.min.js";
+import domtoimage from "https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/dist/dom-to-image-more.min.js";
 
 export class Calendar {
   constructor(year=null, month=null) {
@@ -335,7 +335,7 @@ export class Calendar {
   
     container.appendChild(calendar);
     this.element = container.cloneNode(true);
-    return container;
+    return this.element;
   }
   
   async capture(download = false) {
@@ -358,7 +358,6 @@ export class Calendar {
             const width = rect.width;
             const height = rect.height;
 
-            // 1px潰れ対策で+1しているのは賢いやり方です
             const options = {
               width: Math.ceil(width),
               height: Math.ceil(height),
@@ -402,15 +401,15 @@ export class Calendar {
     link.click();
   }
   
-  async createImage(options_1=null, options_2=null) {
+  async createImage(options_1=null, options_2=null, download=false) {
     if (options_1 === null) options_1 = {};
     if (options_2 === null) options_2 = {};
     
     return new Promise((resolve, reject) => {
       this.getInfo(options_1).then((info) => {
         const element = this.render(options_2);
-        // 第二引数は、ダウンロードをconfirmするか
-        this.capture(true).then((url) => {
+        // 引数は、ダウンロードをconfirmするか
+        this.capture(download).then((url) => {
           const img = document.createElement('img');
           img.src = url;
           resolve({meta: info.meta, element, img, url});
