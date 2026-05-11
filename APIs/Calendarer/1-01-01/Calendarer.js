@@ -365,8 +365,9 @@ export default class Calendar {
     return this.cache.element;
   }
   
-  async capture() {
+  async capture(options) {
     if (!this.cache.info || !this.cache.element) throw new Error("Error: Please run 'getInfo' and 'render'");
+    const scale = options.scale ?? 4;
     const meta = this.cache.info.meta;
     const element = this.cache.element;
     // Promiseで包むことで、await capture(...) が可能になる
@@ -387,7 +388,7 @@ export default class Calendar {
             const width = rect.width;
             const height = rect.height;
 
-            const options = {
+            const domOptions = {
               width: Math.ceil(width),
               height: Math.ceil(height),
               style: {
@@ -400,12 +401,12 @@ export default class Calendar {
                 'right': 'auto',
                 'background': 'white'
               },
-              scale: 3 // 高画質設定
+              scale
             };
 
             // dom-to-image-moreをインポート
             const domtoimage = (await import("https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/+esm")).default;
-            const dataUrl = await domtoimage.toPng(element, options);
+            const dataUrl = await domtoimage.toPng(element, domOptions);
             hideDiv.remove();
           
             this.cache = {info: this.cache.info, element, url: dataUrl}
@@ -418,7 +419,7 @@ export default class Calendar {
     });
   }
   
-  downloadImg(options={}) {
+  downloadImg() {
     if (!this.cache.url) throw new Error("Error: Please run 'capture'");
     const link = document.createElement('a');
     link.download = this.fileNameFormat();
@@ -434,15 +435,12 @@ export default class Calendar {
     return img;
   }
   
-  async run(options_1=null, options_2=null, download=false) {
-    if (options_1 === null) options_1 = {};
-    if (options_2 === null) options_2 = {};
-    
+  async run(options={getInfo=null, render=null, capture=null, download=false}) {
     return new Promise((resolve, reject) => {
-      this.getInfo(options_1).then((info) => {
-        const element = this.render(options_2);
+      this.getInfo(options.getInfo).then((info) => {
+        const element = this.render(options.render);
         // 引数は、ダウンロードをconfirmするか
-        this.capture().then((url) => {
+        this.capture(options.capture).then((url) => {
           const img = this.getImg();
           if (download) this.downloadImg();
           resolve({meta: info.meta, element, img, url});
@@ -456,4 +454,74 @@ export default class Calendar {
       })
     });
   }
+
+  static help = `optionsについて。
+ * run({ getInfo: ~, render: ~, capture: ~, download: {boolean} });
+ * の形でそれぞれのメソッドに対応するoptionsを受け取る。
+ * 
+ * downloadは、runを実行した際にダウンロードするかどうかをユーザーにconfirmする。
+
+getInfo options
+ * @param {number} [leftDay=0]
+ * カレンダー左端の曜日
+ * 0: 日曜 ～ 6: 土曜
+ *
+ * @param {'5'|'6'|'auto'} [rowSize='5']
+ * カレンダーの段数（header除く）
+ * auto の場合は必要行数を自動計算
+ *
+ * @param {'en'|'EN'|'ja'} [dayLanguage='en']
+ * 曜日表示の言語
+ *
+ * en : SUN, MON ...
+ * EN : SUNDAY, MONDAY ...
+ * ja : 日, 月 ...
+
+render options
+ * @param {string} [width='90%']
+ * カレンダー全体の横幅
+ *
+ * @param {string} [squareAspect='5 / 4']
+ * 日付セルのアスペクト比
+ *
+ *
+ * ===== 色設定 =====
+ *
+ * @param {string} [saturdayColor='blue']
+ * 土曜日の文字色
+ *
+ * @param {string} [holidayColor='red']
+ * 祝日の文字色
+ *
+ * @param {string} [sundayColor=holidayColor]
+ * 日曜日の文字色
+ *
+ *
+ * ===== フォントサイズ =====
+ *
+ * @param {string} [captionFontSize='4cqw']
+ * タイトル（2026年5月など）の文字サイズ
+ *
+ * @param {string} [dayFontSize='20cqw']
+ * 曜日ヘッダー文字サイズ
+ *
+ * @param {string} [defaultFontSize='30cqmin']
+ * 通常の日付文字サイズ
+ *
+ * @param {string} [extraFontSize='25cqmin']
+ * はみ出し日付文字サイズ
+ *
+ * @param {string} [holidayNameFontSize='9cqmin']
+ * 祝日名文字サイズ
+ *
+ *
+ * ===== その他 =====
+ *
+ * @param {boolean} [holidayName=false]
+ * true の場合は祝日名を表示
+
+capture options
+ * @param {number} [scale=3]
+ * 画像の解像度(値が大きいほど高解像度)
+`
 }
