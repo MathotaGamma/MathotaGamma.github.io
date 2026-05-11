@@ -91,12 +91,15 @@ export default class Calendar {
 
   copy() {
     const clone = new Calendar(this.year, this.month);
-    const element = this.element ? this.element.cloneNode(true) : null;
-    const img = this.img ? this.img.cloneNode(true) : null;
+    
+    if (!this.cache) return clone;
+    
+    const element = this.cache.element ? this.cache.element.cloneNode(true) : null;
+    const img = this.cache.img ? this.cache.img.cloneNode(true) : null;
     clone.cache = {
-      info: structuredClone(this.info),
+      info: structuredClone(this.cache.info),
       element,
-      url: this.url,
+      url: this.cache.url,
       img
     }
     return clone;
@@ -144,7 +147,13 @@ export default class Calendar {
   }
   
   nextMonth() {
-    return new Calendar(this.year, this.month+1);
+    this.cache = {};
+    this.date.setMonth(this.date.getMonth()+1);
+  }
+
+  preMonth() {
+    this.cache = {};
+    this.date.setMonth(this.date.getMonth()-1);
   }
   
   fileNameFormat() {
