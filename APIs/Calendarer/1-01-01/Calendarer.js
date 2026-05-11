@@ -442,7 +442,7 @@ export default class Calendar {
         // 引数は、ダウンロードをconfirmするか
         this.capture(options.capture).then((url) => {
           const img = this.getImg();
-          if (download) this.downloadImg();
+          if (options.download) this.downloadImg();
           resolve({meta: info.meta, element, img, url});
         })
         .catch((error) => {
@@ -521,7 +521,7 @@ render options
  * true の場合は祝日名を表示
 
 capture options
- * @param {number} [scale=3]
+ * @param {number} [scale=4]
  * 画像の解像度(値が大きいほど高解像度)
 `
 }
