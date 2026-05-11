@@ -285,7 +285,7 @@ export default class Calendar {
       const span = document.createElement('span');
       span.innerHTML = day[1];
       span.style.font = dayFont;
-      if (calendarFontFamily) span.style.setProperty('font-family', calendarFontFamily, 'important');
+      if (calendarFontFamily) span.style.fontFamily = calendarFontFamily;
       if (day[0] == 0) 
         span.style.color = sundayColor;
       else if (day[0] == 6)
@@ -345,16 +345,16 @@ export default class Calendar {
     
       if (data.extra || (i+7 < info.calendar.length && info.calendar[i+7].extra)) {
         span.style.font = extraFont;
-        span.style.fontFamily = calendarFontFamily;
+        if (calendarFontFamily) span.style.fontFamily = calendarFontFamily;
       } else {
         span.style.font = defaultFont;
-        if (calendarFontFamily) span.style.setProperty('font-family', calendarFontFamily);
+        if (calendarFontFamily) span.style.fontFamily = calendarFontFamily;
       }
       span.innerHTML = data.date;
     
       const holidaySpan = document.createElement('span');
       holidaySpan.style.font = holidayNameFont;
-      if (calendarFontFamily) holidaySpan.style.setProperty('font-family', calendarFontFamily, 'important');
+      if (calendarFontFamily) holidaySpan.style.fontFamily = calendarFontFamily;
       if (holidayName && data.holiday !== null) holidaySpan.innerHTML = data.holiday;
       
       addStyle(span, data);
