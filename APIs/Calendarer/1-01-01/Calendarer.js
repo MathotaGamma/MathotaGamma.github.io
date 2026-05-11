@@ -408,7 +408,7 @@ export default class Calendar {
             const dataUrl = await domtoimage.toPng(element, options);
             hideDiv.remove();
           
-            this.cache = {info: this.info, element, url: dataUrl}
+            this.cache = {info: this.cache.info, element, url: dataUrl}
             resolve(dataUrl);
           } catch (e) {
             reject(e);
