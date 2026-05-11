@@ -345,7 +345,7 @@ export default class Calendar {
     
       if (data.extra || (i+7 < info.calendar.length && info.calendar[i+7].extra))
         span.style.font = extraFont;
-        if (calendarFontFamily) span.style.setProperty('font-family', calendarFontFamily, 'important');
+        span.style.fontFamily = calendarFontFamily;
       else
         span.style.font = defaultFont;
         if (calendarFontFamily) span.style.setProperty('font-family', calendarFontFamily);
