@@ -235,6 +235,8 @@ export default class Calendar {
     if (!this.cache.info) throw new Error("Error: Please run 'getInfo'")
     const info = this.cache.info;
     const width = options.width ?? '90%';
+
+    const transparent = options.transparent ?? 'false';
   
     const saturdayColor = options.saturday ?? 'blue';
     const holidayColor = options.holidayColor ?? 'red';
@@ -257,6 +259,7 @@ export default class Calendar {
     container.style.display = "inline-block";
     container.style.width = width;
     //container.style.border = '1px solid black';
+    if (!transparent) container.style.background = 'white';
     container.style.containerType = 'inline-size';
     container.style.position = 'relative';
   
@@ -508,6 +511,9 @@ render options
  *
  * @param {string} [squareAspect='5 / 4']
  * 日付セルのアスペクト比
+ *
+ * @param {boolean} [transparent=false]
+ * カレンダーの背景を透過にするか
  *
  *
  * ===== 色設定 =====
