@@ -354,9 +354,9 @@ export default class Calendar {
     // Promiseで包むことで、await capture(...) が可能になる
     const hideDiv = document.createElement('div');
     hideDiv.appendChild(element);
-    hideDiv.style.position = "absolute"; 
-    hideDiv.style.left = "0";
-    hideDiv.style.top = "0";
+    hideDiv.style.position = "relative"; 
+    hideDiv.style.left = "-9999px";
+    hideDiv.style.top = "-9999px";
     hideDiv.style.zIndex = "-1";
     document.body.appendChild(hideDiv);
     return new Promise((resolve, reject) => {
@@ -373,7 +373,7 @@ export default class Calendar {
               width: Math.ceil(width),
               height: Math.ceil(height),
               style: {
-                'position': 'relative',
+                'position': 'absolute',
                 'left': '0',
                 'top': '0',
                 'margin': '0',
