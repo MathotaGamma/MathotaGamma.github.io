@@ -1,6 +1,6 @@
 // optionsについて。
 /**
- * createImage(year, month, options_1, options_2);
+ * createImage(options_1, options_2, download);
  * では、
  *
  * options_1がgetInfo options
