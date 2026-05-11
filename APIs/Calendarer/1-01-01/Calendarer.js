@@ -240,11 +240,11 @@ export default class Calendar {
     const sundayColor = options.sundayColor ?? holidayColor;
     const squareAspect = options.squareAspect ?? '5 / 4';
   
-    const captionFont = options.captionFont ?? '4cqw sans-selif';
-    const dayFont = options.dayFont ?? '20cqw sans-selif';
-    const defaultFont = options.defaultFont ?? '30cqmin sans-selif';
-    const extraFont = options.extraFont ?? '25cqmin sans-selif';
-    const holidayNameFont = options.holidayNameFont ?? '9cqmin sans-selif';
+    const captionFont = options.captionFont ?? '4cqw sans-serif';
+    const dayFont = options.dayFont ?? '20cqw sans-serif';
+    const defaultFont = options.defaultFont ?? '30cqmin sans-serif';
+    const extraFont = options.extraFont ?? '25cqmin sans-serif';
+    const holidayNameFont = options.holidayNameFont ?? '9cqmin sans-serif';
 
     const calendarFontFamily = options.calendarFontFamily ?? null;
     
@@ -522,19 +522,19 @@ render options
  *
  * ===== フォントサイズ =====
  *
- * @param {string} [captionFont='4cqw sans-selif']
+ * @param {string} [captionFont='4cqw sans-serif']
  * タイトル（2026年5月など）の文字フォント
  *
- * @param {string} [dayFont='20cqw sans-selif']
+ * @param {string} [dayFont='20cqw sans-serif']
  * 曜日ヘッダー文字フォント
  *
- * @param {string} [defaultFont='30cqmin sans-selif']
+ * @param {string} [defaultFont='30cqmin sans-serif']
  * 通常の日付文字フォント
  *
- * @param {string} [extraFont='25cqmin sans-selif']
+ * @param {string} [extraFont='25cqmin sans-serif']
  * 畳んだ日の日付文字フォント
  *
- * @param {string} [holidayNameFont='9cqmin sans-selif']
+ * @param {string} [holidayNameFont='9cqmin sans-serif']
  * 祝日名文字フォント
  *
  * <任意>
