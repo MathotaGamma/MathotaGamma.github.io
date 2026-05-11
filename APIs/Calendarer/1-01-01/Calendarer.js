@@ -81,6 +81,15 @@ export default class Calendar {
   constructor(year=null, month=null) {
     if (year === null && month === null) this.date = new Date();
     else this.date = Calendar.#getDate(year, month);
+
+    /*this.info = null;
+    this.element = null;
+    this.url = null;
+    this.img = null;*/
+  }
+
+  copy() {
+    return structuredClone(this);
   }
   
   static day = {
@@ -346,8 +355,8 @@ export default class Calendar {
     const hideDiv = document.createElement('div');
     hideDiv.appendChild(element);
     hideDiv.style.position = "absolute"; 
-    hideDiv.style.left = "-9999px";
-    hideDiv.style.top = "-9999px";
+    hideDiv.style.left = "0";
+    hideDiv.style.top = "0";
     hideDiv.style.zIndex = "-1";
     document.body.appendChild(hideDiv);
     return new Promise((resolve, reject) => {
@@ -411,6 +420,7 @@ export default class Calendar {
           if (download) this.downloadImg();
           const img = document.createElement('img');
           img.src = url;
+          this.img = img;
           resolve({meta: info.meta, element, img, url});
         })
         .catch((error) => {
