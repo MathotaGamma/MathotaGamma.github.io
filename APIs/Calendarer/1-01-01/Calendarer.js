@@ -345,8 +345,11 @@ export default class Calendar {
     // Promiseで包むことで、await capture(...) が可能になる
     const hideDiv = document.createElement('div');
     hideDiv.appendChild(element);
+    hideDiv.style.position = "absolute"; 
     hideDiv.style.left = "-9999px";
+    hideDiv.style.top = "-9999px"; // 念のため上端も指定
     hideDiv.style.zIndex = "-1";
+    hideDiv.style.opacity = "0"; // 念押しで透明度も0に
     document.body.appendChild(hideDiv);
     return new Promise((resolve, reject) => {
       requestAnimationFrame(() => {
@@ -362,9 +365,9 @@ export default class Calendar {
               width: Math.ceil(width),
               height: Math.ceil(height),
               style: {
-                'position': 'absolute',
-                'left': '-9999px',
-                'top': '-9999px',
+                'position': 'relative',
+                'left': '0',
+                'top': '0',
                 'margin': '0',
                 'transform': 'none',
                 'bottom': 'auto',
