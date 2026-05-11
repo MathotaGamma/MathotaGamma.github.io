@@ -240,11 +240,11 @@ export default class Calendar {
     const sundayColor = options.sundayColor ?? holidayColor;
     const squareAspect = options.squareAspect ?? '5 / 4';
   
-    const captionFontSize = options.captionFontSize ?? '4cqw';
-    const dayFontSize = options.dayFontSize ?? '20cqw';
-    const defaultFontSize = options.defaultFontSize ?? '30cqmin';
-    const extraFontSize = options.extraFontSize ?? '25cqmin';
-    const holidayNameFontSize = options.holidayNameFontSize ?? '9cqmin';
+    const captionFont = options.captionFont ?? '4cqw sans-selif';
+    const dayFont = options.dayFont ?? '20cqw sans-selif';
+    const defaultFont = options.defaultFont ?? '30cqmin sans-selif';
+    const extraFont = options.extraFont ?? '25cqmin sans-selif';
+    const holidayNameFont = options.holidayNameFont ?? '9cqmin sans-selif';
     const holidayName = options.holidayName !== undefined ? options.holidayName : false;
   
     //console.log(JSON.stringify(info))
@@ -260,7 +260,7 @@ export default class Calendar {
     const meta = info.meta;
     caption.innerHTML = meta.year+'年'+meta.month+'月';
     caption.style.textAlign = 'center';
-    caption.style.fontSize = captionFontSize;
+    caption.style.font = captionFont;
     container.appendChild(caption);
   
     const calendar = document.createElement('div');
@@ -281,7 +281,7 @@ export default class Calendar {
     
       const span = document.createElement('span');
       span.innerHTML = day[1];
-      span.style.fontSize = dayFontSize;
+      span.style.font = dayFont;
       if (day[0] == 0) 
         span.style.color = sundayColor;
       else if (day[0] == 6)
@@ -340,13 +340,13 @@ export default class Calendar {
       if (data.extra) span.style.textAlign = 'right';
     
       if (data.extra || (i+7 < info.calendar.length && info.calendar[i+7].extra))
-        span.style.fontSize = extraFontSize;
+        span.style.font = extraFont;
       else
-        span.style.fontSize = defaultFontSize;
+        span.style.font = defaultFont;
       span.innerHTML = data.date;
     
       const holidaySpan = document.createElement('span');
-      holidaySpan.style.fontSize = holidayNameFontSize;
+      holidaySpan.style.font = holidayNameFont;
       if (holidayName && data.holiday !== null) holidaySpan.innerHTML = data.holiday;
       holidaySpan.classList.add(data.extra ? 'out' : 'in');
     
@@ -371,7 +371,6 @@ export default class Calendar {
   
     const scale = options.scale ?? 4;
     const size = options.size ?? '1000px';
-    const fontFamily = options.fontFamily ?? 'sans-serif';
   
     // 一時的な iframe を作成
     const iframe = document.createElement('iframe');
@@ -396,10 +395,9 @@ export default class Calendar {
         <head>
           <style>
             html, body { 
-              margin: 0; 
-              padding: 0; 
-              background: white; 
-              font-family: ${fontFamily};
+              margin: 0;
+              padding: 0;
+              background: white;
             }
             * { box-sizing: border-box; }
           </style>
@@ -509,38 +507,34 @@ render options
  * @param {string} [saturdayColor='blue']
  * 土曜日の文字色
  *
- * @param {string} [holidayColor='red']
- * 祝日の文字色
- *
  * @param {string} [sundayColor=holidayColor]
  * 日曜日の文字色
  *
+ * @param {string} [holidayColor='red']
+ * 祝日の文字色
  *
  * ===== フォントサイズ =====
  *
- * @param {string} [captionFontSize='4cqw']
- * タイトル（2026年5月など）の文字サイズ
+ * @param {string} [captionFont='4cqw sans-selif']
+ * タイトル（2026年5月など）の文字フォント
  *
- * @param {string} [dayFontSize='20cqw']
- * 曜日ヘッダー文字サイズ
+ * @param {string} [dayFont='20cqw sans-selif']
+ * 曜日ヘッダー文字フォント
  *
- * @param {string} [defaultFontSize='30cqmin']
- * 通常の日付文字サイズ
+ * @param {string} [defaultFont='30cqmin sans-selif']
+ * 通常の日付文字フォント
  *
- * @param {string} [extraFontSize='25cqmin']
- * 畳んだ日の日付文字サイズ
+ * @param {string} [extraFont='25cqmin sans-selif']
+ * 畳んだ日の日付文字フォント
  *
- * @param {string} [holidayNameFontSize='9cqmin']
- * 祝日名文字サイズ
+ * @param {string} [holidayNameFont='9cqmin sans-selif']
+ * 祝日名文字フォント
  *
  *
  * ===== その他 =====
  *
  * @param {boolean} [holidayName=false]
  * true の場合は祝日名を表示
- *
- * @param {string} [fontFamily='sans-serif']
- * 日付のフォント
 
 capture options
  * @param {number} [scale=4]
