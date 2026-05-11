@@ -86,7 +86,7 @@ export default class Calendar {
     else this.date = Calendar.#getDate(year, month);
   }
   
-  /*static day = {
+  static day = {
     en: ['SUN','MON','TUE','WED','THU','FRI','SAT'],
     EN: ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
     ja: ['日','月','火','水','木','金','土']
@@ -206,7 +206,7 @@ export default class Calendar {
     return info
   }
   
-  render(options={}) {
+  /*render(options={}) {
     if (!this.info) throw new Error("Error: Please run 'getInfo'")
     const info = this.info;
     const width = options.width ?? '90%';
