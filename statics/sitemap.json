@@ -28,6 +28,11 @@
   "tools": {
     "_name": "ツール集",
     "_index": "",
+    "calendar": {
+      "_name": "カレンダー",
+      "_index": "",
+      "custom": "カスタム設定"
+    }
     "epicycle": "エピサイクル",
     "image-to-pdf": "画像→PDF",
     "document-editor": "DocumentEditor",
@@ -53,6 +58,18 @@
   "APIs": {
     "_name": "API集",
     "_index": "",
+    "Calendarer": {
+      "_name": "カレンダーライブラリ",
+      "_index": null,
+      "explanation": {
+        "_name": "使い方説明",
+        "_index": "",
+        "1-01-01": {
+          "_name": "ver:1-01-01",
+          "_index": ""
+        }
+      }
+    },
     "CompVisJS": {
       "_name": "数学・描画ライブラリ",
       "_index": null,
