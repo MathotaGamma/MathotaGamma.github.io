@@ -267,7 +267,7 @@ export default class Calendar {
     container.appendChild(caption);
   
     const calendar = document.createElement('div');
-    if (calendarFontFamily) calendar.style.fontFamily = calendarFontFamily+' !important';
+    if (calendarFontFamily) calendar.style.setProperty('font-family', calendarFontFamily, 'important');
     calendar.style.border = '1px solid black';
     calendar.style.display = 'flex';
     calendar.style.flexDirection = 'column';
