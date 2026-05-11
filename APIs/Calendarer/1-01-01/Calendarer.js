@@ -90,11 +90,8 @@ export default class Calendar {
   }
 
   copy() {
-    const clone = new Calendar(this.date);
-    clone.info = structuredClone(this.info);
-    if (this.element) clone.element = this.element.cloneNode(true);
-    clone.url = this.url;
-    if (this.img) clone.img = this.img.cloneNode(true);
+    const clone = new Calendar(this.year, this.month);
+    clone.cache = structuredClone(this.cache);
     return clone;
   }
   
@@ -140,8 +137,7 @@ export default class Calendar {
   }
   
   nextMonth() {
-    this.date.setMonth(this.date.getMonth()+1);
-    return this;
+    return new Calendar(this.year, this.month+1);
   }
   
   fileNameFormat() {
@@ -214,12 +210,12 @@ export default class Calendar {
       month: this.month
     }
     const info = {meta, rowSize, header, calendar};
-    this.info = info;
-    return info
+    this.cache = {info};
+    return info;
   }
   
   render(options={}) {
-    if (!this.info) throw new Error("Error: Please run 'getInfo'")
+    if (!this.cache.info) throw new Error("Error: Please run 'getInfo'")
     const info = this.info;
     const width = options.width ?? '90%';
   
@@ -349,12 +345,12 @@ export default class Calendar {
     calendar.appendChild(body);
   
     container.appendChild(calendar);
-    this.element = container.cloneNode(true);
-    return this.element;
+    this.cache = {info, element: container.cloneNode(true)};
+    return this.cache.element;
   }
   
   async capture() {
-    if (!this.info || !this.element) throw new Error("Error: Please run 'getInfo' and 'render'");
+    if (!this.cache.info || !this.cache.element) throw new Error("Error: Please run 'getInfo' and 'render'");
     const meta = this.info.meta;
     const element = this.element;
     // Promiseで包むことで、await capture(...) が可能になる
@@ -396,7 +392,7 @@ export default class Calendar {
             const dataUrl = await domtoimage.toPng(element, options);
             hideDiv.remove();
           
-            this.url = dataUrl;
+            this.cache = {info: this.info, element, url: dataUrl}
             resolve(dataUrl);
           } catch (e) {
             reject(e);
@@ -426,7 +422,7 @@ export default class Calendar {
           if (download) this.downloadImg();
           const img = document.createElement('img');
           img.src = url;
-          this.img = img;
+          this.cache = {info, element, url, img};
           resolve({meta: info.meta, element, img, url});
         })
         .catch((error) => {
