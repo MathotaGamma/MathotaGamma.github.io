@@ -86,7 +86,7 @@ export default class Calendar {
     else this.date = Calendar.#getDate(year, month);
   }
   
-  static day = {
+  /*static day = {
     en: ['SUN','MON','TUE','WED','THU','FRI','SAT'],
     EN: ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
     ja: ['日','月','火','水','木','金','土']
@@ -425,5 +425,5 @@ export default class Calendar {
         reject(error);
       })
     });
-  }
+  }*/
 }
