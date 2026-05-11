@@ -216,7 +216,7 @@ export default class Calendar {
   
   render(options={}) {
     if (!this.cache.info) throw new Error("Error: Please run 'getInfo'")
-    const info = this.info;
+    const info = this.cache.info;
     const width = options.width ?? '90%';
   
     const saturdayColor = options.saturday ?? 'blue';
@@ -351,8 +351,8 @@ export default class Calendar {
   
   async capture() {
     if (!this.cache.info || !this.cache.element) throw new Error("Error: Please run 'getInfo' and 'render'");
-    const meta = this.info.meta;
-    const element = this.element;
+    const meta = this.cache.info.meta;
+    const element = this.cache.element;
     // Promiseで包むことで、await capture(...) が可能になる
     const hideDiv = document.createElement('div');
     hideDiv.appendChild(element);
@@ -403,14 +403,22 @@ export default class Calendar {
   }
   
   downloadImg(options={}) {
-    if (!this.url) throw new Error("Error: Please run 'capture'");
+    if (!this.cache.url) throw new Error("Error: Please run 'capture'");
     const link = document.createElement('a');
     link.download = this.fileNameFormat();
-    link.href = this.url;
+    link.href = this.cache.url;
     link.click();
   }
+
+  getImg() {
+    if (!this.cache.url) throw new Error("Error: Please run 'capture'");
+    const img = document.createElement('img');
+    img.src = this.cache.url;
+    this.cache = {info, element, url, img};
+    return img;
+  }
   
-  async createImg(options_1=null, options_2=null, download=false) {
+  async run(options_1=null, options_2=null, download=false) {
     if (options_1 === null) options_1 = {};
     if (options_2 === null) options_2 = {};
     
@@ -419,10 +427,8 @@ export default class Calendar {
         const element = this.render(options_2);
         // 引数は、ダウンロードをconfirmするか
         this.capture().then((url) => {
+          const img = this.getImg();
           if (download) this.downloadImg();
-          const img = document.createElement('img');
-          img.src = url;
-          this.cache = {info, element, url, img};
           resolve({meta: info.meta, element, img, url});
         })
         .catch((error) => {
