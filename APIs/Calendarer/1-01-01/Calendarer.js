@@ -365,7 +365,7 @@ export default class Calendar {
     return this.cache.element;
   }
   
-  async capture(options={}) {
+  /*async capture(options={}) {
     if (!this.cache.info || !this.cache.element) throw new Error("Error: Please run 'getInfo' and 'render'");
     const scale = options.scale ?? 4;
     const meta = this.cache.info.meta;
@@ -417,7 +417,83 @@ export default class Calendar {
         });
       });
     });
-  }
+  }*/
+
+  async capture(options = {}) {
+  if (!this.cache.info || !this.cache.element) throw new Error("Error: Please run 'getInfo' and 'render'");
+  
+  const scale = options.scale ?? 4;
+  
+  // 1. 一時的な iframe を作成（完全に隔離された環境）
+  const iframe = document.createElement('iframe');
+  Object.assign(iframe.style, {
+    position: 'fixed',
+    top: '0',
+    left: '0',
+    width: '1000px', // 十分な広さを確保
+    height: '1000px',
+    visibility: 'hidden', // 画面には出さない
+    pointerEvents: 'none'
+  });
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  
+  // 2. iframe内のスタイルをリセット（ここがキモ！）
+  doc.open();
+  doc.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        /* ここに「理想の初期状態」を記述 */
+        html, body { 
+          margin: 0; 
+          padding: 0; 
+          background: white; 
+          font-family: sans-serif; /* 必要に応じて指定 */
+        }
+        * { box-sizing: border-box; }
+      </style>
+    </head>
+    <body></body>
+    </html>
+  `);
+  doc.close();
+
+  // 3. iframeの中に要素をコピーして追加
+  const cloneElement = this.cache.element.cloneNode(true);
+  doc.body.appendChild(cloneElement);
+
+  return new Promise((resolve, reject) => {
+    // iframe内のリソース読み込みを待つため少し余裕を持つ
+    requestAnimationFrame(async () => {
+      try {
+        const domtoimage = (await import("https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/+esm")).default;
+        
+        // 4. iframe内の要素をターゲットにキャプチャ
+        const dataUrl = await domtoimage.toPng(cloneElement, {
+          width: cloneElement.offsetWidth,
+          height: cloneElement.offsetHeight,
+          scale,
+          style: {
+            'margin': '0',
+            'position': 'static'
+          }
+        });
+
+        // 5. 後片付け
+        document.body.removeChild(iframe);
+        
+        this.cache.url = dataUrl;
+        resolve(dataUrl);
+      } catch (e) {
+        if (iframe.parentNode) document.body.removeChild(iframe);
+        reject(e);
+      }
+    });
+  });
+}
   
   downloadImg() {
     if (!this.cache.url) throw new Error("Error: Please run 'capture'");
@@ -509,7 +585,7 @@ render options
  * 通常の日付文字サイズ
  *
  * @param {string} [extraFontSize='25cqmin']
- * はみ出し日付文字サイズ
+ * 畳んだ日の日付文字サイズ
  *
  * @param {string} [holidayNameFontSize='9cqmin']
  * 祝日名文字サイズ
