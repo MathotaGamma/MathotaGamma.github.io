@@ -82,6 +82,7 @@ export default class Calendar {
     if (year === null && month === null) this.date = new Date();
     else this.date = Calendar.#getDate(year, month);
 
+    this.cache = {};
     /*this.info = null;
     this.element = null;
     this.url = null;
