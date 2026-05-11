@@ -437,7 +437,7 @@ export default class Calendar {
       })
       .catch((error) => {
         reject(error);
-      })
+      })*/
     });
   }
 }
