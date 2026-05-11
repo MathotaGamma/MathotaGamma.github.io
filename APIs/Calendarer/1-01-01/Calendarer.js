@@ -77,7 +77,7 @@
 import JapaneseHolidays from "https://cdn.jsdelivr.net/gh/osamutake/japanese-holidays-js@v1.0.10/lib/japanese-holidays.esm.min.js";
 import * as domtoimage from "https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/dist/dom-to-image-more.min.js";
 
-class Calendar {
+export class Calendar {
   constructor(year=null, month=null) {
     if (year === null && month === null) this.date = new Date();
     else this.date = Calendar.#getDate(year, month);
