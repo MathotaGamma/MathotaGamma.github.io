@@ -435,7 +435,7 @@ export default class Calendar {
     return img;
   }
   
-  async run(options={getInfo=null, render=null, capture=null, download=false}) {
+  async run(options={}) {
     return new Promise((resolve, reject) => {
       this.getInfo(options.getInfo).then((info) => {
         const element = this.render(options.render);
