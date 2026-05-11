@@ -364,136 +364,79 @@ export default class Calendar {
     this.cache = {info, element: container.cloneNode(true)};
     return this.cache.element;
   }
-  
-  /*async capture(options={}) {
+
+  // cssが適応されてしまい、カレンダーの見た目が変わってしまうためiframe内で画像を取得する。
+  async capture(options = {}) {
     if (!this.cache.info || !this.cache.element) throw new Error("Error: Please run 'getInfo' and 'render'");
+  
     const scale = options.scale ?? 4;
-    const meta = this.cache.info.meta;
-    const element = this.cache.element;
-    // Promiseで包むことで、await capture(...) が可能になる
-    const hideDiv = document.createElement('div');
-    hideDiv.appendChild(element);
-    hideDiv.style.position = "relative"; 
-    hideDiv.style.left = "-9999px";
-    hideDiv.style.top = "-9999px";
-    hideDiv.style.zIndex = "-1";
-    document.body.appendChild(hideDiv);
+    const size = options.size ?? '1000px';
+    const fontFamily = options.fontFamily ?? 'sans-serif';
+  
+    // 一時的な iframe を作成
+    const iframe = document.createElement('iframe');
+    Object.assign(iframe.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: size, // 広さが足りない場合は大きくして。
+      height: size,
+      visibility: 'hidden',
+      pointerEvents: 'none'
+    });
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+  
+    // iframe
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            html, body { 
+              margin: 0; 
+              padding: 0; 
+              background: white; 
+              font-family: ${fontFamily};
+            }
+            * { box-sizing: border-box; }
+          </style>
+        </head>
+        <body></body>
+      </html>
+    `);
+    doc.close();
+    const cloneElement = this.cache.element.cloneNode(true);
+    doc.body.appendChild(cloneElement);
+
     return new Promise((resolve, reject) => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(async () => {
-          try {
-            window.scrollTo(0, 0);
-
-            const rect = element.getBoundingClientRect();
-            const width = rect.width;
-            const height = rect.height;
-
-            const domOptions = {
-              width: Math.ceil(width),
-              height: Math.ceil(height),
-              style: {
-                'position': 'absolute',
-                'left': '0',
-                'top': '0',
-                'margin': '0',
-                'transform': 'none',
-                'bottom': 'auto',
-                'right': 'auto',
-                'background': 'white'
-              },
-              scale
-            };
-
-            // dom-to-image-moreをインポート
-            const domtoimage = (await import("https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/+esm")).default;
-            const dataUrl = await domtoimage.toPng(element, domOptions);
-            hideDiv.remove();
-          
-            this.cache = {info: this.cache.info, element, url: dataUrl}
-            resolve(dataUrl);
-          } catch (e) {
-            reject(e);
-          }
-        });
+      // iframe内のリソース読み込みを待つため少し余裕を持つ
+      requestAnimationFrame(async () => {
+        try {
+          const domtoimage = (await import("https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/+esm")).default;
+        
+          const dataUrl = await domtoimage.toPng(cloneElement, {
+            width: cloneElement.offsetWidth,
+            height: cloneElement.offsetHeight,
+            scale,
+            style: {
+              'margin': '0',
+              'position': 'static'
+            }
+          });
+          document.body.removeChild(iframe);
+        
+          this.cache.url = dataUrl;
+          resolve(dataUrl);
+        } catch (e) {
+          if (iframe.parentNode) document.body.removeChild(iframe);
+          reject(e);
+        }
       });
     });
-  }*/
-
-  async capture(options = {}) {
-  if (!this.cache.info || !this.cache.element) throw new Error("Error: Please run 'getInfo' and 'render'");
-  
-  const scale = options.scale ?? 4;
-  
-  // 1. 一時的な iframe を作成（完全に隔離された環境）
-  const iframe = document.createElement('iframe');
-  Object.assign(iframe.style, {
-    position: 'fixed',
-    top: '0',
-    left: '0',
-    width: '1000px', // 十分な広さを確保
-    height: '1000px',
-    visibility: 'hidden', // 画面には出さない
-    pointerEvents: 'none'
-  });
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  
-  // 2. iframe内のスタイルをリセット（ここがキモ！）
-  doc.open();
-  doc.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        /* ここに「理想の初期状態」を記述 */
-        html, body { 
-          margin: 0; 
-          padding: 0; 
-          background: white; 
-          font-family: sans-serif; /* 必要に応じて指定 */
-        }
-        * { box-sizing: border-box; }
-      </style>
-    </head>
-    <body></body>
-    </html>
-  `);
-  doc.close();
-
-  // 3. iframeの中に要素をコピーして追加
-  const cloneElement = this.cache.element.cloneNode(true);
-  doc.body.appendChild(cloneElement);
-
-  return new Promise((resolve, reject) => {
-    // iframe内のリソース読み込みを待つため少し余裕を持つ
-    requestAnimationFrame(async () => {
-      try {
-        const domtoimage = (await import("https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/+esm")).default;
-        
-        // 4. iframe内の要素をターゲットにキャプチャ
-        const dataUrl = await domtoimage.toPng(cloneElement, {
-          width: cloneElement.offsetWidth,
-          height: cloneElement.offsetHeight,
-          scale,
-          style: {
-            'margin': '0',
-            'position': 'static'
-          }
-        });
-
-        // 5. 後片付け
-        document.body.removeChild(iframe);
-        
-        this.cache.url = dataUrl;
-        resolve(dataUrl);
-      } catch (e) {
-        if (iframe.parentNode) document.body.removeChild(iframe);
-        reject(e);
-      }
-    });
-  });
-}
+  }
   
   downloadImg() {
     if (!this.cache.url) throw new Error("Error: Please run 'capture'");
@@ -595,9 +538,15 @@ render options
  *
  * @param {boolean} [holidayName=false]
  * true の場合は祝日名を表示
+ *
+ * @param {string} [fontFamily='sans-serif']
+ * 日付のフォント
 
 capture options
  * @param {number} [scale=4]
  * 画像の解像度(値が大きいほど高解像度)
+ *
+ * @param {string} [size='1000px']
+ * カレンダーを描画する範囲。画像が書ける場合はこの値を大きくする。
 `
 }
