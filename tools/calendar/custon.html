@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>カレンダー画像 印刷</title>
+    <link rel="stylesheet" href="/statics/main-style.css" />
+    <script type="module" src="/statics/main-script.js"></script>
+    <style>
+      html, body {
+        height: 100%;
+        width: 100%;
+        overflow: scroll;
+      }
+      
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      
+      #custon > div {
+        float: left;
+      }
+      
+      #font-size {
+        border: 1px solid black;
+        width: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav id="breadcrumb"></nav>
+    <h1>カレンダー画像</h1>
+    <h2>カスタム</h2>
+    <div>
+      <form id="setting">
+        <ul>
+          <li>
+            <label for="month">月を選択:</label>
+            <input type="month" id="month" name="month"
+                   min="1948-02" required>
+          </li>
+          <li>
+            <label for="day-language">日付の言語:</label>
+            <select id="day-language" name="day-language" required>
+              <option selected>en: SUN, MON, ...</option>
+              <option>EN: SUNDAY, ...</option>
+              <option>ja: 日, 月, ...</option>
+            </select>
+          </li>
+          <li>
+            <label for="font-family">フォントを選択:</label>
+            <select id="font-family" name="font-family" required>
+              <option selected>sans-serif</option>
+              <option>cursive</option>
+            </select>
+          </li>
+          <!--<li>
+            <label for="font-size">文字サイズを選択:</label>
+            <input type="number" min="1" max="5" placeholder="1~5"
+                   name="font-size" id="font-size" required>
+          </li>-->
+          <li>
+            <label for="row-size">カレンダーの段数:</label>
+            <select id="row-size" name="row-size" required>
+              <option selected>5</option>
+              <option>6</option>
+              <option>auto</option>
+            </select>
+          </li>
+          <li>
+            <label for="holiday-name">祝日の名称を書くか:</label>
+            <input type="checkbox" name="holiday-name" id="holiday-name">
+          </li>
+        </ul>
+        <input type="submit" value="決定">
+      </form>
+    </div>
+    <div>
+      <h2>作成したカレンダー一覧</h2>
+      <input type="button" id="removeImg" value="作成履歴を削除">
+      <div id="custom"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.5.0/dom-to-image-more.min.js"></script>
+    <script type="module">
+      import Calendar from "https://mathotagamma.github.io/APIs/Calendarer/1-01-01/Calendarer.js";
+      const custom = document.getElementById('custom');
+      console.log(Calendar.help);
+      const month = document.getElementById('month');
+      
+      const now = new Date();
+      month.value = String(now.getFullYear())+'-'+String(now.getMonth()+1).padStart(2, '0');
+      
+      let num = 1;
+      
+      const form = document.getElementById('setting');
+      
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // ここに、カレンダー生成のコードを書く。
+        
+        (async () => {
+          try {
+            const calendar = new Calendar(parseInt(month.value.split('-')[0]), parseInt(month.value.split('-')[1]));
+            const container = document.createElement('div');
+            container.style.display = "flex";
+            container.style.flexDirection = "column";
+            container.style.float = "left";
+            const head = document.createElement('div');
+            head.style.textAlign = "center";
+            
+            const rowSize = document.getElementById('row-size').value;
+            const dayLanguage = document.getElementById('day-language').value.split(':')[0];
+            
+            const calendarFontFamily = document.getElementById('font-family').value;
+            const holidayName = document.getElementById('holiday-name').checked;
+            
+            const data = await calendar.run({
+              getInfo: {
+                rowSize,
+                dayLanguage
+              },
+              render: {
+                calendarFontFamily,
+                holidayName
+              },
+              capture: {
+                scale: 3
+              }
+            });
+            const img = data.img;
+            img.style.width = "200px";
+                    
+            const clone = calendar.copy();
+            container.onclick = () => clone.downloadImg();
+                    
+            head.innerHTML = String(num)+': '+data.meta.year+'年'+data.meta.month+'月';
+                    
+            container.appendChild(head);
+            container.appendChild(img);
+            custom.prepend(container);
+            num++;
+          } catch(error) {
+            console.log(error);
+          }
+        })();
+      });
+      
+      document.getElementById('removeImg').onclick = () => {
+        if (confirm("本当に生成したカレンダー画像を削除しますか？")) {
+          num = 1;
+          custom.innerHTML = "";
+        }
+      }
+    </script>
+  </body>
+</html>
