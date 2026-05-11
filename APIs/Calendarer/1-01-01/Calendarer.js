@@ -91,7 +91,14 @@ export default class Calendar {
 
   copy() {
     const clone = new Calendar(this.year, this.month);
-    clone.cache = structuredClone(this.cache);
+    const element = this.element ? this.element.cloneNode(true) : null;
+    const img = this.img ? this.img.cloneNode(true) : null;
+    clone.cache = {
+      info: structuredClone(this.info),
+      element,
+      url: this.url,
+      img
+    }
     return clone;
   }
   
