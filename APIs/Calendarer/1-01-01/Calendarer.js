@@ -74,10 +74,11 @@
  * true の場合は祝日名を表示
  */
 
-import JapaneseHolidays from "https://cdn.jsdelivr.net/gh/osamutake/japanese-holidays-js@v1.0.10/lib/japanese-holidays.esm.min.js";
-import domtoimage from "https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/dist/dom-to-image-more.min.js";
+// japanese-holidays-jsとdom-to-image-more(capture内)を使用。
+import JapaneseHolidays from "https://cdn.jsdelivr.net/npm/japanese-holidays-js@1.0.10/+esm";
 
-export class Calendar {
+
+export default class Calendar {
   constructor(year=null, month=null) {
     if (year === null && month === null) this.date = new Date();
     else this.date = Calendar.#getDate(year, month);
@@ -374,6 +375,8 @@ export class Calendar {
               scale: 3 // 高画質設定
             };
 
+            // dom-to-image-moreをインポート
+            const domtoimage = (await import("https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/+esm")).default;
             const dataUrl = await domtoimage.toPng(element, options);
             hideDiv.remove();
           
@@ -392,12 +395,10 @@ export class Calendar {
   }
   
   downloadImg(options={}) {
-    const info = this.info;
-    const element = this.element;
-    const url = this.url;
+    if (!this.url) throw new Error("Error: Please run 'capture'");
     const link = document.createElement('a');
-    link.download = this.fileNameFormat(info.meta);
-    link.href = url;
+    link.download = this.fileNameFormat();
+    link.href = this.url;
     link.click();
   }
   
