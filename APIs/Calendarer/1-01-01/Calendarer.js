@@ -343,12 +343,13 @@ export default class Calendar {
     
       if (data.extra) span.style.textAlign = 'right';
     
-      if (data.extra || (i+7 < info.calendar.length && info.calendar[i+7].extra))
+      if (data.extra || (i+7 < info.calendar.length && info.calendar[i+7].extra)) {
         span.style.font = extraFont;
         span.style.fontFamily = calendarFontFamily;
-      else
+      } else {
         span.style.font = defaultFont;
         if (calendarFontFamily) span.style.setProperty('font-family', calendarFontFamily);
+      }
       span.innerHTML = data.date;
     
       const holidaySpan = document.createElement('span');
@@ -371,7 +372,7 @@ export default class Calendar {
     return this.cache.element;
   }
 
-  // cssが適応されてしまい、カレンダーの見た目が変わってしまうためiframe内で画像を取得する。
+  // cssが適用されてしまい、カレンダーの見た目が変わってしまうためiframe内で画像を取得する。
   async capture(options = {}) {
     if (!this.cache.info || !this.cache.element) throw new Error("Error: Please run 'getInfo' and 'render'");
   
