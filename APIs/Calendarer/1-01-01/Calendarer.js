@@ -414,7 +414,7 @@ export default class Calendar {
     if (!this.cache.url) throw new Error("Error: Please run 'capture'");
     const img = document.createElement('img');
     img.src = this.cache.url;
-    this.cache = {info: this.cache.info, element: this.cache.element, url, img};
+    this.cache = {info: this.cache.info, element: this.cache.element, this.cache.url, img};
     return img;
   }
   
