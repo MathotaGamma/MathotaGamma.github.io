@@ -75,7 +75,7 @@
  */
 
 // japanese-holidays-jsとdom-to-image-more(capture内)を使用。
-import japaneseHolidays from 'https://cdn.jsdelivr.net/npm/japanese-holidays@1.0.10/+esm'
+import JapaneseHolidays from 'https://cdn.jsdelivr.net/npm/japanese-holidays@1.0.10/+esm'
 
 export default class Calendar {
   constructor(year=null, month=null) {
@@ -120,7 +120,7 @@ export default class Calendar {
     const time = Calendar.#getDate(year, month, date);
     
     if (time.getFullYear() < 1948) return new Error('1948年より前の祝日の判定は行えません。');
-    const isHoliday = japaneseHolidays.isHoliday(time);
+    const isHoliday = JapaneseHolidays.isHoliday(time);
     return isHoliday ?? null;
   }
   
