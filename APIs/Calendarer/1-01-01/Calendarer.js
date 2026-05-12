@@ -236,7 +236,7 @@ export default class Calendar {
     const info = this.cache.info;
     const width = options.width ?? '90%';
 
-    const transparent = options.transparent ?? 'false';
+    const transparent = options.transparent !== null ? options.transparent : false;
   
     const saturdayColor = options.saturday ?? 'blue';
     const holidayColor = options.holidayColor ?? 'red';
