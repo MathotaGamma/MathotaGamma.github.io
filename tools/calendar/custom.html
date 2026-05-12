@@ -68,8 +68,12 @@
             </select>
           </li>
           <li>
-            <label for="holiday-name">祝日の名称を書くか:</label>
+            <label for="holiday-name">祝日の名称:</label>
             <input type="checkbox" name="holiday-name" id="holiday-name">
+          </li>
+          <li>
+            <label for="transparent">背景の透過:</label>
+            <input type="checkbox" name="transparent" id="transparent">
           </li>
         </ul>
         <input type="submit" value="決定">
@@ -114,6 +118,7 @@
             
             const calendarFontFamily = document.getElementById('font-family').value;
             const holidayName = document.getElementById('holiday-name').checked;
+            const transparent = document.getElementById('transparent').checked;
             
             const data = await calendar.run({
               getInfo: {
@@ -122,7 +127,8 @@
               },
               render: {
                 calendarFontFamily,
-                holidayName
+                holidayName,
+                transparent
               },
               capture: {
                 scale: 3
