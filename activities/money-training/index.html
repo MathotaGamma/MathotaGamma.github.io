@@ -2,13 +2,17 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
-    <title>Money Training</title>
+    <title>おつりトレーニング</title>
     <style>
      html, body {
        margin: 0;
        width: 100%;
        height: 100%;
        overflow: hidden;
+       -webkit-touch-callout:none;
+       -webkit-user-select:none;
+       overflow:hidden;
+       touch-action: none;
      }
      
      body {
@@ -46,6 +50,7 @@
      }
      
      .talk-container {
+       display: none;
        position: absolute;
        left: 50%;
        bottom: 20px;
@@ -57,40 +62,746 @@
        padding: 5px 20px;
      }
      
-     .talk {
+     .talk.animation span {
+       animation: popUp 0.1s both;
+       display: inline-block;
+     }
+     
+     .home-title {
+       display: none;
+       position: absolute;
+       left: 0;
+       top: 50%;
+       width: 100%;
+       transform: translate(0, -50%);
+       font-weight: 1000;
+       font-size: 50px;
+       color: hsl(200 80 40);
+       text-align: center;
+       text-shadow:
+         1px 1px 0 white,
+         -1px 1px 0 white,
+         1px -1px 0 white,
+         -1px -1px 0 white;
+     }
+     
+     .home-title.animation {
+       display: block;
+       animation: popUp 2s 0.1s both;
+     }
+     
+     .home-prompt {
+       display: none;
+       position: absolute;
+       width: 100%;
+       left: 0;
+       bottom: 20px;
+       font-size: 20px;
+       color: white;
+       text-align: center;
+       font-weight: 700;
+       text-shadow:
+         1px 1px 0 black,
+         -1px 1px 0 black,
+         1px -1px 0 black,
+         -1px -1px 0 black;
+     }
+     
+     .home-prompt.animation {
+       display: block;
+       animation: popUp 0.8s 2s both;
+     }
+     
+     .game-container {
+       display: none;
+       flex-direction: column;
+       position: relative;
+       left: 0;
+       top: 0;
+       width: 100%;
+       height: 100%;
+       background: white;
+     }
+     
+     .game-screen {
+       flex: 1;
+       background-repeat: no-repeat;
+       background-size: cover;
+       background-position: center;
+     }
+     
+     .items {
+       display: inline-flex;
+       flex-direction: column;
+       padding: 10px 5px;
+       background: #ffedb3;
+     }
+     
+     .game-storage {
+       display: flex;
+       width: 100%;
+       padding: 0;
+       background: white;
+     }
+     
+     .ten-thousands {
+       min-width: 100px;
+       flex: 1;
+     }
+     
+     .storage {
+       display: flex;
+       justify-content: center;
+       align-items: center;
+       height: 40vh;
+       max-height: 300px;
+       min-height: 150px;
+       margin: auto auto;
+       flex: 3;
+     }
+     
+     .tray {
+       background-image: url("https://lh3.googleusercontent.com/d/10nJzZJ25AA5Fks4L7CKV854nY5PBmXrY");
+       background-repeat: no-repeat;
+       background-size: cover;
+       background-position: center;
+       box-sizing: border-box;
+       padding: 10px;
+       display: grid;
+       grid-template:
+         "_5000 _5000 _1000 _1000" 1fr
+         "_500  _100  _50   check" 1fr
+         "_10   _5    _1    check" 1fr
+         / 1fr   1fr   1fr   1fr;
+     }
+     
+     ._5000 {
+       grid-area: _5000;
+     }
+     
+     ._1000 {
+       grid-area: _1000;
+     }
+     
+     ._500 {
+       grid-area: _500;
+     }
+     
+     ._100 {
+       grid-area: _100;
+     }
+     
+     ._50 {
+       grid-area: _50;
+     }
+     
+     ._10 {
+       grid-area: _10;
+     }
+     
+     ._5 {
+       grid-area: _5;
+     }
+     
+     ._1 {
+       grid-area: _1;
+     }
+     
+     /*.money:nth-child(1) { background: hsl(0 100 50); }
+     .money:nth-child(2) { background: hsl(45 100 50); }
+     .money:nth-child(3) { background: hsl(90 100 50); }
+     .money:nth-child(4) { background: hsl(135 100 50); }
+     .money:nth-child(5) { background: hsl(180 100 50); }
+     .money:nth-child(6) { background: hsl(225 100 50); }
+     .money:nth-child(7) { background: hsl(270 100 50); }
+     .money:nth-child(8) { background: hsl(315 100 50); }*/
+     
+     .money {
+       position: relative;
+       container-type: size;
+       width: 100%;
+       height: 100%;
+     }
+     
+     .check {
+       grid-area: check;
+       background: rgba(255, 237, 179, 0.7);
+       border-radius: 5px;
+       transform: scale(0.8);
+     }
+     
+     @media screen and (max-width:480px) {
+       .game-storage {
+         bottom: 0;
+         flex-direction: column;
+         display: block;
+         min-height: 100px;
+       }
        
+       .ten-thousands {
+         display: block;
+         height: 100px;
+         width: 100%;
+       }
+       
+       .storage {
+         
+       }
+       
+       .tray {
+         
+       }
+     }
+     
+     @keyframes popUp {
+       from {
+         opacity: 0;
+       }
+       100% {
+         opacity: 1;
+       }
      }
     </style>
   </head>
   <body>
     <div id="screen" class="screen">
-      <img id="indoor">
-      <div class="talk-container">
+      <div class="home-title" id="home-title">
+        おつり<br>トレーニング
+      </div>
+      <div class="home-prompt" id="home-prompt">
+        画面を&nbsp;タップ/クリック&nbsp;してスタート
+      </div>
+      
+      <div class="game-container" id="game-container">
+        <div class="game-screen" id="game-screen">
+          <div class="items" id="items">
+            <span>金額:¥1000</span>
+            <span>支払:¥0</span>
+            <span>差額:±0</span>
+          </div>
+        </div>
+        <div class="game-storage" id="game-storage">
+          <div class="ten-thousands" id="ten-thousands"></div>
+          <!--<div class="margin"></div>-->
+          <div class="storage" id="storage">
+            <div class="tray" id="tray">
+              <div class="_5000 money" id="_5000"></div>
+              <div class="_1000 money" id="_1000"></div>
+              <div class="_500 money" id="_500"></div>
+              <div class="_100 money" id="_100"></div>
+              <div class="_50 money" id="_50"></div>
+              <div class="_10 money" id="_10"></div>
+              <div class="_5 money" id="_5"></div>
+              <div class="_1 money" id="_1"></div>
+              <div class="check" id="check"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!--
+        talk
+      -->
+      <div class="talk-container" id="talk-container">
         <div class="talk-name" id="talk-name">
-          あなた
+          ???
         </div>
         <div class="talk" id="talk">
-          Talk
+          ---
         </div>
       </div>
     </div>
     <script>
-      const path = "https://lh3.googleusercontent.com/d/"
+      const path = "https://lh3.googleusercontent.com/d/";
+      const storagePath = '/activities/money-training/';
       const img = {
         indoor: {
-          id: "1pxugzqZQJlzZYvLtg_Wb4E9F6X1JYaqE",
+          id: "1CI7xNTU_ucJUPmtLNn6plr50dRShPo_h",
         },
         outdoor: {
           id: "1maeBS30Rldiz96GzQIyPvxyJ5IfPEagl",
+        },
+        woodenTray: {
+          id: "10nJzZJ25AA5Fks4L7CKV854nY5PBmXrY",
+        },
+        tray: {
+          id: "1Upy5LyQgyGj_sAYlzkubbnXNJkmbwhFl"
+        },
+        tenThousand: {
+          id: "1srwqMKO33x_9DVo0LB1i23JgAC-oF-JB",
+          mag: 0.7
+        },
+        fiveThousand: {
+          id: "1LEIoxWMdLmQKaB2dV2TDMbL1rGUjVwOE",
+          mag: 0.7
+        },
+        thousand: {
+          id: "1pvKZmUFDmkcmpDK2oPqS6CdXWLsFpv5M",
+          mag: 0.7
+        },
+        fiveHundred: {
+          id: "1PbiMGWyCs__ZvxlADgyNkb8wOD9--VWg",
+          mag: 0.7
+        },
+        hundred: {
+          id: "1qwKCOWXBZ80KfmZqpGqfad6Tu9PgT666",
+          mag: 0.6
+        },
+        fifty: {
+          id: "1bRSD6piy3v0ZJuk0UXfWg7Lol0AN6tpa",
+          mag: 0.5
+        },
+        ten: {
+          id: "1uoANqO1qaEzWoBU6IQHUihqaRN9aiGQ8",
+          mag: 0.65
+        },
+        five: {
+          id: "1AZFn90LkqagITFAwrLjo_TeHuvUhJB-n",
+          mag: 0.6
+        },
+        one: {
+          id: "1TPCVSSurGv19Gqnrr79jJipigslMvWd3",
+          mag: 0.55
         }
       }
       
+      const templateTalk = {
+        init: [
+          {event: 'init'},
+          {
+            event: "name",
+            name: "あなた"
+          },
+      
+          "今日は隣町の駄菓子屋に来た。古びた看板が目印の、小さなお店だ。",
+      
+          {
+            event: "background",
+            kind: "street"
+          },
+      
+          "ガラガラと引き戸を開ける。",
+      
+          {
+            event: "background",
+            kind: "indoor"
+          },
+      
+          "店内には懐かしいお菓子がずらりと並んでいる。静かな空気と、少し甘い匂いが漂っていた。",
+      
+          "辺りを見回していると、店の奥からお婆さんがゆっくり出てきた。",
+      
+          {
+            event: "name",
+            name: "お婆さん"
+          },
+      
+          "「いらっしゃい。好きに見ていってねぇ。」",
+      
+          {
+            event: "name",
+            name: "あなた"
+          },
+      
+          "「こんにちは。」",
+      
+          "棚を見ながら店内を歩く。",
+          "ラムネ、チョコ、スナック菓子……どれも懐かしい。",
+      
+          "少し悩んだあと、いくつかお菓子を手に取った。駄菓子を持ってレジへ向かう。",
+      
+          {
+            event: "name",
+            name: "お婆さん"
+          },
+      
+          "「はいはい、ありがとねぇ。」",
+      
+          "お婆さんは慣れた手つきで商品を並べ始めた。",
+      
+          "チョコが30円、ラムネが50円、スナックが80円……",
+          
+          "合計金額を計算しているようだ。",
+      
+          "その時、お婆さんがこちらを見た。",
+      
+          "「最近は暗算できる子も減ったねぇ。」",
+      
+          "「お客さん、ちょっとやってみるかい？」",
+      
+          "「今からお会計をするから、お釣りを計算してみな。」",
+          
+          {
+            event: 'name',
+            name: 'あなた'
+          },
+          
+          {
+            event: 'background',
+            kind: 'black'
+          },
+          {
+            event: 'skip',
+            skip: false
+          },
+          {
+            event: 'gap',
+            gap: 0.3
+          },
+          
+          "...¥2;え?", // ¥数;で、数の分だけひとまとまりとして表示する。
+          
+          {
+            event: "home"
+          },
+          
+          {
+            event: 'data',
+            key: 'intro',
+            value: true
+          }
+        ],
+        explain: [
+          {event: 'init'},
+          {
+            event: 'name',
+            name: '???'
+          },
+          '画面の見方と操作方法を説明します。'
+        ]
+      };
+      
+      
+      let animationGap = 0.1;
+      
       window.onload = () => {
         const screen = document.getElementById('screen');
-        screen.style.backgroundImage = 'url("'+path + img.indoor.id+'")';
+        let talkSchedule = [];
+        let isTalkNext = false;
+        let animation = {
+          talk: null,
+          home: null
+        };
+        let state = 'none';
+        let data = null;
+        let skip = true;
+        
+        const moneyStock = {
+          _1: 5,
+          _5: 1,
+          _10: 3,
+          _50: 1,
+          _100: 1,
+          _500: 4,
+          _1000: 5,
+          _5000: 1
+        }
+        
+        const talkName = document.getElementById('talk-name');
+        const talk = document.getElementById("talk");
+        const talkContainer = document.getElementById('talk-container');
+        const homeTitle = document.getElementById('home-title');
+        const homePrompt = document.getElementById('home-prompt');
+        const gameContainer = document.getElementById('game-container');
+        const gameScreen = document.getElementById('game-screen');
+        const gameStorage = document.getElementById('game-storage');
+        
+        const storage = document.getElementById('storage');
+        const tray = document.getElementById('tray');
+        const tenThousands = document.getElementById('ten-thousands');
+        
+        const fiveThousands = document.getElementById('_5000');
+        const thousands = document.getElementById('_1000');
+        const fiveHundreds = document.getElementById('_500');
+        const hundreds = document.getElementById('_100');
+        const fifties = document.getElementById('_50');
+        const tens = document.getElementById('_10');
+        const fives = document.getElementById('_5');
+        const ones = document.getElementById('_1');
+        
+              
         /*window.onresize = () => {
           
         }*/
+        
+        /*
+          cssで、talk出す時に左から順に文字がわさわさ出てくるようなアニメーションに。
+        */
+        async function showTalk(talkList=[]) {
+          if (talkList.length !== 0) talkSchedule = talkSchedule.concat(talkList);
+          if (talkSchedule.length === 0) {
+            talk.innerHTML = "";
+            talkContainer.style.display = 'none';
+            return;
+          }
+          
+          
+          talkContainer.style.display = 'block';
+          
+          let count = 0;
+          let text;
+          while (true) {
+            count++;
+            if (count > 100) return;
+            text = talkSchedule.shift();
+            
+            
+            if (typeof text === "object" && !Array.isArray(text)) {
+              switch (text.event) {
+                /*
+                  {
+                    event: 'skip',
+                    skip: true
+                  },
+                  {
+                    event: 'gap',
+                    gap: 0.1
+                  }
+                */
+                case 'init':
+                  skip = true;
+                  animationGap = 0.1;
+                  break;
+                case 'name':
+                  talkName.innerHTML = text.name;
+                  break;
+                case 'skip':
+                  skip = text.skip;
+                  break;
+                case 'background':
+                  switch(text.kind) {
+                    case 'black':
+                      screen.style.backgroundImage = 'none';
+                      screen.style.backgroundColor = 'black';
+                      break;
+                    case 'indoor':
+                      await changeBackgroundImage(path + img.indoor.id);
+                      break;
+                  }
+                  break;
+                case 'gap':
+                  animationGap = text.gap;
+                  break;
+                case 'home':
+                  home();
+                  break;
+                case 'data':
+                  data[text.key] = text.value;
+                  save();
+                  break;
+              }
+            } else break;
+          }
+          if (text === undefined) {
+            talk.innerHTML = "";
+            talkContainer.style.display = 'none';
+            return;
+          }
+          talk.innerHTML = "";
+          
+          count = 0;
+          for (let k = 0; k < text.length; k++) {
+            const span = document.createElement('span');
+            if (new RegExp('^\n').test(text.slice(k))) {
+              talk.appendChild(document.createElement('br'));
+              continue;
+            }
+            
+            // ¥数;で、数の分だけひとまとまりとして表示する。
+            
+            const group = text.slice(k).match(new RegExp('^¥([0-9][1-9]*);'));
+            if (group !== null && group[1]) {
+              span.innerHTML = text.slice(k+group[1].length+2, k+group[1].length+2+parseInt(group[1]));
+              k += group[1].length+1+parseInt(group[1]);
+            } else {
+              span.innerHTML = text[k];
+            }
+            span.style.animationDelay = animationGap*count+'s';
+            talk.appendChild(span);
+            count++;
+          }
+          
+          // 時間で全て表示するまで待機
+          animation.talk = setTimeout(() => {
+            isTalkNext = true;
+            animation.talk = null;
+          }, 1000*count*animationGap);
+          talk.classList.add('animation');
+        }
+        
+        screen.addEventListener('pointerdown', (e) => {
+          if (state === 'loading') return;
+          
+          if (skip && animation.talk !== null) {
+            clearTimeout(animation.talk);
+            animation.talk = null;
+            isTalkNext = true;
+            for (child of talk.children) {
+              child.style.opacity = '1';
+              child.style.animation = 'none';
+            }
+          } else if (animation.talk === null && isTalkNext) {
+            showTalk();
+          }
+          
+          if (animation.home === null && state === 'home') {
+            start();
+          }
+        });
+        
+        async function changeBackgroundImage(url, element=screen) {
+          return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              element.style.backgroundImage = `url("${url}")`;
+              resolve(img);
+            };
+            img.src = url;
+          });
+        }
+        
+        function home() {
+          state = 'loading';
+          changeBackgroundImage(path + img.outdoor.id)
+            .then(() => {
+              state = 'home';
+              homeTitle.classList.add("animation");
+              homePrompt.classList.add("animation");
+              
+              animation.home = setTimeout(() => {
+                animation.home = null;
+              }, 2800);
+            });
+          
+        }
+        
+        async function gameView() {
+          const overlapGap = 10;
+          
+          async function addMoney(count, data, parent) { 
+            if (!count || !data || !parent) return;
+            const id = data.id;
+            const magnification = data.mag;
+            if (!id || !magnification) return;
+            const image = document.createElement('img');
+            image.style.height = parseInt(100*magnification)+'%';
+            image.style.position = 'absolute';
+            image.style.top = '50%';
+            image.style.transform = 'translateY(-50%)';
+            
+            const promises = [];
+            
+            for (let k = 0; k < count; k++) {
+              const clone = image.cloneNode(true);
+              clone.style.left = overlapGap*k+'px';
+              parent.appendChild(clone);
+              const promise = new Promise((resolve, reject) => {
+                clone.onload = () => resolve(clone);
+                clone.onerror = (error) => reject(error);
+                clone.src = `${path}${id}`;
+              });
+              promises.push(promise);
+            }
+            
+            return Promise.all(promises);
+          }
+          
+          const promises = [];
+          promises.push(addMoney(moneyStock._5000, img.fiveThousand, fiveThousands));
+          promises.push(addMoney(moneyStock._1000, img.thousand, thousands));
+          promises.push(addMoney(moneyStock._500, img.fiveHundred, fiveHundreds));
+          promises.push(addMoney(moneyStock._100, img.hundred, hundreds));
+          promises.push(addMoney(moneyStock._50, img.fifty, fifties));
+          promises.push(addMoney(moneyStock._10, img.ten, tens));
+          promises.push(addMoney(moneyStock._5, img.five, fives));
+          promises.push(addMoney(moneyStock._1, img.one, ones));
+          return Promise.all(promises);
+        }
+        
+        function start() {
+          homeTitle.classList.remove('animation');
+          homePrompt.classList.remove('animation');
+          changeBackgroundImage(path+img.tray.id, gameScreen)
+            .then(() => {
+              setTimeout(calcTrayRect,0);
+              gameView()
+                .then(() => {
+                  if (data.explain) select();
+                  else explain();
+                });
+            });
+        }
+        
+        function explain() {
+          state = 'explain';
+          gameContainer.style.display = "flex";
+          showTalk(templateTalk.explain);
+        }
+        
+        function select() {
+          
+        }
+        
+        function save() {
+          localStorage.setItem(storagePath+'_data', JSON.stringify(data));
+        }
+        
+        function remove() {
+          localStorage.removeItem(storagePath+'_data');
+        }
+        
+        let trayAspect;
+        
+        function calcTrayRect() {
+          const rect = storage.getBoundingClientRect();
+          // 横長
+          if (rect.width/rect.height > trayAspect) {
+            tray.style.height = '100%';
+            tray.style.width = 'auto';
+          } else {
+            tray.style.height = 'auto';
+            tray.style.width = '100%';
+          }
+        }
+        
+        window.onresize = () => {
+          calcTrayRect();
+        }
+        
+        function init() {
+          //remove();
+          const trayImg = new Image();
+          trayImg.src = path+img.woodenTray.id;
+          
+          trayImg.onload = () => {
+            const width = trayImg.naturalWidth;
+            const height = trayImg.naturalHeight;
+            trayAspect = width/height;
+            tray.style.aspectRatio = `${width}/${height}`;
+          };
+          
+          changeBackgroundImage(path+img.outdoor.id)
+            .then(() => {
+              data = localStorage.getItem(storagePath+'_data');
+              if (data !== null) {
+                data = JSON.parse(data);
+                if (data.intro) {
+                  home();
+                  return;
+                }
+              }
+              
+              data = {
+                intro: false,
+                explain: false,
+                data: {}
+              };
+              save();
+              state = 'intro';
+              showTalk(templateTalk.init);
+            });
+        }
+        
+        init();
       }
     </script>
   </body>
