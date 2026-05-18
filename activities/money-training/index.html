@@ -207,14 +207,14 @@
        grid-area: _1;
      }
      
-     /*.money:nth-child(1) { background: hsl(0 100 50); }
+     .money:nth-child(1) { background: hsl(0 100 50); }
      .money:nth-child(2) { background: hsl(45 100 50); }
      .money:nth-child(3) { background: hsl(90 100 50); }
      .money:nth-child(4) { background: hsl(135 100 50); }
      .money:nth-child(5) { background: hsl(180 100 50); }
      .money:nth-child(6) { background: hsl(225 100 50); }
      .money:nth-child(7) { background: hsl(270 100 50); }
-     .money:nth-child(8) { background: hsl(315 100 50); }*/
+     .money:nth-child(8) { background: hsl(315 100 50); }
      
      .money {
        position: relative;
@@ -722,7 +722,7 @@
           homePrompt.classList.remove('animation');
           changeBackgroundImage(path+img.tray.id, gameScreen)
             .then(() => {
-              setTimeout(calcTrayRect,0);
+              requestAnimationFrame(calcTrayRect);
               gameView()
                 .then(() => {
                   if (data.explain) select();
@@ -751,7 +751,11 @@
         
         let trayAspect;
         
-        function calcTrayRect() {
+        async function calcTrayRect() {
+          const image = new Image();
+          image.src = path+img.woodenTray.id;
+          await new Promise(resolve => { image.onload = resolve; });
+          
           const rect = storage.getBoundingClientRect();
           // 横長
           if (rect.width/rect.height > trayAspect) {
