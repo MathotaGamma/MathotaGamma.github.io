@@ -389,6 +389,12 @@
         editorContainer.style.width = newWidth + "px";
       });
 
+      textarea.addEventListener('blur', () => {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, 0);
+        });
+      });
+
       run(); // 初期実行
     </script>
   </body>
