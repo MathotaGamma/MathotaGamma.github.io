@@ -340,8 +340,18 @@
     /* ==========================================================================
        AUTH 関連イベント
        ========================================================================== */
-    document.getElementById('btnAuthPop').addEventListener('click', () => {
-      runApi('auth(false) [Popup]', () => drive.auth(false));
+    document.getElementById('btnAuthPop').addEventListener('click', async () => {
+      if (!drive) {
+        alert('先に「マネージャー初期化」ボタンを押してください。');
+        return;
+      }
+      try {
+        // 同期コンテキストの直下でポップアップを起動し、ブロックを確実に回避
+        const token = await drive.auth(false);
+        logResult('auth(false) [Popup]', token);
+      } catch (e) {
+        logResult('auth(false) [Popup] [FAILED]', e, true);
+      }
     });
 
     document.getElementById('btnAuthSilent').addEventListener('click', () => {
