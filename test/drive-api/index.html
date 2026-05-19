@@ -65,8 +65,24 @@
         logElement.scrollTop = logElement.scrollHeight;
       }
 
+      const drive = new DriveAPIManager({
+  clientId:    '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com',
+  redirectUri: 'https://yourname.github.io/statics/oauth2callback',
+  progress:    (phase, detail) => console.log(phase, detail),
+});
+
+// 初回ログイン（ポップアップ）
+await drive.auth(false);
+
+// 以降はサイレント（暗号化 RT からリフレッシュ）
+await drive.auth(true);
+
+// ファイル操作
+await drive.saveFile('/config/settings.json', { theme: 'dark' });
+const cfg = await drive.getFile('/config/settings.json');          // → object
+const img = await drive.getFile('/assets/icon.png', 'arraybuffer'); // → ArrayBuffer
       
-      const manager = new DriveAPIManager(progress);
+      /*const manager = new DriveAPIManager(progress);
       window.gapiLoaded = () => {
         manager.gapiLoaded();
       }
@@ -82,9 +98,9 @@
         const ret = await manager.getFileId("a.txt");
         
         logger(JSON.stringify(ret));
-      },2000);
+      },2000);*/
 
-      const pathElem = document.getElementById("path-input");
+      /*const pathElem = document.getElementById("path-input");
       const textElem = document.getElementById("text");
 
       document.getElementById('auth_btn').onclick = () => manager.auth();
@@ -97,10 +113,10 @@
         logger(JSON.stringify(ret));
       }
       document.getElementById('reset_btn').onclick = async () => await manager.resetAppData();
-      document.getElementById('get_btn').onclick = async () => {logger(JSON.stringify(await manager.getStructure()))}
+      document.getElementById('get_btn').onclick = async () => {logger(JSON.stringify(await manager.getStructure()))}*/
     </script>
-    <script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
-    <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>
+    <!--<script src="https://accounts.google.com/gsi/client" async defer onload="gsiLoaded()"></script>
+    <script src="https://apis.google.com/js/api.js" async defer onload="gapiLoaded()"></script>-->
 
     
   </body>
