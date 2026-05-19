@@ -60,6 +60,7 @@
        background: rgba(240, 240, 240, 0.75);
        min-width: 70%;
        padding: 5px 20px;
+       z-index: 500;
      }
      
      .talk.animation span {
@@ -207,20 +208,21 @@
        grid-area: _1;
      }
      
-     .money:nth-child(1) { background: hsl(0 100 50); }
+     /*.money:nth-child(1) { background: hsl(0 100 50); }
      .money:nth-child(2) { background: hsl(45 100 50); }
      .money:nth-child(3) { background: hsl(90 100 50); }
      .money:nth-child(4) { background: hsl(135 100 50); }
      .money:nth-child(5) { background: hsl(180 100 50); }
      .money:nth-child(6) { background: hsl(225 100 50); }
      .money:nth-child(7) { background: hsl(270 100 50); }
-     .money:nth-child(8) { background: hsl(315 100 50); }
+     .money:nth-child(8) { background: hsl(315 100 50); }*/
      
      .money {
        position: relative;
        container-type: size;
        width: 100%;
        height: 100%;
+       z-index: 50;
      }
      
      .check {
@@ -228,39 +230,84 @@
        background: rgba(255, 237, 179, 0.7);
        border-radius: 5px;
        transform: scale(0.8);
-     }
+       font-size: 30px;
+       writing-mode: vertical-rl;
+       display: flex;
+       justify-content: center;
+       align-items: center;
+       transition: 2s;
+       box-shadow:
+         0px 0px 20px 15px inset rgba(255, 255, 255, 0.3),
+         2px 3px 4px 2px black;
+      }
      
-     @media screen and (max-width:480px) {
-       .game-storage {
-         bottom: 0;
-         flex-direction: column;
-         display: block;
-         min-height: 100px;
-       }
-       
-       .ten-thousands {
-         display: block;
-         height: 100px;
-         width: 100%;
-       }
-       
-       .storage {
-         
-       }
-       
-       .tray {
-         
-       }
-     }
+      .check.push {
+        box-shadow:
+          2px 3px 4px 2px inset black,
+          -2px -3px 2px 1px inset rgba(0, 0, 0, 0.3);
+      }
+      
+      .log-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+      }
+      
+      .log {
+        /*background: red;
+        width: 100px;
+        height: 100px;*/
+        display: inline-block;
+        transform: translate(-50%, -50%);
+        opacity: 1;
+        animation: logAnimation 1s 0s both;
+      }
      
-     @keyframes popUp {
-       from {
-         opacity: 0;
-       }
-       100% {
-         opacity: 1;
-       }
-     }
+      @media screen and (max-width:480px) {
+        .game-storage {
+          bottom: 0;
+          flex-direction: column;
+          display: block;
+          min-height: 100px;
+        }
+       
+        .ten-thousands {
+          display: block;
+          height: 100px;
+          width: 100%;
+        }
+       
+        .storage {
+          
+        }
+       
+        .tray {
+          
+        }
+      }
+     
+      @keyframes popUp {
+        0% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      
+      @keyframes logAnimation {
+        70% {
+          opacity: 1;
+          transform: translate(-50%, calc(-50% - 50px));
+        }
+        
+        100% {
+          opacity: 0;
+          transform: translate(-50%, calc(-50% - 50px));
+        }
+      }
     </style>
   </head>
   <body>
@@ -272,12 +319,14 @@
         画面を&nbsp;タップ/クリック&nbsp;してスタート
       </div>
       
+      <div class="log-container" id="log-container"></div>
       <div class="game-container" id="game-container">
         <div class="game-screen" id="game-screen">
           <div class="items" id="items">
+            <span>残り時間:30</span>
             <span>金額:¥1000</span>
             <span>支払:¥0</span>
-            <span>差額:±0</span>
+            <span>不足:¥1000</span>
           </div>
         </div>
         <div class="game-storage" id="game-storage">
@@ -293,7 +342,7 @@
               <div class="_10 money" id="_10"></div>
               <div class="_5 money" id="_5"></div>
               <div class="_1 money" id="_1"></div>
-              <div class="check" id="check"></div>
+              <div class="check" id="check">会計</div>
             </div>
           </div>
         </div>
@@ -340,11 +389,11 @@
         },
         fiveHundred: {
           id: "1PbiMGWyCs__ZvxlADgyNkb8wOD9--VWg",
-          mag: 0.7
+          mag: 0.65
         },
         hundred: {
           id: "1qwKCOWXBZ80KfmZqpGqfad6Tu9PgT666",
-          mag: 0.6
+          mag: 0.55
         },
         fifty: {
           id: "1bRSD6piy3v0ZJuk0UXfWg7Lol0AN6tpa",
@@ -352,15 +401,15 @@
         },
         ten: {
           id: "1uoANqO1qaEzWoBU6IQHUihqaRN9aiGQ8",
-          mag: 0.65
+          mag: 0.6
         },
         five: {
           id: "1AZFn90LkqagITFAwrLjo_TeHuvUhJB-n",
-          mag: 0.6
+          mag: 0.55
         },
         one: {
           id: "1TPCVSSurGv19Gqnrr79jJipigslMvWd3",
-          mag: 0.55
+          mag: 0.5
         }
       }
       
@@ -466,7 +515,9 @@
             event: 'name',
             name: '???'
           },
-          '画面の見方と操作方法を説明します。'
+          {event: 'pause'},
+          '画面の見方と操作方法を説明します。',
+          {event: 'restart'}
         ]
       };
       
@@ -487,14 +538,43 @@
         
         const moneyStock = {
           _1: 5,
-          _5: 1,
-          _10: 3,
-          _50: 1,
-          _100: 1,
-          _500: 4,
+          _5: 5,
+          _10: 5,
+          _50: 5,
+          _100: 5,
+          _500: 5,
           _1000: 5,
-          _5000: 1
+          _5000: 5
         }
+        
+        const difficulty = {
+          difficult: {
+            digit: 4,
+            time: 20
+          },
+          normal: {
+            digit: 3,
+            time: 30
+          },
+          easy: {
+            digit: 2,
+            time: 45
+          }
+        }
+        
+        let nowDifficulty = 'normal';
+        
+        let amount = 0;
+        let payment = 0;
+        
+        let finishTime = null;
+        let pauseStarTime = null;
+        
+        let gameInterval = null;
+        
+        let isPause = false;
+        
+        const logList = [];
         
         const talkName = document.getElementById('talk-name');
         const talk = document.getElementById("talk");
@@ -504,9 +584,12 @@
         const gameContainer = document.getElementById('game-container');
         const gameScreen = document.getElementById('game-screen');
         const gameStorage = document.getElementById('game-storage');
+        const items = document.getElementById('items');
+        const logContainer = document.getElementById('log-container');
         
         const storage = document.getElementById('storage');
         const tray = document.getElementById('tray');
+        const check = document.getElementById('check');
         const tenThousands = document.getElementById('ten-thousands');
         
         const fiveThousands = document.getElementById('_5000');
@@ -588,6 +671,12 @@
                   data[text.key] = text.value;
                   save();
                   break;
+                case 'pause':
+                  pauseStart();
+                  break;
+                case 'restart':
+                  pauseEnd();
+                  break;
               }
             } else break;
           }
@@ -646,6 +735,17 @@
           if (animation.home === null && state === 'home') {
             start();
           }
+        });
+        
+        check.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          check.classList.add('push');
+          moneyCheck();
+        });
+        
+        check.addEventListener('pointerup', (e) => {
+          e.stopPropagation();
+          check.classList.remove('push');
         });
         
         async function changeBackgroundImage(url, element=screen) {
@@ -717,6 +817,33 @@
           return Promise.all(promises);
         }
         
+        function moneyCheck() {
+          if (payment < amount) {
+            logger('-1s', 'red');
+            finishTime -= 1000;
+          }
+        }
+        
+        function setMoney(_amount=-1, _payment=null){
+          if (_amount === -1) {
+            _amount = Math.floor(Math.random()*(10**difficulty[nowDifficulty].digit-1)+1)
+          }
+          
+          if (_amount && _amount > 0) {
+            amount = _amount;
+            items.children[1].innerHTML = '金額:¥'+_amount;
+          }
+          
+          if (_payment && _payment > 0) {
+            payment = _payment;
+            items.children[2].innerHTML = '支払:¥'+_payment;
+          }
+          
+          items.children[3].innerHTML = amount > payment ?
+            '不足:¥'+(amount-payment) :
+            'お釣:¥'+(payment-amount);
+        }
+        
         function start() {
           homeTitle.classList.remove('animation');
           homePrompt.classList.remove('animation');
@@ -725,15 +852,65 @@
               requestAnimationFrame(calcTrayRect);
               gameView()
                 .then(() => {
+                  gameContainer.style.display = "flex";
                   if (data.explain) select();
                   else explain();
                 });
             });
         }
         
+        function logger(text, color='black') {
+          const log = document.createElement('span');
+          log.innerHTML = text;
+          log.style.color = color;
+          log.style.position = 'absolute';
+          log.classList.add('log');
+          log.style.left = 'calc(50% + '+(Math.floor(100*Math.random())-50)+'px)';
+          log.style.top = 'calc(50% + '+(Math.floor(50*Math.random())-25)+'px)';
+          log.style.zIndex = '550';
+          log.style.fontSize = '22px';
+          log.style.setProperty('-webkit-text-stroke', '0.5px rgba(255, 255, 255, 0.5)');
+          logContainer.appendChild(log);
+          setTimeout(() => {
+            log.remove();
+          },1000);
+        }
+        
+        function pauseStart() {
+          isPause = true;
+          pauseStartTime = Date.now();
+        }
+        
+        function pauseEnd() {
+          finishTime += Date.now()-pauseStartTime;
+          isPause = false;
+        }
+        
+        function gameFinish() {
+          isPause = false;
+          state = "result";
+        }
+        
+        function newGame() {
+          state = state === "explain" ? "explain" : "game";
+          isPause = false;
+          if (!Object.keys(difficulty).includes(nowDifficulty)) return;
+          setMoney(-1, 0);
+          finishTime = Date.now()+1000*difficulty[nowDifficulty].time;
+          gameInterval = setInterval(() => {
+            if (!isPause) {
+              items.children[0].innerHTML = '残り時間:'+Math.max((finishTime-Date.now())/1000,0).toFixed(1);
+              if (finishTime <= Date.now()) {
+                gameFinish();
+              }
+            }
+          },50);
+        }
+        
         function explain() {
           state = 'explain';
-          gameContainer.style.display = "flex";
+          newGame();
+          setMoney(500);
           showTalk(templateTalk.explain);
         }
         
@@ -770,6 +947,13 @@
         window.onresize = () => {
           calcTrayRect();
         }
+        
+        // storageに合ってない時あるから、ここで
+        const observer = new ResizeObserver(entries => {
+          calcTrayRect();
+        });
+        
+        observer.observe(storage);
         
         function init() {
           //remove();
