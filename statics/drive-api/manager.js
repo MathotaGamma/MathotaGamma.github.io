@@ -140,7 +140,7 @@ class DriveAPIManager {
     const queryStrings = new URLSearchParams(params).toString();
     const targetUrl = `${oauth2Endpoint}?${queryStrings}`;
 
-    const popupName = 'oauth_popup';
+    const popupName = `oauth_popup_${Date.now()}`;
     window.open(targetUrl, popupName, 'width=500,height=600,left=100,top=100,menubar=no,toolbar=no,location=no,status=no');
 
     // Promise を生成して保持する
