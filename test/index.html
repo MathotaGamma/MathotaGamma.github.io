@@ -348,7 +348,12 @@
       }
       try {
         // 同期コンテキストの直下でポップアップを起動し、ブロックを確実に回避
+        const startTime = Date.now();
+        const inter = setInterval(() => {
+          console.log((Date.now()-startTime)/1000);
+        }, 1000);
         const token = await drive.auth(false);
+        clearInterval(inter);
         logResult('auth(false) [Popup]', token);
       } catch (e) {
         logResult('auth(false) [Popup] [FAILED]', e, true);
