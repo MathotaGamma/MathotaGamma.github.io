@@ -7,8 +7,8 @@
 <body>
   <script>
     (function() {
-      // 1. Googleからハッシュフラグメント（#access_token=...）で渡ってくるデータを解析
-      // ※ URL の '?' 以降（search）と '#' 以降（hash）の両方に対応させます
+      // Googleからハッシュフラグメント（#access_token=...）で渡ってくるデータを解析
+      // ※ URL の '?' 以降（search）と '#' 以降（hash）の両方に対応させる
       const urlParams = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
 
@@ -16,28 +16,26 @@
       const token = hashParams.get('access_token') || urlParams.get('access_token');
       const error = urlParams.get('error') || hashParams.get('error');
       const state = hashParams.get('state') || urlParams.get('state');
-
-      // 2. 💡 iPad対策: 親ウィンドウが冬眠していても確実に届くように localStorage に書き込む
-      // DriveAPIManager側は「data.code」としてトークンを待っているのでキー名を合わせます
+      
       if (token || error) {
         localStorage.setItem('oauth_result', JSON.stringify({
-          code: token,
+          token: token,
           error: error,
           state: state
         }));
       }
 
-      // 3. PCや他ブラウザ環境などのために、従来の postMessage も一応投げておく（保険）
+      // PCや他ブラウザ環境などのために、従来の postMessage も一応投げておく
       if (window.opener) {
         window.opener.postMessage({
           type: 'oauth_callback',
-          code: token,
+          token: token,
           error: error,
           state: state
         }, window.location.origin); // セキュリティのため自分のオリジンに限定
       }
 
-      // 4. 処理が終わったら、このポップアップ（別タブ）を即座に閉じる
+      // 処理が終わったら、このポップアップ（別タブ）を即座に閉じる
       window.close();
     })();
   </script>
