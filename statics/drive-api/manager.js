@@ -130,6 +130,43 @@ class DriveAPIManager {
     localStorage.removeItem('dapi_expires_at');
     this.progress('signOut', 'done');
   }
+
+  /**
+   * ユーザー情報やドライブの状態（About）を取得する
+   */
+  async getAbout() {
+    if (!this.state.login || !this.state.token) {
+      throw new Error('ログインしていません。先に auth() を実行してください。');
+    }
+
+    this.progress('getAbout', 'start');
+
+    // 💡 欲しい情報を明確に指定する（ユーザー名、メールアドレス、アバター、Driveの容量情報など）
+    const fields = 'user(displayName,emailAddress,photoLink),storageQuota';
+    const url = `https://www.googleapis.com/drive/v3/about?fields=${encodeURIComponent(fields)}`;
+
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.state.token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error(`Drive API about HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      this.progress('getAbout', 'done');
+      
+      return { ok: true, data };
+    } catch (e) {
+      this.progress('getAbout', 'fail');
+      throw e;
+    }
+  }
 }
 
 export default DriveAPIManager;
