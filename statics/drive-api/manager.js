@@ -221,6 +221,11 @@ class DriveAPIManager {
       params: { fields }
     });
   }
+
+  async getEmail() {
+    const data = await this.getAbout('user(emailAddress)');
+    return data.user.emailAddress;
+  }
 }
 
 export default DriveAPIManager;
