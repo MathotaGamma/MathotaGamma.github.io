@@ -7,7 +7,7 @@
  * ● レスポンス: 全てのパブリックメソッドは `{ ok: true, ... }` または `{ ok: false, error, place }` を返却。
  * ● 進捗通知: コンストラクタで指定された `progress(phase, detail)` コールバックにより進捗をリアルタイム通知。
  */
-export default class DriveAPIManager {
+class DriveAPIManager {
   // ─── プライベートフィールド（メモリ内保持・外部から不可視） ───────────────────
   #clientId     = null;
   #clientSecret = null;
