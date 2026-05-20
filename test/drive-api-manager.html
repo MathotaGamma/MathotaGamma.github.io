@@ -147,6 +147,10 @@
         <input type="text" id="clientId" placeholder="YOUR_CLIENT_ID.apps.googleusercontent.com">
       </div>
       <div class="field-group">
+        <label for="ClientSecret">Client Secret</label>
+        <input type="text" id="clientSecret" placeholder="YOUR_CLIENT_SECRET">
+      </div>
+      <div class="field-group">
         <label for="redirectUri">Redirect URI</label>
         <input type="text" id="redirectUri" placeholder="https://yourname.github.io/yourrepo/oauth2callback">
       </div>
@@ -260,6 +264,7 @@
 
     // UI要素の取得
     const elClientId = document.getElementById('clientId');
+    const elClientSecret = document.getElementById('clientSecret');
     const elRedirectUri = document.getElementById('redirectUri');
     const elInitStatus = document.getElementById('initStatus');
     const elConsole = document.getElementById('consoleLog');
@@ -267,6 +272,7 @@
 
     // ローカルストレージから設定を復元（開発効率化のため）
     if (localStorage.getItem('pm_client_id')) elClientId.value = localStorage.getItem('pm_client_id');
+    if (localStorage.getItem('pm_client_secret')) elClientSecret.value = localStorage.getItem('pm_client_secret');
     if (localStorage.getItem('pm_redirect_uri')) elRedirectUri.value = localStorage.getItem('pm_redirect_uri');
 
     // ログ出力用便利関数
@@ -297,15 +303,17 @@
     // 1. マネージャー初期化
     document.getElementById('btnInit').addEventListener('click', () => {
       const clientId = elClientId.value.trim();
+      const clientSecret = elClientSecret.value.trim();
       const redirectUri = elRedirectUri.value.trim();
 
-      if (!clientId || !redirectUri) {
-        alert('Client ID と Redirect URI を入力してください。');
+      if (!clientId || !redirectUri || !clientSecret) {
+        alert('Client ID と Client Secret と Redirect URIを入力してください。');
         return;
       }
 
       // 次回用に保存
       localStorage.setItem('pm_client_id', clientId);
+      localStorage.setItem('pm_client_secret', clientSecret);
       localStorage.setItem('pm_redirect_uri', redirectUri);
 
       try {
@@ -371,12 +379,13 @@
 
         // 完全に互換性のあるインスタンス生成
         drive = new DriveAPIManager({
-          clientId: clientId,
-          redirectUri: redirectUri,
+          clientId,
+          clientSecret,
+          redirectUri,
           mode: 'client',
           progress: (phase, detail) => logProgress(phase, detail)
         });
-
+        
         // ライブラリ内の#buildAuthUrlがresponse_type: 'code'固定であるバグ、および
         // ポップアップがOriginヘッダーを落とすバグを完全にオーバーライドしてフロントエンド専用(token)でGoogleを走らせる
         const origAuth = drive.auth.bind(drive);
