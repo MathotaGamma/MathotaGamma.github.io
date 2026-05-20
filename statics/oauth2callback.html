@@ -6,7 +6,7 @@
   const p = new URLSearchParams(location.search);
   window.opener?.postMessage({
     type:  'oauth_callback',
-    code:  p.get('code'),
+    //code:  p.get('code'),
     state: p.get('state'),
     error: p.get('error'),
   }, location.origin);
