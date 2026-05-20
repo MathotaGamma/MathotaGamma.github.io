@@ -22,7 +22,8 @@
         // Parameters to pass to OAuth 2.0 endpoint.
         var params = {'client_id': '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com',
                       'redirect_uri': 'https://mathotagamma.github.io/statics/oauth2callback',
-                      'response_type': 'token'};
+                      'response_type': 'token',
+                      'scope': 'https://www.googleapis.com/auth/drive.appdata'};
       
         // Add form parameters as hidden input values.
         for (var p in params) {
