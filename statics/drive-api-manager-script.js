@@ -116,7 +116,8 @@ class DriveAPIManager {
     const p = new URLSearchParams({
       client_id:             this.CLIENT_ID,
       redirect_uri:          this.REDIRECT_URI,
-      response_type:         'code',
+      // サーバーを使う場合、response_typeは'code'に！！
+      response_type:         'token',
       scope:                 this.SCOPES,
       code_challenge:        challenge,
       code_challenge_method: 'S256',
