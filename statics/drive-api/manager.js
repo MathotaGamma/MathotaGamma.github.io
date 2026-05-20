@@ -2,7 +2,7 @@ class DriveAPIManager {
   constructor({clientId, redirectUri, progress}) {
     if (!clientId || !redirectUri)
       throw new Error('引数にclient_idとredirect_uriを含めてください。');
-    if (progress) this._progress = progress;
+    if (progress) this.progress = progress;
     
     this.clientId = clientId;
     this.redirectUri = redirectUri;
