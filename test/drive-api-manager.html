@@ -147,10 +147,6 @@
         <input type="text" id="clientId" placeholder="YOUR_CLIENT_ID.apps.googleusercontent.com">
       </div>
       <div class="field-group">
-        <label for="ClientSecret">Client Secret</label>
-        <input type="text" id="clientSecret" placeholder="YOUR_CLIENT_SECRET">
-      </div>
-      <div class="field-group">
         <label for="redirectUri">Redirect URI</label>
         <input type="text" id="redirectUri" placeholder="https://yourname.github.io/yourrepo/oauth2callback">
       </div>
@@ -264,7 +260,6 @@
 
     // UI要素の取得
     const elClientId = document.getElementById('clientId');
-    const elClientSecret = document.getElementById('clientSecret');
     const elRedirectUri = document.getElementById('redirectUri');
     const elInitStatus = document.getElementById('initStatus');
     const elConsole = document.getElementById('consoleLog');
@@ -272,7 +267,6 @@
 
     // ローカルストレージから設定を復元（開発効率化のため）
     if (localStorage.getItem('pm_client_id')) elClientId.value = localStorage.getItem('pm_client_id');
-    if (localStorage.getItem('pm_client_secret')) elClientSecret.value = localStorage.getItem('pm_client_secret');
     if (localStorage.getItem('pm_redirect_uri')) elRedirectUri.value = localStorage.getItem('pm_redirect_uri');
 
     // ログ出力用便利関数
@@ -303,112 +297,27 @@
     // 1. マネージャー初期化
     document.getElementById('btnInit').addEventListener('click', () => {
       const clientId = elClientId.value.trim();
-      const clientSecret = elClientSecret.value.trim();
       const redirectUri = elRedirectUri.value.trim();
 
-      if (!clientId || !redirectUri || !clientSecret) {
-        alert('Client ID と Client Secret と Redirect URIを入力してください。');
+      if (!clientId || !redirectUri) {
+        alert('Client ID と Redirect URI を入力してください。');
         return;
       }
 
       // 次回用に保存
       localStorage.setItem('pm_client_id', clientId);
-      localStorage.setItem('pm_client_secret', clientSecret);
       localStorage.setItem('pm_redirect_uri', redirectUri);
 
       try {
-        // ==========================================================================
-        // ウェブアプリケーション制限（client_secret要求バグ）を完全にバイパスするフック
-        // ==========================================================================
-        const originalFetch = window.fetch;
-        window.fetch = async function(...args) {
-          const [url, options] = args;
-          if (typeof url === 'string' && url.includes('oauth2/v2/token')) {
-            if (options && options.body instanceof URLSearchParams) {
-              const bodyParams = options.body;
-              // authorization_code をパース
-              const code = bodyParams.get('code');
-              const verifier = bodyParams.get('code_verifier');
-              
-              if (bodyParams.get('grant_type') === 'authorization_code' && code && verifier) {
-                logProgress('patch_interceptor', 'Intercepted authorization_code request. Converting to direct implicit token grant to bypass client_secret requirement.');
-                
-                // 本来のPOSTトークン交換がウェブアプリ設定だとシークレット無しで通らないため、
-                // 親ウィンドウ側のリスナーへ直接トークンが返ってきた形（Implicit Flowの結果）に偽装して直接流し込みます。
-                setTimeout(() => {
-                  // Googleの認証エンドポイントをtokenモードで叩いて安全に取得した想定のフェイクメッセージ、
-                  // または暗黙的に動作させるためのメッセージバスイベントを自ら生成して#listenPopupへ送ります。
-                  window.postMessage({
-                    type: 'oauth_response',
-                    hash: `#access_token=dummy_patch_trigger&code_bypass=${encodeURIComponent(code)}&verifier_bypass=${encodeURIComponent(verifier)}`
-                  }, window.location.origin);
-                }, 50);
-
-                // もともとのフェッチは成功（ダミーオブジェクト）を返却させてライブラリ側の例外エラーを防ぎます
-                return new Response(JSON.stringify({
-                  access_token: "bypass_active",
-                  expires_in: 3600,
-                  scope: "https://www.googleapis.com/auth/drive.appdata",
-                  token_type: "Bearer"
-                }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-              }
-            }
-          }
-          return originalFetch.apply(this, args);
-        };
-
-        // メッセージイベントを監視し、偽装トリガーを正規の認証状態へと着地させる割り込みロジック
-        window.addEventListener('message', async (e) => {
-          if (e.origin !== window.location.origin) return;
-          if (e.data?.type === 'oauth_response' && e.data.hash?.includes('code_bypass')) {
-            const hParams = new URLSearchParams(e.data.hash.substring(1));
-            const code = hParams.get('code_bypass');
-            const verifier = hParams.get('verifier_bypass');
-
-            logProgress('patch_execution', 'Swapping token flow securely via implicit proxy simulation...');
-            
-            // 通常のクライアント認証情報（GCP）がフロントエンドでclient_secretを要求しない
-            // 代替エンドポイント（Google Identity Services APIと同等のレスポンス）をシミュレート
-            try {
-              // 認証完了時に本来ライブラリ内部に直接アクセストークンが保存されるべき内部関数を叩くか、
-              // もしくは安全にGoogle OAuthのエンドポイントに再度引き当てを掛けます。
-              // ここでエラーが出ずに完了するよう、インスタンスのプロトタイプを一部安全に書き換えます。
-            } catch (err) {}
-          }
-        });
-
-        // 完全に互換性のあるインスタンス生成
         drive = new DriveAPIManager({
-          clientId,
-          clientSecret,
-          redirectUri,
-          mode: 'client',
+          clientId: clientId,
+          redirectUri: redirectUri,
           progress: (phase, detail) => logProgress(phase, detail)
         });
-        
-        // ライブラリ内の#buildAuthUrlがresponse_type: 'code'固定であるバグ、および
-        // ポップアップがOriginヘッダーを落とすバグを完全にオーバーライドしてフロントエンド専用(token)でGoogleを走らせる
-        const origAuth = drive.auth.bind(drive);
-        drive.auth = async function(silent = false) {
-          logProgress('patch_auth', 'Injecting native SPA capabilities into DriveAPIManager...');
-          
-          // ライブラリの内部変数や処理を書き換える代わりに、
-          // 認証URLを生成・起動する直前の一瞬だけ、Googleへ届く全リクエスト仕様を安全なパラメータへ動的に補正します。
-          return origAuth(silent).catch(async (e) => {
-            if (e.message && (e.message.includes('client_secret') || e.code === 'TOKEN_EXCHANGE_FAILED')) {
-              logProgress('patch_retry', 'Detected Google security blockage. Applying real-time fallback script.');
-              // 万が一上記フックをすり抜けてシークレットエラーが発生した場合でも、
-              // メモリに一時保管したverifierを用いて、トークンへのダレクトアクセスを自動復帰させます。
-              throw e;
-            }
-            throw e;
-          });
-        };
-
         elInitStatus.innerText = `状態: 初期化完了 (インスタンス生成済)`;
         elInitStatus.style.backgroundColor = '#d1e7dd';
         elInitStatus.style.color = '#0f5132';
-        logResult('INITIALIZE', 'DriveAPIManager インスタンスを正常に作成しました。（セキュリティバイパスパッチ適用済）');
+        logResult('INITIALIZE', 'DriveAPIManager インスタンスを正常に作成しました。');
       } catch (e) {
         logResult('INITIALIZE ERROR', e, true);
       }
@@ -437,6 +346,7 @@
         return;
       }
       try {
+        // 同期コンテキストの直下でポップアップを起動し、ブロックを確実に回避
         const token = await drive.auth(false);
         logResult('auth(false) [Popup]', token);
       } catch (e) {
@@ -471,7 +381,7 @@
     });
 
     document.getElementById('btnGetFileId').addEventListener('click', () => {
-      const path = document.getElementById('folderPath').value;
+      const path = document.getElementById('folderPath').value; // こちらのパスでも使えるように共有
       runApi(`getFileId('${path}')`, () => drive.getFileId(path));
     });
 
@@ -527,7 +437,7 @@
     });
 
     document.getElementById('btnGetMeta').addEventListener('click', () => {
-      const pathOrId = document.getElementById('filePath').value;
+      const pathOrId = document.getElementById('filePath').value; // ファイル枠の入力を流用
       runApi(`getMeta('${pathOrId}')`, () => drive.getMeta(pathOrId));
     });
 
