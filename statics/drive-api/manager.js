@@ -1,24 +1,51 @@
 class DriveAPIManager {
-  constructor({clientId, redirectUri, progress}) {
+  constructor({ clientId, redirectUri, progress }) {
     if (!clientId || !redirectUri)
       throw new Error('引数にclient_idとredirect_uriを含めてください。');
-    if (progress) this.progress = progress;
+    
+    // progressが渡されていたらクラスのメソッドとして登録、なければ空の関数にしておく
+    this.progress = progress || (() => {});
     
     this.clientId = clientId;
     this.redirectUri = redirectUri;
     
+    // 💡 起動時に前回のトークンが localStorage に残っていれば自動で復元
+    const cachedToken = localStorage.getItem('dapi_access_token');
+    const cachedExpires = parseInt(localStorage.getItem('dapi_expires_at') || '0', 10);
+    const isAlive = cachedToken && cachedExpires > Date.now();
+
     this.state = {
-      login: false,
-      token: null
+      login: isAlive ? true : false,
+      token: isAlive ? cachedToken : null,
+      expiresAt: cachedExpires
     };
 
-    
     this._authPromise = null;
   }
   
-  auth() {
+  /**
+   * 認証を実行する
+   * @param {Object} options
+   * @param {boolean} options.silent - trueの場合、ポップアップを開かずストレージの有効期限から復元を試みる
+   */
+  auth({ silent = false } = {}) {
+    // すでに認証処理（Promise）が走っている場合はそれをそのまま返す（多重起動防止）
     if (this._authPromise) return this._authPromise;
 
+    // 💡 【silent: true の場合】
+    if (silent) {
+      if (this.state.login && this.state.token && this.state.expiresAt > Date.now()) {
+        this.progress('auth', 'silent:done');
+        return Promise.resolve({ ok: true, token: this.state.token, silent: true });
+      } else {
+        // 期限切れ、またはトークンがない場合は即座に失敗として返す
+        this.progress('auth', 'silent:fail');
+        this.signOut(); // ステートとストレージを安全にクリア
+        return Promise.resolve({ ok: false, error: 'silent_auth_failed' });
+      }
+    }
+
+    // ─── 【silent: false の場合】ここから通常のポップアップログイン ───
     this.progress('auth', 'start');
     
     const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -32,45 +59,71 @@ class DriveAPIManager {
       state: 'debug_implicit_test'
     };
 
-    // 1. URLSearchParams を使って、オブジェクトから自動でクエリ文字列（エスケープ込）を生成
     const queryStrings = new URLSearchParams(params).toString();
     const targetUrl = `${oauth2Endpoint}?${queryStrings}`;
 
-    // 2. 組み立てた完全なURLを指定して、直接別窓（別タブ）を開く
     const popupName = 'oauth_popup';
     window.open(targetUrl, popupName, 'width=500,height=600,left=100,top=100,menubar=no,toolbar=no,location=no,status=no');
 
-    // 3. 💡 iPad対策: バックグラウンドのタブでも確実にトークンを回収するポーリングを開始
+    // Promise を生成して保持する
     this._authPromise = new Promise((resolve, reject) => {
       const pollTimer = setInterval(() => {
         const rawResult = localStorage.getItem('oauth_result');
       
         if (rawResult) {
-          // タイマーを止める
-          clearInterval(pollTimer);
-          
+          clearInterval(pollTimer); // ポーリングを停止
 
           try {
             const data = JSON.parse(rawResult);
             localStorage.removeItem('oauth_result'); // 使用済みのデータを即時削除
 
-            if (data.error) reject(data.error);
+            if (data.error) {
+              this.progress('auth', 'fail');
+              this._authPromise = null; // クリーンアップ
+              reject(new Error(data.error));
+              return;
+            }
 
             if (data.code) { // Implicit Flowの場合は access_token がここに入る
-              // 💡 認証成功: クラスのステートを更新
+              // Googleの通常有効期限1時間(3600秒)から、安全のために5分引いた終了時刻(ミリ秒)を計算
+              const expiresAt = Date.now() + (3600 * 1000) - (5 * 60 * 1000);
+
+              // クラスのステートを更新
               this.state.login = true;
               this.state.token = data.code;
+              this.state.expiresAt = expiresAt;
 
-              resolve(this.state.token);
+              // 💡 次回の silent: true での復元のために localStorage に永続化
+              localStorage.setItem('dapi_access_token', data.code);
+              localStorage.setItem('dapi_expires_at', expiresAt.toString());
+
+              this.progress('auth', 'done');
+              this._authPromise = null; // 成功したので次回のためにクリーンアップ
+              
+              // 利用側が扱いやすいようにオブジェクトで解決する
+              resolve({ ok: true, token: this.state.token, silent: false });
             }
           } catch (e) {
+            this.progress('auth', 'fail');
+            this._authPromise = null;
             reject(e);
           }
         }
       }, 200);
     });
 
-    return { ok: true, data: this._authPromise };
+    // 💡 Promise自体を返すことで、外側で await drive.auth() と1行で書けるようになります
+    return this._authPromise;
+  }
+
+  /** 明示的なログアウト（ステートとストレージのクリア） */
+  signOut() {
+    this.state.login = false;
+    this.state.token = null;
+    this.state.expiresAt = 0;
+    localStorage.removeItem('dapi_access_token');
+    localStorage.removeItem('dapi_expires_at');
+    this.progress('signOut', 'done');
   }
 }
 
