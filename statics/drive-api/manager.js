@@ -10,7 +10,6 @@ class DriveAPIManager {
   oauthSignIn(client_id, redirect_uri, callback=null) {
     const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
     
-    // 💡 引数の変数名を引数定義（redirect_uri）と統一
     if (!client_id || !redirect_uri) {
       return {
         ok: false,
