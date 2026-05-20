@@ -312,7 +312,7 @@
         drive = new DriveAPIManager({
           clientId,
           redirectUri,
-          callback: (phase, detail) => logProgress(phase, detail)
+          progress: (phase, detail) => logProgress(phase, detail)
         });
         elInitStatus.innerText = `状態: 初期化完了 (インスタンス生成済)`;
         elInitStatus.style.backgroundColor = '#d1e7dd';
