@@ -28,7 +28,7 @@ class DriveAPIManager {
    * @param {Object} options
    * @param {boolean} options.silent - trueの場合、ポップアップを開かずストレージの有効期限から復元を試みる
    */
-  auth({ silent = false } = {}) {
+  auth(silent=false) {
     // すでに認証処理（Promise）が走っている場合はそれをそのまま返す（多重起動防止）
     if (this._authPromise) return this._authPromise;
 
