@@ -119,8 +119,8 @@ class DriveAPIManager {
       // サーバーを使う場合、response_typeは'code'に！！
       response_type:         'token',
       scope:                 this.SCOPES,
-      code_challenge:        challenge,
-      code_challenge_method: 'S256',
+      /*code_challenge:        challenge,
+      code_challenge_method: 'S256',*/
       state,
       access_type:           'offline',
       prompt:                'consent',
