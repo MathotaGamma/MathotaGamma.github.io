@@ -25,6 +25,7 @@ class DriveAPIManager {
   #cryptoKey   = null;   // 導出済み CryptoKey キャッシュ（client モードのみ）
 
   // ─── Constants ─────────────────────────────────────────────────────────────
+  static ver          = '3.0';
   static #LS_KEY      = 'drive_enc_rt';
   static #AUTH_EP     = 'https://accounts.google.com/o/oauth2/v2/auth';
   static #TOKEN_EP    = 'https://oauth2.googleapis.com/token';
