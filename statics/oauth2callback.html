@@ -8,7 +8,9 @@
     <p style="font-family:sans-serif; text-align:center; margin-top:40px; color:#333; font-size:14px;">
       認証を処理しています。このウィンドウは自動的に閉じます...
     </p>
+    <p id="err" style="color: red;"></p>
     <script>
+      const err = document.getElementById('err');
       // 1. ?code=... などのクエリパラメータを解析（マネージャー用）
       const urlParams = new URLSearchParams(location.search);
     
@@ -36,6 +38,7 @@
           'https://mathotagamma.github.io'
         );
       } else {
+        err.innerHTML = '親ウィンドウ（window.opener）が見つかりません。';
         console.error('親ウィンドウ（window.opener）が見つかりません。');
       }
 
