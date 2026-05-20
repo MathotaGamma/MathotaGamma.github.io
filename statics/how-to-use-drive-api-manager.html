@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DriveAPIManager v3 — 使い方リファレンス</title>
+<style>
+  :root {
+    --bg:       #0f1117;
+    --surface:  #1a1d27;
+    --surface2: #22263a;
+    --border:   #2e3452;
+    --accent:   #5b8af0;
+    --accent2:  #7c5bf0;
+    --green:    #4ade80;
+    --yellow:   #facc15;
+    --red:      #f87171;
+    --text:     #e2e8f0;
+    --muted:    #8892b0;
+    --code-bg:  #141824;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── Layout ── */
+  .layout { display: flex; min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  nav {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 24px 0;
+  }
+  nav .logo {
+    padding: 0 20px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--accent);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  nav .logo span { color: var(--muted); font-weight: 400; display: block; font-size: 11px; margin-top: 2px; text-transform: none; letter-spacing: 0; }
+  nav ul { list-style: none; }
+  nav li a {
+    display: block;
+    padding: 6px 20px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color .15s, background .15s;
+    border-left: 2px solid transparent;
+  }
+  nav li a:hover { color: var(--text); background: var(--surface2); }
+  nav li a.active { color: var(--accent); border-left-color: var(--accent); }
+  nav .section-head {
+    padding: 14px 20px 4px;
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* ── Main ── */
+  main {
+    flex: 1;
+    max-width: 860px;
+    padding: 48px 48px 120px;
+  }
+
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-bottom: 40px; }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 52px 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    scroll-margin-top: 24px;
+  }
+  h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 36px 0 12px;
+    scroll-margin-top: 24px;
+    color: var(--accent);
+  }
+  h3 code {
+    background: none;
+    color: inherit;
+    font-size: inherit;
+    padding: 0;
+  }
+  p { margin-bottom: 12px; color: var(--text); }
+
+  /* ── Code ── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 22px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    position: relative;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+  }
+  :not(pre) > code {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 12.5px;
+    color: #c9d3f5;
+  }
+
+  /* ── copy btn ── */
+  .copy-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--muted);
+    font-size: 11px;
+    padding: 3px 9px;
+    cursor: pointer;
+    transition: color .15s, background .15s;
+  }
+  .copy-btn:hover { color: var(--text); background: var(--border); }
+  .copy-btn.copied { color: var(--green); }
+
+  /* syntax highlight */
+  .kw  { color: #c792ea; }
+  .str { color: #c3e88d; }
+  .cm  { color: #546e7a; font-style: italic; }
+  .fn  { color: #82aaff; }
+  .num { color: #f78c6c; }
+  .cls { color: #ffcb6b; }
+
+  /* ── Table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 13.5px;
+  }
+  th {
+    text-align: left;
+    padding: 9px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: .04em;
+  }
+  td {
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: rgba(255,255,255,.018); }
+  td code { font-size: 12px; }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+  .badge-client { background: #1e3a5f; color: #5b8af0; }
+  .badge-server { background: #2d1f5e; color: #a78bfa; }
+  .badge-both   { background: #1e3f2a; color: #4ade80; }
+
+  /* ── Callout ── */
+  .callout {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    border-left: 3px solid;
+    font-size: 14px;
+  }
+  .callout-info  { background: #0f1f3d; border-color: var(--accent); }
+  .callout-warn  { background: #2d2200; border-color: var(--yellow); color: #fde68a; }
+  .callout-tip   { background: #0d2a1a; border-color: var(--green);  color: #bbf7d0; }
+
+  /* ── Method signature ── */
+  .sig {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin-bottom: 14px;
+    font-family: monospace;
+    font-size: 14px;
+    color: #c9d3f5;
+  }
+  .sig .method { color: #82aaff; }
+  .sig .param  { color: #ffcb6b; }
+  .sig .type   { color: #89ddff; }
+  .sig .ret    { color: #c3e88d; }
+
+  /* ── Mode tag on h3 ── */
+  .mode-tag { font-size: 11px; font-weight: 600; margin-left: 8px; vertical-align: middle; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ═══ SIDEBAR ═══ -->
+<nav>
+  <div class="logo">DriveAPIManager<span>v3 リファレンス</span></div>
+  <ul>
+    <li class="section-head">セットアップ</li>
+    <li><a href="#setup-client">client モード</a></li>
+    <li><a href="#setup-server">server モード</a></li>
+    <li><a href="#oauth2callback">oauth2callback</a></li>
+
+    <li class="section-head">Auth</li>
+    <li><a href="#m-auth">auth()</a></li>
+    <li><a href="#m-checker">checker()</a></li>
+    <li><a href="#m-getEmail">getEmail()</a></li>
+    <li><a href="#m-signOut">signOut()</a></li>
+
+    <li class="section-head">パス解決</li>
+    <li><a href="#m-getFileId">getFileId()</a></li>
+    <li><a href="#m-getPath">getPath()</a></li>
+
+    <li class="section-head">フォルダ</li>
+    <li><a href="#m-createFolder">createFolder()</a></li>
+
+    <li class="section-head">ファイル CRUD</li>
+    <li><a href="#m-getFile">getFile()</a></li>
+    <li><a href="#m-saveFile">saveFile()</a></li>
+    <li><a href="#m-copyFile">copyFile()</a></li>
+    <li><a href="#m-moveFile">moveFile()</a></li>
+
+    <li class="section-head">一覧 / 構造</li>
+    <li><a href="#m-listFiles">listFiles()</a></li>
+    <li><a href="#m-getStructure">getStructure()</a></li>
+
+    <li class="section-head">検索 / メタ</li>
+    <li><a href="#m-search">search()</a></li>
+    <li><a href="#m-getMeta">getMeta()</a></li>
+    <li><a href="#m-updateMeta">updateMeta()</a></li>
+
+    <li class="section-head">削除</li>
+    <li><a href="#m-remove">remove()</a></li>
+    <li><a href="#m-removeAll">removeAll()</a></li>
+
+    <li class="section-head">実装パターン</li>
+    <li><a href="#ex-game">ゲームセーブ</a></li>
+    <li><a href="#ex-config">設定の同期</a></li>
+    <li><a href="#ex-image">画像アップロード</a></li>
+    <li><a href="#ex-export">全データエクスポート</a></li>
+    <li><a href="#ex-progress">progress 活用</a></li>
+  </ul>
+</nav>
+
+<!-- ═══ MAIN ═══ -->
+<main>
+
+<h1><span>DriveAPIManager</span> v3</h1>
+<p class="subtitle">Google Drive appdata スコープ管理ライブラリ — 全メソッドリファレンス</p>
+
+<!-- ═══ モード比較 ═══ -->
+<h2>モード比較</h2>
+<table>
+  <tr><th></th><th><code>client</code>（デフォルト）</th><th><code>server</code></th></tr>
+  <tr><td>サーバー</td><td>不要（GitHub Pages 可）</td><td>必要</td></tr>
+  <tr><td>CLIENT_SECRET</td><td>コードに含める</td><td>サーバー側で管理</td></tr>
+  <tr><td>PKCE</td><td>✅</td><td>❌（不要）</td></tr>
+  <tr><td>refresh_token 保存先</td><td>AES-GCM 暗号化 → localStorage</td><td>サーバー側セッション</td></tr>
+  <tr><td>access_token 保存先</td><td colspan="2">メモリ（#プライベートフィールド）共通</td></tr>
+</table>
+
+<!-- ═══ SETUP ═══ -->
+<h2 id="setup-client">セットアップ — client モード</h2>
+
+<p>GitHub Pages など、サーバーなしで動作します。<code>clientSecret</code> は Google Cloud Console の「ウェブアプリケーション」タイプで発行したものを指定してください。</p>
+
+<div class="callout callout-warn">
+  ⚠ <code>clientSecret</code> はソースコードに含まれるため、公開リポジトリでは誰でも読めます。
+  <code>drive.appdata</code> スコープ限定なのでそのアプリのデータしか操作できませんが、
+  より高いセキュリティが必要な場合は server モードを使用してください。
+</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">import</span> DriveAPIManager <span class="kw">from</span> <span class="str">'./DriveAPIManager.js'</span>;
+
+<span class="kw">const</span> drive = <span class="kw">new</span> <span class="cls">DriveAPIManager</span>({
+  clientId:     <span class="str">'YOUR_CLIENT_ID.apps.googleusercontent.com'</span>,
+  clientSecret: <span class="str">'YOUR_CLIENT_SECRET'</span>,       <span class="cm">// ウェブアプリタイプに必要</span>
+  redirectUri:  <span class="str">'https://yourname.github.io/yourrepo/oauth2callback'</span>,
+  <span class="cm">// mode: 'client' はデフォルトなので省略可</span>
+  progress: (phase, detail) => console.<span class="fn">log</span>(<span class="str">`[<span class="cm">${phase}</span>]`</span>, detail),
+});</code></pre>
+
+<h2 id="setup-server">セットアップ — server モード</h2>
+
+<p><code>CLIENT_SECRET</code> をサーバー側で管理します。クライアントには access_token だけ渡し、refresh_token はサーバーセッションに保持します。</p>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> drive = <span class="kw">new</span> <span class="cls">DriveAPIManager</span>({
+  clientId:    <span class="str">'YOUR_CLIENT_ID.apps.googleusercontent.com'</span>,
+  redirectUri: <span class="str">'https://yourapp.com/oauth2callback'</span>,
+  mode:        <span class="str">'server'</span>,
+  tokenUrl:    <span class="str">'/auth/token'</span>,    <span class="cm">// POST code → {access_token, expires_in}</span>
+  refreshUrl:  <span class="str">'/auth/refresh'</span>,  <span class="cm">// POST     → {access_token, expires_in}</span>
+  revokeUrl:   <span class="str">'/auth/revoke'</span>,   <span class="cm">// POST     → 200</span>
+});</code></pre>
+
+<p>サーバー側 Express 実装例:</p>
+<pre><button class="copy-btn">copy</button><code><span class="cm">// POST /auth/token  — code を受け取り、refresh_token をセッションに保持</span>
+app.<span class="fn">post</span>(<span class="str">'/auth/token'</span>, <span class="kw">async</span> (req, res) => {
+  <span class="kw">const</span> { code, redirect_uri } = req.body;
+  <span class="kw">const</span> r = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://oauth2.googleapis.com/token'</span>, {
+    method: <span class="str">'POST'</span>,
+    headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/x-www-form-urlencoded'</span> },
+    body: <span class="kw">new</span> URLSearchParams({
+      client_id: CLIENT_ID, client_secret: CLIENT_SECRET,
+      grant_type: <span class="str">'authorization_code'</span>, code, redirect_uri,
+    }),
+  });
+  <span class="kw">const</span> data = <span class="kw">await</span> r.<span class="fn">json</span>();
+  req.session.refresh_token = data.refresh_token; <span class="cm">// サーバー側で保持</span>
+  res.<span class="fn">json</span>({ access_token: data.access_token, expires_in: data.expires_in });
+});
+
+<span class="cm">// POST /auth/refresh</span>
+app.<span class="fn">post</span>(<span class="str">'/auth/refresh'</span>, <span class="kw">async</span> (req, res) => {
+  <span class="kw">const</span> rt = req.session.refresh_token;
+  <span class="kw">if</span> (!rt) <span class="kw">return</span> res.<span class="fn">status</span>(<span class="num">401</span>).<span class="fn">json</span>({ error: <span class="str">'not_authenticated'</span> });
+  <span class="kw">const</span> r = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://oauth2.googleapis.com/token'</span>, {
+    method: <span class="str">'POST'</span>,
+    headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/x-www-form-urlencoded'</span> },
+    body: <span class="kw">new</span> URLSearchParams({
+      client_id: CLIENT_ID, client_secret: CLIENT_SECRET,
+      grant_type: <span class="str">'refresh_token'</span>, refresh_token: rt,
+    }),
+  });
+  <span class="kw">const</span> data = <span class="kw">await</span> r.<span class="fn">json</span>();
+  res.<span class="fn">json</span>({ access_token: data.access_token, expires_in: data.expires_in });
+});
+
+<span class="cm">// POST /auth/revoke</span>
+app.<span class="fn">post</span>(<span class="str">'/auth/revoke'</span>, <span class="kw">async</span> (req, res) => {
+  <span class="kw">const</span> rt = req.session.refresh_token;
+  <span class="kw">if</span> (rt) <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`https://oauth2.googleapis.com/revoke?token=<span class="cm">${rt}</span>`</span>, { method: <span class="str">'POST'</span> });
+  req.session.<span class="fn">destroy</span>();
+  res.<span class="fn">json</span>({ ok: <span class="kw">true</span> });
+});</code></pre>
+
+<h2 id="oauth2callback">oauth2callback.html</h2>
+
+<p>Google がリダイレクトしてくる着地ページ。これをリポジトリに置いて、Google Cloud Console の「承認済みリダイレクト URI」に登録してください。</p>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">&lt;!-- yourrepo/oauth2callback.html --&gt;</span>
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta charset=<span class="str">"UTF-8"</span>&gt;&lt;/head&gt;
+&lt;body&gt;&lt;script&gt;
+  <span class="kw">const</span> p = <span class="kw">new</span> URLSearchParams(location.search);
+  window.opener?.<span class="fn">postMessage</span>({
+    type:  <span class="str">'oauth_callback'</span>,
+    code:  p.<span class="fn">get</span>(<span class="str">'code'</span>),
+    state: p.<span class="fn">get</span>(<span class="str">'state'</span>),
+    error: p.<span class="fn">get</span>(<span class="str">'error'</span>),
+  }, location.origin);
+  window.<span class="fn">close</span>();
+&lt;/script&gt;&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+<hr>
+
+<!-- ═══ AUTH ═══ -->
+<h2>AUTH</h2>
+
+<h3 id="m-auth"><code>auth(silent?)</code> <span class="badge badge-both">両モード</span></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">auth</span>(<span class="param">silent</span>?: <span class="type">boolean</span> = <span class="kw">true</span>): <span class="type">Promise</span>&lt;<span class="ret">string</span>&gt;
+</div>
+
+<p>メインの認証エントリ。内部で以下の順に試みます:</p>
+<ol style="margin: 0 0 12px 20px; color: var(--muted); font-size: 14px; line-height: 2;">
+  <li>メモリに有効な access_token がある → そのまま返す</li>
+  <li>client: 暗号化 RT を復号してリフレッシュ / server: <code>/auth/refresh</code> を叩く</li>
+  <li><code>silent=false</code> のときのみ → ポップアップを開く</li>
+</ol>
+
+<table>
+  <tr><th>エラーコード</th><th>意味</th></tr>
+  <tr><td><code>NOT_AUTHENTICATED</code></td><td>トークンなし（silent=true 時）</td></tr>
+  <tr><td><code>REFRESH_FAILED</code></td><td>リフレッシュ失敗</td></tr>
+  <tr><td><code>POPUP_BLOCKED</code></td><td>ポップアップがブロックされた</td></tr>
+  <tr><td><code>POPUP_CLOSED</code></td><td>ユーザーが閉じた</td></tr>
+  <tr><td><code>AUTH_DENIED</code></td><td>アクセス拒否</td></tr>
+  <tr><td><code>AUTH_TIMEOUT</code></td><td>5 分タイムアウト</td></tr>
+  <tr><td><code>STATE_MISMATCH</code></td><td>CSRF 検知</td></tr>
+  <tr><td><code>DECRYPT_FAILED</code></td><td>保存済み RT の復号失敗（client のみ）</td></tr>
+  <tr><td><code>SERVER_TOKEN_FAILED</code></td><td>サーバー側コード交換失敗（server のみ）</td></tr>
+  <tr><td><code>SERVER_REFRESH_FAILED</code></td><td>サーバー側リフレッシュ失敗（server のみ）</td></tr>
+</table>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// 初回ログイン（ポップアップを許可）</span>
+<span class="kw">await</span> drive.<span class="fn">auth</span>(<span class="kw">false</span>);
+
+<span class="cm">// ページ読み込み時のサイレント復元</span>
+<span class="kw">try</span> {
+  <span class="kw">await</span> drive.<span class="fn">auth</span>(<span class="kw">true</span>);
+  <span class="fn">showApp</span>();
+} <span class="kw">catch</span> (e) {
+  <span class="kw">if</span> (e.code === <span class="str">'NOT_AUTHENTICATED'</span>) <span class="fn">showLoginButton</span>();
+}
+
+<span class="cm">// エラーハンドリング例</span>
+<span class="kw">try</span> {
+  <span class="kw">await</span> drive.<span class="fn">auth</span>(<span class="kw">false</span>);
+} <span class="kw">catch</span> (e) {
+  <span class="kw">switch</span> (e.code) {
+    <span class="kw">case</span> <span class="str">'POPUP_BLOCKED'</span>: <span class="fn">alert</span>(<span class="str">'ポップアップを許可してください'</span>); <span class="kw">break</span>;
+    <span class="kw">case</span> <span class="str">'AUTH_DENIED'</span>:   <span class="fn">alert</span>(<span class="str">'アクセスを許可してください'</span>);   <span class="kw">break</span>;
+    <span class="kw">default</span>:             console.<span class="fn">error</span>(e);
+  }
+}</code></pre>
+
+<h3 id="m-checker"><code>checker()</code> <span class="badge badge-both">両モード</span></h3>
+
+<div class="sig">
+  <span class="method">checker</span>(): <span class="type">{ loggedIn, expired, hasRefreshToken, mode }</span>
+</div>
+
+<p>同期。API 呼び出しなし。ページ読み込み時の UI 出し分けに使います。</p>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> status = drive.<span class="fn">checker</span>();
+<span class="cm">// {</span>
+<span class="cm">//   loggedIn:        true,    // トークンあり（有効期限問わず）</span>
+<span class="cm">//   expired:         false,   // access_token が期限切れか</span>
+<span class="cm">//   hasRefreshToken: true,    // RT あり</span>
+<span class="cm">//   mode:            'client' // 'client' | 'server'</span>
+<span class="cm">// }</span>
+
+<span class="cm">// 典型的な使い方</span>
+<span class="kw">if</span> (drive.<span class="fn">checker</span>().hasRefreshToken) {
+  <span class="kw">await</span> drive.<span class="fn">auth</span>(<span class="kw">true</span>);  <span class="cm">// サイレントで復元</span>
+  <span class="fn">showApp</span>();
+} <span class="kw">else</span> {
+  <span class="fn">showLoginButton</span>();
+}</code></pre>
+
+<h3 id="m-getEmail"><code>getEmail()</code> <span class="badge badge-both">両モード</span></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">getEmail</span>(): <span class="type">Promise</span>&lt;<span class="ret">string</span>&gt;
+</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> email = <span class="kw">await</span> drive.<span class="fn">getEmail</span>();
+console.<span class="fn">log</span>(email); <span class="cm">// 'user@gmail.com'</span>
+
+document.<span class="fn">getElementById</span>(<span class="str">'user-label'</span>).textContent = <span class="kw">await</span> drive.<span class="fn">getEmail</span>();</code></pre>
+
+<h3 id="m-signOut"><code>signOut()</code> <span class="badge badge-both">両モード</span></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">signOut</span>(): <span class="type">Promise</span>&lt;<span class="ret">void</span>&gt;
+</div>
+
+<p>client: Google サーバーに revoke → localStorage 消去<br>
+server: <code>/auth/revoke</code> に POST → メモリ消去</p>
+
+<pre><button class="copy-btn">copy</button><code>document.<span class="fn">getElementById</span>(<span class="str">'logout'</span>).<span class="fn">addEventListener</span>(<span class="str">'click'</span>, <span class="kw">async</span> () => {
+  <span class="kw">await</span> drive.<span class="fn">signOut</span>();
+  location.href = <span class="str">'/'</span>;
+});</code></pre>
+
+<hr>
+
+<!-- ═══ PATH ═══ -->
+<h2>パス解決</h2>
+
+<p>パスは <code>/</code> 区切り。先頭の <code>/</code> は任意（<code>'/saves/slot1.json'</code> と <code>'saves/slot1.json'</code> は同じ）。</p>
+
+<h3 id="m-getFileId"><code>getFileId(path)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">getFileId</span>(<span class="param">path</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="ret">string | null</span>&gt;
+</div>
+
+<p>パス → Drive ファイル ID。なければ <code>null</code>。内部キャッシュ付きで同じパスの 2 回目以降は API なし。</p>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> id = <span class="kw">await</span> drive.<span class="fn">getFileId</span>(<span class="str">'/saves/slot1.json'</span>);
+<span class="cm">// 'aBcDeFgHiJkLmNoPqRsTuV' または null</span>
+
+<span class="cm">// 存在チェック</span>
+<span class="kw">const</span> exists = (<span class="kw">await</span> drive.<span class="fn">getFileId</span>(<span class="str">'/config/settings.json'</span>)) !== <span class="kw">null</span>;</code></pre>
+
+<h3 id="m-getPath"><code>getPath(fileId)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">getPath</span>(<span class="param">fileId</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="ret">string</span>&gt;
+</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> path = <span class="kw">await</span> drive.<span class="fn">getPath</span>(<span class="str">'aBcDeFgHiJkLmNoPqRsTuV'</span>);
+<span class="cm">// '/saves/slot1.json'</span>
+
+<span class="cm">// search() の結果からパスを逆引き</span>
+<span class="kw">const</span> results = <span class="kw">await</span> drive.<span class="fn">search</span>(<span class="str">'slot'</span>);
+<span class="kw">for</span> (<span class="kw">const</span> f <span class="kw">of</span> results) {
+  console.<span class="fn">log</span>(<span class="kw">await</span> drive.<span class="fn">getPath</span>(f.id), f.size);
+}</code></pre>
+
+<hr>
+
+<!-- ═══ FOLDER ═══ -->
+<h2>フォルダ</h2>
+
+<h3 id="m-createFolder"><code>createFolder(path)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">createFolder</span>(<span class="param">path</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="ret">string</span>&gt;
+</div>
+
+<p>フォルダを冪等に作成（中間フォルダも自動作成、既存はスキップ）。返り値は末端フォルダの ID。</p>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> folderId = <span class="kw">await</span> drive.<span class="fn">createFolder</span>(<span class="str">'/saves/2024/april'</span>);
+<span class="cm">// '/saves', '/saves/2024', '/saves/2024/april' を順に作成（存在すればスキップ）</span></code></pre>
+
+<hr>
+
+<!-- ═══ FILE CRUD ═══ -->
+<h2>ファイル CRUD</h2>
+
+<h3 id="m-getFile"><code>getFile(pathOrId, as?)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">getFile</span>(<span class="param">pathOrId</span>: <span class="type">string</span>, <span class="param">as</span>?: <span class="type">'auto'|'json'|'text'|'arraybuffer'|'blob'</span>): <span class="type">Promise</span>&lt;<span class="ret">any</span>&gt;
+</div>
+
+<table>
+  <tr><th><code>as</code></th><th>戻り値</th><th>自動選択される拡張子</th></tr>
+  <tr><td><code>'auto'</code>（デフォルト）</td><td>拡張子で自動判定</td><td>—</td></tr>
+  <tr><td><code>'json'</code></td><td><code>object</code></td><td><code>.json</code></td></tr>
+  <tr><td><code>'text'</code></td><td><code>string</code></td><td><code>.txt .md .csv .tsv .html .xml</code></td></tr>
+  <tr><td><code>'arraybuffer'</code></td><td><code>ArrayBuffer</code></td><td><code>.png .jpg .jpeg .gif .webp .pdf .zip .bin</code></td></tr>
+  <tr><td><code>'blob'</code></td><td><code>Blob</code></td><td>—</td></tr>
+</table>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// JSON（拡張子から自動で object）</span>
+<span class="kw">const</span> config = <span class="kw">await</span> drive.<span class="fn">getFile</span>(<span class="str">'/config/settings.json'</span>);
+
+<span class="cm">// テキスト</span>
+<span class="kw">const</span> readme = <span class="kw">await</span> drive.<span class="fn">getFile</span>(<span class="str">'/docs/readme.md'</span>, <span class="str">'text'</span>);
+
+<span class="cm">// 画像 → &lt;img&gt; に表示</span>
+<span class="kw">const</span> buf = <span class="kw">await</span> drive.<span class="fn">getFile</span>(<span class="str">'/assets/icon.png'</span>, <span class="str">'arraybuffer'</span>);
+<span class="kw">const</span> url = URL.<span class="fn">createObjectURL</span>(<span class="kw">new</span> Blob([buf], { type: <span class="str">'image/png'</span> }));
+document.<span class="fn">getElementById</span>(<span class="str">'icon'</span>).src = url;
+
+<span class="cm">// ID で取得</span>
+<span class="kw">const</span> data = <span class="kw">await</span> drive.<span class="fn">getFile</span>(<span class="str">'aBcDeFgHiJkLmNoPqRsTuV'</span>, <span class="str">'json'</span>);
+
+<span class="cm">// ファイルが存在しない場合のハンドリング</span>
+<span class="kw">try</span> {
+  <span class="kw">const</span> save = <span class="kw">await</span> drive.<span class="fn">getFile</span>(<span class="str">'/saves/slot3.json'</span>);
+} <span class="kw">catch</span> (e) {
+  <span class="kw">if</span> (e.code === <span class="str">'FILE_NOT_FOUND'</span>) console.<span class="fn">log</span>(<span class="str">'セーブデータなし'</span>);
+}</code></pre>
+
+<h3 id="m-saveFile"><code>saveFile(path, data, opts?)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">saveFile</span>(<span class="param">path</span>: <span class="type">string</span>, <span class="param">data</span>: <span class="type">object|string|ArrayBuffer|Uint8Array|Blob</span>, <span class="param">opts</span>?: <span class="type">object</span>): <span class="type">Promise</span>&lt;<span class="ret">{id, name, modifiedTime}</span>&gt;
+</div>
+
+<p>作成 or 上書き保存。親フォルダは自動作成。</p>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// JSON</span>
+<span class="kw">const</span> file = <span class="kw">await</span> drive.<span class="fn">saveFile</span>(<span class="str">'/config/settings.json'</span>, {
+  theme: <span class="str">'dark'</span>, volume: <span class="num">0.8</span>, lang: <span class="str">'ja'</span>,
+});
+console.<span class="fn">log</span>(file.id, file.modifiedTime);
+
+<span class="cm">// テキスト</span>
+<span class="kw">await</span> drive.<span class="fn">saveFile</span>(<span class="str">'/logs/today.txt'</span>, <span class="str">'起動: 09:00\n終了: 17:30'</span>);
+
+<span class="cm">// ArrayBuffer（画像）</span>
+<span class="kw">const</span> buf = <span class="kw">await</span> (<span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'/local/avatar.png'</span>)).<span class="fn">arrayBuffer</span>();
+<span class="kw">await</span> drive.<span class="fn">saveFile</span>(<span class="str">'/profile/avatar.png'</span>, buf, { mimeType: <span class="str">'image/png'</span> });
+
+<span class="cm">// canvas → PNG</span>
+<span class="kw">const</span> blob = <span class="kw">await</span> <span class="kw">new</span> <span class="cls">Promise</span>(r => canvas.<span class="fn">toBlob</span>(r, <span class="str">'image/png'</span>));
+<span class="kw">await</span> drive.<span class="fn">saveFile</span>(<span class="str">'/screenshots/shot1.png'</span>, blob, { mimeType: <span class="str">'image/png'</span> });
+
+<span class="cm">// appProperties（Drive の独自 KV）を付与</span>
+<span class="kw">await</span> drive.<span class="fn">saveFile</span>(<span class="str">'/saves/slot1.json'</span>, saveData, {
+  meta: { appProperties: { version: <span class="str">'2'</span>, stage: <span class="str">'5'</span> } },
+});</code></pre>
+
+<h3 id="m-copyFile"><code>copyFile(srcPathOrId, destPath)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">copyFile</span>(<span class="param">srcPathOrId</span>: <span class="type">string</span>, <span class="param">destPath</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="ret">{id, name, modifiedTime}</span>&gt;
+</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// バックアップ</span>
+<span class="kw">await</span> drive.<span class="fn">copyFile</span>(<span class="str">'/saves/slot1.json'</span>, <span class="str">'/backups/slot1_20240401.json'</span>);
+
+<span class="cm">// ID から</span>
+<span class="kw">await</span> drive.<span class="fn">copyFile</span>(<span class="str">'aBcDeFgHiJkLmNoPqRsTuV'</span>, <span class="str">'/saves/slot2.json'</span>);</code></pre>
+
+<h3 id="m-moveFile"><code>moveFile(pathOrId, newPath)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">moveFile</span>(<span class="param">pathOrId</span>: <span class="type">string</span>, <span class="param">newPath</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="ret">object</span>&gt;
+</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// リネーム</span>
+<span class="kw">await</span> drive.<span class="fn">moveFile</span>(<span class="str">'/saves/draft.json'</span>, <span class="str">'/saves/final.json'</span>);
+
+<span class="cm">// 別フォルダへ移動（フォルダは自動作成）</span>
+<span class="kw">await</span> drive.<span class="fn">moveFile</span>(<span class="str">'/tmp/data.json'</span>, <span class="str">'/saves/2024/data.json'</span>);
+
+<span class="cm">// 移動 + リネーム同時</span>
+<span class="kw">await</span> drive.<span class="fn">moveFile</span>(<span class="str">'/inbox/report.json'</span>, <span class="str">'/archive/2024/report_done.json'</span>);</code></pre>
+
+<hr>
+
+<!-- ═══ LISTING ═══ -->
+<h2>一覧 / 構造</h2>
+
+<h3 id="m-listFiles"><code>listFiles(pathOrId?)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">listFiles</span>(<span class="param">pathOrId</span>?: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="ret">FileEntry[]</span>&gt;
+</div>
+
+<p>フォルダ直下の一覧。引数なし・<code>''</code>・<code>'/'</code> で appDataFolder 直下。</p>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// ルート直下</span>
+<span class="kw">const</span> root = <span class="kw">await</span> drive.<span class="fn">listFiles</span>();
+
+<span class="cm">// フォルダか判定しながら表示</span>
+<span class="kw">for</span> (<span class="kw">const</span> f <span class="kw">of</span> <span class="kw">await</span> drive.<span class="fn">listFiles</span>(<span class="str">'/saves'</span>)) {
+  <span class="kw">const</span> isFolder = f.mimeType === <span class="str">'application/vnd.google-apps.folder'</span>;
+  <span class="kw">const</span> size     = f.size ? <span class="str">`<span class="cm">${(f.size/<span class="num">1024</span>).toFixed(<span class="num">1</span>)}</span> KB`</span> : <span class="str">'-'</span>;
+  <span class="kw">const</span> date     = <span class="kw">new</span> <span class="cls">Date</span>(f.modifiedTime).<span class="fn">toLocaleString</span>(<span class="str">'ja-JP'</span>);
+  console.<span class="fn">log</span>(<span class="str">`<span class="cm">${isFolder ? '📁' : '📄'}</span> <span class="cm">${f.name}</span>  <span class="cm">${size}</span>  <span class="cm">${date}</span>`</span>);
+}</code></pre>
+
+<h3 id="m-getStructure"><code>getStructure()</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">getStructure</span>(): <span class="type">Promise</span>&lt;<span class="ret">DriveNode</span>&gt;
+</div>
+
+<p>appDataFolder 全体のツリーを 1 回の API で取得。<code>DriveNode = { id, name, type:'folder'|'file', size?, modifiedTime?, children? }</code></p>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> tree = <span class="kw">await</span> drive.<span class="fn">getStructure</span>();
+
+<span class="cm">// 全ファイルをフラットに列挙</span>
+<span class="kw">function</span> <span class="fn">flatten</span>(node, path = <span class="str">''</span>) {
+  <span class="kw">const</span> cur = path + <span class="str">'/'</span> + node.name;
+  <span class="kw">if</span> (node.type === <span class="str">'file'</span>) <span class="kw">return</span> [{ path: cur, size: node.size, id: node.id }];
+  <span class="kw">return</span> (node.children ?? []).<span class="fn">flatMap</span>(c => <span class="fn">flatten</span>(c, cur));
+}
+<span class="kw">const</span> all = <span class="fn">flatten</span>(tree);
+
+<span class="cm">// ツリーを &lt;ul&gt; でレンダリング</span>
+<span class="kw">function</span> <span class="fn">renderTree</span>(node, ul = document.<span class="fn">createElement</span>(<span class="str">'ul'</span>)) {
+  <span class="kw">const</span> li = document.<span class="fn">createElement</span>(<span class="str">'li'</span>);
+  li.textContent = (node.type === <span class="str">'folder'</span> ? <span class="str">'📁 '</span> : <span class="str">'📄 '</span>) + node.name;
+  ul.<span class="fn">appendChild</span>(li);
+  <span class="kw">if</span> (node.children) {
+    <span class="kw">const</span> sub = document.<span class="fn">createElement</span>(<span class="str">'ul'</span>);
+    node.children.<span class="fn">forEach</span>(c => <span class="fn">renderTree</span>(c, sub));
+    li.<span class="fn">appendChild</span>(sub);
+  }
+  <span class="kw">return</span> ul;
+}
+document.body.<span class="fn">appendChild</span>(<span class="fn">renderTree</span>(tree));</code></pre>
+
+<hr>
+
+<!-- ═══ SEARCH / META ═══ -->
+<h2>検索 / メタデータ</h2>
+
+<h3 id="m-search"><code>search(query, opts?)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">search</span>(<span class="param">query</span>: <span class="type">string</span>, <span class="param">opts</span>?: <span class="type">{ mimeType?, limit? }</span>): <span class="type">Promise</span>&lt;<span class="ret">FileEntry[]</span>&gt;
+</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// 名前に 'slot' を含む</span>
+<span class="kw">const</span> results = <span class="kw">await</span> drive.<span class="fn">search</span>(<span class="str">'slot'</span>);
+
+<span class="cm">// JSON ファイルのみ</span>
+<span class="kw">const</span> jsonFiles = <span class="kw">await</span> drive.<span class="fn">search</span>(<span class="str">''</span>, { mimeType: <span class="str">'application/json'</span> });
+
+<span class="cm">// 件数制限（デフォルト 50）</span>
+<span class="kw">const</span> top5 = <span class="kw">await</span> drive.<span class="fn">search</span>(<span class="str">'save'</span>, { limit: <span class="num">5</span> });</code></pre>
+
+<h3 id="m-getMeta"><code>getMeta(pathOrId, fields?)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">getMeta</span>(<span class="param">pathOrId</span>: <span class="type">string</span>, <span class="param">fields</span>?: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="ret">object</span>&gt;
+</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// デフォルト（id, name, mimeType, size, modifiedTime, parents）</span>
+<span class="kw">const</span> meta = <span class="kw">await</span> drive.<span class="fn">getMeta</span>(<span class="str">'/saves/slot1.json'</span>);
+
+<span class="cm">// appProperties も取得</span>
+<span class="kw">const</span> m = <span class="kw">await</span> drive.<span class="fn">getMeta</span>(<span class="str">'/saves/slot1.json'</span>, <span class="str">'id,name,appProperties'</span>);
+console.<span class="fn">log</span>(m.appProperties); <span class="cm">// { version: '2', stage: '5' }</span></code></pre>
+
+<h3 id="m-updateMeta"><code>updateMeta(pathOrId, meta)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">updateMeta</span>(<span class="param">pathOrId</span>: <span class="type">string</span>, <span class="param">meta</span>: <span class="type">object</span>): <span class="type">Promise</span>&lt;<span class="ret">object</span>&gt;
+</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// リネーム</span>
+<span class="kw">await</span> drive.<span class="fn">updateMeta</span>(<span class="str">'/saves/slot1.json'</span>, { name: <span class="str">'slot1_cleared.json'</span> });
+
+<span class="cm">// appProperties 更新</span>
+<span class="kw">await</span> drive.<span class="fn">updateMeta</span>(<span class="str">'/saves/slot1.json'</span>, {
+  appProperties: { version: <span class="str">'3'</span>, savedAt: <span class="kw">new</span> <span class="cls">Date</span>().<span class="fn">toISOString</span>() },
+});</code></pre>
+
+<hr>
+
+<!-- ═══ DELETE ═══ -->
+<h2>削除</h2>
+
+<h3 id="m-remove"><code>remove(pathOrId)</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">remove</span>(<span class="param">pathOrId</span>: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="ret">void</span>&gt;
+</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">await</span> drive.<span class="fn">remove</span>(<span class="str">'/tmp/draft.json'</span>);
+<span class="kw">await</span> drive.<span class="fn">remove</span>(<span class="str">'/tmp'</span>);                       <span class="cm">// フォルダごと</span>
+<span class="kw">await</span> drive.<span class="fn">remove</span>(<span class="str">'aBcDeFgHiJkLmNoPqRsTuV'</span>);  <span class="cm">// ID でも可</span></code></pre>
+
+<h3 id="m-removeAll"><code>removeAll()</code></h3>
+
+<div class="sig">
+  <span class="kw">async</span> <span class="method">removeAll</span>(): <span class="type">Promise</span>&lt;<span class="ret">void</span>&gt;
+</div>
+
+<div class="callout callout-warn">⚠ appDataFolder 内を全消去します。不可逆です。</div>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">if</span> (<span class="fn">confirm</span>(<span class="str">'全データを削除しますか？'</span>)) {
+  <span class="kw">await</span> drive.<span class="fn">removeAll</span>();
+}</code></pre>
+
+<hr>
+
+<!-- ═══ EXAMPLES ═══ -->
+<h2>実装パターン</h2>
+
+<h3 id="ex-game">ゲームのセーブ・ロード</h3>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> drive = <span class="kw">new</span> <span class="cls">DriveAPIManager</span>({ clientId: <span class="str">'...'</span>, clientSecret: <span class="str">'...'</span> });
+
+<span class="cm">// 起動時</span>
+<span class="kw">async function</span> <span class="fn">init</span>() {
+  <span class="kw">if</span> (drive.<span class="fn">checker</span>().hasRefreshToken) {
+    <span class="kw">await</span> drive.<span class="fn">auth</span>(<span class="kw">true</span>);
+    <span class="fn">loadGame</span>();
+  } <span class="kw">else</span> {
+    document.<span class="fn">getElementById</span>(<span class="str">'login'</span>).style.display = <span class="str">'block'</span>;
+  }
+}
+
+document.<span class="fn">getElementById</span>(<span class="str">'login'</span>).<span class="fn">addEventListener</span>(<span class="str">'click'</span>, <span class="kw">async</span> () => {
+  <span class="kw">await</span> drive.<span class="fn">auth</span>(<span class="kw">false</span>);
+  <span class="fn">loadGame</span>();
+});
+
+<span class="cm">// セーブ</span>
+<span class="kw">async function</span> <span class="fn">save</span>(slot) {
+  <span class="kw">const</span> data = { stage: currentStage, score, timestamp: Date.<span class="fn">now</span>() };
+  <span class="kw">await</span> drive.<span class="fn">saveFile</span>(<span class="str">`/saves/slot<span class="cm">${slot}</span>.json`</span>, data, {
+    meta: { appProperties: { stage: <span class="cls">String</span>(currentStage) } },
+  });
+}
+
+<span class="cm">// ロード</span>
+<span class="kw">async function</span> <span class="fn">load</span>(slot) {
+  <span class="kw">try</span> {
+    <span class="kw">return await</span> drive.<span class="fn">getFile</span>(<span class="str">`/saves/slot<span class="cm">${slot}</span>.json`</span>);
+  } <span class="kw">catch</span> (e) {
+    <span class="kw">if</span> (e.code === <span class="str">'FILE_NOT_FOUND'</span>) <span class="kw">return null</span>;
+    <span class="kw">throw</span> e;
+  }
+}
+
+<span class="cm">// セーブ一覧</span>
+<span class="kw">async function</span> <span class="fn">getSaveList</span>() {
+  <span class="kw">const</span> files = <span class="kw">await</span> drive.<span class="fn">listFiles</span>(<span class="str">'/saves'</span>);
+  <span class="kw">return</span> files.<span class="fn">map</span>(f => ({
+    slot: f.name.<span class="fn">replace</span>(<span class="str">'slot'</span>, <span class="str">''</span>).<span class="fn">replace</span>(<span class="str">'.json'</span>, <span class="str">''</span>),
+    date: <span class="kw">new</span> <span class="cls">Date</span>(f.modifiedTime).<span class="fn">toLocaleString</span>(<span class="str">'ja-JP'</span>),
+    size: f.size,
+  }));
+}</code></pre>
+
+<h3 id="ex-config">設定の同期</h3>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> DEFAULTS = { theme: <span class="str">'light'</span>, lang: <span class="str">'ja'</span>, volume: <span class="num">1.0</span> };
+
+<span class="kw">async function</span> <span class="fn">loadPrefs</span>() {
+  <span class="kw">try</span> {
+    <span class="kw">return</span> { ...DEFAULTS, ...<span class="kw">await</span> drive.<span class="fn">getFile</span>(<span class="str">'/config/prefs.json'</span>) };
+  } <span class="kw">catch</span> (e) {
+    <span class="kw">if</span> (e.code === <span class="str">'FILE_NOT_FOUND'</span>) <span class="kw">return</span> DEFAULTS;
+    <span class="kw">throw</span> e;
+  }
+}
+
+<span class="kw">async function</span> <span class="fn">savePrefs</span>(prefs) {
+  <span class="kw">await</span> drive.<span class="fn">saveFile</span>(<span class="str">'/config/prefs.json'</span>, prefs);
+}</code></pre>
+
+<h3 id="ex-image">画像アップロード＋ギャラリー表示</h3>
+
+<pre><button class="copy-btn">copy</button><code><span class="cm">// input[type=file] からアップロード</span>
+document.<span class="fn">getElementById</span>(<span class="str">'upload'</span>).<span class="fn">addEventListener</span>(<span class="str">'change'</span>, <span class="kw">async</span> (e) => {
+  <span class="kw">const</span> file = e.target.files[<span class="num">0</span>];
+  <span class="kw">if</span> (!file) <span class="kw">return</span>;
+  <span class="kw">await</span> drive.<span class="fn">saveFile</span>(<span class="str">`/images/<span class="cm">${file.name}</span>`</span>, file, { mimeType: file.type });
+});
+
+<span class="cm">// ギャラリー表示</span>
+<span class="kw">async function</span> <span class="fn">showGallery</span>() {
+  <span class="kw">const</span> images = <span class="kw">await</span> drive.<span class="fn">search</span>(<span class="str">''</span>, { mimeType: <span class="str">'image/png'</span>, limit: <span class="num">50</span> });
+  <span class="kw">for</span> (<span class="kw">const</span> f <span class="kw">of</span> images) {
+    <span class="kw">const</span> buf = <span class="kw">await</span> drive.<span class="fn">getFile</span>(f.id, <span class="str">'arraybuffer'</span>);
+    <span class="kw">const</span> img = document.<span class="fn">createElement</span>(<span class="str">'img'</span>);
+    img.src   = URL.<span class="fn">createObjectURL</span>(<span class="kw">new</span> Blob([buf], { type: <span class="str">'image/png'</span> }));
+    document.<span class="fn">getElementById</span>(<span class="str">'gallery'</span>).<span class="fn">appendChild</span>(img);
+  }
+}</code></pre>
+
+<h3 id="ex-export">全データのエクスポート（ダウンロード）</h3>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">async function</span> <span class="fn">exportAll</span>() {
+  <span class="kw">const</span> tree     = <span class="kw">await</span> drive.<span class="fn">getStructure</span>();
+  <span class="kw">const</span> allFiles = [];
+
+  <span class="kw">async function</span> <span class="fn">walk</span>(node, path) {
+    <span class="kw">if</span> (node.type === <span class="str">'file'</span>) {
+      <span class="kw">const</span> content = <span class="kw">await</span> drive.<span class="fn">getFile</span>(node.id, <span class="str">'text'</span>);
+      allFiles.<span class="fn">push</span>({ path: path + <span class="str">'/'</span> + node.name, content });
+    } <span class="kw">else</span> {
+      <span class="kw">for</span> (<span class="kw">const</span> child <span class="kw">of</span> node.children ?? [])
+        <span class="kw">await</span> <span class="fn">walk</span>(child, path + <span class="str">'/'</span> + node.name);
+    }
+  }
+  <span class="kw">await</span> <span class="fn">walk</span>(tree, <span class="str">''</span>);
+
+  <span class="kw">const</span> blob = <span class="kw">new</span> Blob([<span class="cls">JSON</span>.<span class="fn">stringify</span>(allFiles, <span class="kw">null</span>, <span class="num">2</span>)], { type: <span class="str">'application/json'</span> });
+  <span class="kw">const</span> a   = document.<span class="fn">createElement</span>(<span class="str">'a'</span>);
+  a.href     = URL.<span class="fn">createObjectURL</span>(blob);
+  a.download = <span class="str">'export.json'</span>;
+  a.<span class="fn">click</span>();
+}</code></pre>
+
+<h3 id="ex-progress">progress コールバックで進捗表示</h3>
+
+<pre><button class="copy-btn">copy</button><code><span class="kw">const</span> drive = <span class="kw">new</span> <span class="cls">DriveAPIManager</span>({
+  clientId:     <span class="str">'...'</span>,
+  clientSecret: <span class="str">'...'</span>,
+  progress: (phase, detail) => {
+    <span class="kw">const</span> map = {
+      <span class="str">'auth:start'</span>:      <span class="str">'認証中…'</span>,
+      <span class="str">'auth:memory_hit'</span>: <span class="str">'✅ 認証済み'</span>,
+      <span class="str">'auth:refreshing'</span>: <span class="str">'🔄 トークン更新中…'</span>,
+      <span class="str">'auth:done'</span>:       <span class="str">'✅ ログイン完了'</span>,
+      <span class="str">'auth:signed_out'</span>: <span class="str">'サインアウトしました'</span>,
+    };
+    <span class="kw">const</span> key = <span class="str">`<span class="cm">${phase}</span>:<span class="cm">${detail}</span>`</span>;
+    <span class="kw">const</span> prefix = {
+      saveFile:     <span class="str">'💾 保存中: '</span>,
+      createFolder: <span class="str">'📁 フォルダ作成: '</span>,
+      remove:       <span class="str">'🗑 削除: '</span>,
+      removeAll:    <span class="str">'🗑 全消去: '</span>,
+    };
+    <span class="kw">const</span> msg = map[key] ?? (prefix[phase] ? prefix[phase] + detail : <span class="kw">null</span>);
+    <span class="kw">if</span> (msg) document.<span class="fn">getElementById</span>(<span class="str">'status'</span>).textContent = msg;
+  },
+});</code></pre>
+
+</main>
+</div>
+
+<script>
+  // コピーボタン
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.parentElement.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = 'copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
+      });
+    });
+  });
+
+  // サイドバー active
+  const links = document.querySelectorAll('nav a');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const a = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  document.querySelectorAll('h2[id], h3[id]').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
