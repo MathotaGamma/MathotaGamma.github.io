@@ -124,7 +124,7 @@
   </div>
 
   <script type="module">
-    import DriveAPIManager from './manager.js';
+    import DriveAPIManager from '/statics/drive-api-manager/ver-4_0/manager.js';
 
     let drive = null;
     const logEl = document.getElementById('logger');
@@ -164,7 +164,7 @@
       drive = new DriveAPIManager({
         clientId,
         clientSecret,
-        redirectUri: 'https://mathotagamma.github.io/static/drive-manager-api/ver-4_0/oauth2callback.html',
+        redirectUri: 'https://mathotagamma.github.io/statics/oauth2callback.html',
         progress: (phase, detail) => {
           log(`Progress Callback -> ${phase}`, detail, 'prog');
         }
