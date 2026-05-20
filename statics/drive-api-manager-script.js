@@ -96,10 +96,11 @@ class DriveAPIManager {
    * ──────────────────────────────────────────────────────────────────────────
    */
   constructor(opts = {}) {
-    this.CLIENT_ID    = opts.clientId    ?? 'API_ID';
-    this.REDIRECT_URI = opts.redirectUri ?? `${location.origin}/oauth2callback`;
-    this.SCOPES       = opts.scope       ?? 'https://www.googleapis.com/auth/drive.appdata';
-    this.progress     = opts.progress    ?? (() => {});
+    this.CLIENT_ID     = opts.clientId     ?? 'API_ID';
+    this.CLIENT_SECRET = opts.clientSecret ?? null;   // ウェブアプリタイプ用（省略可）
+    this.REDIRECT_URI  = opts.redirectUri  ?? `${location.origin}/oauth2callback`;
+    this.SCOPES        = opts.scope        ?? 'https://www.googleapis.com/auth/drive.appdata';
+    this.progress      = opts.progress     ?? (() => {});
 
     // ─── モード設定 ────────────────────────────────────────────────────────
     this.MODE         = opts.mode        ?? 'client';   // 'client' | 'server'
@@ -362,30 +363,37 @@ class DriveAPIManager {
   }
 
   async #exchangeCode(code, verifier) {
+    const params = {
+      client_id:     this.CLIENT_ID,
+      redirect_uri:  this.REDIRECT_URI,
+      grant_type:    'authorization_code',
+      code,
+      code_verifier: verifier,
+    };
+    // ウェブアプリタイプの場合は client_secret が必要
+    if (this.CLIENT_SECRET) params.client_secret = this.CLIENT_SECRET;
+
     const res = await fetch(DriveAPIManager.#TOKEN_EP, {
       method:  'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id:     this.CLIENT_ID,
-        redirect_uri:  this.REDIRECT_URI,
-        grant_type:    'authorization_code',
-        code,
-        code_verifier: verifier,
-      }),
+      body:    new URLSearchParams(params),
     });
     if (!res.ok) throw this.#err(await res.json(), 'TOKEN_EXCHANGE_FAILED');
     await this.#applyToken(await res.json());
   }
 
   async #doClientRefresh(rt) {
+    const params = {
+      client_id:     this.CLIENT_ID,
+      grant_type:    'refresh_token',
+      refresh_token: rt,
+    };
+    if (this.CLIENT_SECRET) params.client_secret = this.CLIENT_SECRET;
+
     const res = await fetch(DriveAPIManager.#TOKEN_EP, {
       method:  'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id:     this.CLIENT_ID,
-        grant_type:    'refresh_token',
-        refresh_token: rt,
-      }),
+      body:    new URLSearchParams(params),
     });
     if (!res.ok) throw this.#err(await res.json(), 'REFRESH_FAILED');
     const data = await res.json();
