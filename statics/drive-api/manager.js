@@ -1,28 +1,34 @@
 class DriveAPIManager {
-  constructor() {
+  constructor({clientId, redirectUri}) {
+    if (!client_id || !redirect_uri)
+      throw new Error('引数にclient_idとredirect_uriを含めてください。');
+    
+    this.clientId = clientId;
+    this.redirectUri = redirectUri;
+    
     this.state = {
       login: false,
       token: null
     };
-    this.pollTimer = null; // iPad対策のタイマー保持用
+
+    this._progress = null;
+    this._authPromise = null;
+  }
+
+  progress(method, state) {
+    this._progress = {method, state}
   }
   
-  oauthSignIn(client_id, redirect_uri, callback=null) {
+  async auth() {
+    if (this._authPromise) return this._authPromise;
+    
     const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
     
-    if (!client_id || !redirect_uri) {
-      return {
-        ok: false,
-        message: '引数にclient_idとredirect_uriを含めてください。'
-      };
-    }
-
-    // 💡 念のため前回の古い認証データをクリアしておく
     localStorage.removeItem('oauth_result');
 
     const params = {
-      client_id,
-      redirect_uri,
+      client_id: this.clientId,
+      redirect_uri: this.redirectUri,
       response_type: 'token',
       scope: 'https://www.googleapis.com/auth/drive.appdata',
       state: 'debug_implicit_test'
@@ -37,44 +43,36 @@ class DriveAPIManager {
     window.open(targetUrl, popupName, 'width=500,height=600,left=100,top=100,menubar=no,toolbar=no,location=no,status=no');
 
     // 3. 💡 iPad対策: バックグラウンドのタブでも確実にトークンを回収するポーリングを開始
-    this.#startPolling(callback);
-
-    return { ok: true, message: '認証ポップアップを開きました。' };
-  }
-
-  /** 💡 [Private Method] localStorage を毎秒監視してトークンを回収する */
-  #startPolling(callback=null) {
-    if (this.pollTimer) clearInterval(this.pollTimer);
-
-    this.pollTimer = setInterval(() => {
-      const rawResult = localStorage.getItem('oauth_result');
+    this._authPromise = new Promise((resolve, reject) => {
+      const pollTimer = setInterval(() => {
+        const rawResult = localStorage.getItem('oauth_result');
       
-      if (rawResult) {
-        // タイマーを止める
-        clearInterval(this.pollTimer);
-        this.pollTimer = null;
+        if (rawResult) {
+          // タイマーを止める
+          clearInterval(pollTimer);
+          
 
-        try {
-          const data = JSON.parse(rawResult);
-          localStorage.removeItem('oauth_result'); // 使用済みのデータを即時削除
+          try {
+            const data = JSON.parse(rawResult);
+            localStorage.removeItem('oauth_result'); // 使用済みのデータを即時削除
 
-          if (data.error) {
-            console.error('OAuth エラー:', data.error);
-            return;
+            if (data.error) reject(data.error);
+
+            if (data.code) { // Implicit Flowの場合は access_token がここに入る
+              // 💡 認証成功: クラスのステートを更新
+              this.state.login = true;
+              this.state.token = data.code;
+
+              resolve(this.state.token);
+            }
+          } catch (e) {
+            reject(e);
           }
-
-          if (data.code) { // Implicit Flowの場合は access_token がここに入る
-            // 💡 認証成功: クラスのステートを更新
-            this.state.login = true;
-            this.state.token = data.code;
-
-            callback();
-          }
-        } catch (e) {
-          throw new Error('パースエラー:'+e.message);
         }
-      }
-    }, 200); // 1秒ごとにストレージを確認
+      }, 200); // 1秒ごとにストレージを確認
+    }
+
+    return { ok: true, data: this._authPromise };
   }
 }
 
