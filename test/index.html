@@ -2,30 +2,66 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
-    <title>テスト</title>
+    <title>OAuth2 テスト送信フォーム</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background-color: #1e1e2e;
+        color: #cdd6f4;
+        padding: 40px;
+        text-align: center;
+      }
+      h1 {
+        color: #89b4fa;
+        margin-bottom: 30px;
+      }
+      .btn-auth {
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        background-color: #89b4fa;
+        color: #11111b;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+      .btn-auth:hover {
+        opacity: 0.9;
+      }
+    </style>
   </head>
   <body>
-    <h1>Hello World</h1>
+    <h1>OAuth2 認証テスト (Implicit Flow)</h1>
+    
+    <button class="btn-auth" onclick="oauthSignIn()">
+      Googleアカウントで認証を開始
+    </button>
+
     <script>
-      /*
-       * Create form to request access token from Google's OAuth 2.0 server.
-       */
       function oauthSignIn() {
-        // Google's OAuth 2.0 endpoint for requesting an access token
         var oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
       
-        // Create <form> element to submit parameters to OAuth 2.0 endpoint.
+        var params = {
+          'client_id': '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com',
+          'redirect_uri': 'https://mathotagamma.github.io/statics/oauth2callback',
+          'response_type': 'token',
+          'scope': 'https://www.googleapis.com/auth/drive.appdata',
+          'state': 'debug_implicit_test'
+        };
+
+        // 1. 同一画面を遷移させないために、あらかじめ「oauth_popup」という名前でポップアップ窓を開く
+        var popupName = 'oauth_popup';
+        window.open('', popupName, 'width=500,height=600,left=100,top=100,menubar=no,toolbar=no,location=no,status=no');
+
+        // 2. フォームを生成
         var form = document.createElement('form');
-        form.setAttribute('method', 'GET'); // Send as a GET request.
+        form.setAttribute('method', 'GET');
         form.setAttribute('action', oauth2Endpoint);
+        
+        // 3. ターゲットを上で開いたポップアップ（別タブ/別窓）に指定
+        form.setAttribute('target', popupName);
       
-        // Parameters to pass to OAuth 2.0 endpoint.
-        var params = {'client_id': '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com',
-                      'redirect_uri': 'https://mathotagamma.github.io/statics/oauth2callback',
-                      'response_type': 'token',
-                      'scope': 'https://www.googleapis.com/auth/drive.appdata'};
-      
-        // Add form parameters as hidden input values.
         for (var p in params) {
           var input = document.createElement('input');
           input.setAttribute('type', 'hidden');
@@ -34,12 +70,23 @@
           form.appendChild(input);
         }
       
-        // Add form to page and submit it to open the OAuth 2.0 endpoint.
         document.body.appendChild(form);
         form.submit();
+        
+        // 送信が完了したら不要なフォーム要素を即座に削除
+        document.body.removeChild(form);
       }
-      
-      oauthSignIn();
+
+      // ポップアップ側の oauth2callback から postMessage を受け取るためのリスナー例
+      window.addEventListener('message', function(event) {
+        if (event.origin !== 'https://mathotagamma.github.io') return;
+        
+        // 受け取ったトークン等の処理
+        if (event.data && (event.data.type === 'implicit_token' || event.data.type === 'oauth_callback')) {
+          console.log('認証データを受信しました:', event.data);
+          alert('認証に成功しました！トークンを取得しました。');
+        }
+      });
     </script>
   </body>
 </html>
