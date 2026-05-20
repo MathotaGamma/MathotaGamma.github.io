@@ -1013,11 +1013,11 @@ class DriveAPIManager {
   /** Google 認可エンドポイントを別ウィンドウ(ポップアップ)で開いて認可コードを待機 */
   async #openAuthPopup() {
     const verifier = this.#genVerifier();
-    sessionStorage.setItem('dapi_p_verifier', verifier);
+    localStorage.setItem('dapi_p_verifier', verifier);
 
     const challenge = await this.#genChallenge(verifier);
     const state = crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
-    sessionStorage.setItem('dapi_p_state', state);
+    localStorage.setItem('dapi_p_state', state);
 
     const params = new URLSearchParams({
       client_id: this.#clientId,
@@ -1087,8 +1087,8 @@ class DriveAPIManager {
         await this.#saveEncryptedRefreshToken(data.refresh_token);
       }
       
-      sessionStorage.removeItem('dapi_p_verifier');
-      sessionStorage.removeItem('dapi_p_state');
+      localStorage.removeItem('dapi_p_verifier');
+      localStorage.removeItem('dapi_p_state');
       return { ok: true };
     } catch (e) {
       return this.#fail(e, 'exchangeCode');
