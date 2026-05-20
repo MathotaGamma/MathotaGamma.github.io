@@ -1,6 +1,6 @@
 class DriveAPIManager {
   constructor({clientId, redirectUri}) {
-    if (!client_id || !redirect_uri)
+    if (!clientId || !redirectUri)
       throw new Error('引数にclient_idとredirect_uriを含めてください。');
     
     this.clientId = clientId;
@@ -19,11 +19,12 @@ class DriveAPIManager {
     this._progress = {method, state}
   }
   
-  async auth() {
+  auth() {
     if (this._authPromise) return this._authPromise;
+
+    this.progress('auth', 'start');
     
     const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
-    
     localStorage.removeItem('oauth_result');
 
     const params = {
@@ -69,8 +70,8 @@ class DriveAPIManager {
             reject(e);
           }
         }
-      }, 200); // 1秒ごとにストレージを確認
-    }
+      }, 200);
+    });
 
     return { ok: true, data: this._authPromise };
   }
