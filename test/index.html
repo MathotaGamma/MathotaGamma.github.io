@@ -372,7 +372,7 @@
 
     document.getElementById('btnGetEmail').addEventListener('click', () => {
       //runApi('getEmail()', () => drive.getEmail());
-      runApi('getEmail()', () => drive.getAbout());
+      runApi('getEmail()', () => drive.getAbout('user(displayName,emailAddress,photoLink),storageQuota'));
     });
 
     document.getElementById('btnSignOut').addEventListener('click', () => {
