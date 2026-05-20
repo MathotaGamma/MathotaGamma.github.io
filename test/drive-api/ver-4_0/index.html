@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>DriveAPIManager v4 デバッグダッシュボード</title>
+  <style>
+    :root { --bg: #1e1e2e; --panel: #252538; --text: #cdd6f4; --accent: #89b4fa; --border: #45475a; }
+    body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100vh; box-sizing: border-box; }
+    h1, h2, h3 { margin-top: 0; color: var(--accent); }
+    .panel { background: var(--panel); border: 1px solid var(--border); padding: 15px; border-radius: 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+    .section { border: 1px solid var(--border); padding: 10px; border-radius: 6px; background: rgba(0,0,0,0.1); }
+    .row { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
+    input, textarea, select { flex: 1; background: #11111b; border: 1px solid var(--border); color: #fff; padding: 6px; border-radius: 4px; font-family: monospace; }
+    button { background: var(--accent); color: #11111b; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    button:hover { opacity: 0.9; }
+    button.danger { background: #f38ba8; }
+    .console-container { display: flex; flex-direction: column; gap: 10px; height: 100%; }
+    .console { flex: 1; background: #11111b; font-family: monospace; padding: 10px; border-radius: 6px; overflow-y: auto; white-space: pre-wrap; font-size: 13px; border: 1px solid var(--border); }
+    .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: #585b70; }
+    .log-info { color: #a6e3a1; }
+    .log-warn { color: #f9e2af; }
+    .log-err { color: #f38ba8; }
+    .log-prog { color: #b4befe; }
+  </style>
+</head>
+<body>
+
+  <div class="panel">
+    <div>
+      <h1>DriveAPIManager v4 Testbed</h1>
+      <div class="row">
+        <label>Client ID:</label>
+        <input type="text" id="clientId" placeholder="YOUR_CLIENT_ID.apps.googleusercontent.com" style="font-size:11px;">
+      </div>
+      <div class="row">
+        <label>Client Secret:</label>
+        <input type="password" id="clientSecret" placeholder="ウェブアプリの場合に入力（任意）">
+      </div>
+      <div class="row">
+        <button id="btnInit">1. マネージャー初期化</button>
+        <span id="txtStatus" class="status-badge">未初期化</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>AUTH メソッド</h2>
+      <div class="row">
+        <button id="btnAuthSilent">auth(true) サイレント</button>
+        <button id="btnAuthPopup">auth(false) ポップアップ</button>
+        <button id="btnChecker">checker() 状態同期</button>
+      </div>
+      <div class="row">
+        <button id="btnGetEmail">getEmail()</button>
+        <button id="btnSignOut" class="danger">signOut()</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>PATH & FOLDER</h2>
+      <div class="row">
+        <input type="text" id="pathInput" placeholder="パス (例: /saves/slot1.json)">
+        <button id="btnGetFileId">getFileId()</button>
+      </div>
+      <div class="row">
+        <input type="text" id="idInput" placeholder="Drive File ID">
+        <button id="btnGetPath">getPath()</button>
+      </div>
+      <div class="row">
+        <input type="text" id="folderPathInput" placeholder="作成するフォルダパス (例: /saves/2026/test)">
+        <button id="btnCreateFolder">createFolder()</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>FILE CRUD</h2>
+      <div class="row">
+        <input type="text" id="crudPath" placeholder="対象のパス、または ID">
+        <button id="btnGetFile">getFile() 取得</button>
+      </div>
+      <div class="row">
+        <textarea id="crudData" rows="3" placeholder="保存するデータ (文字列 or JSONオブジェクト)"></textarea>
+      </div>
+      <div class="row">
+        <input type="text" id="crudMeta" placeholder='追加メタデータ JSON (例: {"appProperties":{"version":"1"}} )'>
+        <button id="btnSaveFile">saveFile() 保存/上書き</button>
+      </div>
+      <div class="row">
+        <input type="text" id="destPath" placeholder="コピー・移動先フルパス">
+        <button id="btnCopyFile">copyFile()</button>
+        <button id="btnMoveFile">moveFile()</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>LIST / SEARCH / DELETE</h2>
+      <div class="row">
+        <input type="text" id="listTarget" placeholder="対象フォルダパス or ID (空でルート)">
+        <button id="btnListFiles">listFiles()</button>
+        <button id="btnGetStructure">getStructure() 全ツリー</button>
+      </div>
+      <div class="row">
+        <input type="text" id="searchQuery" placeholder="検索キーワード">
+        <input type="text" id="searchMime" placeholder="MIMEタイプ制限（任意）" style="max-width:150px;">
+        <button id="btnSearch">search()</button>
+      </div>
+      <div class="row">
+        <input type="text" id="metaTarget" placeholder="パス or ID">
+        <button id="btnGetMeta">getMeta()</button>
+      </div>
+      <div class="row">
+        <input type="text" id="removeTarget" placeholder="削除対象のパス or ID">
+        <button id="btnRemove" class="danger">remove()</button>
+        <button id="btnRemoveAll" class="danger">removeAll() 全消去</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel console-container">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2>Execution Log & Output</h2>
+      <button id="btnClearLog" style="background:#585b70; color:#fff;">ログクリア</button>
+    </div>
+    <div id="logger" class="console">--- ダッシュボード起動。APIマネージャーを初期化してください ---</div>
+  </div>
+
+  <script type="module">
+    import DriveAPIManager from './manager.js';
+
+    let drive = null;
+    const logEl = document.getElementById('logger');
+
+    // ローカルストレージにClientIDを保存させておくとテストが楽になります
+    if(localStorage.getItem('dapi_debug_cid')) document.getElementById('clientId').value = localStorage.getItem('dapi_debug_cid');
+    if(localStorage.getItem('dapi_debug_sec')) document.getElementById('clientSecret').value = localStorage.getItem('dapi_debug_sec');
+
+    function log(title, obj = null, type = 'info') {
+      const time = new Date().toLocaleTimeString();
+      let msg = `[${time}] [${title}]`;
+      if (obj !== null) {
+        msg += '\n' + (typeof obj === 'object' ? JSON.stringify(obj, null, 2) : obj);
+      }
+      
+      const span = document.createElement('div');
+      span.className = `log-${type}`;
+      span.textContent = msg + '\n--------------------------------------';
+      logEl.appendChild(span);
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(`[${title}]`, obj);
+    }
+
+    // 1. 初期化
+    document.getElementById('btnInit').addEventListener('click', () => {
+      const clientId = document.getElementById('clientId').value.trim();
+      const clientSecret = document.getElementById('clientSecret').value.trim() || null;
+
+      if (!clientId) {
+        alert('Client ID を入力してください');
+        return;
+      }
+
+      localStorage.setItem('dapi_debug_cid', clientId);
+      localStorage.setItem('dapi_debug_sec', clientSecret || '');
+
+      drive = new DriveAPIManager({
+        clientId,
+        clientSecret,
+        redirectUri: 'https://mathotagamma.github.io/static/drive-manager-api/ver-4_0/oauth2callback.html',
+        progress: (phase, detail) => {
+          log(`Progress Callback -> ${phase}`, detail, 'prog');
+        }
+      });
+
+      document.getElementById('txtStatus').textContent = '初期化済';
+      document.getElementById('txtStatus').style.background = '#a6e3a1';
+      document.getElementById('txtStatus').style.color = '#11111b';
+      log('Manager Initialized', { clientId, redirectUri: drive.REDIRECT_URI });
+    });
+
+    // マネージャーインスタンスチェック用ラッパー
+    async function execute(actionName, callback) {
+      if (!drive) {
+        alert('最初に「1. マネージャー初期化」ボタンを押してください。');
+        return;
+      }
+      log(`${actionName} - 実行開始`);
+      try {
+        await callback();
+      } catch (err) {
+        log(`${actionName} - キャッチされた例外`, err.message, 'err');
+      }
+    }
+
+    // ログクリア
+    document.getElementById('btnClearLog').addEventListener('click', () => logEl.innerHTML = '');
+
+    // ─── AUTH ───
+    document.getElementById('btnAuthSilent').addEventListener('click', () => execute('auth(true)', async () => {
+      const res = await drive.auth(true);
+      log('auth(true) 結果', res, res.ok ? 'info' : 'warn');
+    }));
+
+    document.getElementById('btnAuthPopup').addEventListener('click', () => execute('auth(false)', async () => {
+      const res = await drive.auth(false);
+      log('auth(false) 結果', res, res.ok ? 'info' : 'warn');
+    }));
+
+    document.getElementById('btnChecker').addEventListener('click', () => execute('checker()', () => {
+      const status = drive.checker();
+      log('checker() 内部状態スナップショット', status);
+    }));
+
+    document.getElementById('btnGetEmail').addEventListener('click', () => execute('getEmail()', async () => {
+      const res = await drive.getEmail();
+      log('getEmail() 結果', res, res.ok ? 'info' : 'err');
+    }));
+
+    document.getElementById('btnSignOut').addEventListener('click', () => execute('signOut()', async () => {
+      const res = await drive.signOut();
+      log('signOut() 結果', res);
+    }));
+
+    // ─── PATH & FOLDER ───
+    document.getElementById('btnGetFileId').addEventListener('click', () => execute('getFileId()', async () => {
+      const path = document.getElementById('pathInput').value;
+      const res = await drive.getFileId(path);
+      log(`getFileId("${path}") 結果`, res, res.ok ? 'info' : 'err');
+    }));
+
+    document.getElementById('btnGetPath').addEventListener('click', () => execute('getPath()', async () => {
+      const id = document.getElementById('idInput').value;
+      const res = await drive.getPath(id);
+      log(`getPath("${id}") 結果`, res, res.ok ? 'info' : 'err');
+    }));
+
+    document.getElementById('btnCreateFolder').addEventListener('click', () => execute('createFolder()', async () => {
+      const path = document.getElementById('folderPathInput').value;
+      const res = await drive.createFolder(path);
+      log(`createFolder("${path}") 結果`, res, res.ok ? 'info' : 'err');
+    }));
+
+    // ─── FILE CRUD ───
+    document.getElementById('btnGetFile').addEventListener('click', () => execute('getFile()', async () => {
+      const target = document.getElementById('crudPath').value;
+      const res = await drive.getFile(target);
+      if (res.ok) {
+        const textContent = await res.file.text();
+        log(`getFile("${target}") 成功`, {
+          name: res.file.name,
+          type: res.file.type,
+          size: res.file.size,
+          textPayload: textContent
+        });
+      } else {
+        log(`getFile("${target}") 失敗`, res, 'err');
+      }
+    }));
+
+    document.getElementById('btnSaveFile').addEventListener('click', () => execute('saveFile()', async () => {
+      const path = document.getElementById('crudPath').value;
+      let rawData = document.getElementById('crudData').value;
+      const rawMeta = document.getElementById('crudMeta').value;
+
+      // JSONパースを試みる。失敗したら文字列として送信
+      let data = rawData;
+      try { data = JSON.parse(rawData); } catch(_) {}
+
+      let metadata = {};
+      if (rawMeta.trim()) {
+        try { metadata = JSON.parse(rawMeta); } catch(e) { log('Metadata JSON パースエラー', e.message, 'warn'); }
+      }
+
+      const res = await drive.saveFile(path, data, metadata);
+      log(`saveFile("${path}") 結果`, res, res.ok ? 'info' : 'err');
+    }));
+
+    document.getElementById('btnCopyFile').addEventListener('click', () => execute('copyFile()', async () => {
+      const src = document.getElementById('crudPath').value;
+      const dest = document.getElementById('destPath').value;
+      const res = await drive.copyFile(src, dest);
+      log(`copyFile から: ${src} -> へ: ${dest} 結果`, res, res.ok ? 'info' : 'err');
+    }));
+
+    document.getElementById('btnMoveFile').addEventListener('click', () => execute('moveFile()', async () => {
+      const src = document.getElementById('crudPath').value;
+      const dest = document.getElementById('destPath').value;
+      const res = await drive.moveFile(src, dest);
+      log(`moveFile から: ${src} -> へ: ${dest} 結果`, res, res.ok ? 'info' : 'err');
+    }));
+
+    // ─── LIST, SEARCH & DELETE ───
+    document.getElementById('btnListFiles').addEventListener('click', () => execute('listFiles()', async () => {
+      const target = document.getElementById('listTarget').value;
+      const res = await drive.listFiles(target);
+      log(`listFiles("${target}") 結果`, res, res.ok ? 'info' : 'err');
+    }));
+
+    document.getElementById('btnGetStructure').addEventListener('click', () => execute('getStructure()', async () => {
+      const res = await drive.getStructure();
+      log('getStructure() 全体構造ツリー結果', res, res.ok ? 'info' : 'err');
+    }));
+
+    document.getElementById('btnSearch').addEventListener('click', () => execute('search()', async () => {
+      const q = document.getElementById('searchQuery').value;
+      const mime = document.getElementById('searchMime').value;
+      const opts = mime ? { mimeType: mime } : {};
+      const res = await drive.search(q, opts);
+      log(`search("${q}", ${JSON.stringify(opts)}) 結果`, res, res.ok ? 'info' : 'err');
+    }));
+
+    document.getElementById('btnGetMeta').addEventListener('click', () => execute('getMeta()', async () => {
+      const target = document.getElementById('metaTarget').value;
+      const res = await drive.getMeta(target, 'id,name,mimeType,size,modifiedTime,parents,appProperties');
+      log(`getMeta("${target}") 結果`, res, res.ok ? 'info' : 'err');
+    }));
+
+    document.getElementById('btnRemove').addEventListener('click', () => execute('remove()', async () => {
+      const target = document.getElementById('removeTarget').value;
+      if (confirm(`本当に "${target}" を削除しますか？`)) {
+        const res = await drive.remove(target);
+        log(`remove("${target}") 結果`, res, res.ok ? 'info' : 'err');
+      }
+    }));
+
+    document.getElementById('btnRemoveAll').addEventListener('click', () => execute('removeAll()', async () => {
+      if (confirm('⚠️【警告】appDataFolder 内の全データが完全に消去されます。本当によろしいですか？')) {
+        const res = await drive.removeAll();
+        log('removeAll() 結果', res, res.ok ? 'info' : 'err');
+      }
+    }));
+
+  </script>
+</body>
+</html>
