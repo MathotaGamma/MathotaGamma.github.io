@@ -45,6 +45,11 @@ class DriveAPIManager {
       }
     }
 
+    if (this.state.login && this.state.token && this.state.expiresAt > Date.now()) {
+      this.progress('auth', 'silent:done');
+      return Promise.resolve({ ok: true, token: this.state.token, silent: true });
+    }
+
     // ─── 【silent: false の場合】ここから通常のポップアップログイン ───
     this.progress('auth', 'start');
     
