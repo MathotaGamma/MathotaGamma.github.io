@@ -22,6 +22,79 @@ class DriveAPIManager {
 
     this._authPromise = null;
   }
+
+  /* ==================================================
+     共通
+     ================================================== */
+  
+  async request(method = 'GET', path = '', options = {}) {
+    // 💡 認証状態とトークンの生存チェック
+    if (!this.state.login || !this.state.token) {
+      throw new Error('ログインしていません。先に auth() を実行してください。');
+    }
+    if (this.state.expiresAt && Date.now() > this.state.expiresAt) {
+      this.signOut();
+      throw new Error('アクセストークンの有効期限が切れています。再ログインが必要です。');
+    }
+
+    const upperMethod = method.toUpperCase();
+    this.progress(`request:${upperMethod}`, `${path}:start`);
+
+    // 💡 クエリパラメータの処理
+    let url = `https://www.googleapis.com/drive/v3/${path}`;
+    if (options.params) {
+      const q = new URLSearchParams(options.params).toString();
+      if (q) url += `?${q}`;
+    }
+
+    // 💡 Fetch オプションの組み立て
+    const fetchOptions = {
+      method: upperMethod,
+      headers: {
+        'Authorization': `Bearer ${this.state.token}`,
+        'Accept': 'application/json',
+        ...options.headers // 外部からのカスタムヘッダーを結合
+      }
+    };
+
+    // BODYの処理（オブジェクトなら自動でJSON文字列化、FormDataなどはそのまま通す）
+    if (options.body) {
+      if (typeof options.body === 'object' && !(options.body instanceof FormData) && !(options.body instanceof Blob)) {
+        fetchOptions.headers['Content-Type'] = 'application/json';
+        fetchOptions.body = JSON.stringify(options.body);
+      } else {
+        fetchOptions.body = options.body;
+      }
+    }
+
+    try {
+      const res = await fetch(url, fetchOptions);
+
+      // トークン無効（401 Unauthorized）の場合はステートをクリア
+      if (res.status === 401) {
+        this.signOut();
+        throw new Error('認証エラー(401): セッションが破棄されました。');
+      }
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(`Drive API Error [${res.status}]: ${errData.error?.message || res.statusText}`);
+      }
+
+      // DELETEなどレスポンスボディが空のパターンを考慮
+      const data = res.status === 204 ? { ok: true } : await res.json();
+      
+      this.progress(`request:${upperMethod}`, `${path}:done`);
+      return data;
+    } catch (e) {
+      this.progress(`request:${upperMethod}`, `${path}:fail`);
+      throw e;
+    }
+  }
+
+  /* ==================================================
+     auth
+     ================================================== */
   
   /**
    * 認証を実行する
@@ -131,41 +204,22 @@ class DriveAPIManager {
     this.progress('signOut', 'done');
   }
 
+  /* ==================================================
+     Google Drive自体
+     ================================================== */
+
   /**
    * ユーザー情報やドライブの状態（About）を取得する
    */
-  async getAbout() {
-    if (!this.state.login || !this.state.token) {
-      throw new Error('ログインしていません。先に auth() を実行してください。');
-    }
-
-    this.progress('getAbout', 'start');
-
-    // 💡 欲しい情報を明確に指定する（ユーザー名、メールアドレス、アバター、Driveの容量情報など）
-    const fields = 'user(displayName,emailAddress,photoLink),storageQuota';
-    const url = `https://www.googleapis.com/drive/v3/about?fields=${encodeURIComponent(fields)}`;
-
-    try {
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.state.token}`,
-          'Accept': 'application/json'
-        }
-      });
-
-      if (!res.ok) {
-        throw new Error(`Drive API about HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      this.progress('getAbout', 'done');
-      
-      return { ok: true, data };
-    } catch (e) {
-      this.progress('getAbout', 'fail');
-      throw e;
-    }
+  /* 
+    fieldsに取得したいデータを記述する。
+    例: ユーザー名、メールアドレス、アバター、Driveの容量情報
+      fields: 'user(displayName,emailAddress,photoLink),storageQuota'
+  */
+  async getAbout(fields) {
+    return this.request('GET', 'about', {
+      params: { fields }
+    });
   }
 }
 
