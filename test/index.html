@@ -370,14 +370,16 @@
       logResult('checker() [Synchronous Snapshot]', status);
     });
 
-    /*document.getElementById('btnGetEmail').addEventListener('click', () => {
-      runApi('getEmail()', () => drive.getEmail());
+    document.getElementById('btnGetEmail').addEventListener('click', () => {
+      //runApi('getEmail()', () => drive.getEmail());
+      runApi('getEmail()', () => drive.getAbout());
     });
 
     document.getElementById('btnSignOut').addEventListener('click', () => {
       runApi('signOut()', () => drive.signOut());
     });
 
+    /*
     // ==========================================================================
     // FOLDER & PATH 関連イベント
     == ==========================================================================
