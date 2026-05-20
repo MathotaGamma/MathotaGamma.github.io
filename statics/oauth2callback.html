@@ -1,27 +1,48 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <title>OAuth Callback Processing...</title>
-</head>
-<body>
-  <p style="font-family:sans-serif; text-align:center; margin-top:40px; color:#555;">
-    認証を処理しています。このウィンドウは自動的に閉じます...
-  </p>
-  <script>
-    const p = new URLSearchParams(location.search);
-    // 安全に呼び出し元のウィンドウ(index.html)へ認証パラメータを送信
-    window.opener?.postMessage(
-      { 
-        type: 'oauth_callback', 
-        code: p.get('code'), 
-        state: p.get('state'), 
-        error: p.get('error') 
-      },
-      location.origin
-    );
-    // ポップアップを閉じる
-    window.close();
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8">
+    <title>認証中</title>
+  </head>
+  <body>
+    <p style="font-family:sans-serif; text-align:center; margin-top:40px; color:#333; font-size:14px;">
+      認証を処理しています。このウィンドウは自動的に閉じます...
+    </p>
+    <script>
+      // 1. ?code=... などのクエリパラメータを解析（マネージャー用）
+      const urlParams = new URLSearchParams(location.search);
+    
+      // 2. #access_token=... などのハッシュパラメータを解析（response_type='token'用）
+      const hashParams = new URLSearchParams(location.hash.substring(1));
+
+      // 両方のフローから必要な値を取り出す
+      const code = urlParams.get('code') || hashParams.get('access_token');
+      const state = urlParams.get('state') || hashParams.get('state');
+      const error = urlParams.get('error') || hashParams.get('error');
+    
+      // トークンが直接返ってきた場合は implicit_token、コードの場合は oauth_callback として通知
+      const tokenType = hashParams.has('access_token') ? 'implicit_token' : 'oauth_callback';
+
+      if (window.opener) {
+        // 厳密にオリジンを指定して親ウィンドウへメッセージを送信
+        window.opener.postMessage(
+          { 
+            type: tokenType, 
+            code: code,
+            state: state, 
+            error: error,
+            raw_hash: location.hash
+          },
+          'https://mathotagamma.github.io'
+        );
+      } else {
+        console.error('親ウィンドウ（window.opener）が見つかりません。');
+      }
+
+      // postMessageが送信される時間を数ミリ秒確保してから閉じる
+      setTimeout(() => {
+        window.close();
+      }, 300);
+    </script>
+  </body>
 </html>
