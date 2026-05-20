@@ -89,24 +89,24 @@ class DriveAPIManager {
               return;
             }
 
-            if (data.code) { // Implicit Flowの場合は access_token がここに入る
+            if (data.token) {
               // Googleの通常有効期限1時間(3600秒)から、安全のために5分引いた終了時刻(ミリ秒)を計算
               const expiresAt = Date.now() + (3600 * 1000) - (5 * 60 * 1000);
 
               // クラスのステートを更新
               this.state.login = true;
-              this.state.token = data.code;
+              this.state.token = data.token;
               this.state.expiresAt = expiresAt;
 
               // 💡 次回の silent: true での復元のために localStorage に永続化
-              localStorage.setItem('dapi_access_token', data.code);
+              localStorage.setItem('dapi_access_token', data.token);
               localStorage.setItem('dapi_expires_at', expiresAt.toString());
 
               this.progress('auth', 'done');
               this._authPromise = null; // 成功したので次回のためにクリーンアップ
               
               // 利用側が扱いやすいようにオブジェクトで解決する
-              resolve({ ok: true, token: this.state.token, silent: false });
+              resolve({ ok: true, token: data.token, silent: false });
             }
           } catch (e) {
             this.progress('auth', 'fail');
