@@ -1,4 +1,6 @@
 class DriveAPIManager {
+  static ver = "1.0";
+  
   constructor({ clientId, redirectUri, progress }) {
     if (!clientId || !redirectUri)
       throw new Error('引数にclient_idとredirect_uriを含めてください。');
