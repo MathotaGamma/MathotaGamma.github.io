@@ -1,483 +1,456 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DriveAPIManager プレイグラウンド Ver:3.0</title>
-  <style>
-    :root {
-      --bg-color: #f8f9fa;
-      --panel-bg: #ffffff;
-      --border-color: #dee2e6;
-      --text-color: #212529;
-      --primary-color: #0d6efd;
-      --success-color: #198754;
-      --danger-color: #dc3545;
-    }
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    header {
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid var(--border-color);
-    }
-    .setup-fields {
-      display: flex;
-      gap: 15px;
-      align-items: flex-end;
-      margin-bottom: 10px;
-    }
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      flex: 1;
-    }
-    label { font-size: 0.85rem; font-weight: bold; }
-    input, select, textarea {
-      padding: 8px;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      font-family: inherit;
-    }
-    .main-container {
-      display: flex;
-      gap: 20px;
-      flex: 1;
-      min-height: 0;
-    }
-    .control-panel {
-      flex: 1.2;
-      overflow-y: auto;
-      padding-right: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-    .output-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-width: 50%;
-    }
-    .card {
-      background: var(--panel-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 15px;
-    }
-    .card h3 { margin-top: 0; margin-bottom: 12px; font-size: 1rem; border-left: 4px solid var(--primary-color); padding-left: 8px; }
-    .btn-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    button {
-      padding: 8px 14px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: 500;
-      background-color: #6c757d;
-      color: white;
-      transition: opacity 0.2s;
-    }
-    button:hover { opacity: 0.9; }
-    button.primary { background-color: var(--primary-color); }
-    button.success { background-color: var(--success-color); }
-    button.danger { background-color: var(--danger-color); }
-    
-    /* ログ・コンソールエリア */
-    .console-wrapper {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      overflow: auto;
-      /*overflow-wrap: anywhere;*/
-    }
-    .console-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 5px;
-    }
-    .console-log {
-      flex: 1;
-      background: #1e1e1e;
-      color: #f8f8f2;
-      font-family: "Courier New", Courier, monospace;
-      padding: 12px;
-      border-radius: 6px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      font-size: 0.9rem;
-    }
-    .progress-log {
-      height: 100px;
-      background: #2d3748;
-      color: #e2e8f0;
-      font-family: monospace;
-      padding: 8px;
-      border-radius: 6px;
-      overflow-y: auto;
-      font-size: 0.8rem;
-      margin-bottom: 10px;
-    }
-    .info-badge {
-      display: inline-block;
-      padding: 2px 6px;
-      background: #e9ecef;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      margin-top: 5px;
-    }
-  </style>
-</head>
-<body>
-
-  <header>
-    <h2>DriveAPIManager 開発・検証用プレイグラウンド Ver:3.0用</h2>
-    <div class="setup-fields">
-      <div class="field-group">
-        <label for="clientId">Client ID</label>
-        <input type="text" id="clientId" placeholder="YOUR_CLIENT_ID.apps.googleusercontent.com">
-      </div>
-      <div class="field-group">
-        <label for="redirectUri">Redirect URI</label>
-        <input type="text" id="redirectUri" placeholder="https://yourname.github.io/yourrepo/oauth2callback">
-      </div>
-      <button id="btnInit" class="primary">マネージャー初期化</button>
-    </div>
-    <div id="initStatus" class="info-badge">状態: 未初期化 (Client ID を入力して初期化してください)</div>
-  </header>
-
-  <div class="main-container">
-    <div class="control-panel">
-      <div class="card">
-        <h3>0. Debug</h3>
-        <div class="btn-grid">
-          <button id="btnDebug" class="primary">Debug用ボタン</button>
-        </div>
-      </div>
-      <div class="card">
-        <h3>1. AUTH (認証)</h3>
-        <div class="btn-grid">
-          <button id="btnAuthPop" class="primary">auth(false) [ポップアップ認証]</button>
-          <button id="btnAuthSilent">auth(true) [サイレント確認]</button>
-          <button id="btnChecker">checker() [同期状態取得]</button>
-          <button id="btnGetEmail">getEmail()</button>
-          <button id="btnSignOut" class="danger">signOut()</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>2. FOLDER & PATH</h3>
-        <div class="field-group">
-          <label for="folderPath">対象フォルダパス / ファイルパス</label>
-          <input type="text" id="folderPath" value="/saves/2026/test-folder">
-        </div>
-        <div class="btn-grid">
-          <button id="btnCreateFolder" class="success">createFolder()</button>
-          <button id="btnGetFileId">getFileId()</button>
-          <button id="btnListFiles">listFiles()</button>
-          <button id="btnRemove" class="danger">remove()</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>3. FILE CRUD (ファイルの読み書き)</h3>
-        <div class="field-group" style="margin-bottom: 8px;">
-          <label for="filePath">ファイルパス または ID</label>
-          <input type="text" id="filePath" value="/saves/slot1.json">
-        </div>
-        <div style="display: flex; gap: 10px; margin-bottom: 8px;">
-          <div class="field-group" style="flex: 1;">
-            <label for="fileDataType">データ型 (保存用)</label>
-            <select id="fileDataType">
-              <option value="json">JSON (Object)</option>
-              <option value="text">Text (String)</option>
-            </select>
-          </div>
-          <div class="field-group" style="flex: 1;">
-            <label for="getAs">取得形式 (getFile用: as)</label>
-            <select id="getAs">
-              <option value="auto">auto</option>
-              <option value="json">json</option>
-              <option value="text">text</option>
-              <option value="arraybuffer">arraybuffer</option>
-              <option value="blob">blob</option>
-            </select>
-          </div>
-        </div>
-        <div class="field-group">
-          <label for="fileContent">ファイル中身 (保存する文字列 / JSONデータ)</label>
-          <textarea id="fileContent" rows="3" placeholder='{"theme": "dark", "score": 999}'></textarea>
-        </div>
-        <div class="btn-grid">
-          <button id="btnSaveFile" class="success">saveFile()</button>
-          <button id="btnGetFile" class="primary">getFile()</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>4. METADATA / SEARCH / UTILS</h3>
-        <div style="display: flex; gap: 10px; margin-bottom: 8px;">
-          <div class="field-group" style="flex: 1;">
-            <label for="searchQuery">検索クエリ / メタ更新値</label>
-            <input type="text" id="searchQuery" placeholder="slot または {'name': 'new.json'}">
-          </div>
-        </div>
-        <div class="btn-grid">
-          <button id="btnGetStructure">getStructure() [ツリー一括取得]</button>
-          <button id="btnSearch">search()</button>
-          <button id="btnGetMeta">getMeta()</button>
-          <button id="btnUpdateMeta">updateMeta()</button>
-          <button id="btnRemoveAll" class="danger">removeAll() [全消去]</button>
-        </div>
-      </div>
-
-    </div>
-
-    <div class="output-panel">
-      <div>
-        <label>内部進捗イベント (progressコールバック)</label>
-        <div id="progressLog" class="progress-log"></div>
-      </div>
-
-      <div class="console-wrapper">
-        <div class="console-header">
-          <label>実行結果コンソール (API 戻り値 / エラー)</label>
-          <button id="btnClearConsole" style="padding: 4px 8px; font-size: 0.75rem;">クリア</button>
-        </div>
-        <div id="consoleLog" class="console-log">ここに結果が出力されます。</div>
-      </div>
-    </div>
-  </div>
-  <script type="module">
-    import DriveAPIManager from '/statics/drive-api/manager.js';
-
-    let drive = null;
-
-    // UI要素の取得
-    const elClientId = document.getElementById('clientId');
-    const elRedirectUri = document.getElementById('redirectUri');
-    const elInitStatus = document.getElementById('initStatus');
-    const elConsole = document.getElementById('consoleLog');
-    const elProgress = document.getElementById('progressLog');
-
-    // ローカルストレージから設定を復元（開発効率化のため）
-    if (localStorage.getItem('pm_client_id')) elClientId.value = localStorage.getItem('pm_client_id');
-    if (localStorage.getItem('pm_redirect_uri')) elRedirectUri.value = localStorage.getItem('pm_redirect_uri');
-
-    // ログ出力用便利関数
-    function logResult(title, data, isError = false) {
-      const timestamp = new Date().toLocaleTimeString();
-      let logText = `[${timestamp}] === ${title} ===\n`;
-      if (isError) {
-        logText += `❌ ERROR CODE: ${data.code || 'UNKNOWN'}\nMessage: ${data.message || data}\n`;
-        if (data.stack) logText += `${data.stack}\n`;
-      } else {
-        logText += typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriveAPIManager プレイグラウンド Ver:4.0</title>
+    <style>
+      :root {
+        --bg-color: #f8f9fa;
+        --panel-bg: #ffffff;
+        --border-color: #dee2e6;
+        --text-color: #212529;
+        --primary-color: #0d6efd;
+        --success-color: #198754;
+        --danger-color: #dc3545;
       }
-      elConsole.innerText = logText + '\n\n' + elConsole.innerText;
-      console.log(`[Playground] ${title}`, data);
-    }
-
-    function logProgress(phase, detail) {
-      const p = document.createElement('div');
-      p.textContent = `[${phase}] ${typeof detail === 'object' ? JSON.stringify(detail) : detail}`;
-      elProgress.insertBefore(p, elProgress.firstChild);
-    }
-
-    document.getElementById('btnClearConsole').addEventListener('click', () => {
-      elConsole.innerText = 'コンソールをクリアしました。';
-      elProgress.innerHTML = '';
-    });
-    
-    
-    // 0. デバッグ用ボタン
-    document.getElementById('btnDebug').addEventListener('click', () => {
-      runApi('debug()', () => drive.createFolder('/test/1/2/3/4/5/'));
-    });
-
-    // 1. マネージャー初期化
-    document.getElementById('btnInit').addEventListener('click', () => {
-      const clientId = elClientId.value.trim();
-      const redirectUri = elRedirectUri.value.trim();
-
-      if (!clientId || !redirectUri) {
-        alert('Client ID と Redirect URI を入力してください。');
-        return;
+      * { box-sizing: border-box; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
       }
-
-      // 次回用に保存
-      localStorage.setItem('pm_client_id', clientId);
-      localStorage.setItem('pm_redirect_uri', redirectUri);
-
-      try {
-        drive = new DriveAPIManager({
-          clientId,
-          redirectUri,
-          progress: (phase, detail) => logProgress(phase, detail)
-        });
-        elInitStatus.innerText = `状態: 初期化完了 (インスタンス生成済)`;
-        elInitStatus.style.backgroundColor = '#d1e7dd';
-        elInitStatus.style.color = '#0f5132';
-        logResult('INITIALIZE', 'DriveAPIManager インスタンスを正常に作成しました。');
-      } catch (e) {
-        logResult('INITIALIZE ERROR', e, true);
+      header {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--border-color);
       }
-    });
-
-    // 安全にAPIを実行するためのラッパー
-    async function runApi(title, apiCall, callback=(res)=>res) {
-      if (!drive) {
-        alert('先に「マネージャー初期化」ボタンを押してください。');
-        return;
+      .setup-fields {
+        display: flex;
+        gap: 15px;
+        align-items: flex-end;
+        margin-bottom: 10px;
       }
-      try {
-        const result = callback(await apiCall());
-        logResult(title, result ?? 'Success (戻り値なし/undefined)');
-      } catch (e) {
-        logResult(`${title} [FAILED]`, e, true);
+      .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        flex: 1;
       }
-    }
-
-    
-    // ==========================================================================
-    // AUTH 関連イベント
-    // ==========================================================================
-    document.getElementById('btnAuthPop').addEventListener('click', async () => {
-      if (!drive) {
-        alert('先に「マネージャー初期化」ボタンを押してください。');
-        return;
+      label { font-size: 0.85rem; font-weight: bold; }
+      input, select, textarea {
+        padding: 8px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-family: inherit;
       }
-      try {
-        // 同期コンテキストの直下でポップアップを起動し、ブロックを確実に回避
-        const token = await drive.auth(false);
-        
-        logResult('auth(false) [Popup]', token);
-      } catch (e) {
-        logResult('auth(false) [Popup] [FAILED]', e, true);
+      .main-container {
+        display: flex;
+        gap: 20px;
+        flex: 1;
+        min-height: 0;
       }
-    });
-
-    document.getElementById('btnAuthSilent').addEventListener('click', () => {
-      runApi('auth(true) [Silent]', () => drive.auth(true));
-    });
-
-    document.getElementById('btnChecker').addEventListener('click', () => {
-      if (!drive) return alert('初期化してください');
-      const status = drive.checker();
-      logResult('checker() [Synchronous Snapshot]', status);
-    });
-
-    document.getElementById('btnGetEmail').addEventListener('click', () => {
-      //runApi('getEmail()', () => drive.getEmail());
-      runApi('getEmail()', () => drive.getEmail());
-    });
-
-    document.getElementById('btnSignOut').addEventListener('click', () => {
-      runApi('signOut()', () => drive.signOut());
-    });
-
-    // ==========================================================================
-    // FOLDER & PATH 関連イベント
-    // ==========================================================================
-    document.getElementById('btnCreateFolder').addEventListener('click', () => {
-      const path = document.getElementById('folderPath').value;
-      runApi(`createFolder('${path}')`, () => drive.createFolder(path));
-    });
-
-    document.getElementById('btnGetFileId').addEventListener('click', () => {
-      const path = document.getElementById('folderPath').value; // こちらのパスでも使えるように共有
-      runApi(`getFileId('${path}')`, () => drive.getFileId(path));
-    });
-
-    document.getElementById('btnListFiles').addEventListener('click', () => {
-      const path = document.getElementById('folderPath').value;
-      runApi(`listFiles('${path}')`, () => drive.listFiles(path));
-    });
-
-    document.getElementById('btnRemove').addEventListener('click', () => {
-      const path = document.getElementById('folderPath').value;
-      if(confirm(`本当に ${path} を削除しますか？`)) {
-        runApi(`remove('${path}')`, () => drive.removeFile(path));
+      .control-panel {
+        flex: 1.2;
+        overflow-y: auto;
+        padding-right: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
       }
-    });
-    /*
-    // ==========================================================================
-    // FILE CRUD 関連イベント
-    // ==========================================================================
-    document.getElementById('btnSaveFile').addEventListener('click', () => {
-      const path = document.getElementById('filePath').value;
-      const type = document.getElementById('fileDataType').value;
-      const rawContent = document.getElementById('fileContent').value;
+      .output-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 50%;
+      }
+      .card {
+        background: var(--panel-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 15px;
+      }
+      .card h3 { margin-top: 0; margin-bottom: 12px; font-size: 1rem; border-left: 4px solid var(--primary-color); padding-left: 8px; }
+      .btn-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      button {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        background-color: #6c757d;
+        color: white;
+        transition: opacity 0.2s;
+      }
+      button:hover { opacity: 0.9; }
+      button.primary { background-color: var(--primary-color); }
+      button.success { background-color: var(--success-color); }
+      button.danger { background-color: var(--danger-color); }
       
-      let data = rawContent;
-      if (type === 'json') {
-        try {
-          data = JSON.parse(rawContent || '{}');
-        } catch(e) {
-          alert('JSON形式が正しくありません。オブジェクトの形式で入力してください。');
+      .console-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: auto;
+      }
+      .console-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+      }
+      .console-log {
+        flex: 1;
+        background: #1e1e1e;
+        color: #f8f8f2;
+        font-family: "Courier New", Courier, monospace;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        font-size: 0.9rem;
+      }
+      .progress-log {
+        height: 100px;
+        background: #2d3748;
+        color: #e2e8f0;
+        font-family: monospace;
+        padding: 8px;
+        border-radius: 6px;
+        overflow-y: auto;
+        font-size: 0.8rem;
+        margin-bottom: 10px;
+      }
+      .info-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        background: #e9ecef;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        margin-top: 5px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <header>
+      <h2>DriveAPIManager 開発・検証用プレイグラウンド Ver:4.0用</h2>
+      <div class="setup-fields">
+        <div class="field-group">
+          <label for="clientId">Client ID</label>
+          <input type="text" id="clientId" placeholder="YOUR_CLIENT_ID.apps.googleusercontent.com">
+        </div>
+        <div class="field-group">
+          <label for="redirectUri">Redirect URI</label>
+          <input type="text" id="redirectUri" placeholder="https://yourname.github.io/yourrepo/oauth2callback">
+        </div>
+        <button id="btnInit" class="primary">マネージャー初期化</button>
+      </div>
+      <div id="initStatus" class="info-badge">状態: 未初期化 (Client ID を入力して初期化してください)</div>
+    </header>
+
+    <div class="main-container">
+      <div class="control-panel">
+        <div class="card">
+          <h3>0. Debug</h3>
+          <div class="btn-grid">
+            <button id="btnDebug" class="primary">Debug用ボタン</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>1. AUTH (認証)</h3>
+          <div class="btn-grid">
+            <button id="btnAuthPop" class="primary">auth(false) [ポップアップ認証]</button>
+            <button id="btnAuthSilent">auth(true) [サイレント確認]</button>
+            <button id="btnChecker">checker() [同期状態取得]</button>
+            <button id="btnGetEmail">getEmail()</button>
+            <button id="btnSignOut" class="danger">signOut()</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>2. FOLDER & PATH</h3>
+          <div class="field-group">
+            <label for="folderPath">対象フォルダパス / ファイルパス</label>
+            <input type="text" id="folderPath" value="/saves/2026/test-folder">
+          </div>
+          <div class="btn-grid">
+            <button id="btnCreateFolder" class="success">createFolder()</button>
+            <button id="btnGetFileId">getFileId()</button>
+            <button id="btnListFiles">listFiles()</button>
+            <button id="btnRemove" class="danger">removeFile()</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>3. FILE CRUD (ファイルの読み書き)</h3>
+          <div class="field-group" style="margin-bottom: 8px;">
+            <label for="filePath">ファイルパス または ID</label>
+            <input type="text" id="filePath" value="/saves/slot1.json">
+          </div>
+          <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+            <div class="field-group" style="flex: 1;">
+              <label for="fileDataType">データ型 (保存用)</label>
+              <select id="fileDataType">
+                <option value="json">JSON (Object)</option>
+                <option value="text">Text (String)</option>
+              </select>
+            </div>
+            <div class="field-group" style="flex: 1;">
+              <label for="getAs">取得形式 (getFile用: as)</label>
+              <select id="getAs">
+                <option value="auto">auto</option>
+                <option value="json">json</option>
+                <option value="text">text</option>
+                <option value="arraybuffer">arraybuffer</option>
+                <option value="blob">blob</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="fileContent">ファイル中身 (保存する文字列 / JSONデータ)</label>
+            <textarea id="fileContent" rows="3" placeholder='{"theme": "dark", "score": 999}'></textarea>
+          </div>
+          <div class="btn-grid">
+            <button id="btnSaveFile" class="success">saveFile()</button>
+            <button id="btnGetFile" class="primary">getFile()</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>4. METADATA / SEARCH / UTILS</h3>
+          <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+            <div class="field-group" style="flex: 1;">
+              <label for="searchQuery">検索クエリ / メタ更新値</label>
+              <input type="text" id="searchQuery" placeholder="slot または {'name': 'new.json'}">
+            </div>
+          </div>
+          <div class="btn-grid">
+            <button id="btnGetStructure">getStructure() [ツリー一括取得]</button>
+            <button id="btnSearch">search()</button>
+            <button id="btnGetMeta">getFileInfo()</button>
+            <button id="btnUpdateMeta">updateMeta()</button>
+            <button id="btnRemoveAll" class="danger">removeAllFiles() [全消去]</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="output-panel">
+        <div>
+          <label>内部進捗イベント (progressコールバック)</label>
+          <div id="progressLog" class="progress-log"></div>
+        </div>
+
+        <div class="console-wrapper">
+          <div class="console-header">
+            <label>実行結果コンソール (API 戻り値 / エラー)</label>
+            <button id="btnClearConsole" style="padding: 4px 8px; font-size: 0.75rem;">クリア</button>
+          </div>
+          <div id="consoleLog" class="console-log">ここに結果が出力されます。</div>
+        </div>
+      </div>
+    </div>
+    <script type="module">
+      import DriveAPIManager from '/statics/drive-api/manager.js';
+
+      let drive = null;
+
+      const elClientId = document.getElementById('clientId');
+      const elRedirectUri = document.getElementById('redirectUri');
+      const elInitStatus = document.getElementById('initStatus');
+      const elConsole = document.getElementById('consoleLog');
+      const elProgress = document.getElementById('progressLog');
+
+      if (localStorage.getItem('pm_client_id')) elClientId.value = localStorage.getItem('pm_client_id');
+      if (localStorage.getItem('pm_redirect_uri')) elRedirectUri.value = localStorage.getItem('pm_redirect_uri');
+
+      function logResult(title, data, isError = false) {
+        const timestamp = new Date().toLocaleTimeString();
+        let logText = `[${timestamp}] === ${title} ===\n`;
+        if (isError) {
+          logText += `❌ ERROR CODE: ${data.code || 'UNKNOWN'}\nMessage: ${data.message || data}\n`;
+          if (data.stack) logText += `${data.stack}\n`;
+        } else {
+          logText += typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+        }
+        elConsole.innerText = logText + '\n\n' + elConsole.innerText;
+        console.log(`[Playground] ${title}`, data);
+      }
+
+      function logProgress(phase, detail) {
+        const p = document.createElement('div');
+        p.textContent = `[${phase}] ${typeof detail === 'object' ? JSON.stringify(detail) : detail}`;
+        elProgress.insertBefore(p, elProgress.firstChild);
+      }
+
+      document.getElementById('btnClearConsole').addEventListener('click', () => {
+        elConsole.innerText = 'コンソールをクリアしました。';
+        elProgress.innerHTML = '';
+      });
+      
+      document.getElementById('btnDebug').addEventListener('click', () => {
+        runApi('debug()', () => drive.createFolder({ path: '/test/1/2/3/4/5/' }));
+      });
+
+      document.getElementById('btnInit').addEventListener('click', () => {
+        const clientId = elClientId.value.trim();
+        const redirectUri = elRedirectUri.value.trim();
+
+        if (!clientId || !redirectUri) {
+          alert('Client ID と Redirect URI を入力してください。');
           return;
+        }
+
+        localStorage.setItem('pm_client_id', clientId);
+        localStorage.setItem('pm_redirect_uri', redirectUri);
+
+        try {
+          drive = new DriveAPIManager({
+            clientId,
+            redirectUri,
+            progress: (phase, detail) => logProgress(phase, detail)
+          });
+          elInitStatus.innerText = `状態: 初期化完了 (インスタンス生成済)`;
+          elInitStatus.style.backgroundColor = '#d1e7dd';
+          elInitStatus.style.color = '#0f5132';
+          logResult('INITIALIZE', 'DriveAPIManager インスタンスを正常に作成しました。');
+        } catch (e) {
+          logResult('INITIALIZE ERROR', e, true);
+        }
+      });
+
+      async function runApi(title, apiCall, callback=(res)=>res) {
+        if (!drive) {
+          alert('先に「マネージャー初期化」ボタンを押してください。');
+          return;
+        }
+        try {
+          const result = callback(await apiCall());
+          logResult(title, result ?? 'Success (戻り値なし/undefined)');
+        } catch (e) {
+          logResult(`${title} [FAILED]`, e, true);
         }
       }
 
-      runApi(`saveFile('${path}')`, () => drive.saveFile(path, data));
-    });
+      document.getElementById('btnAuthPop').addEventListener('click', async () => {
+        if (!drive) {
+          alert('先に「マネージャー初期化」ボタンを押してください。');
+          return;
+        }
+        try {
+          const token = await drive.auth(false);
+          logResult('auth(false) [Popup]', token);
+        } catch (e) {
+          logResult('auth(false) [Popup] [FAILED]', e, true);
+        }
+      });
 
-    document.getElementById('btnGetFile').addEventListener('click', () => {
-      const pathOrId = document.getElementById('filePath').value;
-      const asType = document.getElementById('getAs').value;
-      runApi(`getFile('${pathOrId}', '${asType}')`, () => drive.getFile(pathOrId, asType));
-    });
+      document.getElementById('btnAuthSilent').addEventListener('click', () => {
+        runApi('auth(true) [Silent]', () => drive.auth(true));
+      });
 
-    // ==========================================================================
-    // METADATA / SEARCH / UTILS
-    // ==========================================================================
-    document.getElementById('btnGetStructure').addEventListener('click', () => {
-      runApi('getStructure()', () => drive.getStructure());
-    });
+      document.getElementById('btnChecker').addEventListener('click', () => {
+        if (!drive) return alert('初期化してください');
+        const status = drive.checker();
+        logResult('checker() [Synchronous Snapshot]', status);
+      });
 
-    document.getElementById('btnSearch').addEventListener('click', () => {
-      const query = document.getElementById('searchQuery').value;
-      runApi(`search('${query}')`, () => drive.search(query));
-    });
+      document.getElementById('btnGetEmail').addEventListener('click', () => {
+        runApi('getEmail()', () => drive.getEmail());
+      });
 
-    document.getElementById('btnGetMeta').addEventListener('click', () => {
-      const pathOrId = document.getElementById('filePath').value; // ファイル枠の入力を流用
-      runApi(`getMeta('${pathOrId}')`, () => drive.getMeta(pathOrId));
-    });
+      document.getElementById('btnSignOut').addEventListener('click', () => {
+        runApi('signOut()', () => drive.signOut());
+      });
 
-    document.getElementById('btnUpdateMeta').addEventListener('click', () => {
-      const pathOrId = document.getElementById('filePath').value;
-      const queryVal = document.getElementById('searchQuery').value;
-      
-      let metaObj = {};
-      try {
-        metaObj = JSON.parse(queryVal || '{"description": "Playground Update"}');
-      } catch (e) {
-        alert('メタデータオブジェクトを正しいJSONとして検索クエリ枠に入力してください。\n例: {"name": "renamed.json"}');
-        return;
-      }
-      
-      runApi(`updateMeta('${pathOrId}')`, () => drive.updateMeta(pathOrId, metaObj));
-    });
+      document.getElementById('btnCreateFolder').addEventListener('click', () => {
+        const path = document.getElementById('folderPath').value;
+        runApi(`createFolder('${path}')`, () => drive.createFolder({ path }));
+      });
 
-    document.getElementById('btnRemoveAll').addEventListener('click', () => {
-      if (confirm('⚠ 警告: appDataFolder 内のすべてのデータが完全に消去されます。本当によろしいですか？')) {
-        runApi('removeAll()', () => drive.removeAll());
-      }
-    });
-    */
-  </script>
-</body>
+      document.getElementById('btnGetFileId').addEventListener('click', () => {
+        const path = document.getElementById('folderPath').value;
+        runApi(`getFileId('${path}')`, () => drive.getFileId({ path }));
+      });
+
+      document.getElementById('btnListFiles').addEventListener('click', () => {
+        const path = document.getElementById('folderPath').value;
+        runApi(`listFiles('${path}')`, () => drive.listFiles({ path }));
+      });
+
+      document.getElementById('btnRemove').addEventListener('click', () => {
+        const path = document.getElementById('folderPath').value;
+        if(confirm(`本当に ${path} を削除しますか？`)) {
+          runApi(`removeFile('${path}')`, () => drive.removeFile({ path }));
+        }
+      });
+      /*
+      document.getElementById('btnSaveFile').addEventListener('click', () => {
+        const path = document.getElementById('filePath').value;
+        const type = document.getElementById('fileDataType').value;
+        const rawContent = document.getElementById('fileContent').value;
+        
+        let data = rawContent;
+        if (type === 'json') {
+          try {
+            data = JSON.parse(rawContent || '{}');
+          } catch(e) {
+            alert('JSON形式が正しくありません。オブジェクトの形式で入力してください。');
+            return;
+          }
+        }
+
+        runApi(`saveFile('${path}')`, () => drive.saveFile(path, data));
+      });
+
+      document.getElementById('btnGetFile').addEventListener('click', () => {
+        const pathOrId = document.getElementById('filePath').value;
+        const asType = document.getElementById('getAs').value;
+        runApi(`getFile('${pathOrId}', '${asType}')`, () => drive.getFile(pathOrId, asType));
+      });
+
+      document.getElementById('btnGetStructure').addEventListener('click', () => {
+        runApi('getStructure()', () => drive.getStructure());
+      });
+
+      document.getElementById('btnSearch').addEventListener('click', () => {
+        const query = document.getElementById('searchQuery').value;
+        runApi(`search('${query}')`, () => drive.search(query));
+      });
+      */
+      document.getElementById('btnGetMeta').addEventListener('click', () => {
+        const path = document.getElementById('filePath').value;
+        runApi(`getFileInfo('${path}')`, () => drive.getFileInfo({ path }));
+      });
+      /*
+      document.getElementById('btnUpdateMeta').addEventListener('click', () => {
+        const pathOrId = document.getElementById('filePath').value;
+        const queryVal = document.getElementById('searchQuery').value;
+        
+        let metaObj = {};
+        try {
+          metaObj = JSON.parse(queryVal || '{"description": "Playground Update"}');
+        } catch (e) {
+          alert('メタデータオブジェクトを正しいJSONとして検索クエリ枠に入力してください。\n例: {"name": "renamed.json"}');
+          return;
+        }
+        
+        runApi(`updateMeta('${pathOrId}')`, () => drive.updateMeta(pathOrId, metaObj));
+      });
+      */
+      document.getElementById('btnRemoveAll').addEventListener('click', () => {
+        if (confirm('⚠ 警告: appDataFolder 内のすべてのデータが完全に消去されます。本当によろしいですか？')) {
+          runApi('removeAllFiles()', () => drive.removeAllFiles());
+        }
+      });
+    </script>
+  </body>
 </html>
