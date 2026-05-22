@@ -1,4 +1,3 @@
-
 class DriveAPIManager {
   static ver = "4.0";
   
@@ -6,13 +5,10 @@ class DriveAPIManager {
     if (!clientId || !redirectUri)
       throw new Error('引数にclient_idとredirect_uriを含めてください。');
     
-    // progressが渡されていたらクラスのメソッドとして登録、なければ空の関数にしておく
     this.progress = progress || (() => {});
-    
     this.clientId = clientId;
     this.redirectUri = redirectUri;
     
-    // 💡 起動時に前回のトークンが localStorage に残っていれば自動で復元
     const cachedToken = localStorage.getItem('dapi_access_token');
     const cachedExpires = parseInt(localStorage.getItem('dapi_expires_at') || '0', 10);
     const isAlive = cachedToken && cachedExpires > Date.now();
@@ -25,9 +21,6 @@ class DriveAPIManager {
     };
     
     this._authPromise = null;
-    /* _idCache
-      例: {'app/test': id, 'app/test/index/_data.json': id}
-    */
     this._idCache = {};
   }
   
@@ -37,13 +30,13 @@ class DriveAPIManager {
       loggedIn: this.state.loggedIn && !!this.state.token,
       expired: !this.state.loggedIn || this.state.expiresAt <= Date.now(),
       token: this.state.token
-    }
+    };
   }
   
   getCache(key=null) {
     const cache = {
       id: this._idCache
-    }
+    };
     if (key) return cache[key];
     return cache;
   }
@@ -53,7 +46,6 @@ class DriveAPIManager {
      ================================================== */
   
   async request(method = 'GET', path = '', options = {}) {
-    // 💡 認証状態とトークンの生存チェック
     if (!this.state.loggedIn || !this.state.token) {
       throw new Error('ログインしていません。先に auth() を実行してください。');
     }
@@ -65,24 +57,21 @@ class DriveAPIManager {
     const upperMethod = method.toUpperCase();
     this.progress(`request:${upperMethod}`, `${path}:start`);
 
-    // 💡 クエリパラメータの処理
     let url = `https://www.googleapis.com/drive/v3/${path}`;
     if (options.params) {
       const q = new URLSearchParams(options.params).toString();
       if (q) url += `?${q}`;
     }
 
-    // 💡 Fetch オプションの組み立て
     const fetchOptions = {
       method: upperMethod,
       headers: {
         'Authorization': `Bearer ${this.state.token}`,
         'Accept': 'application/json',
-        ...options.headers // 外部からのカスタムヘッダーを結合
+        ...options.headers
       }
     };
 
-    // BODYの処理（オブジェクトなら自動でJSON文字列化、FormDataなどはそのまま通す）
     if (options.body) {
       if (typeof options.body === 'object' && !(options.body instanceof FormData) && !(options.body instanceof Blob)) {
         fetchOptions.headers['Content-Type'] = 'application/json';
@@ -95,7 +84,6 @@ class DriveAPIManager {
     try {
       const res = await fetch(url, fetchOptions);
 
-      // トークン無効（401 Unauthorized）の場合はステートをクリア
       if (res.status === 401) {
         this.signOut();
         throw new Error('認証エラー(401): セッションが破棄されました。');
@@ -106,7 +94,6 @@ class DriveAPIManager {
         throw new Error(`Drive API Error [${res.status}]: ${errData.error?.message || res.statusText}`);
       }
 
-      // DELETEなどレスポンスボディが空のパターンを考慮
       const data = res.status === 204 ? { ok: true } : await res.json();
       
       this.progress(`request:${upperMethod}`, `${path}:done`);
@@ -121,24 +108,16 @@ class DriveAPIManager {
      auth
      ================================================== */
   
-  /**
-   * 認証を実行する
-   * @param {Object} options
-   * @param {boolean} options.silent - trueの場合、ポップアップを開かずストレージの有効期限から復元を試みる
-   */
   auth(silent=false, prompt=null) {
-    // すでに認証処理（Promise）が走っている場合はそれをそのまま返す（多重起動防止）
     if (this._authPromise) return this._authPromise;
 
-    // 💡 【silent: true の場合】
     if (silent) {
       if (this.state.loggedIn && this.state.token && this.state.expiresAt > Date.now()) {
         this.progress('auth', 'silent:done');
         return Promise.resolve({ ok: true, token: this.state.token, silent: true });
       } else {
-        // 期限切れ、またはトークンがない場合は即座に失敗として返す
         this.progress('auth', 'silent:fail');
-        this.signOut(); // ステートとストレージを安全にクリア
+        this.signOut(); 
         return Promise.resolve({ ok: false, error: 'silent_auth_failed' });
       }
     }
@@ -148,7 +127,6 @@ class DriveAPIManager {
       return Promise.resolve({ ok: true, token: this.state.token, silent: true });
     }
 
-    // ─── 【silent: false の場合】ここから通常のポップアップログイン ───
     this.progress('auth', 'start');
     
     const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -170,17 +148,16 @@ class DriveAPIManager {
     const popupName = `oauth_popup_${Date.now()}`;
     window.open(targetUrl, popupName, 'width=500,height=600,left=100,top=100,menubar=no,toolbar=no,location=no,status=no');
 
-    // Promise を生成して保持する
     this._authPromise = new Promise((resolve, reject) => {
       const pollTimer = setInterval(() => {
         const rawResult = localStorage.getItem('oauth_result');
       
         if (rawResult) {
-          clearInterval(pollTimer); // ポーリングを停止
+          clearInterval(pollTimer); 
 
           try {
             const data = JSON.parse(rawResult);
-            localStorage.removeItem('oauth_result'); // 使用済みのデータを即時削除
+            localStorage.removeItem('oauth_result'); 
 
             if (data.error) {
               this.progress('auth', 'fail');
@@ -190,7 +167,6 @@ class DriveAPIManager {
             }
 
             if (data.token) {
-              // Googleの通常有効期限1時間(3600秒)から、安全のために5分引いた終了時刻(ミリ秒)を計算
               const expiresAt = Date.now() + (3600 * 1000) - (5 * 60 * 1000);
               
               this.state.loggedIn = true;
@@ -214,16 +190,15 @@ class DriveAPIManager {
       }, 200);
     });
 
-    // 💡 Promise自体を返すことで、外側で await drive.auth() と1行で書けるようになります
     return this._authPromise;
   }
 
-  /** 明示的なログアウト（ステートとストレージのクリア） */
   signOut() {
     this.state.loggedIn = false;
     this.state.token = null;
     this.state.expiresAt = 0;
     this.state.email = null;
+    this._idCache = {};
     localStorage.removeItem('dapi_access_token');
     localStorage.removeItem('dapi_expires_at');
     this.progress('signOut', 'done');
@@ -233,14 +208,6 @@ class DriveAPIManager {
      Google Drive自体
      ================================================== */
 
-  /**
-   * ユーザー情報やドライブの状態（About）を取得する
-   */
-  /* 
-    fieldsに取得したいデータを記述する。
-    例: ユーザー名、メールアドレス、アバター、Driveの容量情報
-      fields: 'user(displayName,emailAddress,photoLink),storageQuota'
-  */
   async getAbout(fields) {
     return this.request('GET', 'about', {
       params: { fields }
@@ -259,31 +226,45 @@ class DriveAPIManager {
      ================================================== */
      
   async createFolder({path, fileId}) {
-    {path, fileId} = this.integration(path, fileId);
-    const parts = path.split('/').filter(Boolean);
+    const resolved = await this.integration(path, fileId);
+    let currentPath = resolved.path;
+    let currentId = resolved.fileId;
+
+    const parts = currentPath.split('/').filter(Boolean);
     if (parts.length === 0) return 'appDataFolder';
-    if (this._idCache[path]) return this._idCache[path];
+    if (this._idCache[currentPath]) return this._idCache[currentPath];
     
-    let fileId = null;
     this.progress('createFolder', 'start');
     
+    let lastId = 'appDataFolder';
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       const parent = parts.slice(0, i).join('/');
+      const fullSubPath = parent ? `${parent}/${part}` : part;
       
-      fileId = this._idCache[parent+'/'+part];
-      if (fileId) continue;
-      fileId = await this.getFileId(parent+'/'+part);
-      if (fileId) continue;
-      this.progress('createFolder', 'new Folder Creating');
-      fileId = (await this.createFile(parent, part, 'application/vnd.google-apps.folder')).id;
+      let targetId = this._idCache[fullSubPath];
+      if (!targetId) {
+        targetId = await this.getFileId({path: fullSubPath});
+      }
+      
+      if (!targetId) {
+        this.progress('createFolder', 'new Folder Creating');
+        const created = await this.createFile({path: parent, name: part, mimeType: 'application/vnd.google-apps.folder'});
+        targetId = created.id;
+      }
+      
+      lastId = targetId;
+      this._idCache[fullSubPath] = lastId;
     }
     
-    return fileId;
+    return lastId;
   }
   
   async createFile({path, fileId, name, mimeType, description=''}) {
-    {_path, parentId} = this.integration(path, fileId);
+    const resolved = await this.integration(path, fileId);
+    const parentId = resolved.fileId;
+    const _path = resolved.path;
+
     if ((_path !== "" && !_path) || !name || !mimeType) return null;
     
     const meta = {
@@ -297,17 +278,16 @@ class DriveAPIManager {
   }
   
   async getFileId({path}) {
-    const parts = path.split('/').filter(Boolean);
+    const cleanPath = this.filterPath({path});
+    const parts = cleanPath.split('/').filter(Boolean);
     if (parts.length === 0) return 'appDataFolder';
-    if (this._idCache[path])
-      return this._idCache[path];
+    if (this._idCache[cleanPath]) return this._idCache[cleanPath];
 
     let parentId = 'appDataFolder';
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
-      
-      const _path = parts.slice(0,i+1).join('/');
+      const _path = parts.slice(0, i + 1).join('/');
       const id = this._idCache[_path];
       if (id) {
         parentId = id;
@@ -315,8 +295,6 @@ class DriveAPIManager {
       }
       
       const isLast = i === parts.length - 1;
-      
-      // フォルダかファイルかでクエリを出し分ける（最後以外は必ずフォルダ）
       let q = `'${parentId}' in parents and name = '${part}' and trashed = false`;
       if (!isLast) {
         q += ` and mimeType = 'application/vnd.google-apps.folder'`;
@@ -327,62 +305,84 @@ class DriveAPIManager {
       });
 
       if (!res.files || res.files.length === 0) {
-        return null; // 途中の階層、またはファイルが見つからなければ null
+        return null; 
       }
       parentId = res.files[0].id;
+      this._idCache[_path] = parentId;
     }
-    
-    this._idCache[parts.join('/')] = parentId;
     
     return parentId;
   }
   
-  filterPath(path) {
-    if (!path) return path;
+  filterPath({path}) {
+    if (!path) return '';
     return path.split('/').filter(Boolean).join('/');
   }
   
   async getPath({fileId}) {
+    if (!fileId || fileId === 'appDataFolder') return '';
     const names = [];
-    let parentName = null;
-    do {
-      parentName = await this.request('GET', `files/${fileId}`, {
-        params: {
-          fields: 'parents'
+    let currentId = fileId;
+    
+    try {
+      do {
+        // API仕様に合わせて name と parents を明示的に要求
+        const res = await this.request('GET', `files/${currentId}`, {
+          params: { fields: 'name, parents' }
+        });
+        
+        if (!res) break;
+        names.unshift(res.name);
+        
+        // 親がいるかチェック。いなければ（ルートに到達したら）終了
+        if (res.parents && res.parents.length > 0) {
+          currentId = res.parents[0];
+        } else {
+          currentId = null;
         }
-      });
-      names.unshift(parent.name);
-    } while(parentName && parentName !== 'appDataFolder');
-    names.shift();
-    return names.join('/');
+      } while(currentId && currentId !== 'appDataFolder');
+      
+      return names.join('/');
+    } catch (e) {
+      console.error('[getPath] エラー:', e);
+      return '';
+    }
   }
   
+  // 💡 修正: 非同期メソッド(async)に変更し、安全に結合できるように修正
   async integration(path, fileId) {
-    const _path = path ?? this.getPath(id);
-    const fileId = id ?? this.getFileId(path);
-    return {path; _path, fileId: fileId};
+    const cleanPath = path !== undefined && path !== null ? this.filterPath({path}) : null;
+    
+    let _path = cleanPath;
+    let id = fileId;
+
+    if (_path === null && id) {
+      _path = await this.getPath({fileId: id});
+    } else if (_path !== null && !id) {
+      id = await this.getFileId({path: _path});
+    }
+    
+    return { path: _path || '', fileId: id || 'appDataFolder' };
   }
   
   async removeFile({path, fileId}) {
-    {path, fileId} = this.integration(path, fileId);
+    const resolved = await this.integration(path, fileId);
+    const targetPath = resolved.path;
+    const targetId = resolved.fileId;
     
-    if (!fileId) {
-      console.warn(`[removeFile] パスが見つかりません: ${path}`);
+    if (!targetId || targetId === 'appDataFolder') {
+      console.warn(`[removeFile] パスまたはIDが見つかりません: ${path || fileId}`);
       return null; 
     }
 
-    const file = await this.request('PATCH', `files/${fileId}`, {
-      body: {
-        trashed: true
-      }
+    const file = await this.request('PATCH', `files/${targetId}`, {
+      body: { trashed: true }
     });
     
-    if (file) {
-      // 💡 対策2: 削除したパス自身、およびその配下にある全子階層のキャッシュをすべて一撃で消去
+    if (file && targetPath) {
       const cacheKeys = Object.keys(this._idCache);
       for (const key of cacheKeys) {
-        
-        if (key === cleanPath || key.startsWith(`${path}/`)) {
+        if (key === targetPath || key.startsWith(`${targetPath}/`)) {
           delete this._idCache[key];
         }
       }
@@ -392,32 +392,39 @@ class DriveAPIManager {
   }
   
   async getParentId({path, id}) {
-    {path, fileId} = this.integration(path, id);
-    const res = this.request('GET', `files/${fileId}`, {
-      params: {
-        fields: 'parents'
-      }
+    const resolved = await this.integration(path, id);
+    const targetPath = resolved.path;
+    const targetId = resolved.fileId;
+
+    const res = await this.request('GET', `files/${targetId}`, {
+      params: { fields: 'parents' }
     });
     
-    this._idCache[path] = fileId;
-    // parents は配列で返ってくる（ルート直下の場合は未定義なことがあるため空配列を担保）
-    return res
+    if (targetPath && targetId) {
+      this._idCache[targetPath] = targetId;
+    }
+    
+    return res.parents || [];
   }
   
-  async getFileInfo({path, fileId, fields='files(id, name, mimeType)'}) {
-    {path, fileId} = this.integration(path, fileId);
-    return this.request('GET', `files/${fileId}`, {
-      params: {
-        fields: 'parents'
-      }
+  async getFileInfo({path, fileId, fields='id, name, mimeType'}) {
+    const resolved = await this.integration(path, fileId);
+    const targetId = resolved.fileId;
+
+    // 💡 修正: 固定値ではなく、引数で渡された fields を利用する
+    return this.request('GET', `files/${targetId}`, {
+      params: { fields }
     });
   }
   
   async listFiles({path, fileId}) {
-    {path, fileId: parentId} = this.integration(path, fileId);
-    if (!parentId) return null
+    const resolved = await this.integration(path, fileId);
+    const parentId = resolved.fileId;
+    const parentPath = resolved.path;
+
+    if (!parentId) return null;
     const q = `'${parentId}' in parents and trashed = false`;
-    const fields = 'nextPageToken, files(id, name, mimeType, size, createdTime, modifiedTime)'
+    const fields = 'nextPageToken, files(id, name, mimeType, size, createdTime, modifiedTime)';
     let children = [];
     let pageToken = null;
     
@@ -431,14 +438,14 @@ class DriveAPIManager {
         pageSize: 100
       };
       
-      if (pageToken)
-        params.pageToken = pageToken;
+      if (pageToken) params.pageToken = pageToken;
       
       const res = await this.request('GET', 'files', { params });
       
       if (res.files && res.files.length > 0) {
         for (let file of res.files) {
-          this._idCache[path+'/'+file.name] = file.id;
+          const childPath = parentPath ? `${parentPath}/${file.name}` : file.name;
+          this._idCache[childPath] = file.id;
         }
         children = children.concat(res.files);
       }
@@ -446,18 +453,23 @@ class DriveAPIManager {
       pageToken = res.nextPageToken;
       if (pageToken) this.progress('listFiles', 'fetching_next_page');
     } while (pageToken);
+    
     this.progress('listFiles', `done: total ${children.length} items`);
     return children;
   }
   
   async removeAllFiles() {
-    const list = await this.listFiles('');
-    const promises = [];
+    const list = await this.listFiles({path: ''});
+    if (!list || list.length === 0) return [];
+    
+    // 💡 修正: 逐次 await してログを出しつつ安全に一元管理して削除する
+    const results = [];
     for (let file of list) {
-      console.log(await this.removeFile(file.id));
-      promises.push(this.removeFile(file.id));
+      const res = await this.removeFile({fileId: file.id});
+      console.log('Deleted:', file.name, res);
+      results.push(res);
     }
-    return Promise.all(promises);
+    return results;
   }
 }
 
