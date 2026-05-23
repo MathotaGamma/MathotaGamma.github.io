@@ -57,31 +57,37 @@ class DriveAPIManager {
     const upperMethod = method.toUpperCase();
     this.progress(`request:${upperMethod}`, `${path}:start`);
 
-    let url = `https://www.googleapis.com/drive/v3/${path}`;
+    // URLの組み立て
+    const baseUrl = `https://www.googleapis.com/drive/v3/${path}`;
+    const urlObj = new URL(baseUrl);
+    
     if (options.params) {
-      const q = new URLSearchParams(options.params).toString();
-      if (q) url += `?${q}`;
+      Object.keys(options.params).forEach(key => {
+        if (options.params[key] !== undefined && options.params[key] !== null) {
+          urlObj.searchParams.append(key, options.params[key]);
+        }
+      });
     }
+    const url = urlObj.toString();
 
+    // 💡 拡張性を殺さないシンプルなヘッダー結合
+    // 各メソッド側から渡された options.headers が最優先で適用されます
     const fetchOptions = {
       method: upperMethod,
       headers: {
         'Authorization': `Bearer ${this.state.token}`,
-        'Accept': 'application/json',
         ...options.headers
       }
     };
 
-    if (options.body) {
-      if (typeof options.body === 'object' && !(options.body instanceof FormData) && !(options.body instanceof Blob)) {
-        fetchOptions.headers['Content-Type'] = 'application/json';
-        fetchOptions.body = JSON.stringify(options.body);
-      } else {
-        fetchOptions.body = options.body;
-      }
+    // 💡 危ない自動変換ロジックを排除
+    // 呼び出し側（各メソッド）が用意した body をそのまま fetch に渡す
+    if (options.body !== undefined) {
+      fetchOptions.body = options.body;
     }
-
+    
     try {
+      this.progress('request', url + '\n' + JSON.stringify(fetchOptions));
       const res = await fetch(url, fetchOptions);
 
       if (res.status === 401) {
@@ -94,16 +100,30 @@ class DriveAPIManager {
         throw new Error(`Drive API Error [${res.status}]: ${errData.error?.message || res.statusText}`);
       }
 
-      const data = res.status === 204 ? { ok: true } : await res.json();
+      if (res.status === 204) {
+        return { ok: true };
+      }
+
+      // 💡 レスポンス処理の最適化
+      // alt=media（ファイルの中身取得）の場合は、ContentTypeに関わらず確実に text として返す
+      if (options.params && options.params.alt === 'media') {
+        return await res.text();
+      }
+
+      // それ以外（メタデータの取得など）は、Content-Type を見て JSON パースを判断する
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const text = await res.text();
+        return text !== '' ? JSON.parse(text) : {};
+      }
       
-      this.progress(`request:${upperMethod}`, `${path}:done`);
-      return data;
+      return await res.text();
     } catch (e) {
       this.progress(`request:${upperMethod}`, `${path}:fail`);
       throw e;
     }
   }
-
+  
   /* ==================================================
      auth
      ================================================== */
@@ -222,9 +242,10 @@ class DriveAPIManager {
   }
   
   /* ==================================================
-     File系
+     Folder&Path
      ================================================== */
      
+  // integration, createFile, _idCacheに依存
   async createFolder({path, fileId}) {
     const resolved = await this.integration(path, fileId);
     let currentPath = resolved.path;
@@ -249,7 +270,7 @@ class DriveAPIManager {
       
       if (!targetId) {
         this.progress('createFolder', 'new Folder Creating');
-        const created = await this.createFile({path: parent, name: part, mimeType: 'application/vnd.google-apps.folder'});
+        const created = await this.createFile({parentPath: parent, name: part, mimeType: 'application/vnd.google-apps.folder'});
         targetId = created.id;
       }
       
@@ -260,23 +281,25 @@ class DriveAPIManager {
     return lastId;
   }
   
-  async createFile({path, fileId, name, mimeType, description=''}) {
-    const resolved = await this.integration(path, fileId);
-    const parentId = resolved.fileId;
-    const _path = resolved.path;
+  // integration, requestに依存
+  async createFile({parentPath, parentId, name, mimeType, description=''}) {
+    const resolved = await this.integration(parentPath, parentId);
+    const _parentId = resolved.fileId;
+    const _parentPath = resolved.path;
 
-    if ((_path !== "" && !_path) || !name || !mimeType) return null;
+    if ((_parentPath !== "" && !_parentPath) || !name || !mimeType) return null;
     
     const meta = {
       name,
       mimeType,
-      parents: [parentId],
+      parents: [_parentId],
       description
     };
     
-    return this.request('POST', 'files', { body: meta });
+    return this.request('POST', 'files', { body: JSON.stringify(meta) });
   }
   
+  // filterPath, _idCache, requestに依存
   async getFileId({path}) {
     const cleanPath = this.filterPath({path});
     const parts = cleanPath.split('/').filter(Boolean);
@@ -315,7 +338,7 @@ class DriveAPIManager {
   }
   
   filterPath({path}) {
-    if (!path) return '';
+    if (path === undefined || path === null) return '';
     return path.split('/').filter(Boolean).join('/');
   }
   
@@ -349,49 +372,30 @@ class DriveAPIManager {
     }
   }
   
-  // 💡 修正: 非同期メソッド(async)に変更し、安全に結合できるように修正
   async integration(path, fileId) {
     const cleanPath = path !== undefined && path !== null ? this.filterPath({path}) : null;
     
     let _path = cleanPath;
     let id = fileId;
-
+    console.log(_path, id);
     if (_path === null && id) {
       _path = await this.getPath({fileId: id});
     } else if (_path !== null && !id) {
       id = await this.getFileId({path: _path});
     }
     
-    return { path: _path || '', fileId: id || 'appDataFolder' };
-  }
-  
-  async removeFile({path, fileId}) {
-    const resolved = await this.integration(path, fileId);
-    const targetPath = resolved.path;
-    const targetId = resolved.fileId;
-    
-    if (!targetId || targetId === 'appDataFolder') {
-      console.warn(`[removeFile] パスまたはIDが見つかりません: ${path || fileId}`);
-      return null; 
-    }
-
-    const file = await this.request('PATCH', `files/${targetId}`, {
-      body: { trashed: true }
-    });
-    
-    if (file && targetPath) {
-      const cacheKeys = Object.keys(this._idCache);
-      for (const key of cacheKeys) {
-        if (key === targetPath || key.startsWith(`${targetPath}/`)) {
-          delete this._idCache[key];
-        }
-      }
-    }
-    
-    return file;
+    return { path: _path, fileId: id };
   }
   
   async getParentId({path, id}) {
+    // pathで渡された時
+    if (path !== undefined && path !== null) {
+      const cleanPath = this.filterPath({path});
+      if (cleanPath === "") return null;
+      if (cleanPath.length === 0) return 'appDataFolder';
+      const _path = cleanPath.split('/').slice(0,-1).join('/');
+      return this.getFileId({path: path});
+    }
     const resolved = await this.integration(path, id);
     const targetPath = resolved.path;
     const targetId = resolved.fileId;
@@ -404,14 +408,13 @@ class DriveAPIManager {
       this._idCache[targetPath] = targetId;
     }
     
-    return res.parents || [];
+    return res.parents;
   }
   
-  async getFileInfo({path, fileId, fields='id, name, mimeType'}) {
+  async getFileInfo({path, fileId, fields='id, name, mimeType, size'}) {
     const resolved = await this.integration(path, fileId);
     const targetId = resolved.fileId;
-
-    // 💡 修正: 固定値ではなく、引数で渡された fields を利用する
+    
     return this.request('GET', `files/${targetId}`, {
       params: { fields }
     });
@@ -458,6 +461,32 @@ class DriveAPIManager {
     return children;
   }
   
+  async removeFile({path, fileId}) {
+    const resolved = await this.integration(path, fileId);
+    const targetPath = resolved.path;
+    const targetId = resolved.fileId;
+    
+    if (!targetId || targetId === 'appDataFolder') {
+      console.warn(`[removeFile] パスまたはIDが見つかりません: ${path || fileId}`);
+      return null; 
+    }
+
+    const file = await this.request('PATCH', `files/${targetId}`, {
+      body: { trashed: true }
+    });
+    
+    if (file && targetPath) {
+      const cacheKeys = Object.keys(this._idCache);
+      for (const key of cacheKeys) {
+        if (key === targetPath || key.startsWith(`${targetPath}/`)) {
+          delete this._idCache[key];
+        }
+      }
+    }
+    
+    return file;
+  }
+  
   async removeAllFiles() {
     const list = await this.listFiles({path: ''});
     if (!list || list.length === 0) return [];
@@ -470,6 +499,80 @@ class DriveAPIManager {
       results.push(res);
     }
     return results;
+  }
+  
+  /* ==================================================
+     CRUD
+     ================================================== */
+  
+  /*async saveFile({path, fileId, data, mimeType="application/json"}) {
+    const cleanPath = this.filterPath({path});
+    if (!cleanPath) return { ok: false };
+    
+    const {path: _path, fileId: _fileId} = await this.integration(path, fileId);
+    let _mimeType = mimeType;
+    
+    let bodyData = data;
+    if (typeof data === "object" && !(data instanceof Blob) && !(data instanceof ArrayBuffer)) {
+      bodyData = JSON.stringify(data);
+      _mimeType = "application/json";
+    }
+    
+    this.progress('saveFile', 'start');
+    
+    // 1. 既にファイルが存在する場合（既存ファイルのPATCH上書き）
+    if (_fileId && _fileId !== 'appDataFolder') {
+      const res = await this.request('PATCH', `files/${_fileId}`, {
+        headers: { 'Content-Type': _mimeType },
+        body: bodyData
+      });
+      this.progress('saveFile', 'update:done');
+      return res;
+      return res;
+    } else {
+      // 2. ファイルが存在しない場合（新規作成）
+      const list = cleanPath.split('/');
+      const name = list.pop();
+      
+      let parentId = await this.getParentId({cleanPath});
+      if(!parentId || parentId.length === 0) {
+        parentId = await this.createFolder({path: list.join('/')});
+      }
+      
+      // 💡 修正：まずは空のファイル枠（メタデータのみ）を『await』して作成する
+      const createdFile = await this.createFile({parentId, name, mimeType: _mimeType});
+      
+      if (!createdFile || !createdFile.id) {
+        throw new Error('ファイルの新規枠作成に失敗しました。');
+      }
+
+      // 💡 修正：作成したファイルIDに対して、即座に中身（bodyData）を流し込んで上書き（PATCH）する
+      // これにより、textareaの生改行やインデント付き文字列が100%安全にファイル内に書き込まれます
+      const res = await this.request('PATCH', `files/${createdFile.id}`, {
+        headers: { 'Content-Type': _mimeType },
+        body: bodyData
+      });
+      
+      // キャッシュに作成したファイルのIDを登録しておく
+      this._idCache[cleanPath] = createdFile.id;
+
+      this.progress('saveFile', 'create:done');
+      return res;
+    }
+  }*/
+  
+  async getFile({path, fileId}) {
+    const _fileId = fileId ?? await this.getFileId({path});
+    if (!_fileId) {
+      console.log('ファイルが見つかりません');
+      return null;
+    }
+    
+    //console.log('oi', JSON.stringify(await this.getFileInfo({fileId: _fileId})));
+    const res = this.request('GET', `files/${_fileId}`, {
+      params: {alt: 'media'}
+    });
+    return res;
   }
 }
 
