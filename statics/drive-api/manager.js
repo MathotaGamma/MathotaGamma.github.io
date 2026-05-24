@@ -1,5 +1,5 @@
 class DriveAPIManager {
-  static ver = "4.0";
+  static ver = "4.2";
   
   constructor({ clientId, redirectUri, progress }) {
     if (!clientId || !redirectUri)
@@ -443,7 +443,7 @@ class DriveAPIManager {
         q,
         spaces: 'appDataFolder',
         fields: fields,
-        pageSize: 100
+        pageSize: 2
       };
       
       if (pageToken) params.pageToken = pageToken;
@@ -594,6 +594,63 @@ class DriveAPIManager {
       params: {alt: 'media'}
     });
     return res;
+  }
+  
+  async #miniGetStructure({parentPath, parentId}) {
+    if (!parentId) return null;
+    const q = `'${parentId}' in parents and trashed = false`;
+    const fields = 'nextPageToken, files(id, name, mimeType, size)';
+    let structure = {};
+    let pageToken = null;
+    
+    do {
+      const params = {
+        q,
+        spaces: 'appDataFolder',
+        fields: fields,
+        pageSize: 100
+      };
+      
+      if (pageToken) params.pageToken = pageToken;
+      
+      const res = await this.request('GET', 'files', { params });
+      
+      if (res.files && res.files.length > 0) {
+        for (let file of res.files) {
+          const childPath = parentPath ? `${parentPath}/${file.name}` : file.name;
+          this._idCache[childPath] = file.id;
+          
+          // フォルダ
+          if (file.mimeType === 'application/vnd.google-apps.folder') {
+            structure[file.name] = await this.#miniGetStructure({parentPath: childPath, parentId: file.id});
+          } else { // ファイル
+            structure[file.name] = {
+              end: true,
+              mimeType: file.mimeType,
+              fileId: file.id,
+              size: file.size
+            };
+          }
+        }
+      }
+      
+      pageToken = res.nextPageToken;
+    } while (pageToken);
+    
+    return structure
+  }
+  
+  async getStructure() {
+    const parentPath = '';
+    const parentId = 'appDataFolder';
+    
+    return structuredClone(await this.#miniGetStructure({parentPath, parentId}));
+  }
+  
+  async search({path, id, name}) {
+    if (path === undefined && id === undefined && name === undefined) return;
+    
+    
   }
 }
 
