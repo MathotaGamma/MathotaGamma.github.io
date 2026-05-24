@@ -419,11 +419,11 @@
         runApi(`getFile('${path}', '${asType}')`, () => drive.getFile({path, asType}));
       });
 
-      /*document.getElementById('btnGetStructure').addEventListener('click', () => {
+      document.getElementById('btnGetStructure').addEventListener('click', () => {
         runApi('getStructure()', () => drive.getStructure());
       });
 
-      document.getElementById('btnSearch').addEventListener('click', () => {
+      /*document.getElementById('btnSearch').addEventListener('click', () => {
         const query = document.getElementById('searchQuery').value;
         runApi(`search('${query}')`, () => drive.search(query));
       });
