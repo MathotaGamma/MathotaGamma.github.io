@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P Connect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #0a0a0a;
+      --panel:  #111111;
+      --border: #222222;
+      --accent: #c8f04a;
+      --dim:    #444444;
+      --text:   #e8e8e8;
+      --muted:  #666666;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    /* subtle grid texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .card {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      animation: fadein .4s ease both;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* corner accents */
+    .card::before, .card::after {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      border-color: var(--accent);
+      border-style: solid;
+    }
+    .card::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+    .card::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 2rem;
+    }
+
+    /* ── status row ── */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 2rem;
+      font-size: .78rem;
+      color: var(--muted);
+      letter-spacing: .05em;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--dim);
+      flex-shrink: 0;
+      transition: background .3s;
+    }
+    .dot.pulsing {
+      background: #f0a83a;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .dot.ok  { background: var(--accent); animation: none; }
+    .dot.err { background: #e05555; animation: none; }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: .3; }
+    }
+
+    /* ── id block ── */
+    .id-block {
+      margin-bottom: 2rem;
+      opacity: 0;
+      transition: opacity .4s;
+    }
+    .id-block.visible { opacity: 1; }
+
+    .id-label {
+      font-size: .7rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .5rem;
+    }
+
+    .id-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 1rem;
+      color: var(--accent);
+      background: #0f1a00;
+      border: 1px solid #2a3e00;
+      padding: .6rem 1rem;
+      letter-spacing: .06em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--dim);
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: .7rem;
+      padding: .25rem .5rem;
+      cursor: pointer;
+      letter-spacing: .08em;
+      flex-shrink: 0;
+      transition: border-color .2s, color .2s;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── share link ── */
+    .share-row {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 2rem;
+    }
+
+    .share-btn {
+      background: var(--accent);
+      color: #0a0a0a;
+      border: none;
+      font-family: 'Syne', sans-serif;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: .6rem 1.2rem;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    .share-btn:hover { opacity: .85; }
+
+    /* ── divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.5rem 0;
+    }
+
+    /* ── peer section ── */
+    .peer-status {
+      font-size: .78rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+    .peer-status.connected { color: var(--accent); }
+
+    /* ── log ── */
+    .log {
+      margin-top: 1.5rem;
+      font-size: .72rem;
+      color: var(--muted);
+      line-height: 1.8;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .log-entry { display: block; }
+    .log-entry.ok  { color: #7acc2a; }
+    .log-entry.err { color: #e05555; }
+    .log-entry.info{ color: #5599cc; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>P2P Connect</h1>
+
+    <!-- サーバー状態 -->
+    <div class="status-row">
+      <span class="dot" id="dot"></span>
+      <span id="status-text">シグナリングサーバーを起動中…</span>
+    </div>
+
+    <!-- 自分のID -->
+    <div class="id-block" id="id-block">
+      <div class="id-label">Your ID</div>
+      <div class="id-value">
+        <span id="my-id">—</span>
+        <button class="copy-btn" id="copy-id">COPY</button>
+      </div>
+    </div>
+
+    <!-- 招待リンク -->
+    <div class="share-row" id="share-row" style="display:none">
+      <button class="share-btn" id="share-btn">🔗 Share Link</button>
+    </div>
+
+    <hr class="divider">
+
+    <!-- P2P接続状態 -->
+    <div class="peer-status" id="peer-status">相手の接続を待機中…</div>
+
+    <!-- ログ -->
+    <div class="log" id="log"></div>
+  </div>
+
+  <!-- P2Pクラス -->
+  <script src="/statics/p2p/manager.js"></script>
+
+  <script>
+    // ─── 設定（デプロイ先に合わせて変更） ───────────────────
+    const SIGNALING_BASE = "wss://your-render-app.onrender.com";
+    const WAKE_URL       = "https://your-render-app.onrender.com/";  // GET / でサーバーを起こす
+    const WAKE_INTERVAL  = 4000;   // ms: 起動確認ポーリング間隔
+    const WAKE_TIMEOUT   = 60000;  // ms: タイムアウト
+    // ─────────────────────────────────────────────────────────
+
+    const $dot        = document.getElementById("dot");
+    const $statusText = document.getElementById("status-text");
+    const $idBlock    = document.getElementById("id-block");
+    const $myId       = document.getElementById("my-id");
+    const $copyId     = document.getElementById("copy-id");
+    const $shareRow   = document.getElementById("share-row");
+    const $shareBtn   = document.getElementById("share-btn");
+    const $peerStatus = document.getElementById("peer-status");
+    const $log        = document.getElementById("log");
+
+    // ─── ユーティリティ ───────────────────────────────────────
+    function log(msg, type = "") {
+      const el = document.createElement("span");
+      el.className = `log-entry ${type}`;
+      el.textContent = `> ${msg}`;
+      $log.appendChild(el);
+      $log.scrollTop = $log.scrollHeight;
+    }
+
+    function setDot(state) {           // "pulsing" | "ok" | "err"
+      $dot.className = `dot ${state}`;
+    }
+
+    // ─── room_id = 自分のID（URLパラメータ or ランダム生成） ──
+    const params  = new URLSearchParams(location.search);
+    const hostId  = params.get("connect_to");   // 相手のIDがあれば
+    const myId    = crypto.randomUUID();
+    $myId.textContent = myId;
+
+    // ─── Renderウォームアップ ──────────────────────────────────
+    async function wakeServer() {
+      setDot("pulsing");
+      const start = Date.now();
+
+      while (Date.now() - start < WAKE_TIMEOUT) {
+        try {
+          const res = await fetch(WAKE_URL, { mode: "cors", cache: "no-store" });
+          if (res.ok) {
+            setDot("ok");
+            $statusText.textContent = "サーバー接続完了";
+            log("signaling server ready", "ok");
+            return true;
+          }
+        } catch (_) { /* まだ起動中 */ }
+        log(`waiting for server… (${Math.round((Date.now() - start) / 1000)}s)`);
+        await new Promise(r => setTimeout(r, WAKE_INTERVAL));
+      }
+
+      setDot("err");
+      $statusText.textContent = "サーバー起動タイムアウト";
+      log("timeout: server did not respond", "err");
+      return false;
+    }
+
+    // ─── メイン ───────────────────────────────────────────────
+    (async () => {
+      const ok = await wakeServer();
+      if (!ok) return;
+
+      // ID表示・共有UIを出す
+      $idBlock.classList.add("visible");
+      $shareRow.style.display = "flex";
+
+      $copyId.addEventListener("click", () => {
+        navigator.clipboard.writeText(myId);
+        $copyId.textContent = "COPIED";
+        setTimeout(() => ($copyId.textContent = "COPY"), 1500);
+      });
+
+      $shareBtn.addEventListener("click", () => {
+        const url = `${location.origin}${location.pathname}?connect_to=${myId}`;
+        navigator.clipboard.writeText(url);
+        $shareBtn.textContent = "✓ Copied!";
+        setTimeout(() => ($shareBtn.textContent = "🔗 Share Link"), 1800);
+      });
+
+      // P2P接続
+      // 自分のIDをroomとして待機。相手が?connect_to=myIdで来たら同じroomに入る
+      const roomId = hostId ?? myId;
+      const wsUrl  = `${SIGNALING_BASE}/ws/${roomId}`;
+
+      log(`joining room: ${roomId.slice(0, 8)}…`, "info");
+
+      const p2p = new P2P(wsUrl);
+
+      p2p.on("open", () => {
+        $peerStatus.textContent = "✓ P2P接続確立";
+        $peerStatus.classList.add("connected");
+        setDot("ok");
+        log("P2P DataChannel open", "ok");
+      });
+
+      p2p.on("data", (msg) => {
+        log(`recv: ${JSON.stringify(msg)}`);
+      });
+
+      p2p.on("close", () => {
+        $peerStatus.textContent = "接続が切断されました";
+        $peerStatus.classList.remove("connected");
+        log("disconnected", "err");
+      });
+
+      p2p.on("error", (e) => {
+        log(`error: ${e?.message ?? e}`, "err");
+      });
+    })();
+  </script>
+</body>
+</html>
