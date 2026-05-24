@@ -297,7 +297,9 @@
       });
       
       document.getElementById('btnDebug').addEventListener('click', () => {
-        runApi('debug()', () => drive.createFolder({ path: '/test/1/2/3/4/5/' }));
+        runApi('debug()', () => {
+          
+        });
       });
 
       document.getElementById('btnInit').addEventListener('click', () => {
@@ -392,13 +394,13 @@
           runApi(`removeFile('${path}')`, () => drive.removeFile({ path }));
         }
       });
-      /*
+      
       document.getElementById('btnSaveFile').addEventListener('click', () => {
         const path = document.getElementById('filePath').value;
         const type = document.getElementById('fileDataType').value;
         const rawContent = document.getElementById('fileContent').value;
         
-        let data = rawContent;
+        let data;
         if (type === 'json') {
           try {
             data = JSON.parse(rawContent || '{}');
@@ -408,16 +410,16 @@
           }
         }
 
-        runApi(`saveFile('${path}')`, () => drive.saveFile(path, data));
+        runApi(`saveFile('${path}')`, () => drive.saveFile({path, data}));
       });
 
       document.getElementById('btnGetFile').addEventListener('click', () => {
-        const pathOrId = document.getElementById('filePath').value;
+        const path = document.getElementById('filePath').value;
         const asType = document.getElementById('getAs').value;
-        runApi(`getFile('${pathOrId}', '${asType}')`, () => drive.getFile(pathOrId, asType));
+        runApi(`getFile('${path}', '${asType}')`, () => drive.getFile({path, asType}));
       });
 
-      document.getElementById('btnGetStructure').addEventListener('click', () => {
+      /*document.getElementById('btnGetStructure').addEventListener('click', () => {
         runApi('getStructure()', () => drive.getStructure());
       });
 
