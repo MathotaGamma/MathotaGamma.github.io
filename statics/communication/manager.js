@@ -85,7 +85,8 @@ class SignalingSocket {
       // 溜まっていたメッセージを送出
       this._queue.forEach(s => this._ws.send(s));
       this._queue = [];
-      this._emit("open");
+      // Promise.resolve()で1マイクロタスク遅らせ、new直後のon登録を確実に拾う
+      Promise.resolve().then(() => this._emit("open"));
     };
 
     this._ws.onmessage = ({ data }) => {
