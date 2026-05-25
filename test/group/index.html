@@ -506,28 +506,27 @@
 
         group = new Group(`${SIGNALING_BASE}/ws/${roomId}`);
 
-        // ─ 入室完了 ─
+        // IDはnew Group()の時点で確定しているので即表示
+        $myIdDisplay.textContent = group.id.slice(0, 8);
+
+        // 招待ボタンも即座に設定（readyを待たない）
+        $copyLinkBtn.onclick = () => {
+          const url = `${location.origin}${location.pathname}?room=${roomId}`;
+          navigator.clipboard.writeText(url);
+          $copyLinkBtn.textContent = "✓ コピー済み";
+          setTimeout(() => { $copyLinkBtn.textContent = "🔗 招待リンク"; }, 1800);
+        };
+
+        $copyIdBtn.onclick = () => {
+          navigator.clipboard.writeText(roomId);
+          $copyIdBtn.textContent = "✓ コピー済み";
+          setTimeout(() => { $copyIdBtn.textContent = "ID コピー"; }, 1500);
+        };
+
+        // ─ 入室完了（WSが繋がった） ─
         group.on("ready", () => {
           retries = 0;
           $reconnectBar.classList.remove("show");
-
-          // 自分のIDをヘッダーに表示
-          $myIdDisplay.textContent = group.id.slice(0, 8);
-
-          // 招待ボタンの動作を設定
-          $copyLinkBtn.onclick = () => {
-            const url = `${location.origin}${location.pathname}?room=${roomId}`;
-            navigator.clipboard.writeText(url);
-            $copyLinkBtn.textContent = "✓ コピー済み";
-            setTimeout(() => { $copyLinkBtn.textContent = "🔗 招待リンク"; }, 1800);
-          };
-
-          $copyIdBtn.onclick = () => {
-            navigator.clipboard.writeText(roomId);
-            $copyIdBtn.textContent = "✓ コピー済み";
-            setTimeout(() => { $copyIdBtn.textContent = "ID コピー"; }, 1500);
-          };
-
           $sendBtn.disabled = false;
           updateMemberCount();
           addSys(`入室しました — Room: ${roomId}`);
