@@ -506,8 +506,12 @@
 
         group = new Group(`${SIGNALING_BASE}/ws/${roomId}`);
 
-        // IDはnew Group()の時点で確定しているので即表示
+        // IDはnew Group()の時点で確定 → 表示してから画面遷移
         $myIdDisplay.textContent = group.id.slice(0, 8);
+
+        // ロビー → チャット切り替え（IDセット後に行う）
+        $lobby.style.display = "none";
+        $chat.classList.add("show");
 
         // 招待ボタンも即座に設定（readyを待たない）
         $copyLinkBtn.onclick = () => {
@@ -641,11 +645,6 @@
         }
 
         currentRoom = roomId;
-
-        // ロビー → チャット切り替え
-        $lobby.style.display = "none";
-        $chat.classList.add("show");
-
         startGroup(roomId);
       });
 
