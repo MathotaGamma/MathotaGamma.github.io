@@ -404,7 +404,7 @@
     <!-- ════════════════════════════════════════════════════════
          スクリプト
          ════════════════════════════════════════════════════════ -->
-    <script src="statics/communication/manager.js"></script>
+    <script src="/statics/communication/manager.js"></script>
     <script>
       // ── 設定 ───────────────────────────────────────────────
       const SIGNALING_BASE = "wss://signaling-server-dman.onrender.com";
@@ -413,22 +413,22 @@
       const RETRY_DELAY_MS = 3000;
 
       // ── DOM参照 ────────────────────────────────────────────
-      const $dot          = document.getElementById("dot");
-      const $stTxt        = document.getElementById("st-txt");
-      const $roomInput    = document.getElementById("room-input");
-      const $startBtn     = document.getElementById("start-btn");
-      const $lobby        = document.getElementById("lobby");
-      const $chat         = document.getElementById("chat");
-      const $myIdDisplay  = document.getElementById("my-id-display");
-      const $copyLinkBtn  = document.getElementById("copy-link-btn");
-      const $copyIdBtn    = document.getElementById("copy-id-btn");
-      const $memberCount  = document.getElementById("member-count");
-      const $reconnectBar = document.getElementById("reconnect-bar");
-      const $reconnTxt    = document.getElementById("reconn-txt");
-      const $backBtn      = document.getElementById("back-btn");
-      const $messages     = document.getElementById("messages");
-      const $msgInput     = document.getElementById("msg-input");
-      const $sendBtn      = document.getElementById("send-btn");
+      const dotEl          = document.getElementById("dot");
+      const statusText        = document.getElementById("st-txt");
+      const roomInput    = document.getElementById("room-input");
+      const startBtn     = document.getElementById("start-btn");
+      const lobby        = document.getElementById("lobby");
+      const chat         = document.getElementById("chat");
+      const myIdDisplay  = document.getElementById("my-id-display");
+      const copyLinkBtn  = document.getElementById("copy-link-btn");
+      const copyIdBtn    = document.getElementById("copy-id-btn");
+      const memberCount  = document.getElementById("member-count");
+      const reconnectBar = document.getElementById("reconnect-bar");
+      const reconnText    = document.getElementById("reconn-txt");
+      const backBtn      = document.getElementById("back-btn");
+      const messages     = document.getElementById("messages");
+      const msgInput     = document.getElementById("msg-input");
+      const sendBtn      = document.getElementById("send-btn");
 
       // ── 状態変数 ───────────────────────────────────────────
       let group       = null;
@@ -440,7 +440,7 @@
       const params = new URLSearchParams(location.search);
       const paramRoom = params.get("room");
       if (paramRoom) {
-        $roomInput.value = paramRoom;
+        roomInput.value = paramRoom;
       }
 
       // ── ユーティリティ ─────────────────────────────────────
@@ -466,8 +466,8 @@
           <div class="msg-bubble">${escHtml(text)}</div>
           ${meta ? `<div class="msg-meta">${meta}</div>` : ""}
         `;
-        $messages.appendChild(wrap);
-        $messages.scrollTop = $messages.scrollHeight;
+        messages.appendChild(wrap);
+        messages.scrollTop = messages.scrollHeight;
       }
 
       function addSys(text) {
@@ -477,7 +477,7 @@
       function updateMemberCount() {
         // 自分 + 接続中のpeer数
         const count = group ? group.members.length + 1 : 1;
-        $memberCount.textContent = count;
+        memberCount.textContent = count;
       }
 
       // ── Renderウォームアップ ───────────────────────────────
@@ -493,7 +493,7 @@
           }
 
           const elapsed = Math.round((Date.now() - startTime) / 1000);
-          $stTxt.textContent = `サーバー起動中… ${elapsed}s`;
+          statusText.textContent = `サーバー起動中… ${elapsed}s`;
           await new Promise(r => setTimeout(r, 3000));
         }
 
@@ -507,34 +507,34 @@
         group = new Group(`${SIGNALING_BASE}/ws/${roomId}`);
 
         // IDはnew Group()の時点で確定 → 表示してから画面遷移
-        $myIdDisplay.textContent = group.id.slice(0, 8);
+        myIdDisplay.textContent = group.id.slice(0, 8);
 
         // ロビー → チャット切り替え（IDセット後に行う）
-        $lobby.style.display = "none";
-        $chat.classList.add("show");
+        lobby.style.display = "none";
+        chat.classList.add("show");
 
         // 招待ボタンも即座に設定（readyを待たない）
-        $copyLinkBtn.onclick = () => {
+        copyLinkBtn.onclick = () => {
           const url = `${location.origin}${location.pathname}?room=${roomId}`;
           navigator.clipboard.writeText(url);
-          $copyLinkBtn.textContent = "✓ コピー済み";
-          setTimeout(() => { $copyLinkBtn.textContent = "🔗 招待リンク"; }, 1800);
+          copyLinkBtn.textContent = "✓ コピー済み";
+          setTimeout(() => { copyLinkBtn.textContent = "🔗 招待リンク"; }, 1800);
         };
 
-        $copyIdBtn.onclick = () => {
+        copyIdBtn.onclick = () => {
           navigator.clipboard.writeText(roomId);
-          $copyIdBtn.textContent = "✓ コピー済み";
-          setTimeout(() => { $copyIdBtn.textContent = "ID コピー"; }, 1500);
+          copyIdBtn.textContent = "✓ コピー済み";
+          setTimeout(() => { copyIdBtn.textContent = "ID コピー"; }, 1500);
         };
 
         // ─ 入室完了（WSが繋がった） ─
         group.on("ready", () => {
           retries = 0;
-          $reconnectBar.classList.remove("show");
-          $sendBtn.disabled = false;
+          reconnectBar.classList.remove("show");
+          sendBtn.disabled = false;
           updateMemberCount();
           addSys(`入室しました — Room: ${roomId}`);
-          $msgInput.focus();
+          msgInput.focus();
         });
 
         // ─ 新メンバー参加 ─
@@ -570,17 +570,17 @@
         group._sig.on("close", () => {
           if (stopping) return;
 
-          $sendBtn.disabled = true;
+          sendBtn.disabled = true;
           retries++;
 
           if (retries > MAX_RETRY) {
-            $reconnTxt.textContent = "再接続に失敗しました";
-            $reconnectBar.classList.add("show");
+            reconnText.textContent = "再接続に失敗しました";
+            reconnectBar.classList.add("show");
             return;
           }
 
-          $reconnTxt.textContent = `シグナリング切断。再接続中… (${retries}/${MAX_RETRY})`;
-          $reconnectBar.classList.add("show");
+          reconnText.textContent = `シグナリング切断。再接続中… (${retries}/${MAX_RETRY})`;
+          reconnectBar.classList.add("show");
           addSys("接続が切断されました。再接続中…");
 
           setTimeout(() => startGroup(roomId), RETRY_DELAY_MS);
@@ -593,17 +593,17 @@
         group?.close();
         group = null;
 
-        $chat.classList.remove("show");
-        $lobby.style.display = "";
-        $reconnectBar.classList.remove("show");
-        $messages.innerHTML = "";
-        $sendBtn.disabled = true;
-        $memberCount.textContent = "1";
-        $myIdDisplay.textContent = "—";
+        chat.classList.remove("show");
+        lobby.style.display = "";
+        reconnectBar.classList.remove("show");
+        messages.innerHTML = "";
+        sendBtn.disabled = true;
+        memberCount.textContent = "1";
+        myIdDisplay.textContent = "—";
 
         // URLからroomパラメータを除去
         history.replaceState(null, "", location.pathname);
-        $roomInput.value = "";
+        roomInput.value = "";
 
         stopping = false;
         retries  = 0;
@@ -611,13 +611,13 @@
 
       // ── メッセージ送信 ─────────────────────────────────────
       function sendMsg() {
-        const text = $msgInput.value.trim();
+        const text = msgInput.value.trim();
         if (!text) return;
 
         try {
           group.broadcast(text);
           addMsg(text, "me", nowStr());
-          $msgInput.value = "";
+          msgInput.value = "";
         } catch (e) {
           addSys(`送信失敗: ${e.message}`);
         }
@@ -625,19 +625,19 @@
 
       // ── イベントリスナー ───────────────────────────────────
 
-      $sendBtn.addEventListener("click", sendMsg);
+      sendBtn.addEventListener("click", sendMsg);
 
-      $msgInput.addEventListener("keydown", (e) => {
+      msgInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           sendMsg();
         }
       });
 
-      $backBtn.addEventListener("click", goHome);
+      backBtn.addEventListener("click", goHome);
 
-      $startBtn.addEventListener("click", () => {
-        let roomId = $roomInput.value.trim();
+      startBtn.addEventListener("click", () => {
+        let roomId = roomInput.value.trim();
 
         // Room IDが空なら新規作成
         if (!roomId) {
@@ -653,19 +653,19 @@
         const ok = await wakeServer();
 
         if (!ok) {
-          $dot.className    = "dot err";
-          $stTxt.textContent = "サーバー起動タイムアウト";
+          dotEl.className    = "dot err";
+          statusText.textContent = "サーバー起動タイムアウト";
           return;
         }
 
-        $dot.className    = "dot ok";
-        $stTxt.textContent = "サーバー接続完了";
-        $startBtn.disabled = false;
+        dotEl.className    = "dot ok";
+        statusText.textContent = "サーバー接続完了";
+        startBtn.disabled = false;
 
         // URLにroom指定があれば自動入室
         if (paramRoom) {
-          $roomInput.value = paramRoom;
-          $startBtn.click();
+          roomInput.value = paramRoom;
+          startBtn.click();
         }
       })();
     </script>
