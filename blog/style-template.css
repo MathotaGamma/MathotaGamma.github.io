@@ -32,14 +32,10 @@ header {
   align-items: center;
 }
 
-header nav a {
+header nav span {
   color: #1f2951;
   text-decoration: none;
   margin-left: 1rem;
-}
-
-header nav a:hover {
-  color: #f7931e;
 }
 
 main {
