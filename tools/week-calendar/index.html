@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8">
     <title>週間カレンダー</title>
+    <link rel="stylesheet" href="/statics/main-style.css" />
+    <script type="module" src="/statics/main-script.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
       body {
@@ -40,6 +42,9 @@
   </head>
   <body>
     <div id="controls">
+      <div>
+        <nav class="breadcrumb"></nav>
+      </div>
       <div class="control-group">
         <label>横幅(px): <input type="number" id="tableWidth" value="900"></label>
         <label>フォントサイズ(px): <input type="number" id="fontSize" value="12"></label>
