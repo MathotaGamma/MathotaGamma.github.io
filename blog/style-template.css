@@ -32,12 +32,6 @@ header {
   align-items: center;
 }
 
-header nav span {
-  color: #1f2951;
-  text-decoration: none;
-  margin-left: 1rem;
-}
-
 main {
   display: flex;
   flex: 1;
