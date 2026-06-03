@@ -4,14 +4,14 @@
   gap: 10px;
 }
 
-nav#breadcrumb {
+nav.breadcrumb {
   font-size: 14px;
 }
 
-nav#breadcrumb.default-bg {
+nav.breadcrumb.default-bg {
   background: rgb( 255 250 205 );
 }
 
-nav#breadcrumb span {
+nav.breadcrumb span {
   display: inline-block;
 }
