@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>論理ゲートシミュレーター（レスポンシブ・パン・ドラッグ対応）</title>
+    <link rel="stylesheet" href="/statics/main-style.css" />
+    <script type="module" src="/statics/main-script.js"></script>
     <style>
       :root {
         --panel-w: 220px;
@@ -247,6 +249,7 @@
     <div class="app">
       <header>
         <div class="brand">論理ゲートシミュレーター</div>
+        <nav class="breadcrumb"></nav>
         <div class="controls">
           <button id="btnReset">再計算</button>
           <button id="btnClear" class="primary">全消去</button>
