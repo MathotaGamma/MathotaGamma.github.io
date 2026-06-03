@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8">
     <title>three.js Tutorial Editor</title>
+    <link rel="stylesheet" href="/statics/main-style.css" />
+    <script type="module" src="/statics/main-script.js"></script>
+    <link rel="stylesheet" href="/blog/style-template.css"></link>
+    <script type="module" src="/blog/script-template.js"></script>
     <style>
       html, body {
         width: 100vw;
@@ -137,7 +141,7 @@
   <body>
     <div id="editor-container">
       <div id="controls">
-        <button>↩︎ ホームへ</button>
+        <nav class="breadcrumb"></nav>
         インデント:
         <select id="indent-size">
           <option value="2">2</option>
