@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>ソートアルゴリズムを体感する</title>
+  <link rel="stylesheet" href="/statics/main-style.css" />
+  <script type="module" src="/statics/main-script.js"></script>
+  <link rel="stylesheet" href="/blog/style-template.css"></link>
+  <script type="module" src="/blog/script-template.js"></script>
   <style>
     body {
       margin: 0;
@@ -46,6 +50,7 @@
 </head>
 <body>
   <header>
+    <nav class="breadcrumb"></nav>
     <div id="dataDisplay"></div>
     <div>
       データ数: <input type="number" id="NumInput" value="100" placeholder="Num"><input type="button" value="OK" onclick="OK();"><input type="range" id="dataSize" min="5" max="5000" value="100">
