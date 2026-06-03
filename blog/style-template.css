@@ -42,18 +42,6 @@ header nav a:hover {
   color: #f7931e;
 }
 
-nav#breadcrumb {
-  font-size: 14px;
-}
-
-nav#breadcrumb.default-bg {
-  background: rgb( 255 250 205 );
-}
-
-nav#breadcrumb span {
-  display: inline-block;
-}
-
 main {
   display: flex;
   flex: 1;
