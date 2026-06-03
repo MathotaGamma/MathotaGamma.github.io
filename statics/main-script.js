@@ -10,8 +10,6 @@ data-color-splitter: "「<」の色" (default: "black")
 class="breadcrumb default-bg"でクリーム色の背景色になる。
 */
 
-alert('used');
-
 async function getSitemap() {
   try {
     const res = await fetch('/statics/sitemap.json');
@@ -39,6 +37,9 @@ async function initBreadcrumb(href=null) {
 
   const sitemap = await getSitemap();
   if (!sitemap) error = "#1";
+  
+  const goTop = document.createElement("span");
+  goTop.innerHTML = "TOP";
   
   function getList(paths) {
     try {
@@ -113,35 +114,22 @@ async function initBreadcrumb(href=null) {
       splitter: breadcrumb.dataset.colorSplitter ?? "black",
       bg: breadcrumb.dataset.bgColor
     };
-  
-    // パス分解
-    const paths = (href??location.pathname).split("/");
-    paths.shift();
-    let implicit = false;
-    if (paths[paths.length-1] == "") {
-      implicit = true;
-      paths.pop();
-    }
-    
-    const res = await getList(paths);
     
     breadcrumb.style.display = "inline-block";
     if (color.bg) breadcrumb.style.backgroundColor = color.bg;
-    
     if (error != null) {
-      const goTop = document.createElement("span");
-      goTop.innerHTML = "TOP";
-      goTop.style.color = color.able;
-      goTop.addEventListener("click", () => {
-        window.location.href = "/";
-      });
+      breadcrumb.innerHTML = "";
+      const clone = goTop.cloneNode(true);
+      clone.style.color = color.able;
       const errorSpan = document.createElement("span");
       errorSpan.innerHTML = error;
       errorSpan.style.marginLeft = "5px";
       errorSpan.style.fontSize = "12px";
       errorSpan.style.color = color.disable;
-      breadcrumb.innerHTML = "";
-      breadcrumb.appendChild(goTop.cloneNode(true));
+      clone.addEventListener("click", () => {
+        window.location.href = "/";
+      });
+      breadcrumb.appendChild(clone);
       breadcrumb.appendChild(errorSpan.cloneNode(true));
     } else {
       const {stateList, pathList, nameList} = res;
@@ -167,6 +155,17 @@ async function initBreadcrumb(href=null) {
     
     return true;
   }
+  
+  // パス分解
+  const paths = (href??location.pathname).split("/");
+  paths.shift();
+  let implicit = false;
+  if (paths[paths.length-1] == "") {
+    implicit = true;
+    paths.pop();
+  }
+      
+  const res = await getList(paths);
   
   for (let breadcrumb of breadcrumbs) {
     await apply(breadcrumb);
