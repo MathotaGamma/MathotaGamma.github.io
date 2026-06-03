@@ -1,4 +1,3 @@
-alert('used 2');
 // スムーズスクロール（目次）
 document.querySelectorAll('.anchor').forEach(anchor => {
   anchor.addEventListener('click', e => {
