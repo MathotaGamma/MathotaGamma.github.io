@@ -171,5 +171,5 @@ async function initBreadcrumb(href=null) {
     await apply(breadcrumb);
   }
 }
-
+if (document.getElementById('breadcrumb')) alert('code: #1');
 initBreadcrumb();
