@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/statics/main-style.css" />
+  <script type="module" src="/statics/main-script.js"></script>
   <title>mask.png作成ツール</title>
   <style>
     body {
@@ -59,7 +61,7 @@
 </head>
 <body>
   <div class="toolbar">
-    <a href="../home">Return to Home</a>
+    <nav class="breadcrumb"></nav>
     <input type="file" id="imageLoader" accept="image/*" />
     <label>ペンサイズ:
       <input type="range" id="penSize" min="1" max="50" value="10" />
