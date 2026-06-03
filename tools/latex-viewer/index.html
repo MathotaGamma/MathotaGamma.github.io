@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LaTeX 数式エディタ</title>
+    <link rel="stylesheet" href="/statics/main-style.css" />
+    <script type="module" src="/statics/main-script.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
       html, body {
@@ -191,7 +193,7 @@
   <body>
     <header>LaTeX 数式エディタ</header>
     <div class="side" id="side">
-      
+      <nav class="breadcrumb"></nav>
     </div>
     <main>
       <button id="toggle-source-btn" class="toggle-source-btn">テキストモード</button>
