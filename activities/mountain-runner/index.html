@@ -4,6 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mountain Runner</title>
+    <link rel="stylesheet" href="/statics/main-style.css" />
+    <script type="module" src="/statics/main-script.js"></script>
     <style>
       :root {
         --R2: 200px;
@@ -234,12 +236,12 @@
     <div id="left-stick-layer"></div>
     <div id="menu">▼ MENU</div>
     <div id="menu-container">
-      <button onclick="positionReset(true);">Position Reset</button><br>
+      <div><nav class="breadcrumb"></nav></div><br>
+      <button onclick="positionReset(true);">Position Reset</button>
       <button onclick="timeStop('change');">Pause</button>
       <button onclick="toggleMission();">MISSION</button>
       <button onclick="toggleShowVelocity();" id="toggle-velocity" disabled>Velocity Hide</button>
       <button onclick="removeLocalStorage();">Data Reset</button>
-      <button onclick="goBack();">Go Back</button>
       <button onclick="help();">Help</button>
     </div>
     <div id="mission">
@@ -1445,10 +1447,8 @@ function resetGyro() {
           }
           animate();
         }
-      }
 
-      function goBack() {
-        window.location.href = "../";
+        init();
       }
     </script>
   </body>
