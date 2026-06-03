@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <title>HTML実行エディタ | TOOLS</title>
+    <link rel="stylesheet" href="/blog/style-template.css"></link>
+    <script type="module" src="/blog/script-template.js"></script>
+    <link rel="stylesheet" href="/statics/main-style.css" />
+    <script type="module" src="/statics/main-script.js"></script>
     <style>
       html, body {
         margin: 0; padding: 0; height: 100%;
@@ -108,7 +112,7 @@
         <button id="clear">コードクリア</button>
         <label>⬜︎ space:<input type="number" id="space-num" value="2"></label>
       </div>
-      <textarea id="editor"><!DOCTYPE html>
+        <textarea id="editor"><!DOCTYPE html>
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
@@ -121,10 +125,12 @@
     </script>
   </body>
 </html></textarea>
+     
+      
     </div>
     <div id="resize-bar"></div>
     <div id="preview-container">
-      <iframe id="preview" sandbox="allow-scripts" allowfullscreen></iframe>
+      <iframe id="preview" allowfullscreen></iframe>
       <div id="console">▼ ログとエラー出力</div>
     </div>
 
@@ -297,7 +303,6 @@
         consoleDiv.textContent = "▼ ログとエラー出力";
         const userHTML = editor.value;
 
-        // sandbox環境でも安全にメッセージを伝えるため、宛先を特定のOriginではなく"*"に指定
         const debugScript = `
 <script>
   (function(){
@@ -328,7 +333,6 @@
       });
 
       window.addEventListener("message", e => {
-        // サンドボックス化されたiframeからのOriginは、ブラウザによって "null" または独白のOriginになります
         if (!e.data) return;
         if (e.data.type === "log") {
           consoleDiv.textContent += `\n[LOG] ${e.data.message}`;
@@ -344,6 +348,7 @@
       let isResizing = false;
       let startX = 0;
       let startWidth = 0;
+      const resizeBarWidth = 50;
       resizeBar.addEventListener("mousedown", e => {
         isResizing = true;
         startX = e.clientX;
@@ -389,8 +394,7 @@
         editorContainer.style.width = newWidth + "px";
       });
 
-      // 変数名を 'textarea' から 'editor' に修正
-      editor.addEventListener('blur', () => {
+      textarea.addEventListener('blur', () => {
         requestAnimationFrame(() => {
           window.scrollTo(0, 0);
         });
