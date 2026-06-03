@@ -29,7 +29,7 @@ async function initBreadcrumb(href=null) {
   const errorList = {
     "#0": "不明なエラー",
     "#1": "sitemapが見つかりません。",
-    "#2": "暗黙のPathであるが、_indexがから文字でない。",
+    "#2": "暗黙のPathであるが、_indexが空文字でない。",
     "#3": "暗黙のpathではなく、index.htmlではないファイルがエンドに来ている状態で、sitemap.jsonの記述がエンドの形状になっていない(valueがString型でない)。",
     "#4": ""
   }
