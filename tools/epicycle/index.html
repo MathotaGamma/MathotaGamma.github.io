@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8">
     <title>DFTを用いてエピサイクルで手描き曲線</title>
+    <link rel="stylesheet" href="/statics/main-style.css" />
+    <script type="module" src="/statics/main-script.js"></script>
     <style>
       html, body {
         margin: 0;
@@ -49,10 +51,7 @@
   <body>
     <canvas id="canvas"></canvas>
     <div id="info"></div>
-    <div id="anchor">
-      <a href="/">Homeへ</a><br>
-      <a href="/blog/fourier-transform/">Fourier変換の説明へ</a>
-    </div>
+    <nav class="breadcrumb"></nav>
     <script>
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
