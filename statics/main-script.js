@@ -149,7 +149,7 @@ async function initBreadcrumb(href=null) {
         }
       
         if (ind != 0) breadcrumb.appendChild(splitter.cloneNode(true));
-        breadcrumb.appendChild(span.cloneNode(true));
+        breadcrumb.appendChild(span);
       }
     }
     
