@@ -10,6 +10,8 @@ data-color-splitter: "「<」の色" (default: "black")
 class="breadcrumb default-bg"でクリーム色の背景色になる。
 */
 
+alert('used');
+
 async function getSitemap() {
   try {
     const res = await fetch('/statics/sitemap.json');
