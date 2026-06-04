@@ -379,46 +379,213 @@ Izz = (1/3) · m · hx²
 
 ### 2.5 Polyhedron (多面体)
 
-頂点を追加して任意の多面体形状を作る。凸形状とは限らない。  
-**凹形状の場合は GJK を直接使えない** → 凸分解が必要(後述)。
+頂点を追加して任意の多面体形状を作る。形状が**凸かどうかによって衝突判定の扱い方が全く異なる**ため、まずその区別を明確にする。
 
-**必要なデータ:**
+---
+
+#### 凸形状と凹形状の区別
+
+**凸形状(Convex Polyhedron):**  
+形状の任意の2点を結んだ直線が、常に形状の内部を通る形状。  
+例: サイコロ、ダイヤモンド形、ピラミッド  
+→ GJK の支持関数が定義でき、ナローフェーズに直接使える。
+
+**凹形状(Concave Polyhedron):**  
+くぼみや穴がある形状。任意の2点を結んだ直線が形状の外部を通る場合がある。  
+例: L字型、ドーナツ形、人体メッシュ  
+→ GJK は凸形状にしか使えないため、**凸分解してから使う**。
+
+---
+
+#### 凸形状の Polyhedron コライダー
+
+凸形状の場合は頂点リストをそのままコライダーとして使える。  
+頂点が追加された順番によっては凸包生成が必要な場合もある。
+
+**凸包生成が必要なケース:**  
+「頂点を追加してコライダーを作る」形式では、追加した頂点が内部に潜り込んでいたり、  
+面の巻き順が不整合だったりすることがある。  
+その場合は「凸包(Convex Hull)」= 全点を内包する最小の凸形状 を生成し直す。  
+ただしこれはあくまで「凸形状コライダーの正規化処理」であり、  
+凹メッシュを凸にしているわけではない。
+
+**凸包生成 (Quickhull アルゴリズム) — 凸コライダーの正規化:**
 ```
-vertices : Vec3[]     // 頂点座標のリスト(ローカル座標)
-faces    : Face[]     // 各面の情報
-    face.vertexIndices : int[]   // この面を構成する頂点のインデックス
-    face.normal        : Vec3    // この面の法線(外向き)
-edges    : Edge[]     // エッジのリスト
-    edge.vertexA, edge.vertexB : int   // 両端の頂点インデックス
+目的: 与えられた頂点群から「全頂点を包む最小の凸形状」を生成する
+
+手順:
+1. 全頂点の中で最も x が大きい点と小さい点を選び、初期の辺とする
+2. その辺から最も遠い点を選び、三角形を作る
+3. その三角形から最も遠い点を選び、四面体(初期シンプレックス)を作る
+4. 各面について「その面の外側にある頂点」をリストアップする
+5. 外側点を持つ面を1つ選び、その面から最も遠い点 p を取得する
+6. p から見える(p が面の外側にある)面を全て削除し、
+   削除した面の境界エッジと p を結んで新しい三角形面を生成する
+7. 全ての面の外側に頂点がなくなるまで 5〜6 を繰り返す
 ```
 
-**凸包生成 (Quickhull アルゴリズム):**  
-与えられた頂点群から「全点を内包する最小の凸形状」を生成する。
+**凸コライダーとして必要なデータ:**
+```
+ConvexPolyhedron:
+    vertices : Vec3[]   // 頂点リスト(ローカル座標)
+    faces    : Face[]   // 各三角形面
+        face.normal        : Vec3   // 外向き法線
+        face.vertexIndices : int[3] // 3頂点のインデックス
+    edges    : Edge[]   // エッジリスト(EPA での境界エッジ探索に使う)
+        edge.v0, edge.v1   : int    // 両端の頂点インデックス
+        edge.face0, edge.f1: int    // このエッジを共有する2面のインデックス
+```
+
+**支持関数 (GJKで使う — 凸形状のみ有効):**  
+全頂点の中で方向 d への内積が最大の点を返す。  
+これが凸形状でしか定義できない理由は「凹形状では最遠点が一意に定まらない」から。
+```
+function support(d_local):
+    // d はローカル座標に変換してから渡す: d_local = Rᵀ · d_world
+    maxDot = -∞;  result = vertices[0]
+    for v in vertices:
+        val = dot(v, d_local)
+        if val > maxDot:  maxDot = val;  result = v
+    // 結果をワールド座標に戻す
+    return position + R · result
+```
+
+---
+
+#### 凹形状 Polyhedron の扱い — 凸分解
+
+GJK は凸形状にしか適用できない。凹形状の Polyhedron は**事前に凸形状の集合に分解**してから扱う。  
+これを「凸分解 (Convex Decomposition)」と呼ぶ。
+
+**凸分解とは:**  
+凹形状を「重なりなく分割した複数の凸形状」で近似することで、  
+それぞれの凸形状に対して GJK を適用できるようにする。
+
+**V-HACD (Volumetric Hierarchical Approximate Convex Decomposition):**  
+現在最も広く使われる凸分解アルゴリズム。  
+体積ベースで分解するため、内部構造も考慮した品質の高い分解が得られる。  
+Unity(PhysX)・Bullet・Jolt 物理エンジンでも採用されている。
+
+```
+凸分解の結果として生成されるデータ (ConvexDecomposition):
+
+decomposition : ConvexPart[]     // 分解された凸形状のリスト
+    part.vertices  : Vec3[]      // この凸部品の頂点(ローカル座標)
+    part.faces     : Face[]      // 面リスト
+    part.edges     : Edge[]      // エッジリスト
+    part.localOffset : Vec3      // 剛体重心からのオフセット(部品ごとに異なる)
+    part.mass        : float     // この部品の質量(体積比で分配)
+    part.I_local     : Mat3x3    // この部品の局所慣性テンソル
+```
+
+**分解後のデータとして1つの物体に保持する方法:**  
+凸分解した複数の ConvexPart を「Compound コライダー」として剛体に持たせる。  
+各 ConvexPart はそれぞれ独立した凸コライダーとして機能し、  
+同じ剛体の Transform(position + orientation)を共有することで「1つの物体」として動く。
+
+```
+RigidBody:
+    colliders : Collider[]    // ← ここに全 ConvexPart を登録する
+        collider[0] = ConvexPolyhedron (part 0 の頂点・面)
+        collider[1] = ConvexPolyhedron (part 1 の頂点・面)
+        ...
+    // position と orientation は全部品で共通
+    // 各部品の worldPos = R · part.localOffset + body.position で求まる
+```
+
+---
+
+#### 凸分解した物体の各計算での扱い
+
+**① AABB の生成:**  
+各 ConvexPart ごとに AABB を生成し、全部品の AABB を包む最小の AABB を物体全体の AABB とする。
+
+```
+body_aabb.min = (+∞, +∞, +∞)
+body_aabb.max = (-∞, -∞, -∞)
+for each part in decomposition:
+    part_aabb = computeAABB(part.vertices, body.position, body.orientation, part.localOffset)
+    body_aabb.min = componentMin(body_aabb.min, part_aabb.min)
+    body_aabb.max = componentMax(body_aabb.max, part_aabb.max)
+```
+
+**② ブロードフェーズ:**  
+物体全体の AABB でペアを絞り込む。普通の物体と変わらない。
+
+**③ ナローフェーズ (GJK):**  
+ブロードフェーズで候補になったペア `(bodyA, bodyB)` について、  
+**各 ConvexPart の組み合わせ全てに対して個別に GJK を実行する**。
+
+```
+// bodyA が N 個の部品、bodyB が M 個の部品を持つ場合
+// 最大 N×M 回の GJK が走る
+for each partA in bodyA.colliders:
+    for each partB in bodyB.colliders:
+        // ブロードフェーズをもう一段かける(部品レベルの AABB)
+        if not overlapsAABB(partA.aabb, partB.aabb): continue
+        result = GJK(partA, partB)   // 各部品は凸形状なので GJK が使える
+        if result.intersecting:
+            manifolds.append(buildManifold(bodyA, bodyB, partA, partB, result))
+```
+
+**④ 衝突情報 (Contact Manifold):**  
+部品同士の衝突で生成された ContactPoint は「どの部品ペアが衝突したか」を記録しておく。  
+ただしインパルスの計算は「剛体単位」で行うため、接触点の `r_A`, `r_B` は  
+部品のローカル重心ではなく**剛体全体の重心から接触点への腕**として計算する。
+
+```
+r_A = contactPoint.worldPos - bodyA.position   // 剛体Aの重心から接触点
+r_B = contactPoint.worldPos - bodyB.position   // 剛体Bの重心から接触点
+// 部品のオフセット(localOffset)は r_A/r_B の計算には直接使わない
+// なぜなら worldPos はワールド座標であり、body.position も同じワールド座標だから
+```
+
+**⑤ 慣性テンソルの計算:**  
+凸分解した全部品の慣性テンソルを、**平行軸の定理**で剛体重心からのオフセットを補正して合算する。
+
+平行軸の定理:  
+「部品の重心まわりの慣性テンソル `I_part`」を「剛体重心まわりの慣性テンソル」に変換するには、  
+部品の重心から剛体重心へのオフセットベクトル r を使って以下を加算する。
+
+```
+// r_i: 部品 i の局所重心 → 剛体重心へのオフセット(ローカル座標)
+// outer(r, r): r の外積行列(3×3テンソル積)
+// I₃: 3×3 単位行列
+
+I_body = Σ_i [ I_part_i  +  m_i · (dot(r_i, r_i)·I₃ - outer(r_i, r_i)) ]
+
+// 具体的に成分で書くと:
+// outer(r, r) の (j,k) 成分 = r[j] · r[k]
+// dot(r, r)·I₃ の (j,k) 成分 = |r|²  if j==k, else 0
+
+// 例: r = (1, 0, 0), m = 1
+// outer(r,r) = [[1,0,0],[0,0,0],[0,0,0]]
+// dot(r,r)·I₃ = [[1,0,0],[0,1,0],[0,0,1]]
+// 追加される慣性 = [[0,0,0],[0,1,0],[0,0,1]]
+// → Y軸・Z軸まわりに 1 kg·m² 分の慣性が加算される
+```
+
+この計算は物体生成時に1回だけ行い、その結果を `I_local` として保存する。  
+シミュレーション中は毎フレーム `I_world_inv = R · I_local_inv · Rᵀ` で更新する。
+
+**⑥ スリープ・Island:**  
+剛体単位で isAwake を管理するため、部品がいくつあっても通常と同じ処理になる。  
+個別の ConvexPart はスリープ状態を持たない。
+
+---
+
+**慣性テンソル (テトラヘドロン分解による数値積分):**  
+凸・凹問わず、面を三角形で構成したメッシュなら以下の方法で求められる。  
+符号付き体積を使うため凹形状でも正しく積分できる(外向き法線が一貫していること)。
 
 ```
 手順:
-1. 最も x が大きい点と小さい点を選び、初期の「辺」とする
-2. その辺から最も遠い点を追加して三角形を作る
-3. さらにその三角形から最も遠い点を追加し四面体を作る(初期形状)
-4. 各面について「面の外側にある点」をリストアップ
-5. 外側点がある面を選び、その面から最も遠い点 p を取得
-6. p から見える全ての面を削除し、境界エッジに p を結んで新しい面を生成
-7. 全ての面に外側点がなくなるまで 5-6 を繰り返す
+1. メッシュの各三角形面 (v0, v1, v2) と原点 O = (0,0,0) を頂点とする四面体を考える
+2. 各四面体の符号付き体積と慣性テンソルを解析的に計算する
+   (符号は面法線が外向きなら正、内向きなら負になる)
+3. 全四面体分を合算する → 凸形状でも凹形状でも正しく積算される
+4. 合算結果を総質量で正規化し、重心を原点とする座標系に移動する
 ```
-
-**支持関数 (GJKで使う):**  
-全頂点の中で方向 d への内積が最大の点を返す。O(n) かかる。
-```
-function support(d):
-    maxDot = -∞;  result = vertices[0]
-    for v in vertices:
-        val = dot(v, d)
-        if val > maxDot:  maxDot = val;  result = v
-    return result
-```
-
-**慣性テンソル (テトラヘドロン分解):**  
-メッシュを四面体に分解して各慣性テンソルを合算する(符号付き体積を使えば凹形状でも正しく計算される)。
 
 ---
 
