@@ -1,25 +1,32 @@
+/*
+ userが指定したフォルダのみにアクセスする、space(=file)を追加し、
+ space==fileに対応させた。
+*/
 class DriveAPIManager {
-  static ver = "4.3";
+  static ver = "6.0";
   
   constructor({ clientId, redirectUri, progress, space = 'appdata' }) {
     if (!clientId || !redirectUri)
       throw new Error('引数にclient_idとredirect_uriを含めてください。');
     
-    if (space !== 'appdata' && space !== 'drive')
-      throw new Error("spaceは'appdata'または'drive'を指定してください。");
+    if (space !== 'appdata' && space !== 'drive' && space !== 'file')
+      throw new Error("spaceは'appdata'、'drive'、または'file'を指定してください。");
     
     this.progress = progress || (() => {});
     this.clientId = clientId;
     this.redirectUri = redirectUri;
     
     // 'appdata' : 専用の隠しフォルダ(appDataFolder)のみを操作する
-    // 'drive'   : マイドライブ全体(root以下)を操作する
+    // 'drive'   : マイドライブ全体(root以下)をフルアクセスで操作する
+    // 'file'    : このアプリが作成/開いたファイルのみをマイドライブ等(root以下)で操作する
     this.space = space;
-    this.rootId = space === 'drive' ? 'root' : 'appDataFolder';
-    this.spacesParam = space === 'drive' ? 'drive' : 'appDataFolder';
+    this.rootId = space === 'appdata' ? 'appDataFolder' : 'root';
+    this.spacesParam = space === 'appdata' ? 'appDataFolder' : 'drive';
     this.authScope = space === 'drive'
       ? 'https://www.googleapis.com/auth/drive'
-      : 'https://www.googleapis.com/auth/drive.appdata';
+      : space === 'file'
+        ? 'https://www.googleapis.com/auth/drive.file'
+        : 'https://www.googleapis.com/auth/drive.appdata';
     
     const cachedToken = localStorage.getItem('dapi_access_token');
     const cachedExpires = parseInt(localStorage.getItem('dapi_expires_at') || '0', 10);
@@ -67,12 +74,6 @@ class DriveAPIManager {
     }
 
     const upperMethod = method.toUpperCase();
-
-    /*let url = `https://www.googleapis.com/drive/v3/${path}`;
-    if (options.params) {
-      const q = new URLSearchParams(options.params).toString();
-      if (q) url += `?${q}`;
-    }*/
     
     const baseUrl = options.origin ? `https://www.googleapis.com/${path}` : `https://www.googleapis.com/drive/v3/${path}`;
     const urlObj = new URL(baseUrl);
@@ -92,7 +93,6 @@ class DriveAPIManager {
       method: upperMethod,
       headers: {
         'Authorization': `Bearer ${this.state.token}`,
-        /*'Accept': 'application/json',*/
         ...options.headers
       }
     };
@@ -105,7 +105,6 @@ class DriveAPIManager {
         fetchOptions.body = options.body;
       }
     }
-    
     
     try {
       const res = await fetch(url, fetchOptions);
@@ -132,7 +131,6 @@ class DriveAPIManager {
       } else {
         data = await res.text();
       }
-      
       
       this.progress(`request:${upperMethod}`, `${url}:done`);
       return data;
@@ -263,11 +261,9 @@ class DriveAPIManager {
      Folder&Path
      ================================================== */
      
-  // integration, createFile, _idCacheに依存
   async createFolder({path, fileId}) {
     const resolved = await this.integration({path, fileId});
     let currentPath = resolved.path;
-    let currentId = resolved.fileId;
 
     const parts = currentPath.split('/').filter(Boolean);
     if (parts.length === 0) return this.rootId;
@@ -299,7 +295,6 @@ class DriveAPIManager {
     return lastId;
   }
   
-  // integration, requestに依存
   async createFile({parentPath, parentId, name, mimeType, description=''}) {
     const resolved = await this.integration({path: parentPath, fileId: parentId});
     const _parentId = resolved.fileId;
@@ -317,7 +312,6 @@ class DriveAPIManager {
     return await this.request('POST', 'files', { body: meta });
   }
   
-  // filterPath, _idCache, requestに依存
   async getFileId({path}) {
     const cleanPath = this.filterPath({path});
     const parts = cleanPath.split('/').filter(Boolean);
@@ -367,7 +361,6 @@ class DriveAPIManager {
     
     try {
       do {
-        // API仕様に合わせて name と parents を明示的に要求
         const res = await this.request('GET', `files/${currentId}`, {
           params: { fields: 'name, parents' }
         });
@@ -375,7 +368,6 @@ class DriveAPIManager {
         if (!res) break;
         names.unshift(res.name);
         
-        // 親がいるかチェック。いなければ（ルートに到達したら）終了
         if (res.parents && res.parents.length > 0) {
           currentId = res.parents[0];
         } else {
@@ -405,7 +397,6 @@ class DriveAPIManager {
   }
   
   async getParentId({path, id}) {
-    // pathで渡された時: 親フォルダのIDを配列で返す（idで渡された場合の戻り値の形式に合わせる）
     if (path !== undefined && path !== null) {
       const cleanPath = this.filterPath({path});
       if (cleanPath === "") return null;
@@ -455,7 +446,7 @@ class DriveAPIManager {
         q,
         spaces: this.spacesParam,
         fields: fields,
-        pageSize: 2
+        pageSize: 100 // パフォーマンス向上のため一括取得件数を引き上げ
       };
       
       if (pageToken) params.pageToken = pageToken;
@@ -508,7 +499,6 @@ class DriveAPIManager {
     const list = await this.listFiles({path: ''});
     if (!list || list.length === 0) return [];
     
-    // 💡 修正: 逐次 await してログを出しつつ安全に一元管理して削除する
     const results = [];
     for (let file of list) {
       const res = await this.removeFile({fileId: file.id});
@@ -524,12 +514,9 @@ class DriveAPIManager {
      
   async saveFile({path, fileId, data, mimeType="application/json"}) {
     const cleanPath = this.filterPath({path});
-    if (!cleanPath) return {
-      ok: false
-    }
+    if (!cleanPath) return { ok: false };
     
-    // 既に作成されている場合は_fileIdが取得できる。
-    const {path: _path, fileId: _fileId} = await this.integration({path, fileId});
+    const {fileId: _fileId} = await this.integration({path, fileId});
     let _mimeType = mimeType;
     
     let bodyData = data;
@@ -540,18 +527,13 @@ class DriveAPIManager {
     
     this.progress('saveFile', 'start');
     
-    // 既にファイルが存在する場合
     if (_fileId && _fileId !== this.rootId) {
       const res = await this.request('PATCH',
         `upload/drive/v3/files/${_fileId}`,
         {
           origin: true,
-          params: {
-            uploadType: 'media'
-          },
-          headers: {
-            'Content-Type': _mimeType
-          },
+          params: { uploadType: 'media' },
+          headers: { 'Content-Type': _mimeType },
           body: bodyData
         }
       );
@@ -559,8 +541,6 @@ class DriveAPIManager {
       this.progress('saveFile', 'update:done');
       return res;
     } else {
-      // ファイルが存在しない場合
-      
       const list = cleanPath.split('/');
       const name = list.pop();
       let parentId = (await this.getParentId({path: cleanPath}))?.[0] ?? null;
@@ -578,17 +558,13 @@ class DriveAPIManager {
         `upload/drive/v3/files/${created.id}`,
         {
           origin: true,
-          params: {
-            uploadType: 'media'
-          },
-          headers: {
-            'Content-Type': _mimeType
-          },
+          params: { uploadType: 'media' },
+          headers: { 'Content-Type': _mimeType },
           body: bodyData
         }
       );
       
-      console.log('file size:', bodyData.length);
+      console.log('file size:', bodyData.length ?? bodyData.size ?? 0);
       
       this.progress('saveFile', 'create:done');
       return res;
@@ -632,10 +608,9 @@ class DriveAPIManager {
           const childPath = parentPath ? `${parentPath}/${file.name}` : file.name;
           this._idCache[childPath] = file.id;
           
-          // フォルダ
           if (file.mimeType === 'application/vnd.google-apps.folder') {
             structure[file.name] = await this.#miniGetStructure({parentPath: childPath, parentId: file.id});
-          } else { // ファイル
+          } else {
             structure[file.name] = {
               end: true,
               mimeType: file.mimeType,
@@ -649,7 +624,7 @@ class DriveAPIManager {
       pageToken = res.nextPageToken;
     } while (pageToken);
     
-    return structure
+    return structure;
   }
   
   async getStructure() {
@@ -661,8 +636,7 @@ class DriveAPIManager {
   
   async search({path, id, name}) {
     if (path === undefined && id === undefined && name === undefined) return;
-    
-    
+    // 必要に応じて拡張可能
   }
 }
 
