@@ -1,13 +1,25 @@
 class DriveAPIManager {
-  static ver = "4.2";
+  static ver = "4.3";
   
-  constructor({ clientId, redirectUri, progress }) {
+  constructor({ clientId, redirectUri, progress, space = 'appdata' }) {
     if (!clientId || !redirectUri)
       throw new Error('引数にclient_idとredirect_uriを含めてください。');
+    
+    if (space !== 'appdata' && space !== 'drive')
+      throw new Error("spaceは'appdata'または'drive'を指定してください。");
     
     this.progress = progress || (() => {});
     this.clientId = clientId;
     this.redirectUri = redirectUri;
+    
+    // 'appdata' : 専用の隠しフォルダ(appDataFolder)のみを操作する
+    // 'drive'   : マイドライブ全体(root以下)を操作する
+    this.space = space;
+    this.rootId = space === 'drive' ? 'root' : 'appDataFolder';
+    this.spacesParam = space === 'drive' ? 'drive' : 'appDataFolder';
+    this.authScope = space === 'drive'
+      ? 'https://www.googleapis.com/auth/drive'
+      : 'https://www.googleapis.com/auth/drive.appdata';
     
     const cachedToken = localStorage.getItem('dapi_access_token');
     const cachedExpires = parseInt(localStorage.getItem('dapi_expires_at') || '0', 10);
@@ -162,7 +174,7 @@ class DriveAPIManager {
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
       response_type: 'token',
-      scope: 'https://www.googleapis.com/auth/drive.appdata',
+      scope: this.authScope,
       state: 'debug_implicit_test'
     };
     
@@ -258,12 +270,12 @@ class DriveAPIManager {
     let currentId = resolved.fileId;
 
     const parts = currentPath.split('/').filter(Boolean);
-    if (parts.length === 0) return 'appDataFolder';
+    if (parts.length === 0) return this.rootId;
     if (this._idCache[currentPath]) return this._idCache[currentPath];
     
     this.progress('createFolder', 'start');
     
-    let lastId = 'appDataFolder';
+    let lastId = this.rootId;
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       const parent = parts.slice(0, i).join('/');
@@ -309,10 +321,10 @@ class DriveAPIManager {
   async getFileId({path}) {
     const cleanPath = this.filterPath({path});
     const parts = cleanPath.split('/').filter(Boolean);
-    if (parts.length === 0) return 'appDataFolder';
+    if (parts.length === 0) return this.rootId;
     if (this._idCache[cleanPath]) return this._idCache[cleanPath];
 
-    let parentId = 'appDataFolder';
+    let parentId = this.rootId;
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
@@ -330,7 +342,7 @@ class DriveAPIManager {
       }
 
       const res = await this.request('GET', 'files', {
-        params: { q, spaces: 'appDataFolder', fields: 'files(id)' }
+        params: { q, spaces: this.spacesParam, fields: 'files(id)' }
       });
 
       if (!res.files || res.files.length === 0) {
@@ -349,7 +361,7 @@ class DriveAPIManager {
   }
   
   async getPath({fileId}) {
-    if (!fileId || fileId === 'appDataFolder') return '';
+    if (!fileId || fileId === this.rootId) return '';
     const names = [];
     let currentId = fileId;
     
@@ -369,7 +381,7 @@ class DriveAPIManager {
         } else {
           currentId = null;
         }
-      } while(currentId && currentId !== 'appDataFolder');
+      } while(currentId && currentId !== this.rootId);
       
       return names.join('/');
     } catch (e) {
@@ -393,13 +405,13 @@ class DriveAPIManager {
   }
   
   async getParentId({path, id}) {
-    // pathで渡された時
+    // pathで渡された時: 親フォルダのIDを配列で返す（idで渡された場合の戻り値の形式に合わせる）
     if (path !== undefined && path !== null) {
       const cleanPath = this.filterPath({path});
       if (cleanPath === "") return null;
-      if (cleanPath.length === 0) return 'appDataFolder';
-      const _path = cleanPath.split('/').slice(0,-1).join('/');
-      return await this.getFileId({path: path});
+      const _path = cleanPath.split('/').slice(0, -1).join('/');
+      const parentId = await this.getFileId({path: _path});
+      return parentId ? [parentId] : [];
     }
     const resolved = await this.integration({path, fileId: id});
     const targetPath = resolved.path;
@@ -441,7 +453,7 @@ class DriveAPIManager {
     do {
       const params = {
         q,
-        spaces: 'appDataFolder',
+        spaces: this.spacesParam,
         fields: fields,
         pageSize: 2
       };
@@ -471,7 +483,7 @@ class DriveAPIManager {
     const targetPath = resolved.path;
     const targetId = resolved.fileId;
     
-    if (!targetId || targetId === 'appDataFolder') {
+    if (!targetId || targetId === this.rootId) {
       console.warn(`[removeFile] パスまたはIDが見つかりません: ${path || fileId}`);
       return null; 
     }
@@ -529,7 +541,7 @@ class DriveAPIManager {
     this.progress('saveFile', 'start');
     
     // 既にファイルが存在する場合
-    if (_fileId && _fileId !== 'appDataFolder') {
+    if (_fileId && _fileId !== this.rootId) {
       const res = await this.request('PATCH',
         `upload/drive/v3/files/${_fileId}`,
         {
@@ -551,7 +563,7 @@ class DriveAPIManager {
       
       const list = cleanPath.split('/');
       const name = list.pop();
-      let parentId = (await this.getParentId({path: cleanPath}))?[0] : null;
+      let parentId = (await this.getParentId({path: cleanPath}))?.[0] ?? null;
       if(!parentId)
         parentId = await this.createFolder({path: list.join('/')});
       
@@ -606,7 +618,7 @@ class DriveAPIManager {
     do {
       const params = {
         q,
-        spaces: 'appDataFolder',
+        spaces: this.spacesParam,
         fields: fields,
         pageSize: 100
       };
@@ -642,7 +654,7 @@ class DriveAPIManager {
   
   async getStructure() {
     const parentPath = '';
-    const parentId = 'appDataFolder';
+    const parentId = this.rootId;
     
     return structuredClone(await this.#miniGetStructure({parentPath, parentId}));
   }
