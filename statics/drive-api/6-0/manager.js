@@ -1,3 +1,7 @@
+/*
+ userが指定したフォルダのみにアクセスする、space(=file)を追加し、
+ space==fileに対応させた。
+*/
 class DriveAPIManager {
   static ver = "6.0";
   
