@@ -1,5 +1,6 @@
 /*
  userがファイルを指定してもらうメソッド openPicker を追加。
+ 選択されたファイル(又はその子ファイル)は、space=='file'時にアクセス可能となる。
 */
 class DriveAPIManager {
   static ver = "6.1";
