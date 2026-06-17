@@ -303,7 +303,7 @@
       });
 
       document.getElementById('btnPicker').addEventListener('click', () => {
-        drive.openPicker();
+        logResult(drive.openPicker({mimeType: 'application/vnd.google-apps.folder'}));
       });
       
       document.getElementById('btnDebug').addEventListener('click', () => {
