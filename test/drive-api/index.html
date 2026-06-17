@@ -166,6 +166,7 @@
             &nbsp;<input type="radio" name="space" value="file">:file
           </div>
           <div class="btn-grid">
+            <button id="btnPicker" class="primary">ファイルPicker表示</button>
             <button id="btnDebug" class="primary">Debug用ボタン</button>
           </div>
         </div>
@@ -299,6 +300,10 @@
       document.getElementById('btnClearConsole').addEventListener('click', () => {
         elConsole.innerText = 'コンソールをクリアしました。';
         elProgress.innerHTML = '';
+      });
+
+      document.getElementById('btnPicker').addEventListener('click', () => {
+        drive.openPicker();
       });
       
       document.getElementById('btnDebug').addEventListener('click', () => {
