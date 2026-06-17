@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DriveAPIManager プレイグラウンド Ver:4.0</title>
+    <title>DriveAPIManager プレイグラウンド</title>
     <style>
       :root {
         --bg-color: #f8f9fa;
@@ -162,7 +162,8 @@
           <h3>0. Debug</h3>
           <div>
             <input type="radio" name="space" id="appdata" value="appdata" checked>:appdata
-            &nbsp;<input type="radio" name="space" value="drive">:drive
+            &nbsp;<input type="radio" name="space" id="drive" value="drive">:drive
+            &nbsp;<input type="radio" name="space" value="file">:file
           </div>
           <div class="btn-grid">
             <button id="btnDebug" class="primary">Debug用ボタン</button>
@@ -319,12 +320,17 @@
         localStorage.setItem('pm_redirect_uri', redirectUri);
 
         try {
-          alert("'"+(document.getElementById('appdata').checked ? 'appdata' : 'drive')+"'で初期化");
+          const space = document.getElementById('appdata').checked
+            ? 'appdata'
+            : document.getElementById('drive').checked
+              ? 'drive'
+              : 'file';
+          alert("'"+space+"'で初期化");
           drive = new DriveAPIManager({
             clientId,
             redirectUri,
             progress: (phase, detail) => logProgress(phase, detail),
-            space: document.getElementById('appdata').checked ? 'appdata' : 'drive'
+            space
           });
           elInitStatus.innerText = `状態: 初期化完了 (インスタンス生成済)`;
           elInitStatus.style.backgroundColor = '#d1e7dd';
