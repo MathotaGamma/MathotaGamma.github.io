@@ -1,6 +1,6 @@
 #数式パーサー
 
 ##目標
-*Formula<->Code
-*Formula<->Latex
-*Code<->Latex
+* Formula<->Code
+* Formula<->Latex
+* Code<->Latex
