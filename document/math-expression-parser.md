@@ -6,8 +6,8 @@
 * Code<->Latex
 
 ## 手順
-1. tokenizer
+1. tokenizer<br>
   字句解析。数式を最小単位(要素)に分解する
-2. parser
-  構文解析。字句の構造を作成する。
+2. parser<br>
+  構文解析。字句の構造を作成する。<br>
   ここではASTを用いて二分木を作成する。
