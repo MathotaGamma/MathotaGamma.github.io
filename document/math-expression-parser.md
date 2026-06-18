@@ -29,6 +29,7 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
   |:----|:----|:---:|:---:|
   |space|/^\s+/|false|null|
   |comma|/^,/|false|null|
+  
     parStart : {re: /^\(/},
     parEnd :   {re: /^\)/},
     add:   {re: /^\+/},
