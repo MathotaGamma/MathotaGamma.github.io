@@ -42,18 +42,44 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
         <td>false</td>
         <td>null</td>
       </tr>
-    </tbody>
-  </table>
-  |comma|/^,/|false|null|
-  |parStart|/^\(/|false|null|
-  |parEnd|/^\)/|false|null|
-  |add|/^\+/|false|null|
-  |sub|/^\-/|false|null|
+      <tr>
+        <th scope="row">comma</th>
+        <td>/^,/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">parStart</th>
+        <td>/^\(/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">parEnd</th>
+        <td>/^\)/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">add</th>
+        <td>/^\+/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">sub</th>
+        <td>/^\-/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
   |pro|/^\*/|false|null|
   |div|/^\//|false|null|
   |pow|/^\^/|false|null|
+      <tr>
+        <td colspan="4">絶対値はわからないので\[\]又はabs()を用いる。</td>
+      </tr>
   |absStart|/^\[/|false|null|
-    absEnd:     {re: /^\]/},
+      absEnd:     {re: /^\]/},
     // cosecがcos判定とならないように、cosより前に判定
     csc:   {re: /^(csc|cosec)/, func: true, par: true},
     sec:   {re: /^sec/, func: true, par: true},
@@ -81,4 +107,9 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
     num:   {re: new RegExp(`^${this.numReg}`)},
     value: {re: new RegExp(`^(?:${this.character}(?:(?:0|[1-9][0-9]*)(?!${this.character})|_(?:${this.character}|${this.numReg})*)?)`)},
   }
+    </tbody>
+  </table>
+  
+  
+    
 </details>
