@@ -30,15 +30,15 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
   |:----|:----|:---:|:---:|
   |space|/^\s+/|false|null|
   |comma|/^,/|false|null|
-  
-    parStart : {re: /^\(/},
-    parEnd :   {re: /^\)/},
-    add:   {re: /^\+/},
-    sub:   {re: /^\-/},
-    pro:   {re: /^\*/},
-    div:   {re: /^\//},
-    pow:   {re: /^\^/},
-    absStart:   {re: /^\[/},
+  |parStart|/^\(/|false|null|
+  |parEnd|/^\)/|false|null|
+  |add|/^\+/|false|null|
+  |sub|/^\-/|false|null|
+  |pro|/^\*/|false|null|
+  |div|/^\//|false|null|
+  |pow|/^\^/|false|null|
+  |絶対値は向きがわからないので\[\]で入力する。|<|<|<|
+  |absStart|/^\[/|false|null|
     absEnd:     {re: /^\]/},
     // cosecがcos判定とならないように、cosより前に判定
     csc:   {re: /^(csc|cosec)/, func: true, par: true},
