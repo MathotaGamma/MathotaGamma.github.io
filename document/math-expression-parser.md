@@ -72,41 +72,189 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
         <td>false</td>
         <td>null</td>
       </tr>
-  |pro|/^\*/|false|null|
-  |div|/^\//|false|null|
-  |pow|/^\^/|false|null|
+      <tr>
+        <th scope="row">pro</th>
+        <td>/^\*/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">div</th>
+        <td>/^\//</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">pow</th>
+        <td>/^\^/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
       <tr>
         <td colspan="4">絶対値はわからないので\[\]又はabs()を用いる。</td>
       </tr>
-  |absStart|/^\[/|false|null|
-      absEnd:     {re: /^\]/},
-    // cosecがcos判定とならないように、cosより前に判定
-    csc:   {re: /^(csc|cosec)/, func: true, par: true},
-    sec:   {re: /^sec/, func: true, par: true},
-    cot:   {re: /^cot/, func: true, par: true},
-    arccsc:{re: /^(arccsc|acsc|arccosec|acosec)/, func: true, par: true},
-    arcsec:{re: /^(arcsec|asec)/, func: true, par: true},
-    arccot:{re: /^(arccot|acot)/, func: true, par: true},
-    sin:   {re: /^sin/, func: true, par: true},
-    cos:   {re: /^cos/, func: true, par: true},
-    tan:   {re: /^tan/, func: true, par: true},
-    arcsin:{re: /^(arcsin|asin)/, func: true, par: true},
-    arccos:{re: /^(arccos|acos)/, func: true, par: true},
-    arctan2: {re: /^(acrtan2|atan2)/, func: true},
-    arctan:{re: /^(arctan|atan)/, func: true, par: true},
-    log10: {re: /^log10/, func: true, par: true},
-    log:   {re: /^log/, func: true, par: true},
-    ln:    {re: /^ln/, func: true, par: true},
-    exp:   {re: /^exp/, func: true, par: true},
-    arg:   {re: /^arg/, func: true, par: true},
-    max:   {re: /^max/, func: true},
-    min:   {re: /^min/, func: true},
-    e:     {re: /^e(?!_)/},
-    i:     {re: /^i(?!_)/},
-    pi:    {re: /^pi|π/},
-    num:   {re: new RegExp(`^${this.numReg}`)},
-    value: {re: new RegExp(`^(?:${this.character}(?:(?:0|[1-9][0-9]*)(?!${this.character})|_(?:${this.character}|${this.numReg})*)?)`)},
-  }
+      <tr>
+        <th scope="row">absStart</th>
+        <td>/^\[/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">absEnd</th>
+        <td>/^\]/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">csc</th>
+        <td>/^(csc|cosec)/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">sec</th>
+        <td>/^sec/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">cot</th>
+        <td>/^cot/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">arccsc</th>
+        <td>/^(arccsc|acsc|arccosec|acosec)/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">arcsec</th>
+        <td>/^(arcsec|asec)/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">arccot</th>
+        <td>/^(arccot|acot)/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">sin</th>
+        <td>/^sin/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">cos</th>
+        <td>/^cos/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">tan</th>
+        <td>/^tan/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">arcsin</th>
+        <td>/^(arcsin|asin)/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">arccos</th>
+        <td>/^(arccos|acos)/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">arctan2</th>
+        <td>/^(acrtan2|atan2)/</td>
+        <td>true</td>
+        <td>false</td>
+      </tr>
+      <tr>
+        <th scope="row">arctan</th>
+        <td>/^(arctan|atan)/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">log10</th>
+        <td>/^log10/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">log</th>
+        <td>/^log/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">ln</th>
+        <td>/^ln/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">exp</th>
+        <td>/^exp/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">arg</th>
+        <td>/^arg/</td>
+        <td>true</td>
+        <td>true</td>
+      </tr>
+      <tr>
+        <th scope="row">max</th>
+        <td>/^max/</td>
+        <td>true</td>
+        <td>false</td>
+      </tr>
+      <tr>
+        <th scope="row">min</th>
+        <td>/^min/</td>
+        <td>true</td>
+        <td>false</td>
+      </tr>
+      <tr>
+        <th scope="row">e</th>
+        <td>/^e(?!_)/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">i</th>
+        <td>/^i(?!_)/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">pi</th>
+        <td>/^pi|π/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">num</th>
+        <td>^${this.numReg} (変数展開)</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">value</th>
+        <td>^(?:${this.character}... (変数展開)</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
     </tbody>
   </table>
   
