@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<title>無題.md — Markdown Editor</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+
+<style>
+  /* ==================================================
+     デザイントークン
+     「暗いグラファイトの机の上に、クリーム色の原稿(プレビュー)が乗っている」
+     ================================================== */
+  :root {
+    --color-canvas: #1a1715;
+    --color-surface: #221e1a;
+    --color-surface-2: #2b2620;
+    --color-border: #3a332c;
+    --color-ink: #ece5d8;
+    --color-ink-muted: #a89c8c;
+    --color-brass: #c89a4a;
+    --color-brass-strong: #e0b563;
+    --color-teal: #6fa3a8;
+    --color-paper: #f1e9d8;
+    --color-paper-ink: #2a2520;
+    --color-paper-muted: #6b6055;
+    --color-danger: #c1604a;
+    --color-warning: #d2a23f;
+    --color-success: #7a9f6a;
+
+    --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, 'Hiragino Sans', monospace;
+    --font-serif: 'IBM Plex Serif', Georgia, 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--font-ui);
+    background: var(--color-canvas);
+    color: var(--color-ink);
+  }
+  button, input, select { font: inherit; }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  @supports (height: 100dvh) {
+    #app { height: 100dvh; }
+  }
+
+  /* ===== ヘッダー / ツールバー ===== */
+  .toolbar {
+    flex: 0 0 auto;
+    background: var(--color-surface);
+    border-bottom: 2px solid var(--color-brass);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    flex-wrap: wrap;
+  }
+  .brandMark {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 15px;
+    color: var(--color-brass-strong);
+    margin-right: 6px;
+    white-space: nowrap;
+  }
+  .toolbarGroup {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .toolbarDivider {
+    width: 1px;
+    height: 22px;
+    background: var(--color-border);
+  }
+  .fileLabel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-ink);
+    margin-right: 4px;
+    white-space: nowrap;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dirtyDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-brass);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    flex: 0 0 auto;
+  }
+  .dirtyDot.visible { opacity: 1; }
+
+  .toolbar button {
+    font-size: 13px;
+    background: transparent;
+    color: var(--color-ink);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+  }
+  .toolbar button:hover { background: var(--color-surface-2); border-color: var(--color-ink-muted); }
+  .toolbar button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .toolbar button.primary {
+    background: var(--color-brass);
+    border-color: var(--color-brass);
+    color: #241c0f;
+    font-weight: 600;
+  }
+  .toolbar button.primary:hover { background: var(--color-brass-strong); border-color: var(--color-brass-strong); }
+
+  .segmented {
+    display: inline-flex;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .segmented button {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: var(--color-ink-muted);
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .segmented button + button { border-left: 1px solid var(--color-border); }
+  .segmented button.active { background: var(--color-brass); color: var(--color-canvas); font-weight: 600; }
+  .segmented button:hover:not(.active) { background: var(--color-surface-2); color: var(--color-ink); }
+
+  .authStatus {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--color-ink-muted);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .authStatus .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-ink-muted);
+    flex: 0 0 auto;
+  }
+  .authStatus.online .dot { background: var(--color-success); }
+
+  /* ===== ワークスペース(エディタ/プレビュー) ===== */
+  #workspace {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #editorPane, #previewPane {
+    flex: 1 1 50%;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  #editorPane { background: var(--color-canvas); }
+  #previewPane {
+    background: var(--color-canvas);
+    overflow: auto;
+    padding: 32px 24px;
+  }
+  #workspace.mode-edit #previewPane,
+  #workspace.mode-preview #editorPane { display: none; }
+  #workspace.mode-edit #editorPane,
+  #workspace.mode-preview #previewPane { flex: 1 1 100%; }
+  #workspace.mode-split #editorPane { border-right: 1px solid var(--color-border); }
+
+  #editor {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 16px;
+  }
+  #editorPane .CodeMirror {
+    flex: 1 1 auto;
+    height: 100%;
+  }
+
+  /* CodeMirror 独自テーマ: deskmono */
+  .cm-s-deskmono.CodeMirror {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .cm-s-deskmono .CodeMirror-gutters { background: var(--color-canvas); border-right: 1px solid var(--color-border); }
+  .cm-s-deskmono .CodeMirror-linenumber { color: var(--color-ink-muted); }
+  .cm-s-deskmono .CodeMirror-cursor { border-left: 2px solid var(--color-brass); }
+  .cm-s-deskmono div.CodeMirror-selected { background: rgba(200, 154, 74, 0.22); }
+  .cm-s-deskmono .cm-header { color: var(--color-brass-strong); font-weight: 600; }
+  .cm-s-deskmono .cm-strong { color: var(--color-ink); font-weight: 700; }
+  .cm-s-deskmono .cm-em { color: var(--color-teal); font-style: italic; }
+  .cm-s-deskmono .cm-link { color: var(--color-teal); }
+  .cm-s-deskmono .cm-url { color: var(--color-ink-muted); }
+  .cm-s-deskmono .cm-quote { color: var(--color-ink-muted); font-style: italic; }
+  .cm-s-deskmono .cm-comment { color: var(--color-ink-muted); }
+  .cm-s-deskmono .cm-variable-2 { color: var(--color-brass); }
+  .cm-s-deskmono .cm-keyword { color: var(--color-teal); }
+  .cm-s-deskmono .cm-string { color: #b5c98a; }
+  .cm-s-deskmono .cm-atom { color: var(--color-brass); }
+  .cm-s-deskmono .cm-tag { color: var(--color-brass-strong); }
+  .cm-s-deskmono .cm-attribute { color: var(--color-teal); }
+
+  /* ===== プレビュー(原稿カード) ===== */
+  #previewInner {
+    max-width: 720px;
+    margin: 0 auto;
+    background: var(--color-paper);
+    color: var(--color-paper-ink);
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.8;
+    padding: 48px 56px;
+    border-radius: var(--radius-md);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    min-height: calc(100% - 0px);
+  }
+  #previewInner h1, #previewInner h2, #previewInner h3, #previewInner h4 {
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 1.4em;
+  }
+  #previewInner h1 { font-size: 2em; border-bottom: 2px solid var(--color-brass); padding-bottom: 0.3em; }
+  #previewInner h2 { font-size: 1.5em; border-bottom: 1px solid rgba(40, 35, 30, 0.15); padding-bottom: 0.25em; }
+  #previewInner a { color: var(--color-teal); text-decoration: underline; }
+  #previewInner blockquote {
+    margin: 1em 0;
+    padding: 0.2em 1.2em;
+    border-left: 3px solid var(--color-brass);
+    color: var(--color-paper-muted);
+    font-style: italic;
+  }
+  #previewInner pre {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+  }
+  #previewInner code {
+    font-family: var(--font-mono);
+    background: rgba(40, 35, 30, 0.08);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+  #previewInner pre code { background: none; padding: 0; }
+  #previewInner table { border-collapse: collapse; width: 100%; margin: 1.2em 0; }
+  #previewInner th, #previewInner td { border: 1px solid rgba(40, 35, 30, 0.18); padding: 0.5em 0.8em; text-align: left; }
+  #previewInner th { background: rgba(40, 35, 30, 0.06); }
+  #previewInner img { max-width: 100%; border-radius: 4px; }
+  #previewInner hr { border: none; border-top: 1px solid rgba(40, 35, 30, 0.18); margin: 2em 0; }
+  #previewInner ul, #previewInner ol { padding-left: 1.4em; }
+  #previewInner li { margin: 0.3em 0; }
+
+  /* ===== コンソール ===== */
+  #consolePanel {
+    flex: 0 0 auto;
+    background: #100f0d;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    max-height: 220px;
+  }
+  #consolePanel.collapsed #consoleBody { display: none; }
+  #consoleHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--color-ink-muted);
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--color-border);
+    flex: 0 0 auto;
+  }
+  .consoleControls { display: flex; gap: 6px; }
+  .consoleControls button {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-ink-muted);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    padding: 2px 9px;
+    cursor: pointer;
+  }
+  .consoleControls button:hover { color: var(--color-ink); border-color: var(--color-ink-muted); }
+  #consoleBody {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+  .log-entry { display: flex; gap: 10px; padding: 2px 0; }
+  .log-time { color: var(--color-brass); opacity: 0.75; flex: 0 0 auto; }
+  .log-message { white-space: pre-wrap; word-break: break-word; }
+  .log-info .log-message { color: var(--color-ink-muted); }
+  .log-warn .log-message { color: var(--color-warning); }
+  .log-error .log-message { color: var(--color-danger); }
+
+  /* ===== モーダル ===== */
+  .modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 9, 8, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 16px;
+  }
+  .modalOverlay.hidden { display: none; }
+  .modalBox {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    width: min(440px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .modalBox h2 { font-size: 16px; color: var(--color-ink); margin: 0; }
+  .modalBox label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--color-ink-muted); }
+  .modalBox input, .modalBox select {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+  }
+  .modalBox .hint { font-size: 11px; color: var(--color-ink-muted); line-height: 1.5; margin: 0; }
+  .modalButtons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  .modalButtons button {
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+  .modalButtons button.primary { background: var(--color-brass); border-color: var(--color-brass); color: #241c0f; font-weight: 600; }
+
+  :focus-visible { outline: 2px solid var(--color-brass); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  @media (max-width: 760px) {
+    .toolbar { padding: 8px 10px; gap: 8px; }
+    .toolbar button { font-size: 12px; padding: 5px 9px; }
+    #previewInner { padding: 28px 20px; }
+    #consolePanel { max-height: 160px; }
+    .brandMark { display: none; }
+    .fileLabel { max-width: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <header class="toolbar">
+    <span class="brandMark">Markdown Editor</span>
+
+    <span class="fileLabel">
+      <span id="fileNameLabel">無題.md</span>
+      <span id="dirtyDot" class="dirtyDot"></span>
+    </span>
+
+    <div class="toolbarDivider"></div>
+
+    <div class="toolbarGroup">
+      <button id="newBtn" type="button">新規</button>
+      <button id="openDriveBtn" type="button">Driveから開く</button>
+      <button id="openLocalBtn" type="button">ローカルを開く</button>
+    </div>
+
+    <div class="toolbarDivider"></div>
+
+    <div class="toolbarGroup">
+      <button id="saveBtn" type="button" class="primary">保存</button>
+      <button id="saveAsBtn" type="button">名前を付けて保存</button>
+      <button id="downloadBtn" type="button">ダウンロード</button>
+    </div>
+
+    <div class="toolbarDivider"></div>
+
+    <div class="toolbarGroup segmented" role="group" aria-label="表示モード">
+      <button type="button" data-mode="edit">編集</button>
+      <button type="button" data-mode="split">分割</button>
+      <button type="button" data-mode="preview">プレビュー</button>
+    </div>
+
+    <button id="newTabBtn" type="button">新規タブで表示</button>
+
+    <span class="authStatus" id="authStatus">
+      <span class="dot"></span>
+      <span id="authStatusText">未設定</span>
+    </span>
+
+    <div class="toolbarGroup">
+      <button id="authBtn" type="button" disabled>ログイン</button>
+      <button id="settingsBtn" type="button">設定</button>
+    </div>
+  </header>
+
+  <main id="workspace" class="mode-split">
+    <section id="editorPane">
+      <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+    </section>
+    <section id="previewPane">
+      <article id="previewInner"></article>
+    </section>
+  </main>
+
+  <footer id="consolePanel">
+    <div id="consoleHeader">
+      <span>コンソール</span>
+      <div class="consoleControls">
+        <button id="consoleClearBtn" type="button">消去</button>
+        <button id="consoleToggleBtn" type="button">▾</button>
+      </div>
+    </div>
+    <div id="consoleBody"></div>
+  </footer>
+
+</div>
+
+<input type="file" id="localFileInput" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
+
+<div id="settingsModal" class="modalOverlay hidden">
+  <div class="modalBox">
+    <h2>Drive連携設定</h2>
+    <label>Client ID
+      <input type="text" id="settingClientId" placeholder="xxxxx.apps.googleusercontent.com">
+    </label>
+    <label>Redirect URI
+      <input type="text" id="settingRedirectUri" placeholder="https://example.com/oauth-redirect.html">
+    </label>
+    <label>アクセス範囲(space)
+      <select id="settingSpace">
+        <option value="file">file — Driveから開く/新規作成したファイルのみ</option>
+        <option value="drive">drive — マイドライブ全体</option>
+        <option value="appdata">appdata — 専用の隠しフォルダのみ</option>
+      </select>
+    </label>
+    <p class="hint">Redirect URIには、認証結果(アクセストークン)をlocalStorageの「oauth_result」に保存してウィンドウを閉じる、中継用ページのURLを指定してください。</p>
+    <div class="modalButtons">
+      <button id="settingsCancelBtn" type="button">キャンセル</button>
+      <button id="settingsSaveBtn" type="button" class="primary">保存して適用</button>
+    </div>
+  </div>
+</div>
+
+<!-- CodeMirror (コードエディタ部分) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/gfm/gfm.min.js"></script>
+
+<!-- Markdown変換 / サニタイズ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+<script type="module">
+
+/* ==================================================
+   状態 / DOM参照
+   ================================================== */
+
+let drive = null;
+let cm = null;
+let currentFile = { id: null, name: '無題.md' };
+let dirty = false;
+let previewTimer = null;
+let resizeTimer = null;
+
+const SETTINGS_KEY = 'mdEditorDriveSettings';
+
+const editorTextareaEl = document.getElementById('editor');
+const previewInnerEl = document.getElementById('previewInner');
+const workspaceEl = document.getElementById('workspace');
+
+const fileNameLabelEl = document.getElementById('fileNameLabel');
+const dirtyDotEl = document.getElementById('dirtyDot');
+
+const newBtn = document.getElementById('newBtn');
+const openDriveBtn = document.getElementById('openDriveBtn');
+const openLocalBtn = document.getElementById('openLocalBtn');
+const localFileInputEl = document.getElementById('localFileInput');
+const saveBtn = document.getElementById('saveBtn');
+const saveAsBtn = document.getElementById('saveAsBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const newTabBtn = document.getElementById('newTabBtn');
+const authBtn = document.getElementById('authBtn');
+const authStatusEl = document.getElementById('authStatus');
+const authStatusTextEl = document.getElementById('authStatusText');
+const settingsBtn = document.getElementById('settingsBtn');
+
+const segmentedButtons = document.querySelectorAll('.segmented button');
+
+const consoleBodyEl = document.getElementById('consoleBody');
+const consolePanelEl = document.getElementById('consolePanel');
+const consoleClearBtn = document.getElementById('consoleClearBtn');
+const consoleToggleBtn = document.getElementById('consoleToggleBtn');
+
+const settingsModalEl = document.getElementById('settingsModal');
+const settingClientIdEl = document.getElementById('settingClientId');
+const settingRedirectUriEl = document.getElementById('settingRedirectUri');
+const settingSpaceEl = document.getElementById('settingSpace');
+const settingsCancelBtn = document.getElementById('settingsCancelBtn');
+const settingsSaveBtn = document.getElementById('settingsSaveBtn');
+
+const WELCOME_TEXT = `# 無題のドキュメント
+
+ここに **Markdown** を入力すると、プレビューに反映されます。
+
+## できること
+
+- Google Drive からファイルを開く・保存する
+- ローカルのファイルを開く・ダウンロードする
+- プレビューを新規タブで開く
+
+\`\`\`js
+function hello(name) {
+  console.log(\`Hello, \${name}!\`);
+}
+\`\`\`
+
+> コンソールには動作ログとエラーが表示されます。
+`;
+
+/* ==================================================
+   コンソールログ / エラーハンドリング
+   ================================================== */
+
+const MAX_LOG_ENTRIES = 500;
+
+function log(level, message) {
+  const time = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+  const text = message instanceof Error ? message.message : String(message);
+
+  const entry = document.createElement('div');
+  entry.className = `log-entry log-${level}`;
+
+  const timeSpan = document.createElement('span');
+  timeSpan.className = 'log-time';
+  timeSpan.textContent = time;
+
+  const msgSpan = document.createElement('span');
+  msgSpan.className = 'log-message';
+  msgSpan.textContent = text;
+
+  entry.appendChild(timeSpan);
+  entry.appendChild(msgSpan);
+  consoleBodyEl.appendChild(entry);
+
+  while (consoleBodyEl.children.length > MAX_LOG_ENTRIES) {
+    consoleBodyEl.removeChild(consoleBodyEl.firstChild);
+  }
+  consoleBodyEl.scrollTop = consoleBodyEl.scrollHeight;
+
+  const nativeFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+  nativeFn.call(console, `[${time}] ${text}`);
+}
+
+window.addEventListener('error', (event) => {
+  log('error', `未捕捉のエラー: ${event.message} (${event.filename}:${event.lineno})`);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason;
+  log('error', `未処理のPromise rejection: ${reason && reason.message ? reason.message : reason}`);
+});
+
+consoleClearBtn.addEventListener('click', () => {
+  consoleBodyEl.innerHTML = '';
+});
+consoleToggleBtn.addEventListener('click', () => {
+  consolePanelEl.classList.toggle('collapsed');
+  consoleToggleBtn.textContent = consolePanelEl.classList.contains('collapsed') ? '▴' : '▾';
+});
+
+/* ==================================================
+   DriveAPIManager (v6.1, openPicker対応版をそのまま使用)
+   ================================================== */
+
+class DriveAPIManager {
+  static ver = "6.1";
+
+  constructor({ clientId, redirectUri, progress, space = 'appdata' }) {
+    if (!clientId || !redirectUri)
+      throw new Error('引数にclient_idとredirect_uriを含めてください。');
+
+    if (space !== 'appdata' && space !== 'drive' && space !== 'file')
+      throw new Error("spaceは'appdata'、'drive'、または'file'を指定してください。");
+
+    this.progress = progress || (() => {});
+    this.clientId = clientId;
+    this.redirectUri = redirectUri;
+
+    // 'appdata' : 専用の隠しフォルダ(appDataFolder)のみを操作する
+    // 'drive'   : マイドライブ全体(root以下)をフルアクセスで操作する
+    // 'file'    : このアプリが作成/開いたファイルのみをマイドライブ等(root以下)で操作する
+    this.space = space;
+    this.rootId = space === 'appdata' ? 'appDataFolder' : 'root';
+    this.spacesParam = space === 'appdata' ? 'appDataFolder' : 'drive';
+    this.authScope = space === 'drive'
+      ? 'https://www.googleapis.com/auth/drive'
+      : space === 'file'
+        ? 'https://www.googleapis.com/auth/drive.file'
+        : 'https://www.googleapis.com/auth/drive.appdata';
+
+    const cachedToken = localStorage.getItem('dapi_access_token');
+    const cachedExpires = parseInt(localStorage.getItem('dapi_expires_at') || '0', 10);
+    const isAlive = cachedToken && cachedExpires > Date.now();
+
+    this.state = {
+      loggedIn: isAlive ? true : false,
+      token: isAlive ? cachedToken : null,
+      expiresAt: cachedExpires,
+      email: null
+    };
+
+    this._authPromise = null;
+    this._idCache = {};
+  }
+
+  checker() {
+    return {
+      ok: this.state.loggedIn && !!this.state.token && this.state.expiresAt > Date.now(),
+      loggedIn: this.state.loggedIn && !!this.state.token,
+      expired: !this.state.loggedIn || this.state.expiresAt <= Date.now(),
+      token: this.state.token
+    };
+  }
+
+  getCache(key=null) {
+    const cache = {
+      id: this._idCache
+    };
+    if (key) return cache[key];
+    return cache;
+  }
+
+  // userにファイルを選んでもらう(Google Picker API)
+  async openPicker({ mimeType = null, title = '選択してください' } = {}) {
+    // 1. ログイン状態とトークンのチェック
+    if (!this.state.loggedIn || !this.state.token) {
+      throw new Error('Pickerを開く前に auth() でログインを完了してください。');
+    }
+
+    this.progress('openPicker', 'loading_scripts');
+
+    // 2. Google API (gapi) のクライアントスクリプトを動的ロード
+    await new Promise((resolve, reject) => {
+      if (window.gapi) return resolve();
+      const script = document.createElement('script');
+      script.src = 'https://apis.google.com/js/api.js';
+      script.onload = () => resolve();
+      script.onerror = (e) => reject(new Error('Google API スクリプトの読み込みに失敗しました。'));
+      document.head.appendChild(script);
+    });
+
+    // 3. picker ライブラリをロード
+    await new Promise((resolve) => {
+      window.gapi.load('picker', { callback: resolve });
+    });
+
+    this.progress('openPicker', 'showing_ui');
+
+    // 4. ピッカーを構築して表示
+    return new Promise((resolve) => {
+      // 表示するビューの制限（デフォルトはマイドライブ）
+      const viewId = mimeType === 'application/vnd.google-apps.folder' 
+        ? window.google.picker.ViewId.FOLDERS 
+        : window.google.picker.ViewId.DOCS;
+        
+      const view = new window.google.picker.View(viewId);
+      if (mimeType) {
+        view.setMimeTypes(mimeType); // 💡特定のMIMEタイプ（フォルダなど）のみに絞り込む
+      }
+
+      const picker = new window.google.picker.PickerBuilder()
+        .addView(view)
+        .setOAuthToken(this.state.token) // 💡クラス内にある現在のアクセストークンを流用
+        .setTitle(title)
+        .setCallback((data) => {
+          // ユーザーがアクションを起こした時のコールバック
+          if (data.action === window.google.picker.Action.PICKED) {
+            const doc = data.docs[0];
+            
+            // 💡 取得したIDを内部キャッシュに自動登録しておく（あとで getPath や saveFile で使えるように）
+            this._idCache[doc.name] = doc.id; 
+            
+            this.progress('openPicker', 'picked');
+            resolve({
+              id: doc.id,
+              name: doc.name,
+              mimeType: doc.mimeType
+            });
+          } else if (data.action === window.google.picker.Action.CANCEL) {
+            this.progress('openPicker', 'canceled');
+            resolve(null); // キャンセル時は null を返す
+          }
+        })
+        .build();
+
+      picker.setVisible(true);
+    });
+  }
+
+  /* ==================================================
+     共通
+     ================================================== */
+
+  async request(method = 'GET', path = '', options = {}) {
+    if (!this.state.loggedIn || !this.state.token) {
+      throw new Error('ログインしていません。先に auth() を実行してください。');
+    }
+    if (this.state.expiresAt && Date.now() > this.state.expiresAt) {
+      this.signOut();
+      throw new Error('アクセストークンの有効期限が切れています。再ログインが必要です。');
+    }
+
+    const upperMethod = method.toUpperCase();
+
+    const baseUrl = options.origin ? `https://www.googleapis.com/${path}` : `https://www.googleapis.com/drive/v3/${path}`;
+    const urlObj = new URL(baseUrl);
+
+    if (options.params) {
+      Object.keys(options.params).forEach(key => {
+        if (options.params[key] !== undefined && options.params[key] !== null) {
+          urlObj.searchParams.append(key, options.params[key]);
+        }
+      });
+    }
+    const url = urlObj.toString();
+
+    this.progress(`request:${upperMethod}`, `${url}:start`);
+
+    const fetchOptions = {
+      method: upperMethod,
+      headers: {
+        'Authorization': `Bearer ${this.state.token}`,
+        ...options.headers
+      }
+    };
+
+    if (options.body) {
+      if (typeof options.body === 'object' && !(options.body instanceof FormData) && !(options.body instanceof Blob)) {
+        fetchOptions.headers['Content-Type'] = 'application/json';
+        fetchOptions.body = JSON.stringify(options.body);
+      } else {
+        fetchOptions.body = options.body;
+      }
+    }
+
+    try {
+      const res = await fetch(url, fetchOptions);
+
+      if (res.status === 401) {
+        this.signOut();
+        throw new Error('認証エラー(401): セッションが破棄されました。');
+      }
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(`Drive API Error [${res.status}]: ${errData.error?.message || res.statusText}`);
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+
+      let data;
+      if (res.status === 204) {
+        data = { ok: true };
+      } else if (contentType.includes('application/json')) {
+        data = await res.text();
+        if (data !== '') data = JSON.parse(data);
+
+      } else {
+        data = await res.text();
+      }
+
+      this.progress(`request:${upperMethod}`, `${url}:done`);
+      return data;
+    } catch (e) {
+      this.progress(`request:${upperMethod}`, `${url}:fail`);
+      throw e;
+    }
+  }
+
+  /* ==================================================
+     auth
+     ================================================== */
+
+  auth(silent=false, prompt=null) {
+    if (this._authPromise) return this._authPromise;
+
+    if (silent) {
+      if (this.state.loggedIn && this.state.token && this.state.expiresAt > Date.now()) {
+        this.progress('auth', 'silent:done');
+        return Promise.resolve({ ok: true, token: this.state.token, silent: true });
+      } else {
+        this.progress('auth', 'silent:fail');
+        this.signOut(); 
+        return Promise.resolve({ ok: false, error: 'silent_auth_failed' });
+      }
+    }
+
+    if (this.state.loggedIn && this.state.token && this.state.expiresAt > Date.now()) {
+      this.progress('auth', 'silent:done');
+      return Promise.resolve({ ok: true, token: this.state.token, silent: true });
+    }
+
+    this.progress('auth', 'start');
+
+    const oauth2Endpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+    localStorage.removeItem('oauth_result');
+
+    const params = {
+      client_id: this.clientId,
+      redirect_uri: this.redirectUri,
+      response_type: 'token',
+      scope: this.authScope,
+      state: 'debug_implicit_test'
+    };
+
+    if (prompt) params.prompt = prompt;
+
+    const queryStrings = new URLSearchParams(params).toString();
+    const targetUrl = `${oauth2Endpoint}?${queryStrings}`;
+
+    const popupName = `oauth_popup_${Date.now()}`;
+    window.open(targetUrl, popupName, 'width=500,height=600,left=100,top=100,menubar=no,toolbar=no,location=no,status=no');
+
+    this._authPromise = new Promise((resolve, reject) => {
+      const pollTimer = setInterval(() => {
+        const rawResult = localStorage.getItem('oauth_result');
+
+        if (rawResult) {
+          clearInterval(pollTimer); 
+
+          try {
+            const data = JSON.parse(rawResult);
+            localStorage.removeItem('oauth_result'); 
+
+            if (data.error) {
+              this.progress('auth', 'fail');
+              this._authPromise = null;
+              reject(new Error(data.error));
+              return;
+            }
+
+            if (data.token) {
+              const expiresAt = Date.now() + (3600 * 1000) - (5 * 60 * 1000);
+
+              this.state.loggedIn = true;
+              this.state.token = data.token;
+              this.state.expiresAt = expiresAt;
+
+              localStorage.setItem('dapi_access_token', data.token);
+              localStorage.setItem('dapi_expires_at', expiresAt.toString());
+
+              this.progress('auth', 'done');
+              this._authPromise = null;
+
+              resolve({ ok: true, token: data.token, silent: false });
+            }
+          } catch (e) {
+            this.progress('auth', 'fail');
+            this._authPromise = null;
+            reject(e);
+          }
+        }
+      }, 200);
+    });
+
+    return this._authPromise;
+  }
+
+  signOut() {
+    this.state.loggedIn = false;
+    this.state.token = null;
+    this.state.expiresAt = 0;
+    this.state.email = null;
+    this._idCache = {};
+    localStorage.removeItem('dapi_access_token');
+    localStorage.removeItem('dapi_expires_at');
+    this.progress('signOut', 'done');
+  }
+
+  /* ==================================================
+     Google Drive自体
+     ================================================== */
+
+  async getAbout(fields) {
+    return this.request('GET', 'about', {
+      params: { fields }
+    });
+  }
+
+  async getEmail() {
+    if (this.state.email) return this.state.email;
+    const data = await this.getAbout('user(emailAddress)');
+    this.state.email = data.user.emailAddress;
+    return this.state.email;
+  }
+
+  /* ==================================================
+     Folder&Path
+     ================================================== */
+
+  async createFolder({path, fileId}) {
+    const resolved = await this.integration({path, fileId});
+    let currentPath = resolved.path;
+
+    const parts = currentPath.split('/').filter(Boolean);
+    if (parts.length === 0) return this.rootId;
+    if (this._idCache[currentPath]) return this._idCache[currentPath];
+
+    this.progress('createFolder', 'start');
+
+    let lastId = this.rootId;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const parent = parts.slice(0, i).join('/');
+      const fullSubPath = parent ? `${parent}/${part}` : part;
+
+      let targetId = this._idCache[fullSubPath];
+      if (!targetId) {
+        targetId = await this.getFileId({path: fullSubPath});
+      }
+
+      if (!targetId) {
+        this.progress('createFolder', 'new Folder Creating');
+        const created = await this.createFile({parentPath: parent, name: part, mimeType: 'application/vnd.google-apps.folder'});
+        targetId = created.id;
+      }
+
+      lastId = targetId;
+      this._idCache[fullSubPath] = lastId;
+    }
+
+    return lastId;
+  }
+
+  async createFile({parentPath, parentId, name, mimeType, description=''}) {
+    const resolved = await this.integration({path: parentPath, fileId: parentId});
+    const _parentId = resolved.fileId;
+    const _parentPath = resolved.path;
+
+    if ((_parentPath !== "" && !_parentPath) || !name || !mimeType) return null;
+
+    const meta = {
+      name,
+      mimeType,
+      parents: [_parentId],
+      description
+    };
+
+    return await this.request('POST', 'files', { body: meta });
+  }
+
+  async getFileId({path}) {
+    const cleanPath = this.filterPath({path});
+    const parts = cleanPath.split('/').filter(Boolean);
+    if (parts.length === 0) return this.rootId;
+    if (this._idCache[cleanPath]) return this._idCache[cleanPath];
+
+    let parentId = this.rootId;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const _path = parts.slice(0, i + 1).join('/');
+      const id = this._idCache[_path];
+      if (id) {
+        parentId = id;
+        continue;
+      }
+
+      const isLast = i === parts.length - 1;
+      let q = `'${parentId}' in parents and name = '${part}' and trashed = false`;
+      if (!isLast) {
+        q += ` and mimeType = 'application/vnd.google-apps.folder'`;
+      }
+
+      const res = await this.request('GET', 'files', {
+        params: { q, spaces: this.spacesParam, fields: 'files(id)' }
+      });
+
+      if (!res.files || res.files.length === 0) {
+        return null; 
+      }
+      parentId = res.files[0].id;
+      this._idCache[_path] = parentId;
+    }
+
+    return parentId;
+  }
+
+  filterPath({path}) {
+    if (path === undefined || path === null) return '';
+    return path.split('/').filter(Boolean).join('/');
+  }
+
+  async getPath({fileId}) {
+    if (!fileId || fileId === this.rootId) return '';
+    const names = [];
+    let currentId = fileId;
+
+    try {
+      do {
+        const res = await this.request('GET', `files/${currentId}`, {
+          params: { fields: 'name, parents' }
+        });
+
+        if (!res) break;
+        names.unshift(res.name);
+
+        if (res.parents && res.parents.length > 0) {
+          currentId = res.parents[0];
+        } else {
+          currentId = null;
+        }
+      } while(currentId && currentId !== this.rootId);
+
+      return names.join('/');
+    } catch (e) {
+      console.error('[getPath] エラー:', e);
+      return '';
+    }
+  }
+
+  async integration({path, fileId}) {
+    const cleanPath = path !== undefined && path !== null ? this.filterPath({path}) : null;
+
+    let _path = cleanPath;
+    let id = fileId;
+    if (_path === null && id) {
+      _path = await this.getPath({fileId: id});
+    } else if (_path !== null && !id) {
+      id = await this.getFileId({path: _path});
+    }
+
+    return { path: _path, fileId: id };
+  }
+
+  async getParentId({path, id}) {
+    if (path !== undefined && path !== null) {
+      const cleanPath = this.filterPath({path});
+      if (cleanPath === "") return null;
+      const _path = cleanPath.split('/').slice(0, -1).join('/');
+      const parentId = await this.getFileId({path: _path});
+      return parentId ? [parentId] : [];
+    }
+    const resolved = await this.integration({path, fileId: id});
+    const targetPath = resolved.path;
+    const targetId = resolved.fileId;
+
+    const res = await this.request('GET', `files/${targetId}`, {
+      params: { fields: 'parents' }
+    });
+
+    if (targetPath && targetId) {
+      this._idCache[targetPath] = targetId;
+    }
+
+    return res.parents ?? [];
+  }
+
+  async getFileInfo({path, fileId, fields='id, name, mimeType'}) {
+    const resolved = await this.integration({path, fileId});
+    const targetId = resolved.fileId;
+
+    return await this.request('GET', `files/${targetId}`, {
+      params: { fields }
+    });
+  }
+
+  async listFiles({path, fileId}) {
+    const resolved = await this.integration({path, fileId});
+    const parentId = resolved.fileId;
+    const parentPath = resolved.path;
+
+    if (!parentId) return null;
+    const q = `'${parentId}' in parents and trashed = false`;
+    const fields = 'nextPageToken, files(id, name, mimeType, size, createdTime, modifiedTime)';
+    let children = [];
+    let pageToken = null;
+
+    this.progress('listFiles', 'start');
+
+    do {
+      const params = {
+        q,
+        spaces: this.spacesParam,
+        fields: fields,
+        pageSize: 100 // パフォーマンス向上のため一括取得件数を引き上げ
+      };
+
+      if (pageToken) params.pageToken = pageToken;
+
+      const res = await this.request('GET', 'files', { params });
+
+      if (res.files && res.files.length > 0) {
+        for (let file of res.files) {
+          const childPath = parentPath ? `${parentPath}/${file.name}` : file.name;
+          this._idCache[childPath] = file.id;
+        }
+        children = children.concat(res.files);
+      }
+
+      pageToken = res.nextPageToken;
+      if (pageToken) this.progress('listFiles', 'fetching_next_page');
+    } while (pageToken);
+
+    this.progress('listFiles', `done: total ${children.length} items`);
+    return children;
+  }
+
+  async removeFile({path, fileId}) {
+    const resolved = await this.integration({path, fileId});
+    const targetPath = resolved.path;
+    const targetId = resolved.fileId;
+
+    if (!targetId || targetId === this.rootId) {
+      console.warn(`[removeFile] パスまたはIDが見つかりません: ${path || fileId}`);
+      return null; 
+    }
+
+    const file = await this.request('PATCH', `files/${targetId}`, {
+      body: { trashed: true }
+    });
+
+    if (file && targetPath) {
+      const cacheKeys = Object.keys(this._idCache);
+      for (const key of cacheKeys) {
+        if (key === targetPath || key.startsWith(`${targetPath}/`)) {
+          delete this._idCache[key];
+        }
+      }
+    }
+
+    return file;
+  }
+
+  async removeAllFiles() {
+    const list = await this.listFiles({path: ''});
+    if (!list || list.length === 0) return [];
+
+    const results = [];
+    for (let file of list) {
+      const res = await this.removeFile({fileId: file.id});
+      console.log('Deleted:', file.name, res);
+      results.push(res);
+    }
+    return results;
+  }
+
+  /* ==================================================
+     CRUD
+     ================================================== */
+
+  async saveFile({path, fileId, data, mimeType="application/json"}) {
+    const cleanPath = this.filterPath({path});
+    if (!cleanPath) return { ok: false };
+
+    const {fileId: _fileId} = await this.integration({path, fileId});
+    let _mimeType = mimeType;
+
+    let bodyData = data;
+    if (typeof data === "object" && !(data instanceof Blob) && !(data instanceof ArrayBuffer)) {
+      bodyData = JSON.stringify(data);
+      _mimeType = "application/json";
+    }
+
+    this.progress('saveFile', 'start');
+
+    if (_fileId && _fileId !== this.rootId) {
+      const res = await this.request('PATCH',
+        `upload/drive/v3/files/${_fileId}`,
+        {
+          origin: true,
+          params: { uploadType: 'media' },
+          headers: { 'Content-Type': _mimeType },
+          body: bodyData
+        }
+      );
+
+      this.progress('saveFile', 'update:done');
+      return res;
+    } else {
+      const list = cleanPath.split('/');
+      const name = list.pop();
+      let parentId = (await this.getParentId({path: cleanPath}))?.[0] ?? null;
+      if(!parentId)
+        parentId = await this.createFolder({path: list.join('/')});
+
+      const created = await this.createFile({
+        parentId,
+        name,
+        mimeType: _mimeType
+      });
+
+      const res = await this.request(
+        'PATCH',
+        `upload/drive/v3/files/${created.id}`,
+        {
+          origin: true,
+          params: { uploadType: 'media' },
+          headers: { 'Content-Type': _mimeType },
+          body: bodyData
+        }
+      );
+
+      console.log('file size:', bodyData.length ?? bodyData.size ?? 0);
+
+      this.progress('saveFile', 'create:done');
+      return res;
+    }
+  }
+
+  async getFile({path, fileId}) {
+    const _fileId = fileId ?? await this.getFileId({path});
+    if (!_fileId) {
+      console.log('ファイルが見つかりません');
+      return null;
+    }
+    this.progress('getInfo', await this.getFileInfo({fileId: _fileId}));
+    const res = await this.request('GET', `files/${_fileId}`, {
+      params: {alt: 'media'}
+    });
+    return res;
+  }
+
+  async #miniGetStructure({parentPath, parentId}) {
+    if (!parentId) return null;
+    const q = `'${parentId}' in parents and trashed = false`;
+    const fields = 'nextPageToken, files(id, name, mimeType, size)';
+    let structure = {};
+    let pageToken = null;
+
+    do {
+      const params = {
+        q,
+        spaces: this.spacesParam,
+        fields: fields,
+        pageSize: 100
+      };
+
+      if (pageToken) params.pageToken = pageToken;
+
+      const res = await this.request('GET', 'files', { params });
+
+      if (res.files && res.files.length > 0) {
+        for (let file of res.files) {
+          const childPath = parentPath ? `${parentPath}/${file.name}` : file.name;
+          this._idCache[childPath] = file.id;
+
+          if (file.mimeType === 'application/vnd.google-apps.folder') {
+            structure[file.name] = await this.#miniGetStructure({parentPath: childPath, parentId: file.id});
+          } else {
+            structure[file.name] = {
+              end: true,
+              mimeType: file.mimeType,
+              fileId: file.id,
+              size: file.size
+            };
+          }
+        }
+      }
+
+      pageToken = res.nextPageToken;
+    } while (pageToken);
+
+    return structure;
+  }
+
+  async getStructure() {
+    const parentPath = '';
+    const parentId = this.rootId;
+
+    return structuredClone(await this.#miniGetStructure({parentPath, parentId}));
+  }
+
+  async search({path, id, name}) {
+    if (path === undefined && id === undefined && name === undefined) return;
+    // 必要に応じて拡張可能
+  }
+}
+
+/* ==================================================
+   設定の保存/読込
+   ================================================== */
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    log('warn', `設定の読み込みに失敗しました: ${e.message}`);
+    return {};
+  }
+}
+
+function saveSettings(settings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) {
+    log('error', `設定の保存に失敗しました: ${e.message}`);
+  }
+}
+
+function initDrive() {
+  const settings = loadSettings();
+  if (!settings.clientId || !settings.redirectUri) {
+    drive = null;
+    updateAuthUI();
+    return;
+  }
+  try {
+    drive = new DriveAPIManager({
+      clientId: settings.clientId,
+      redirectUri: settings.redirectUri,
+      space: settings.space || 'file',
+      progress: (stage, message) => {
+        const text = typeof message === 'object' ? JSON.stringify(message) : message;
+        log('info', `[Drive:${stage}] ${text}`);
+      }
+    });
+    log('info', `Drive連携を初期化しました(space: ${settings.space || 'file'})。`);
+  } catch (e) {
+    drive = null;
+    log('error', `Drive連携の初期化に失敗しました: ${e.message}`);
+  }
+  updateAuthUI();
+}
+
+/* ==================================================
+   エディタ (CodeMirror / フォールバック)
+   ================================================== */
+
+function getEditorValue() {
+  return cm ? cm.getValue() : editorTextareaEl.value;
+}
+
+function setEditorValue(text) {
+  if (cm) {
+    cm.setValue(text);
+  } else {
+    editorTextareaEl.value = text;
+  }
+}
+
+function initEditor() {
+  try {
+    if (typeof CodeMirror === 'undefined') throw new Error('CodeMirrorが読み込まれていません');
+    cm = CodeMirror.fromTextArea(editorTextareaEl, {
+      mode: 'gfm',
+      theme: 'deskmono',
+      lineNumbers: true,
+      lineWrapping: true,
+      tabSize: 2,
+      indentUnit: 2,
+      indentWithTabs: false
+    });
+    cm.on('change', () => {
+      markDirty();
+      schedulePreviewUpdate();
+    });
+    log('info', 'コードエディタ(CodeMirror)を初期化しました。');
+  } catch (e) {
+    cm = null;
+    log('warn', `CodeMirrorの初期化に失敗したため、通常のテキストエリアで動作します: ${e.message}`);
+    editorTextareaEl.addEventListener('input', () => {
+      markDirty();
+      schedulePreviewUpdate();
+    });
+  }
+}
+
+/* ==================================================
+   プレビュー
+   ================================================== */
+
+function schedulePreviewUpdate() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(renderPreview, 150);
+}
+
+function renderPreview() {
+  try {
+    const text = getEditorValue();
+    if (typeof marked === 'undefined') {
+      previewInnerEl.textContent = text;
+      return;
+    }
+    const raw = marked.parse(text);
+    const safe = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
+    previewInnerEl.innerHTML = safe;
+  } catch (e) {
+    log('error', `プレビューの生成に失敗しました: ${e.message}`);
+  }
+}
+
+// プレビュー内のリンクは新規タブで開く(編集中の内容を失わないため)
+previewInnerEl.addEventListener('click', (event) => {
+  const anchor = event.target.closest('a');
+  if (anchor && anchor.href) {
+    event.preventDefault();
+    window.open(anchor.href, '_blank', 'noopener');
+  }
+});
+
+function escapeForTitle(text) {
+  return String(text ?? '').replace(/[<>&]/g, (char) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[char]));
+}
+
+function buildStandaloneHtml(markdownText, title) {
+  let bodyHtml;
+  if (typeof marked === 'undefined') {
+    bodyHtml = `<pre>${escapeForTitle(markdownText)}</pre>`;
+  } else {
+    const raw = marked.parse(markdownText);
+    bodyHtml = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
+  }
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeForTitle(title)}</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: 'IBM Plex Serif', Georgia, 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 28px 96px;
+    background: #f6f1e6;
+    color: #2a2520;
+    line-height: 1.75;
+  }
+  h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.3; }
+  h1 { font-size: 2.1em; border-bottom: 2px solid #c89a4a; padding-bottom: 0.3em; }
+  h2 { font-size: 1.6em; border-bottom: 1px solid #d8cdb8; padding-bottom: 0.25em; }
+  a { color: #3f7a80; }
+  blockquote { margin: 1em 0; padding: 0.2em 1.2em; border-left: 3px solid #c89a4a; color: #5a5044; font-style: italic; }
+  pre { background: #221e1a; color: #ece5d8; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: 'IBM Plex Mono', monospace; font-size: 0.9em; }
+  code { font-family: 'IBM Plex Mono', monospace; background: rgba(40, 35, 30, 0.08); padding: 0.1em 0.35em; border-radius: 3px; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; }
+  th, td { border: 1px solid #d8cdb8; padding: 0.5em 0.8em; text-align: left; }
+  th { background: #ece1cb; }
+  img { max-width: 100%; }
+  hr { border: none; border-top: 1px solid #d8cdb8; margin: 2em 0; }
+</style>
+</head>
+<body>
+${bodyHtml}
+</body>
+</html>`;
+}
+
+function openPreviewInNewTab() {
+  try {
+    const html = buildStandaloneHtml(getEditorValue(), currentFile.name || '無題');
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (!win) {
+      log('warn', 'ポップアップがブロックされました。ブラウザのポップアップ許可設定を確認してください。');
+    } else {
+      log('info', '新規タブでプレビューを開きました。');
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  } catch (e) {
+    log('error', `新規タブでの表示に失敗しました: ${e.message}`);
+  }
+}
+
+/* ==================================================
+   ファイル状態 (タイトル / dirty)
+   ================================================== */
+
+function updateFileLabel() {
+  const name = currentFile.name || '無題.md';
+  fileNameLabelEl.textContent = name;
+  dirtyDotEl.classList.toggle('visible', dirty);
+  document.title = `${dirty ? '● ' : ''}${name} — Markdown Editor`;
+}
+
+function markDirty() {
+  dirty = true;
+  updateFileLabel();
+}
+
+function markClean() {
+  dirty = false;
+  updateFileLabel();
+}
+
+window.addEventListener('beforeunload', (event) => {
+  if (dirty) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
+});
+
+function flashFeedback(button, text) {
+  const original = button.dataset.originalText || button.textContent;
+  button.dataset.originalText = original;
+  button.textContent = text;
+  clearTimeout(button._flashTimer);
+  button._flashTimer = setTimeout(() => {
+    button.textContent = original;
+  }, 1500);
+}
+
+/* ==================================================
+   表示モード (編集 / 分割 / プレビュー)
+   ================================================== */
+
+function setViewMode(mode) {
+  workspaceEl.classList.remove('mode-edit', 'mode-split', 'mode-preview');
+  workspaceEl.classList.add(`mode-${mode}`);
+  segmentedButtons.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  if (mode !== 'edit') renderPreview();
+  window.requestAnimationFrame(() => { if (cm) cm.refresh(); });
+}
+
+segmentedButtons.forEach((btn) => {
+  btn.addEventListener('click', () => setViewMode(btn.dataset.mode));
+});
+
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (cm) cm.refresh(); }, 150);
+});
+
+/* ==================================================
+   認証UI
+   ================================================== */
+
+async function updateAuthUI() {
+  if (!drive) {
+    authStatusTextEl.textContent = '未設定';
+    authStatusEl.classList.remove('online');
+    authBtn.textContent = 'ログイン';
+    authBtn.disabled = true;
+    return;
+  }
+  authBtn.disabled = false;
+  const status = drive.checker();
+  if (status.ok) {
+    authBtn.textContent = 'ログアウト';
+    authStatusEl.classList.add('online');
+    authStatusTextEl.textContent = '確認中…';
+    try {
+      const email = await drive.getEmail();
+      authStatusTextEl.textContent = email;
+    } catch (e) {
+      authStatusTextEl.textContent = 'ログイン中';
+      log('warn', `メールアドレスの取得に失敗しました: ${e.message}`);
+    }
+  } else {
+    authBtn.textContent = 'ログイン';
+    authStatusEl.classList.remove('online');
+    authStatusTextEl.textContent = '未ログイン';
+  }
+}
+
+async function ensureLoggedIn() {
+  if (!drive) {
+    openSettingsModal();
+    throw new Error('Drive連携が未設定です。設定を行ってください。');
+  }
+  const status = drive.checker();
+  if (status.ok) return true;
+
+  log('info', 'ログイン状態を確認しています…');
+  const silentResult = await drive.auth(true);
+  if (silentResult && silentResult.ok) {
+    updateAuthUI();
+    return true;
+  }
+
+  log('info', 'ログインしてください。ポップアップウィンドウを確認してください。');
+  await drive.auth();
+  updateAuthUI();
+  return true;
+}
+
+authBtn.addEventListener('click', async () => {
+  if (!drive) {
+    openSettingsModal();
+    log('warn', 'Drive連携の設定を入力してください。');
+    return;
+  }
+  const status = drive.checker();
+  if (status.ok) {
+    drive.signOut();
+    log('info', 'ログアウトしました。');
+    updateAuthUI();
+    return;
+  }
+  authBtn.disabled = true;
+  try {
+    log('info', 'ログイン処理を開始します。ポップアップウィンドウを確認してください。');
+    await drive.auth();
+    log('info', 'ログインに成功しました。');
+  } catch (e) {
+    log('error', `ログインに失敗しました: ${e.message}`);
+  } finally {
+    authBtn.disabled = false;
+    updateAuthUI();
+  }
+});
+
+/* ==================================================
+   ファイル操作: 新規 / 開く / 保存 / ダウンロード
+   ================================================== */
+
+function confirmDiscardIfDirty(message) {
+  if (!dirty) return true;
+  return window.confirm(message);
+}
+
+newBtn.addEventListener('click', () => {
+  if (!confirmDiscardIfDirty('保存されていない変更があります。新規作成すると失われます。続行しますか?')) return;
+  setEditorValue('');
+  currentFile = { id: null, name: '無題.md' };
+  markClean();
+  renderPreview();
+  log('info', '新規ドキュメントを作成しました。');
+});
+
+openDriveBtn.addEventListener('click', async () => {
+  try {
+    await ensureLoggedIn();
+  } catch (e) {
+    log('error', e.message);
+    return;
+  }
+  if (!confirmDiscardIfDirty('保存されていない変更があります。開くと失われます。続行しますか?')) return;
+
+  try {
+    log('info', 'Google Drive のファイル選択ダイアログを開きます。');
+    const picked = await drive.openPicker({
+      mimeType: 'text/markdown,text/plain,text/x-markdown',
+      title: 'Markdownファイルを選択'
+    });
+    if (!picked) {
+      log('info', 'ファイル選択をキャンセルしました。');
+      return;
+    }
+    log('info', `「${picked.name}」を読み込んでいます…`);
+    const content = await drive.getFile({ fileId: picked.id });
+    setEditorValue(typeof content === 'string' ? content : String(content ?? ''));
+    currentFile = { id: picked.id, name: picked.name };
+    markClean();
+    renderPreview();
+    log('info', `「${picked.name}」を読み込みました。`);
+  } catch (e) {
+    log('error', `ファイルの読み込みに失敗しました: ${e.message}`);
+  }
+});
+
+openLocalBtn.addEventListener('click', () => {
+  if (!confirmDiscardIfDirty('保存されていない変更があります。開くと失われます。続行しますか?')) return;
+  localFileInputEl.click();
+});
+
+localFileInputEl.addEventListener('change', (event) => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    setEditorValue(String(reader.result ?? ''));
+    currentFile = { id: null, name: file.name };
+    markClean();
+    renderPreview();
+    log('info', `ローカルファイル「${file.name}」を読み込みました。`);
+  };
+  reader.onerror = () => {
+    log('error', `ローカルファイルの読み込みに失敗しました: ${reader.error?.message ?? '不明なエラー'}`);
+  };
+  reader.readAsText(file, 'utf-8');
+  localFileInputEl.value = '';
+});
+
+async function saveCurrentFile() {
+  try {
+    await ensureLoggedIn();
+  } catch (e) {
+    log('error', e.message);
+    return;
+  }
+
+  if (currentFile.id) {
+    try {
+      saveBtn.disabled = true;
+      log('info', `「${currentFile.name}」を保存しています…`);
+      await drive.saveFile({ fileId: currentFile.id, data: getEditorValue(), mimeType: 'text/markdown' });
+      markClean();
+      flashFeedback(saveBtn, '保存済み');
+      log('info', `「${currentFile.name}」を保存しました。`);
+    } catch (e) {
+      log('error', `保存に失敗しました: ${e.message}`);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  } else {
+    await saveAsFlow();
+  }
+}
+
+async function saveAsFlow() {
+  try {
+    await ensureLoggedIn();
+  } catch (e) {
+    log('error', e.message);
+    return;
+  }
+
+  const defaultName = currentFile.name || '無題.md';
+  let filename = window.prompt('保存するファイル名を入力してください(例: memo.md、folder/memo.md)', defaultName);
+  if (filename === null) {
+    log('info', '名前を付けて保存をキャンセルしました。');
+    return;
+  }
+  filename = filename.trim();
+  if (!filename) {
+    log('warn', 'ファイル名が空のため保存を中止しました。');
+    return;
+  }
+  if (!/\.(md|markdown|txt)$/i.test(filename)) {
+    filename += '.md';
+  }
+
+  try {
+    saveAsBtn.disabled = true;
+    log('info', `「${filename}」として保存しています…`);
+    const res = await drive.saveFile({ path: filename, data: getEditorValue(), mimeType: 'text/markdown' });
+    let newId = res && res.id ? res.id : null;
+    if (!newId) {
+      newId = await drive.getFileId({ path: filename });
+    }
+    currentFile = { id: newId || null, name: filename.split('/').pop() };
+    markClean();
+    flashFeedback(saveAsBtn, '保存済み');
+    log('info', `「${filename}」として保存しました。`);
+  } catch (e) {
+    log('error', `名前を付けて保存に失敗しました: ${e.message}`);
+  } finally {
+    saveAsBtn.disabled = false;
+  }
+}
+
+saveBtn.addEventListener('click', saveCurrentFile);
+saveAsBtn.addEventListener('click', saveAsFlow);
+
+downloadBtn.addEventListener('click', () => {
+  try {
+    const name = currentFile.name || '無題.md';
+    const blob = new Blob([getEditorValue()], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    log('info', `「${name}」をダウンロードしました。`);
+  } catch (e) {
+    log('error', `ダウンロードに失敗しました: ${e.message}`);
+  }
+});
+
+newTabBtn.addEventListener('click', openPreviewInNewTab);
+
+document.addEventListener('keydown', (event) => {
+  const isSaveCombo = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+  if (isSaveCombo) {
+    event.preventDefault();
+    saveCurrentFile();
+  }
+});
+
+/* ==================================================
+   設定モーダル
+   ================================================== */
+
+function openSettingsModal() {
+  const current = loadSettings();
+  settingClientIdEl.value = current.clientId || '';
+  settingRedirectUriEl.value = current.redirectUri || '';
+  settingSpaceEl.value = current.space || 'file';
+  settingsModalEl.classList.remove('hidden');
+}
+
+function closeSettingsModal() {
+  settingsModalEl.classList.add('hidden');
+}
+
+settingsBtn.addEventListener('click', openSettingsModal);
+settingsCancelBtn.addEventListener('click', closeSettingsModal);
+settingsModalEl.addEventListener('click', (event) => {
+  if (event.target === settingsModalEl) closeSettingsModal();
+});
+
+settingsSaveBtn.addEventListener('click', () => {
+  const clientId = settingClientIdEl.value.trim();
+  const redirectUri = settingRedirectUriEl.value.trim();
+  const space = settingSpaceEl.value;
+  if (!clientId || !redirectUri) {
+    log('warn', 'Client ID と Redirect URI の両方を入力してください。');
+    return;
+  }
+  saveSettings({ clientId, redirectUri, space });
+  initDrive();
+  closeSettingsModal();
+  log('info', 'Drive連携の設定を保存しました。');
+});
+
+/* ==================================================
+   起動処理
+   ================================================== */
+
+if (typeof marked !== 'undefined') {
+  marked.setOptions({ gfm: true, breaks: true });
+}
+if (typeof DOMPurify === 'undefined') {
+  log('warn', 'DOMPurifyが読み込まれていないため、プレビューのサニタイズが行われません。');
+}
+
+initEditor();
+setEditorValue(WELCOME_TEXT);
+markClean();
+renderPreview();
+initDrive();
+setViewMode(window.innerWidth < 760 ? 'edit' : 'split');
+
+log('info', `Markdown Editor を起動しました。(DriveAPIManager v${DriveAPIManager.ver})`);
+if (!loadSettings().clientId) {
+  log('warn', 'Drive連携が未設定です。「設定」からClient IDとRedirect URIを登録してください。');
+  openSettingsModal();
+}
+
+</script>
+</body>
+  </html>
