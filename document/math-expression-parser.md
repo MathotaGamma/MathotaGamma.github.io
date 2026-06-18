@@ -214,7 +214,7 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
         <th scope="row">max</th>
         <td>/^max/</td>
         <td>true</td>
-        <td>**false**</td>
+        <td><span style="font-weight: bold">false</span></td>
       </tr>
       <tr>
         <th scope="row">min</th>
