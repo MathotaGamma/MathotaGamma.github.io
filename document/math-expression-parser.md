@@ -26,9 +26,24 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
 ### 字句リストの例
 <details><summary>字句リスト</summary>
   
-  |字句名|判定(正規表現)|関数か|括弧の自動補完|
-  |:----|:----|:---:|:---:|
-  |space|/^\s+/|false|null|
+  <table>
+    <thead>
+      <tr>
+        <th>字句名</th>
+        <th>判定(正規表現)</th>
+        <th>関数か</th>
+        <th>括弧の自動補完</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">space</th>
+        <td>/^\s+/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+    </tbody>
+  </table>
   |comma|/^,/|false|null|
   |parStart|/^\(/|false|null|
   |parEnd|/^\)/|false|null|
@@ -37,7 +52,6 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
   |pro|/^\*/|false|null|
   |div|/^\//|false|null|
   |pow|/^\^/|false|null|
-  |*絶対値は*|*向きがわか*|*らないので*|*\[\]で入力する。*|
   |absStart|/^\[/|false|null|
     absEnd:     {re: /^\]/},
     // cosecがcos判定とならないように、cosより前に判定
