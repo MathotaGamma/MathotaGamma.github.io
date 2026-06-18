@@ -242,19 +242,22 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
       </tr>
       <tr>
         <th scope="row">num</th>
-        <td>^${this.numReg} (変数展開)</td>
+        <td>[^1]</td>
         <td>false</td>
         <td>null</td>
       </tr>
       <tr>
         <th scope="row">value</th>
-        <td>^(?:${this.character}... (変数展開)</td>
+        <td>[^2]</td>
         <td>false</td>
         <td>null</td>
       </tr>
     </tbody>
   </table>
-  
-  
-    
+
+  #### 注釈
+  *※numReg: (?:\[0-9\]+(?:\\.\[0-9\]\*)?|\\.\[0-9\]+)*
+  *characterReg: \[a-zA-Z\\u0391-\\u03A9\\u03B1-\\u03C9\]*
+  [^1]: `^${numReg}`
+  [^2]: `^(?:${characterReg}(?:(?:0|[1-9][0-9]*)(?!${characterReg})|_(?:${characterReg}|${numReg})*)?)`
 </details>
