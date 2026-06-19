@@ -60,71 +60,80 @@ class DriveAPIManager {
   }
 
   // userにファイルを選んでもらう(Google Picker API)
-  async openPicker({ mimeType = null, title = '選択してください' } = {}) {
-    // 1. ログイン状態とトークンのチェック
-    if (!this.state.loggedIn || !this.state.token) {
-      throw new Error('Pickerを開く前に auth() でログインを完了してください。');
+async openPicker({ mimeType = null, title = '選択してください' } = {}) {
+  // 1. ログイン状態とトークンのチェック
+  if (!this.state.loggedIn || !this.state.token) {
+    throw new Error('Pickerを開く前に auth() でログインを完了してください。');
+  }
+
+  this.progress('openPicker', 'loading_scripts');
+
+  // 2. Google API (gapi) のクライアントスクリプトを動的ロード
+  await new Promise((resolve, reject) => {
+    if (window.gapi) return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://apis.google.com/js/api.js';
+    script.onload = () => resolve();
+    script.onerror = (e) => reject(new Error('Google API スクリプトの読み込みに失敗しました。'));
+    document.head.appendChild(script);
+  });
+
+  // 3. picker ライブラリをロード
+  await new Promise((resolve) => {
+    window.gapi.load('picker', { callback: resolve });
+  });
+
+  this.progress('openPicker', 'showing_ui');
+
+  // 4. ピッカーを構築して表示
+  return new Promise((resolve) => {
+    // 表示するビューの制限（デフォルトはマイドライブ）
+    const viewId = mimeType === 'application/vnd.google-apps.folder' 
+      ? window.google.picker.ViewId.FOLDERS 
+      : window.google.picker.ViewId.DOCS;
+      
+    const view = new window.google.picker.View(viewId);
+    if (mimeType) {
+      view.setMimeTypes(mimeType); // 💡特定のMIMEタイプ（フォルダなど）のみに絞り込む
     }
 
-    this.progress('openPicker', 'loading_scripts');
+    // 🚀 ここから修正・追加
+    const builder = new window.google.picker.PickerBuilder()
+      .addView(view)
+      .setOAuthToken(this.state.token)
+      .setTitle(title)
+      // 💡 1. 左側に「マイドライブ」「共有アイテム」「最近使用したアイテム」などのナビゲーション（階層）を出す
+      .enableFeature(window.google.picker.Feature.NAV_HIDDEN) // ※これを無効化、または明示的にコントロール
+      
+      // 💡 2. 共有ドライブ（旧チームドライブ）も表示に含める（仕事用なら必須）
+      .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES) 
+      
+      // 💡 3. グリッド表示（カード型）とリスト表示の切り替えボタンを付ける
+      .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED) // 必要なら複数選択も可能に（今回は単一選択なら不要）
 
-    // 2. Google API (gapi) のクライアントスクリプトを動的ロード
-    await new Promise((resolve, reject) => {
-      if (window.gapi) return resolve();
-      const script = document.createElement('script');
-      script.src = 'https://apis.google.com/js/api.js';
-      script.onload = () => resolve();
-      script.onerror = (e) => reject(new Error('Google API スクリプトの読み込みに失敗しました。'));
-      document.head.appendChild(script);
-    });
+      .setCallback((data) => {
+        if (data.action === window.google.picker.Action.PICKED) {
+          const doc = data.docs[0];
+          this._idCache[doc.name] = doc.id; 
+          this.progress('openPicker', 'picked');
+          resolve({
+            id: doc.id,
+            name: doc.name,
+            mimeType: doc.mimeType
+          });
+        } else if (data.action === window.google.picker.Action.CANCEL) {
+          this.progress('openPicker', 'canceled');
+          resolve(null);
+        }
+      });
 
-    // 3. picker ライブラリをロード
-    await new Promise((resolve) => {
-      window.gapi.load('picker', { callback: resolve });
-    });
+    // 💡 4. ピッカーのサイズを大きくして、本物のDriveっぽく見せる（横: 1050px, 縦: 650px など最大級に）
+    builder.setSize(1050, 650);
 
-    this.progress('openPicker', 'showing_ui');
-
-    // 4. ピッカーを構築して表示
-    return new Promise((resolve) => {
-      // 表示するビューの制限（デフォルトはマイドライブ）
-      const viewId = mimeType === 'application/vnd.google-apps.folder' 
-        ? window.google.picker.ViewId.FOLDERS 
-        : window.google.picker.ViewId.DOCS;
-        
-      const view = new window.google.picker.View(viewId);
-      if (mimeType) {
-        view.setMimeTypes(mimeType); // 💡特定のMIMEタイプ（フォルダなど）のみに絞り込む
-      }
-
-      const picker = new window.google.picker.PickerBuilder()
-        .addView(view)
-        .setOAuthToken(this.state.token) // 💡クラス内にある現在のアクセストークンを流用
-        .setTitle(title)
-        .setCallback((data) => {
-          // ユーザーがアクションを起こした時のコールバック
-          if (data.action === window.google.picker.Action.PICKED) {
-            const doc = data.docs[0];
-            
-            // 💡 取得したIDを内部キャッシュに自動登録しておく（あとで getPath や saveFile で使えるように）
-            this._idCache[doc.name] = doc.id; 
-            
-            this.progress('openPicker', 'picked');
-            resolve({
-              id: doc.id,
-              name: doc.name,
-              mimeType: doc.mimeType
-            });
-          } else if (data.action === window.google.picker.Action.CANCEL) {
-            this.progress('openPicker', 'canceled');
-            resolve(null); // キャンセル時は null を返す
-          }
-        })
-        .build();
-
-      picker.setVisible(true);
-    });
-  }
+    const picker = builder.build();
+    picker.setVisible(true);
+  });
+}
 
   /* ==================================================
      共通
