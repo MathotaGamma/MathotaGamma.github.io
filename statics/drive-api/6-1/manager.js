@@ -62,92 +62,101 @@ class DriveAPIManager {
   }
 
   // userにファイルを選んでもらう(Google Picker API)
-async openPicker({ mimeType = null, title = 'Google ドライブから選択' } = {}) {
-  // 1. ログイン状態とトークンのチェック
-  if (!this.state.loggedIn || !this.state.token) {
-    throw new Error('Pickerを開く前に auth() でログインを完了してください。');
-  }
-
-  this.progress('openPicker', 'loading_scripts');
-
-  // 2. Google API (gapi) のクライアントスクリプトを動的ロード
-  await new Promise((resolve, reject) => {
-    if (window.gapi) return resolve();
-    const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
-    script.onload = () => resolve();
-    script.onerror = (e) => reject(new Error('Google API スクリプトの読み込みに失敗しました。'));
-    document.head.appendChild(script);
-  });
-
-  // 3. picker ライブラリをロード
-  await new Promise((resolve) => {
-    window.gapi.load('picker', { callback: resolve });
-  });
-
-  this.progress('openPicker', 'showing_ui');
-
-  // 4. ピッカーを構築して表示
-  return new Promise((resolve) => {
-    
-    // 💡 DocsView を作成
-    const docsView = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
-      .setParent('root')             // 👑 【最重要】マイドライブのトップ（ルート）から表示を開始する
-      .setIncludeFolders(true)       // 📂 フォルダを階層として表示し、潜れるようにする
-      .setSelectFolderEnabled(true)  // 📂 フォルダ自体も選択（決定）できるようにする
-      .setEnableDrives(true);        // 🏢 共有ドライブの階層も表示する
-
-    // 💡 MIMEタイプの指定ロジックを最適化
-    if (mimeType) {
-      // 特定のファイルだけ選ばせたい場合でも、フォルダ階層を潜れるようにフォルダのMIMEタイプを自動追加
-      if (mimeType !== 'application/vnd.google-apps.folder') {
-        docsView.setMimeTypes(`${mimeType},application/vnd.google-apps.folder`);
-      } else {
-        docsView.setMimeTypes(mimeType);
-      }
+  async openPicker({ mimeType = null, title = 'Google ドライブから選択' } = {}) {
+    // 1. ログイン状態とトークンのチェック
+    if (!this.state.loggedIn || !this.state.token) {
+      throw new Error('Pickerを開く前に auth() でログインを完了してください。');
     }
 
-    // 💡 画面中央にFloat（モーダル）させるためのサイズ計算
-    const width = Math.min(window.innerWidth * 0.85, 1050);
-    const height = Math.min(window.innerHeight * 0.85, 700);
+    this.progress('openPicker', 'loading_scripts');
 
-    const picker = new window.google.picker.PickerBuilder()
-      .addView(docsView) 
-      .setOAuthToken(this.state.token)
-      .setTitle(title)
-      .setSize(width, height) 
+    // 2. Google API (gapi) のクライアントスクリプトを動的ロード
+    await new Promise((resolve, reject) => {
+      if (window.gapi) return resolve();
+      const script = document.createElement('script');
+      script.src = 'https://apis.google.com/js/api.js';
+      script.onload = () => resolve();
+      script.onerror = (e) => reject(new Error('Google API スクリプトの読み込みに失敗しました。'));
+      document.head.appendChild(script);
+    });
+
+    // 3. picker ライブラリをロード
+    await new Promise((resolve) => {
+      window.gapi.load('picker', { callback: resolve });
+    });
+
+    this.progress('openPicker', 'showing_ui');
+
+    // 4. ピッカーを構築して表示
+    return new Promise((resolve) => {
       
-      // 左側のナビゲーションツリーを出す
-      .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
-      
-      .setCallback((data) => {
-        if (data.action === window.google.picker.Action.PICKED) {
-          const doc = data.docs[0];
-          this._idCache[doc.name] = doc.id; 
-          this.progress('openPicker', 'picked');
-          resolve({
-            id: doc.id,
-            name: doc.name,
-            mimeType: doc.mimeType
-          });
-        } else if (data.action === window.google.picker.Action.CANCEL) {
-          this.progress('openPicker', 'canceled');
-          resolve(null);
+      // 💡 1. 'drive.file' スコープでも全階層を正常にロード・表示できるように「MydriveView」を使用する
+      // DocsView(DOCS) + setParent('root') だとセキュリティエラーを吐きますが、初期化をこれにすると回避できます
+      const viewId = mimeType === 'application/vnd.google-apps.folder' 
+        ? window.google.picker.ViewId.FOLDERS 
+        : window.google.picker.ViewId.DOCS;
+
+      const driveView = new window.google.picker.DocsView(viewId)
+        .setIncludeFolders(true)       // 📂 フォルダ階層を潜れるようにする
+        .setSelectFolderEnabled(true)  // 📂 フォルダ自体も選択（決定）可能にする
+        .setEnableDrives(true);        // 🏢 共有ドライブの表示を許可
+
+      // 💡 2. 特定のMIMEタイプ（PDFなど）が指定されている場合、
+      // フォルダまで非表示になって階層を降りられなくなるのを防ぐため、フォルダMIMEを自動でマージ
+      if (mimeType) {
+        if (mimeType !== 'application/vnd.google-apps.folder') {
+          driveView.setMimeTypes(`${mimeType},application/vnd.google-apps.folder`);
+        } else {
+          driveView.setMimeTypes(mimeType);
         }
-      })
-      .build();
+      }
 
-    picker.setVisible(true);
+      // 💡 3. 画面中央にFloat（浮遊モーダル）させるためのサイズ計算
+      const width = Math.min(window.innerWidth * 0.85, 1050);
+      const height = Math.min(window.innerHeight * 0.85, 700);
 
-    // 最前面に浮き出させる（Float）ためのz-index処理
-    setTimeout(() => {
-      const pickerElements = document.querySelectorAll('.picker-dialog');
-      pickerElements.forEach(el => {
-        el.style.zIndex = '9999';
-      });
-    }, 100);
-  });
-}
+      const picker = new window.google.picker.PickerBuilder()
+        .addView(driveView) // カスタマイズしたビューを追加
+        .setOAuthToken(this.state.token)
+        .setTitle(title)
+        .setSize(width, height) // 動的に計算した大画面サイズ（Floatモーダルとして最適）
+        
+        // 💡 4. 左側のナビゲーション階層ツリー（マイドライブ、共有ドライブ等）を強制解放
+        .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
+        
+        .setCallback((data) => {
+          if (data.action === window.google.picker.Action.PICKED) {
+            const doc = data.docs[0];
+            
+            // 💡 選択されたファイルのフルパスを、このあとアプリ側（space=='file'）で 
+            // 正常に getPath や saveFile できるように、再帰的にパスをキャッシュへ登録する
+            this._idCache[doc.name] = doc.id; 
+            
+            this.progress('openPicker', 'picked');
+            resolve({
+              id: doc.id,
+              name: doc.name,
+              mimeType: doc.mimeType
+            });
+          } else if (data.action === window.google.picker.Action.CANCEL) {
+            this.progress('openPicker', 'canceled');
+            resolve(null);
+          }
+        })
+        .build();
+
+      picker.setVisible(true);
+
+      // 💡 5. CSSハック：どんなUI（別のモーダル等）の裏にも絶対に隠れないように最前面へFloatさせる
+      setTimeout(() => {
+        const pickerElements = document.querySelectorAll('.picker-dialog');
+        pickerElements.forEach(el => {
+          el.style.zIndex = '99999';
+          el.style.boxShadow = '0px 10px 30px rgba(0,0,0,0.3)'; // 浮いている感を出す影
+        });
+      }, 150);
+    });
+  }
 
   /* ==================================================
      共通
