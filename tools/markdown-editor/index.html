@@ -502,20 +502,21 @@
 </div>
 
 <!-- CodeMirror (コードエディタ部分) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/gfm/gfm.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/overlay.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/gfm/gfm.min.js" crossorigin="anonymous"></script>
 
 <!-- Markdown変換 / サニタイズ -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
 
 <script type="module">
 
@@ -531,6 +532,12 @@ let previewTimer = null;
 let resizeTimer = null;
 
 const SETTINGS_KEY = 'mdEditorDriveSettings';
+
+// ここに実際のGoogle CloudのOAuth Client IDと、Redirect URI(中継ページ)を書き込んでください。
+// 設定画面(⚙)から入力した場合はlocalStorageの内容が優先されます。
+const EMBEDDED_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+const EMBEDDED_REDIRECT_URI = 'https://example.com/oauth-redirect.html';
+const EMBEDDED_SPACE = 'file';
 
 const editorTextareaEl = document.getElementById('editor');
 const previewInnerEl = document.getElementById('previewInner');
@@ -1349,13 +1356,18 @@ class DriveAPIManager {
    ================================================== */
 
 function loadSettings() {
+  let stored = {};
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    stored = raw ? JSON.parse(raw) : {};
   } catch (e) {
     log('warn', `設定の読み込みに失敗しました: ${e.message}`);
-    return {};
   }
+  return {
+    clientId: stored.clientId || EMBEDDED_CLIENT_ID,
+    redirectUri: stored.redirectUri || EMBEDDED_REDIRECT_URI,
+    space: stored.space || EMBEDDED_SPACE
+  };
 }
 
 function saveSettings(settings) {
@@ -1900,11 +1912,10 @@ initDrive();
 setViewMode(window.innerWidth < 760 ? 'edit' : 'split');
 
 log('info', `Markdown Editor を起動しました。(DriveAPIManager v${DriveAPIManager.ver})`);
-if (!loadSettings().clientId) {
-  log('warn', 'Drive連携が未設定です。「設定」からClient IDとRedirect URIを登録してください。');
-  openSettingsModal();
+if (loadSettings().clientId === EMBEDDED_CLIENT_ID) {
+  log('warn', 'Client ID/Redirect URIがプレースホルダーのままです。コード内のEMBEDDED_CLIENT_ID/EMBEDDED_REDIRECT_URIを書き換えるか、「設定」から登録してください。');
 }
 
 </script>
 </body>
-  </html>
+</html>
