@@ -12,396 +12,396 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 
     <style>
-        /* ==================================================
-           デザイントークン
-           「暗いグラファイトの机の上に、クリーム色の原稿(プレビュー)が乗っている」
-           ================================================== */
-        :root {
-          --color-canvas: #1a1715;
-          --color-surface: #221e1a;
-          --color-surface-2: #2b2620;
-          --color-border: #3a332c;
-          --color-ink: #ece5d8;
-          --color-ink-muted: #a89c8c;
-          --color-brass: #c89a4a;
-          --color-brass-strong: #e0b563;
-          --color-teal: #6fa3a8;
-          --color-paper: #f1e9d8;
-          --color-paper-ink: #2a2520;
-          --color-paper-muted: #6b6055;
-          --color-danger: #c1604a;
-          --color-warning: #d2a23f;
-          --color-success: #7a9f6a;
+              /* ==================================================
+                 デザイントークン
+                 「暗いグラファイトの机の上に、クリーム色の原稿(プレビュー)が乗っている」
+                 ================================================== */
+              :root {
+                --color-canvas: #1a1715;
+                --color-surface: #221e1a;
+                --color-surface-2: #2b2620;
+                --color-border: #3a332c;
+                --color-ink: #ece5d8;
+                --color-ink-muted: #a89c8c;
+                --color-brass: #c89a4a;
+                --color-brass-strong: #e0b563;
+                --color-teal: #6fa3a8;
+                --color-paper: #f1e9d8;
+                --color-paper-ink: #2a2520;
+                --color-paper-muted: #6b6055;
+                --color-danger: #c1604a;
+                --color-warning: #d2a23f;
+                --color-success: #7a9f6a;
 
-          --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
-          --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, 'Hiragino Sans', monospace;
-          --font-serif: 'IBM Plex Serif', Georgia, 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+                --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+                --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, 'Hiragino Sans', monospace;
+                --font-serif: 'IBM Plex Serif', Georgia, 'Hiragino Mincho ProN', 'Yu Mincho', serif;
 
-          --radius-sm: 4px;
-          --radius-md: 8px;
-        }
+                --radius-sm: 4px;
+                --radius-md: 8px;
+              }
 
-        * { box-sizing: border-box; }
-        html, body { height: 100%; margin: 0; }
-        body {
-          font-family: var(--font-ui);
-          background: var(--color-canvas);
-          color: var(--color-ink);
-        }
-        button, input, select { font: inherit; }
+              * { box-sizing: border-box; }
+              html, body { height: 100%; margin: 0; }
+              body {
+                font-family: var(--font-ui);
+                background: var(--color-canvas);
+                color: var(--color-ink);
+              }
+              button, input, select { font: inherit; }
 
-        #app {
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-        }
-        @supports (height: 100dvh) {
-          #app { height: 100dvh; }
-        }
+              #app {
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+              }
+              @supports (height: 100dvh) {
+                #app { height: 100dvh; }
+              }
 
-        /* ===== ヘッダー / ツールバー ===== */
-        .toolbar {
-          flex: 0 0 auto;
-          background: var(--color-surface);
-          border-bottom: 2px solid var(--color-brass);
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 8px 16px;
-          flex-wrap: wrap;
-        }
-        .brandMark {
-          font-family: var(--font-serif);
-          font-style: italic;
-          font-size: 15px;
-          color: var(--color-brass-strong);
-          margin-right: 6px;
-          white-space: nowrap;
-        }
-        .toolbarGroup {
-          display: flex;
-          gap: 6px;
-          align-items: center;
-        }
-        .toolbarDivider {
-          width: 1px;
-          height: 22px;
-          background: var(--color-border);
-        }
-        .fileLabel {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--color-ink);
-          margin-right: 4px;
-          white-space: nowrap;
-          max-width: 220px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .dirtyDot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--color-brass);
-          opacity: 0;
-          transition: opacity 0.15s ease;
-          flex: 0 0 auto;
-        }
-        .dirtyDot.visible { opacity: 1; }
+              /* ===== ヘッダー / ツールバー ===== */
+              .toolbar {
+                flex: 0 0 auto;
+                background: var(--color-surface);
+                border-bottom: 2px solid var(--color-brass);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 8px 16px;
+                flex-wrap: wrap;
+              }
+              .brandMark {
+                font-family: var(--font-serif);
+                font-style: italic;
+                font-size: 15px;
+                color: var(--color-brass-strong);
+                margin-right: 6px;
+                white-space: nowrap;
+              }
+              .toolbarGroup {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+              }
+              .toolbarDivider {
+                width: 1px;
+                height: 22px;
+                background: var(--color-border);
+              }
+              .fileLabel {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--color-ink);
+                margin-right: 4px;
+                white-space: nowrap;
+                max-width: 220px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+              .dirtyDot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: var(--color-brass);
+                opacity: 0;
+                transition: opacity 0.15s ease;
+                flex: 0 0 auto;
+              }
+              .dirtyDot.visible { opacity: 1; }
 
-        .toolbar button {
-          font-size: 13px;
-          background: transparent;
-          color: var(--color-ink);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-sm);
-          padding: 6px 12px;
-          cursor: pointer;
-          transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-          white-space: nowrap;
-        }
-        .toolbar button:hover { background: var(--color-surface-2); border-color: var(--color-ink-muted); }
-        .toolbar button:disabled { opacity: 0.45; cursor: not-allowed; }
-        .toolbar button.primary {
-          background: var(--color-brass);
-          border-color: var(--color-brass);
-          color: #241c0f;
-          font-weight: 600;
-        }
-        .toolbar button.primary:hover { background: var(--color-brass-strong); border-color: var(--color-brass-strong); }
+              .toolbar button {
+                font-size: 13px;
+                background: transparent;
+                color: var(--color-ink);
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-sm);
+                padding: 6px 12px;
+                cursor: pointer;
+                transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+                white-space: nowrap;
+              }
+              .toolbar button:hover { background: var(--color-surface-2); border-color: var(--color-ink-muted); }
+              .toolbar button:disabled { opacity: 0.45; cursor: not-allowed; }
+              .toolbar button.primary {
+                background: var(--color-brass);
+                border-color: var(--color-brass);
+                color: #241c0f;
+                font-weight: 600;
+              }
+              .toolbar button.primary:hover { background: var(--color-brass-strong); border-color: var(--color-brass-strong); }
 
-        .segmented {
-          display: inline-flex;
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
-          overflow: hidden;
-        }
-        .segmented button {
-          background: transparent;
-          border: none;
-          border-radius: 0;
-          color: var(--color-ink-muted);
-          padding: 6px 12px;
-          font-size: 13px;
-          cursor: pointer;
-          transition: background-color 0.15s ease, color 0.15s ease;
-        }
-        .segmented button + button { border-left: 1px solid var(--color-border); }
-        .segmented button.active { background: var(--color-brass); color: var(--color-canvas); font-weight: 600; }
-        .segmented button:hover:not(.active) { background: var(--color-surface-2); color: var(--color-ink); }
+              .segmented {
+                display: inline-flex;
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-md);
+                overflow: hidden;
+              }
+              .segmented button {
+                background: transparent;
+                border: none;
+                border-radius: 0;
+                color: var(--color-ink-muted);
+                padding: 6px 12px;
+                font-size: 13px;
+                cursor: pointer;
+                transition: background-color 0.15s ease, color 0.15s ease;
+              }
+              .segmented button + button { border-left: 1px solid var(--color-border); }
+              .segmented button.active { background: var(--color-brass); color: var(--color-canvas); font-weight: 600; }
+              .segmented button:hover:not(.active) { background: var(--color-surface-2); color: var(--color-ink); }
 
-        .authStatus {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          color: var(--color-ink-muted);
-          margin-left: auto;
-          white-space: nowrap;
-        }
-        .authStatus .dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background: var(--color-ink-muted);
-          flex: 0 0 auto;
-        }
-        .authStatus.online .dot { background: var(--color-success); }
+              .authStatus {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 12px;
+                color: var(--color-ink-muted);
+                margin-left: auto;
+                white-space: nowrap;
+              }
+              .authStatus .dot {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: var(--color-ink-muted);
+                flex: 0 0 auto;
+              }
+              .authStatus.online .dot { background: var(--color-success); }
 
-        /* ===== ワークスペース(エディタ/プレビュー) ===== */
-        #workspace {
-          flex: 1 1 auto;
-          display: flex;
-          min-height: 0;
-          overflow: hidden;
-        }
-        #editorPane, #previewPane {
-          flex: 1 1 50%;
-          min-width: 0;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-        }
-        #editorPane { background: var(--color-canvas); }
-        #previewPane {
-          background: var(--color-canvas);
-          overflow: auto;
-          padding: 32px 24px;
-        }
-        #workspace.mode-edit #previewPane,
-        #workspace.mode-preview #editorPane { display: none; }
-        #workspace.mode-edit #editorPane,
-        #workspace.mode-preview #previewPane { flex: 1 1 100%; }
-        #workspace.mode-split #editorPane { border-right: 1px solid var(--color-border); }
+              /* ===== ワークスペース(エディタ/プレビュー) ===== */
+              #workspace {
+                flex: 1 1 auto;
+                display: flex;
+                min-height: 0;
+                overflow: hidden;
+              }
+              #editorPane, #previewPane {
+                flex: 1 1 50%;
+                min-width: 0;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+              }
+              #editorPane { background: var(--color-canvas); }
+              #previewPane {
+                background: var(--color-canvas);
+                overflow: auto;
+                padding: 32px 24px;
+              }
+              #workspace.mode-edit #previewPane,
+              #workspace.mode-preview #editorPane { display: none; }
+              #workspace.mode-edit #editorPane,
+              #workspace.mode-preview #previewPane { flex: 1 1 100%; }
+              #workspace.mode-split #editorPane { border-right: 1px solid var(--color-border); }
 
-        #editor {
-          flex: 1 1 auto;
-          width: 100%;
-          height: 100%;
-          resize: none;
-          border: none;
-          outline: none;
-          background: var(--color-canvas);
-          color: var(--color-ink);
-          font-family: var(--font-mono);
-          font-size: 14px;
-          line-height: 1.6;
-          padding: 16px;
-        }
-        #editorPane .CodeMirror {
-          flex: 1 1 auto;
-          height: 100%;
-        }
+              #editor {
+                flex: 1 1 auto;
+                width: 100%;
+                height: 100%;
+                resize: none;
+                border: none;
+                outline: none;
+                background: var(--color-canvas);
+                color: var(--color-ink);
+                font-family: var(--font-mono);
+                font-size: 14px;
+                line-height: 1.6;
+                padding: 16px;
+              }
+              #editorPane .CodeMirror {
+                flex: 1 1 auto;
+                height: 100%;
+              }
 
-        /* CodeMirror 独自テーマ: deskmono */
-        .cm-s-deskmono.CodeMirror {
-          background: var(--color-canvas);
-          color: var(--color-ink);
-          font-family: var(--font-mono);
-          font-size: 14px;
-          line-height: 1.6;
-        }
-        .cm-s-deskmono .CodeMirror-gutters { background: var(--color-canvas); border-right: 1px solid var(--color-border); }
-        .cm-s-deskmono .CodeMirror-linenumber { color: var(--color-ink-muted); }
-        .cm-s-deskmono .CodeMirror-cursor { border-left: 2px solid var(--color-brass); }
-        .cm-s-deskmono div.CodeMirror-selected { background: rgba(200, 154, 74, 0.22); }
-        .cm-s-deskmono .cm-header { color: var(--color-brass-strong); font-weight: 600; }
-        .cm-s-deskmono .cm-strong { color: var(--color-ink); font-weight: 700; }
-        .cm-s-deskmono .cm-em { color: var(--color-teal); font-style: italic; }
-        .cm-s-deskmono .cm-link { color: var(--color-teal); }
-        .cm-s-deskmono .cm-url { color: var(--color-ink-muted); }
-        .cm-s-deskmono .cm-quote { color: var(--color-ink-muted); font-style: italic; }
-        .cm-s-deskmono .cm-comment { color: var(--color-ink-muted); }
-        .cm-s-deskmono .cm-variable-2 { color: var(--color-brass); }
-        .cm-s-deskmono .cm-keyword { color: var(--color-teal); }
-        .cm-s-deskmono .cm-string { color: #b5c98a; }
-        .cm-s-deskmono .cm-atom { color: var(--color-brass); }
-        .cm-s-deskmono .cm-tag { color: var(--color-brass-strong); }
-        .cm-s-deskmono .cm-attribute { color: var(--color-teal); }
+              /* CodeMirror 独自テーマ: deskmono */
+              .cm-s-deskmono.CodeMirror {
+                background: var(--color-canvas);
+                color: var(--color-ink);
+                font-family: var(--font-mono);
+                font-size: 14px;
+                line-height: 1.6;
+              }
+              .cm-s-deskmono .CodeMirror-gutters { background: var(--color-canvas); border-right: 1px solid var(--color-border); }
+              .cm-s-deskmono .CodeMirror-linenumber { color: var(--color-ink-muted); }
+              .cm-s-deskmono .CodeMirror-cursor { border-left: 2px solid var(--color-brass); }
+              .cm-s-deskmono div.CodeMirror-selected { background: rgba(200, 154, 74, 0.22); }
+              .cm-s-deskmono .cm-header { color: var(--color-brass-strong); font-weight: 600; }
+              .cm-s-deskmono .cm-strong { color: var(--color-ink); font-weight: 700; }
+              .cm-s-deskmono .cm-em { color: var(--color-teal); font-style: italic; }
+              .cm-s-deskmono .cm-link { color: var(--color-teal); }
+              .cm-s-deskmono .cm-url { color: var(--color-ink-muted); }
+              .cm-s-deskmono .cm-quote { color: var(--color-ink-muted); font-style: italic; }
+              .cm-s-deskmono .cm-comment { color: var(--color-ink-muted); }
+              .cm-s-deskmono .cm-variable-2 { color: var(--color-brass); }
+              .cm-s-deskmono .cm-keyword { color: var(--color-teal); }
+              .cm-s-deskmono .cm-string { color: #b5c98a; }
+              .cm-s-deskmono .cm-atom { color: var(--color-brass); }
+              .cm-s-deskmono .cm-tag { color: var(--color-brass-strong); }
+              .cm-s-deskmono .cm-attribute { color: var(--color-teal); }
 
-        /* ===== プレビュー(原稿カード) ===== */
-        #previewInner {
-          max-width: 720px;
-          margin: 0 auto;
-          background: var(--color-paper);
-          color: var(--color-paper-ink);
-          font-family: var(--font-serif);
-          font-size: 16px;
-          line-height: 1.8;
-          padding: 48px 56px;
-          border-radius: var(--radius-md);
-          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-          min-height: calc(100% - 0px);
-        }
-        #previewInner h1, #previewInner h2, #previewInner h3, #previewInner h4 {
-          font-weight: 600;
-          line-height: 1.3;
-          margin-top: 1.4em;
-        }
-        #previewInner h1 { font-size: 2em; border-bottom: 2px solid var(--color-brass); padding-bottom: 0.3em; }
-        #previewInner h2 { font-size: 1.5em; border-bottom: 1px solid rgba(40, 35, 30, 0.15); padding-bottom: 0.25em; }
-        #previewInner a { color: var(--color-teal); text-decoration: underline; }
-        #previewInner blockquote {
-          margin: 1em 0;
-          padding: 0.2em 1.2em;
-          border-left: 3px solid var(--color-brass);
-          color: var(--color-paper-muted);
-          font-style: italic;
-        }
-        #previewInner pre {
-          background: var(--color-canvas);
-          color: var(--color-ink);
-          font-family: var(--font-mono);
-          font-size: 0.85em;
-          padding: 16px;
-          border-radius: var(--radius-sm);
-          overflow-x: auto;
-        }
-        #previewInner code {
-          font-family: var(--font-mono);
-          background: rgba(40, 35, 30, 0.08);
-          padding: 0.1em 0.4em;
-          border-radius: 3px;
-          font-size: 0.9em;
-        }
-        #previewInner pre code { background: none; padding: 0; }
-        #previewInner table { border-collapse: collapse; width: 100%; margin: 1.2em 0; }
-        #previewInner th, #previewInner td { border: 1px solid rgba(40, 35, 30, 0.18); padding: 0.5em 0.8em; text-align: left; }
-        #previewInner th { background: rgba(40, 35, 30, 0.06); }
-        #previewInner img { max-width: 100%; border-radius: 4px; }
-        #previewInner hr { border: none; border-top: 1px solid rgba(40, 35, 30, 0.18); margin: 2em 0; }
-        #previewInner ul, #previewInner ol { padding-left: 1.4em; }
-        #previewInner li { margin: 0.3em 0; }
+              /* ===== プレビュー(原稿カード) ===== */
+              #previewInner {
+                max-width: 720px;
+                margin: 0 auto;
+                background: var(--color-paper);
+                color: var(--color-paper-ink);
+                font-family: var(--font-serif);
+                font-size: 16px;
+                line-height: 1.8;
+                padding: 48px 56px;
+                border-radius: var(--radius-md);
+                box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+                min-height: calc(100% - 0px);
+              }
+              #previewInner h1, #previewInner h2, #previewInner h3, #previewInner h4 {
+                font-weight: 600;
+                line-height: 1.3;
+                margin-top: 1.4em;
+              }
+              #previewInner h1 { font-size: 2em; border-bottom: 2px solid var(--color-brass); padding-bottom: 0.3em; }
+              #previewInner h2 { font-size: 1.5em; border-bottom: 1px solid rgba(40, 35, 30, 0.15); padding-bottom: 0.25em; }
+              #previewInner a { color: var(--color-teal); text-decoration: underline; }
+              #previewInner blockquote {
+                margin: 1em 0;
+                padding: 0.2em 1.2em;
+                border-left: 3px solid var(--color-brass);
+                color: var(--color-paper-muted);
+                font-style: italic;
+              }
+              #previewInner pre {
+                background: var(--color-canvas);
+                color: var(--color-ink);
+                font-family: var(--font-mono);
+                font-size: 0.85em;
+                padding: 16px;
+                border-radius: var(--radius-sm);
+                overflow-x: auto;
+              }
+              #previewInner code {
+                font-family: var(--font-mono);
+                background: rgba(40, 35, 30, 0.08);
+                padding: 0.1em 0.4em;
+                border-radius: 3px;
+                font-size: 0.9em;
+              }
+              #previewInner pre code { background: none; padding: 0; }
+              #previewInner table { border-collapse: collapse; width: 100%; margin: 1.2em 0; }
+              #previewInner th, #previewInner td { border: 1px solid rgba(40, 35, 30, 0.18); padding: 0.5em 0.8em; text-align: left; }
+              #previewInner th { background: rgba(40, 35, 30, 0.06); }
+              #previewInner img { max-width: 100%; border-radius: 4px; }
+              #previewInner hr { border: none; border-top: 1px solid rgba(40, 35, 30, 0.18); margin: 2em 0; }
+              #previewInner ul, #previewInner ol { padding-left: 1.4em; }
+              #previewInner li { margin: 0.3em 0; }
 
-        /* ===== コンソール ===== */
-        #consolePanel {
-          flex: 0 0 auto;
-          background: #100f0d;
-          border-top: 1px solid var(--color-border);
-          display: flex;
-          flex-direction: column;
-          max-height: 220px;
-        }
-        #consolePanel.collapsed #consoleBody { display: none; }
-        #consoleHeader {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 6px 14px;
-          font-size: 12px;
-          color: var(--color-ink-muted);
-          letter-spacing: 0.04em;
-          border-bottom: 1px solid var(--color-border);
-          flex: 0 0 auto;
-        }
-        .consoleControls { display: flex; gap: 6px; }
-        .consoleControls button {
-          background: transparent;
-          border: 1px solid var(--color-border);
-          color: var(--color-ink-muted);
-          border-radius: var(--radius-sm);
-          font-size: 11px;
-          padding: 2px 9px;
-          cursor: pointer;
-        }
-        .consoleControls button:hover { color: var(--color-ink); border-color: var(--color-ink-muted); }
-        #consoleBody {
-          flex: 1 1 auto;
-          overflow-y: auto;
-          font-family: var(--font-mono);
-          font-size: 12px;
-          padding: 8px 14px;
-        }
-        .log-entry { display: flex; gap: 10px; padding: 2px 0; }
-        .log-time { color: var(--color-brass); opacity: 0.75; flex: 0 0 auto; }
-        .log-message { white-space: pre-wrap; word-break: break-word; }
-        .log-info .log-message { color: var(--color-ink-muted); }
-        .log-warn .log-message { color: var(--color-warning); }
-        .log-error .log-message { color: var(--color-danger); }
+              /* ===== コンソール ===== */
+              #consolePanel {
+                flex: 0 0 auto;
+                background: #100f0d;
+                border-top: 1px solid var(--color-border);
+                display: flex;
+                flex-direction: column;
+                max-height: 220px;
+              }
+              #consolePanel.collapsed #consoleBody { display: none; }
+              #consoleHeader {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 6px 14px;
+                font-size: 12px;
+                color: var(--color-ink-muted);
+                letter-spacing: 0.04em;
+                border-bottom: 1px solid var(--color-border);
+                flex: 0 0 auto;
+              }
+              .consoleControls { display: flex; gap: 6px; }
+              .consoleControls button {
+                background: transparent;
+                border: 1px solid var(--color-border);
+                color: var(--color-ink-muted);
+                border-radius: var(--radius-sm);
+                font-size: 11px;
+                padding: 2px 9px;
+                cursor: pointer;
+              }
+              .consoleControls button:hover { color: var(--color-ink); border-color: var(--color-ink-muted); }
+              #consoleBody {
+                flex: 1 1 auto;
+                overflow-y: auto;
+                font-family: var(--font-mono);
+                font-size: 12px;
+                padding: 8px 14px;
+              }
+              .log-entry { display: flex; gap: 10px; padding: 2px 0; }
+              .log-time { color: var(--color-brass); opacity: 0.75; flex: 0 0 auto; }
+              .log-message { white-space: pre-wrap; word-break: break-word; }
+              .log-info .log-message { color: var(--color-ink-muted); }
+              .log-warn .log-message { color: var(--color-warning); }
+              .log-error .log-message { color: var(--color-danger); }
 
-        /* ===== モーダル ===== */
-        .modalOverlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(10, 9, 8, 0.65);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 50;
-          padding: 16px;
-        }
-        .modalOverlay.hidden { display: none; }
-        .modalBox {
-          background: var(--color-surface-2);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
-          padding: 24px;
-          width: min(440px, 100%);
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-        .modalBox h2 { font-size: 16px; color: var(--color-ink); margin: 0; }
-        .modalBox label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--color-ink-muted); }
-        .modalBox input, .modalBox select {
-          font-family: var(--font-mono);
-          font-size: 13px;
-          background: var(--color-canvas);
-          color: var(--color-ink);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-sm);
-          padding: 8px 10px;
-        }
-        .modalBox .hint { font-size: 11px; color: var(--color-ink-muted); line-height: 1.5; margin: 0; }
-        .modalButtons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-        .modalButtons button {
-          font-size: 13px;
-          padding: 7px 14px;
-          border-radius: var(--radius-sm);
-          border: 1px solid var(--color-border);
-          background: transparent;
-          color: var(--color-ink);
-          cursor: pointer;
-        }
-        .modalButtons button.primary { background: var(--color-brass); border-color: var(--color-brass); color: #241c0f; font-weight: 600; }
+              /* ===== モーダル ===== */
+              .modalOverlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(10, 9, 8, 0.65);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 50;
+                padding: 16px;
+              }
+              .modalOverlay.hidden { display: none; }
+              .modalBox {
+                background: var(--color-surface-2);
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-md);
+                padding: 24px;
+                width: min(440px, 100%);
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+              }
+              .modalBox h2 { font-size: 16px; color: var(--color-ink); margin: 0; }
+              .modalBox label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--color-ink-muted); }
+              .modalBox input, .modalBox select {
+                font-family: var(--font-mono);
+                font-size: 13px;
+                background: var(--color-canvas);
+                color: var(--color-ink);
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-sm);
+                padding: 8px 10px;
+              }
+              .modalBox .hint { font-size: 11px; color: var(--color-ink-muted); line-height: 1.5; margin: 0; }
+              .modalButtons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+              .modalButtons button {
+                font-size: 13px;
+                padding: 7px 14px;
+                border-radius: var(--radius-sm);
+                border: 1px solid var(--color-border);
+                background: transparent;
+                color: var(--color-ink);
+                cursor: pointer;
+              }
+              .modalButtons button.primary { background: var(--color-brass); border-color: var(--color-brass); color: #241c0f; font-weight: 600; }
 
-        :focus-visible { outline: 2px solid var(--color-brass); outline-offset: 2px; }
+              :focus-visible { outline: 2px solid var(--color-brass); outline-offset: 2px; }
 
-        @media (prefers-reduced-motion: reduce) {
-          * { transition: none !important; }
-        }
+              @media (prefers-reduced-motion: reduce) {
+                * { transition: none !important; }
+              }
 
-        @media (max-width: 760px) {
-          .toolbar { padding: 8px 10px; gap: 8px; }
-          .toolbar button { font-size: 12px; padding: 5px 9px; }
-          #previewInner { padding: 28px 20px; }
-          #consolePanel { max-height: 160px; }
-          .brandMark { display: none; }
-          .fileLabel { max-width: 120px; }
-        }
+              @media (max-width: 760px) {
+                .toolbar { padding: 8px 10px; gap: 8px; }
+                .toolbar button { font-size: 12px; padding: 5px 9px; }
+                #previewInner { padding: 28px 20px; }
+                #consolePanel { max-height: 160px; }
+                .brandMark { display: none; }
+                .fileLabel { max-width: 120px; }
+              }
     </style>
   </head>
   <body>
@@ -481,102 +481,102 @@
       <div class="modalBox">
         <h2>Drive連携設定</h2>
         <label>Client ID
-        <input type="text" id="settingClientId" placeholder="xxxxx.apps.googleusercontent.com">
-      </label>
-      <label>Redirect URI
-      <input type="text" id="settingRedirectUri" placeholder="https://example.com/oauth-redirect.html">
-    </label>
-    <label>アクセス範囲(space)
-    <select id="settingSpace">
-      <option value="file">file — Driveから開く/新規作成したファイルのみ</option>
-      <option value="drive">drive — マイドライブ全体</option>
-      <option value="appdata">appdata — 専用の隠しフォルダのみ</option>
-    </select>
-  </label>
-  <p class="hint">Redirect URIには、認証結果(アクセストークン)をlocalStorageの「oauth_result」に保存してウィンドウを閉じる、中継用ページのURLを指定してください。</p>
-  <div class="modalButtons">
-    <button id="settingsCancelBtn" type="button">キャンセル</button>
-    <button id="settingsSaveBtn" type="button" class="primary">保存して適用</button>
-  </div>
-</div>
-</div>
+          <input type="text" id="settingClientId" placeholder="xxxxx.apps.googleusercontent.com">
+        </label>
+        <label>Redirect URI
+          <input type="text" id="settingRedirectUri" placeholder="https://example.com/oauth-redirect.html">
+        </label>
+        <label>アクセス範囲(space)
+          <select id="settingSpace">
+            <option value="file">file — Driveから開く/新規作成したファイルのみ</option>
+            <option value="drive">drive — マイドライブ全体</option>
+            <option value="appdata">appdata — 専用の隠しフォルダのみ</option>
+          </select>
+        </label>
+        <p class="hint">Redirect URIには、認証結果(アクセストークン)をlocalStorageの「oauth_result」に保存してウィンドウを閉じる、中継用ページのURLを指定してください。</p>
+        <div class="modalButtons">
+          <button id="settingsCancelBtn" type="button">キャンセル</button>
+          <button id="settingsSaveBtn" type="button" class="primary">保存して適用</button>
+        </div>
+      </div>
+    </div>
 
-<!-- CodeMirror (コードエディタ部分) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/overlay.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/gfm/gfm.min.js" crossorigin="anonymous"></script>
+    <!-- CodeMirror (コードエディタ部分) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/overlay.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/shell/shell.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/gfm/gfm.min.js" crossorigin="anonymous"></script>
 
-<!-- Markdown変換 / サニタイズ -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
+    <!-- Markdown変換 / サニタイズ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
 
-<script type="module">
+    <script type="module">
 
-import DriveAPIManager from '/statics/drive-api/6-2/manager.js';
+      import DriveAPIManager from '/statics/drive-api/6-2/manager.js';
 
-/* ==================================================
-   状態 / DOM参照
-   ================================================== */
+      /* ==================================================
+      状態 / DOM参照
+      ================================================== */
 
-let drive = null;
-let cm = null;
-let currentFile = { id: null, name: '無題.md' };
-let dirty = false;
-let previewTimer = null;
-let resizeTimer = null;
+      let drive = null;
+      let cm = null;
+      let currentFile = { id: null, name: '無題.md' };
+      let dirty = false;
+      let previewTimer = null;
+      let resizeTimer = null;
 
-const SETTINGS_KEY = 'mdEditorDriveSettings';
+      const SETTINGS_KEY = 'mdEditorDriveSettings';
 
-// ここに実際のGoogle CloudのOAuth Client IDと、Redirect URI(中継ページ)を書き込んでください。
-// 設定画面(⚙)から入力した場合はlocalStorageの内容が優先されます。
-const EMBEDDED_CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
-const EMBEDDED_REDIRECT_URI = 'https://mathotagamma.github.io/statics/drive-api/oauth2callback';
-const EMBEDDED_SPACE = 'file';
-const PLACEHOLDER_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+      // ここに実際のGoogle CloudのOAuth Client IDと、Redirect URI(中継ページ)を書き込んでください。
+      // 設定画面(⚙)から入力した場合はlocalStorageの内容が優先されます。
+      const EMBEDDED_CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
+      const EMBEDDED_REDIRECT_URI = 'https://mathotagamma.github.io/statics/drive-api/oauth2callback';
+      const EMBEDDED_SPACE = 'file';
+      const PLACEHOLDER_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
 
-const editorTextareaEl = document.getElementById('editor');
-const previewInnerEl = document.getElementById('previewInner');
-const workspaceEl = document.getElementById('workspace');
+      const editorTextareaEl = document.getElementById('editor');
+      const previewInnerEl = document.getElementById('previewInner');
+      const workspaceEl = document.getElementById('workspace');
 
-const fileNameLabelEl = document.getElementById('fileNameLabel');
-const dirtyDotEl = document.getElementById('dirtyDot');
+      const fileNameLabelEl = document.getElementById('fileNameLabel');
+      const dirtyDotEl = document.getElementById('dirtyDot');
 
-const newBtn = document.getElementById('newBtn');
-const openDriveBtn = document.getElementById('openDriveBtn');
-const openLocalBtn = document.getElementById('openLocalBtn');
-const localFileInputEl = document.getElementById('localFileInput');
-const saveBtn = document.getElementById('saveBtn');
-const saveAsBtn = document.getElementById('saveAsBtn');
-const downloadBtn = document.getElementById('downloadBtn');
-const newTabBtn = document.getElementById('newTabBtn');
-const authBtn = document.getElementById('authBtn');
-const authStatusEl = document.getElementById('authStatus');
-const authStatusTextEl = document.getElementById('authStatusText');
-const settingsBtn = document.getElementById('settingsBtn');
+      const newBtn = document.getElementById('newBtn');
+      const openDriveBtn = document.getElementById('openDriveBtn');
+      const openLocalBtn = document.getElementById('openLocalBtn');
+      const localFileInputEl = document.getElementById('localFileInput');
+      const saveBtn = document.getElementById('saveBtn');
+      const saveAsBtn = document.getElementById('saveAsBtn');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const newTabBtn = document.getElementById('newTabBtn');
+      const authBtn = document.getElementById('authBtn');
+      const authStatusEl = document.getElementById('authStatus');
+      const authStatusTextEl = document.getElementById('authStatusText');
+      const settingsBtn = document.getElementById('settingsBtn');
 
-const segmentedButtons = document.querySelectorAll('.segmented button');
+      const segmentedButtons = document.querySelectorAll('.segmented button');
 
-const consoleBodyEl = document.getElementById('consoleBody');
-const consolePanelEl = document.getElementById('consolePanel');
-const consoleClearBtn = document.getElementById('consoleClearBtn');
-const consoleToggleBtn = document.getElementById('consoleToggleBtn');
+      const consoleBodyEl = document.getElementById('consoleBody');
+      const consolePanelEl = document.getElementById('consolePanel');
+      const consoleClearBtn = document.getElementById('consoleClearBtn');
+      const consoleToggleBtn = document.getElementById('consoleToggleBtn');
 
-const settingsModalEl = document.getElementById('settingsModal');
-const settingClientIdEl = document.getElementById('settingClientId');
-const settingRedirectUriEl = document.getElementById('settingRedirectUri');
-const settingSpaceEl = document.getElementById('settingSpace');
-const settingsCancelBtn = document.getElementById('settingsCancelBtn');
-const settingsSaveBtn = document.getElementById('settingsSaveBtn');
+      const settingsModalEl = document.getElementById('settingsModal');
+      const settingClientIdEl = document.getElementById('settingClientId');
+      const settingRedirectUriEl = document.getElementById('settingRedirectUri');
+      const settingSpaceEl = document.getElementById('settingSpace');
+      const settingsCancelBtn = document.getElementById('settingsCancelBtn');
+      const settingsSaveBtn = document.getElementById('settingsSaveBtn');
 
-const WELCOME_TEXT = `# 無題のドキュメント
+      const WELCOME_TEXT = `# 無題のドキュメント
 
 ここに **Markdown** を入力すると、プレビューに反映されます。
 
@@ -595,205 +595,205 @@ function hello(name) {
 > コンソールには動作ログとエラーが表示されます。
 `;
 
-/* ==================================================
-   コンソールログ / エラーハンドリング
-   ================================================== */
+      /* ==================================================
+      コンソールログ / エラーハンドリング
+      ================================================== */
 
-const MAX_LOG_ENTRIES = 500;
+      const MAX_LOG_ENTRIES = 500;
 
-function log(level, message) {
-  const time = new Date().toLocaleTimeString('ja-JP', { hour12: false });
-  const text = message instanceof Error ? message.message : String(message);
+      function log(level, message) {
+        const time = new Date().toLocaleTimeString('ja-JP', { hour12: false });
+        const text = message instanceof Error ? message.message : String(message);
 
-  const entry = document.createElement('div');
-  entry.className = `log-entry log-${level}`;
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${level}`;
 
-  const timeSpan = document.createElement('span');
-  timeSpan.className = 'log-time';
-  timeSpan.textContent = time;
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'log-time';
+        timeSpan.textContent = time;
 
-  const msgSpan = document.createElement('span');
-  msgSpan.className = 'log-message';
-  msgSpan.textContent = text;
+        const msgSpan = document.createElement('span');
+        msgSpan.className = 'log-message';
+        msgSpan.textContent = text;
 
-  entry.appendChild(timeSpan);
-  entry.appendChild(msgSpan);
-  consoleBodyEl.appendChild(entry);
+        entry.appendChild(timeSpan);
+        entry.appendChild(msgSpan);
+        consoleBodyEl.appendChild(entry);
 
-  while (consoleBodyEl.children.length > MAX_LOG_ENTRIES) {
-    consoleBodyEl.removeChild(consoleBodyEl.firstChild);
-  }
-  consoleBodyEl.scrollTop = consoleBodyEl.scrollHeight;
+        while (consoleBodyEl.children.length > MAX_LOG_ENTRIES) {
+          consoleBodyEl.removeChild(consoleBodyEl.firstChild);
+        }
+        consoleBodyEl.scrollTop = consoleBodyEl.scrollHeight;
 
-  const nativeFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
-  nativeFn.call(console, `[${time}] ${text}`);
-}
-
-window.addEventListener('error', (event) => {
-  if (event.message === 'Script error.' && !event.filename) {
-    log('warn', '詳細不明のスクリプトエラーを検出しました(ブラウザ拡張機能など、このページ以外で発生した可能性があります)。');
-    return;
-  }
-  log('error', `未捕捉のエラー: ${event.message} (${event.filename}:${event.lineno})`);
-});
-window.addEventListener('unhandledrejection', (event) => {
-  const reason = event.reason;
-  const message = reason && reason.message ? reason.message : String(reason);
-  if (message.includes('browser.storage')) {
-    log('warn', `拡張機能由来と思われる未処理のPromise rejectionです(このページのコードはbrowser.storageを使用していません): ${message}`);
-    return;
-  }
-  log('error', `未処理のPromise rejection: ${message}`);
-});
-
-consoleClearBtn.addEventListener('click', () => {
-  consoleBodyEl.innerHTML = '';
-});
-consoleToggleBtn.addEventListener('click', () => {
-  consolePanelEl.classList.toggle('collapsed');
-  consoleToggleBtn.textContent = consolePanelEl.classList.contains('collapsed') ? '▴' : '▾';
-});
-/* ==================================================
-   設定の保存/読込
-   ================================================== */
-
-function loadSettings() {
-  let stored = {};
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    stored = raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    log('warn', `設定の読み込みに失敗しました: ${e.message}`);
-  }
-  return {
-    clientId: stored.clientId || EMBEDDED_CLIENT_ID,
-    redirectUri: stored.redirectUri || EMBEDDED_REDIRECT_URI,
-    space: stored.space || EMBEDDED_SPACE
-  };
-}
-
-function saveSettings(settings) {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch (e) {
-    log('error', `設定の保存に失敗しました: ${e.message}`);
-  }
-}
-
-function initDrive() {
-  const settings = loadSettings();
-  if (!settings.clientId || !settings.redirectUri) {
-    drive = null;
-    updateAuthUI();
-    return;
-  }
-  try {
-    drive = new DriveAPIManager({
-      clientId: settings.clientId,
-      redirectUri: settings.redirectUri,
-      space: settings.space || 'file',
-      progress: (stage, message) => {
-        const text = typeof message === 'object' ? JSON.stringify(message) : message;
-        log('info', `[Drive:${stage}] ${text}`);
+        const nativeFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+        nativeFn.call(console, `[${time}] ${text}`);
       }
-    });
-    log('info', `Drive連携を初期化しました(space: ${settings.space || 'file'})。`);
-  } catch (e) {
-    drive = null;
-    log('error', `Drive連携の初期化に失敗しました: ${e.message}`);
-  }
-  updateAuthUI();
-}
 
-/* ==================================================
-   エディタ (CodeMirror / フォールバック)
-   ================================================== */
+      window.addEventListener('error', (event) => {
+          if (event.message === 'Script error.' && !event.filename) {
+            log('warn', '詳細不明のスクリプトエラーを検出しました(ブラウザ拡張機能など、このページ以外で発生した可能性があります)。');
+            return;
+          }
+          log('error', `未捕捉のエラー: ${event.message} (${event.filename}:${event.lineno})`);
+        });
+      window.addEventListener('unhandledrejection', (event) => {
+          const reason = event.reason;
+          const message = reason && reason.message ? reason.message : String(reason);
+          if (message.includes('browser.storage')) {
+            log('warn', `拡張機能由来と思われる未処理のPromise rejectionです(このページのコードはbrowser.storageを使用していません): ${message}`);
+            return;
+          }
+          log('error', `未処理のPromise rejection: ${message}`);
+        });
 
-function getEditorValue() {
-  return cm ? cm.getValue() : editorTextareaEl.value;
-}
+      consoleClearBtn.addEventListener('click', () => {
+          consoleBodyEl.innerHTML = '';
+        });
+      consoleToggleBtn.addEventListener('click', () => {
+          consolePanelEl.classList.toggle('collapsed');
+          consoleToggleBtn.textContent = consolePanelEl.classList.contains('collapsed') ? '▴' : '▾';
+        });
+      /* ==================================================
+      設定の保存/読込
+      ================================================== */
 
-function setEditorValue(text) {
-  if (cm) {
-    cm.setValue(text);
-  } else {
-    editorTextareaEl.value = text;
-  }
-}
+      function loadSettings() {
+        let stored = {};
+        try {
+          const raw = localStorage.getItem(SETTINGS_KEY);
+          stored = raw ? JSON.parse(raw) : {};
+        } catch (e) {
+          log('warn', `設定の読み込みに失敗しました: ${e.message}`);
+        }
+        return {
+          clientId: stored.clientId || EMBEDDED_CLIENT_ID,
+          redirectUri: stored.redirectUri || EMBEDDED_REDIRECT_URI,
+          space: stored.space || EMBEDDED_SPACE
+        };
+      }
 
-function initEditor() {
-  try {
-    if (typeof CodeMirror === 'undefined') throw new Error('CodeMirrorが読み込まれていません');
-    cm = CodeMirror.fromTextArea(editorTextareaEl, {
-      mode: 'gfm',
-      theme: 'deskmono',
-      lineNumbers: true,
-      lineWrapping: true,
-      tabSize: 2,
-      indentUnit: 2,
-      indentWithTabs: false
-    });
-    cm.on('change', () => {
-      markDirty();
-      schedulePreviewUpdate();
-    });
-    log('info', 'コードエディタ(CodeMirror)を初期化しました。');
-  } catch (e) {
-    cm = null;
-    log('warn', `CodeMirrorの初期化に失敗したため、通常のテキストエリアで動作します: ${e.message}`);
-    editorTextareaEl.addEventListener('input', () => {
-      markDirty();
-      schedulePreviewUpdate();
-    });
-  }
-}
+      function saveSettings(settings) {
+        try {
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        } catch (e) {
+          log('error', `設定の保存に失敗しました: ${e.message}`);
+        }
+      }
 
-/* ==================================================
-   プレビュー
-   ================================================== */
+      function initDrive() {
+        const settings = loadSettings();
+        if (!settings.clientId || !settings.redirectUri) {
+          drive = null;
+          updateAuthUI();
+          return;
+        }
+        try {
+          drive = new DriveAPIManager({
+              clientId: settings.clientId,
+              redirectUri: settings.redirectUri,
+              space: settings.space || 'file',
+              progress: (stage, message) => {
+                const text = typeof message === 'object' ? JSON.stringify(message) : message;
+                log('info', `[Drive:${stage}] ${text}`);
+              }
+            });
+          log('info', `Drive連携を初期化しました(space: ${settings.space || 'file'})。`);
+        } catch (e) {
+          drive = null;
+          log('error', `Drive連携の初期化に失敗しました: ${e.message}`);
+        }
+        updateAuthUI();
+      }
 
-function schedulePreviewUpdate() {
-  clearTimeout(previewTimer);
-  previewTimer = setTimeout(renderPreview, 150);
-}
+      /* ==================================================
+      エディタ (CodeMirror / フォールバック)
+      ================================================== */
 
-function renderPreview() {
-  try {
-    const text = getEditorValue();
-    if (typeof marked === 'undefined') {
-      previewInnerEl.textContent = text;
-      return;
-    }
-    const raw = marked.parse(text);
-    const safe = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
-    previewInnerEl.innerHTML = safe;
-  } catch (e) {
-    log('error', `プレビューの生成に失敗しました: ${e.message}`);
-  }
-}
+      function getEditorValue() {
+        return cm ? cm.getValue() : editorTextareaEl.value;
+      }
 
-// プレビュー内のリンクは新規タブで開く(編集中の内容を失わないため)
-previewInnerEl.addEventListener('click', (event) => {
-  const anchor = event.target.closest('a');
-  if (anchor && anchor.href) {
-    event.preventDefault();
-    window.open(anchor.href, '_blank', 'noopener');
-  }
-});
+      function setEditorValue(text) {
+        if (cm) {
+          cm.setValue(text);
+        } else {
+          editorTextareaEl.value = text;
+        }
+      }
 
-function escapeForTitle(text) {
-  return String(text ?? '').replace(/[<>&]/g, (char) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[char]));
-}
+      function initEditor() {
+        try {
+          if (typeof CodeMirror === 'undefined') throw new Error('CodeMirrorが読み込まれていません');
+          cm = CodeMirror.fromTextArea(editorTextareaEl, {
+              mode: 'gfm',
+              theme: 'deskmono',
+              lineNumbers: true,
+              lineWrapping: true,
+              tabSize: 2,
+              indentUnit: 2,
+              indentWithTabs: false
+            });
+          cm.on('change', () => {
+              markDirty();
+              schedulePreviewUpdate();
+            });
+          log('info', 'コードエディタ(CodeMirror)を初期化しました。');
+        } catch (e) {
+          cm = null;
+          log('warn', `CodeMirrorの初期化に失敗したため、通常のテキストエリアで動作します: ${e.message}`);
+          editorTextareaEl.addEventListener('input', () => {
+              markDirty();
+              schedulePreviewUpdate();
+            });
+        }
+      }
 
-function buildStandaloneHtml(markdownText, title) {
-  let bodyHtml;
-  if (typeof marked === 'undefined') {
-    bodyHtml = `<pre>${escapeForTitle(markdownText)}</pre>`;
-  } else {
-    const raw = marked.parse(markdownText);
-    bodyHtml = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
-  }
-  return `<!DOCTYPE html>
+      /* ==================================================
+      プレビュー
+      ================================================== */
+
+      function schedulePreviewUpdate() {
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(renderPreview, 150);
+      }
+
+      function renderPreview() {
+        try {
+          const text = getEditorValue();
+          if (typeof marked === 'undefined') {
+            previewInnerEl.textContent = text;
+            return;
+          }
+          const raw = marked.parse(text);
+          const safe = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
+          previewInnerEl.innerHTML = safe;
+        } catch (e) {
+          log('error', `プレビューの生成に失敗しました: ${e.message}`);
+        }
+      }
+
+      // プレビュー内のリンクは新規タブで開く(編集中の内容を失わないため)
+      previewInnerEl.addEventListener('click', (event) => {
+          const anchor = event.target.closest('a');
+          if (anchor && anchor.href) {
+            event.preventDefault();
+            window.open(anchor.href, '_blank', 'noopener');
+          }
+        });
+
+      function escapeForTitle(text) {
+        return String(text ?? '').replace(/[<>&]/g, (char) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[char]));
+      }
+
+      function buildStandaloneHtml(markdownText, title) {
+        let bodyHtml;
+        if (typeof marked === 'undefined') {
+          bodyHtml = `<pre>${escapeForTitle(markdownText)}</pre>`;
+        } else {
+          const raw = marked.parse(markdownText);
+          bodyHtml = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
+        }
+        return `<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -829,395 +829,395 @@ function buildStandaloneHtml(markdownText, title) {
 ${bodyHtml}
 </body>
 </html>`;
-}
+      }
 
-function openPreviewInNewTab() {
-  try {
-    const html = buildStandaloneHtml(getEditorValue(), currentFile.name || '無題');
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    if (!win) {
-      log('warn', 'ポップアップがブロックされました。ブラウザのポップアップ許可設定を確認してください。');
-    } else {
-      log('info', '新規タブでプレビューを開きました。');
-    }
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
-  } catch (e) {
-    log('error', `新規タブでの表示に失敗しました: ${e.message}`);
-  }
-}
+      function openPreviewInNewTab() {
+        try {
+          const html = buildStandaloneHtml(getEditorValue(), currentFile.name || '無題');
+          const blob = new Blob([html], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const win = window.open(url, '_blank');
+          if (!win) {
+            log('warn', 'ポップアップがブロックされました。ブラウザのポップアップ許可設定を確認してください。');
+          } else {
+            log('info', '新規タブでプレビューを開きました。');
+          }
+          setTimeout(() => URL.revokeObjectURL(url), 30000);
+        } catch (e) {
+          log('error', `新規タブでの表示に失敗しました: ${e.message}`);
+        }
+      }
 
-/* ==================================================
-   ファイル状態 (タイトル / dirty)
-   ================================================== */
+      /* ==================================================
+      ファイル状態 (タイトル / dirty)
+      ================================================== */
 
-function updateFileLabel() {
-  const name = currentFile.name || '無題.md';
-  fileNameLabelEl.textContent = name;
-  dirtyDotEl.classList.toggle('visible', dirty);
-  document.title = `${dirty ? '● ' : ''}${name} — Markdown Editor`;
-}
+      function updateFileLabel() {
+        const name = currentFile.name || '無題.md';
+        fileNameLabelEl.textContent = name;
+        dirtyDotEl.classList.toggle('visible', dirty);
+        document.title = `${dirty ? '● ' : ''}${name} — Markdown Editor`;
+      }
 
-function markDirty() {
-  dirty = true;
-  updateFileLabel();
-}
+      function markDirty() {
+        dirty = true;
+        updateFileLabel();
+      }
 
-function markClean() {
-  dirty = false;
-  updateFileLabel();
-}
+      function markClean() {
+        dirty = false;
+        updateFileLabel();
+      }
 
-window.addEventListener('beforeunload', (event) => {
-  if (dirty) {
-    event.preventDefault();
-    event.returnValue = '';
-  }
-});
+      window.addEventListener('beforeunload', (event) => {
+          if (dirty) {
+            event.preventDefault();
+            event.returnValue = '';
+          }
+        });
 
-function flashFeedback(button, text) {
-  const original = button.dataset.originalText || button.textContent;
-  button.dataset.originalText = original;
-  button.textContent = text;
-  clearTimeout(button._flashTimer);
-  button._flashTimer = setTimeout(() => {
-    button.textContent = original;
-  }, 1500);
-}
+      function flashFeedback(button, text) {
+        const original = button.dataset.originalText || button.textContent;
+        button.dataset.originalText = original;
+        button.textContent = text;
+        clearTimeout(button._flashTimer);
+        button._flashTimer = setTimeout(() => {
+            button.textContent = original;
+          }, 1500);
+      }
 
-/* ==================================================
-   表示モード (編集 / 分割 / プレビュー)
-   ================================================== */
+      /* ==================================================
+      表示モード (編集 / 分割 / プレビュー)
+      ================================================== */
 
-function setViewMode(mode) {
-  workspaceEl.classList.remove('mode-edit', 'mode-split', 'mode-preview');
-  workspaceEl.classList.add(`mode-${mode}`);
-  segmentedButtons.forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.mode === mode);
-  });
-  if (mode !== 'edit') renderPreview();
-  window.requestAnimationFrame(() => { if (cm) cm.refresh(); });
-}
+      function setViewMode(mode) {
+        workspaceEl.classList.remove('mode-edit', 'mode-split', 'mode-preview');
+        workspaceEl.classList.add(`mode-${mode}`);
+        segmentedButtons.forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+          });
+        if (mode !== 'edit') renderPreview();
+        window.requestAnimationFrame(() => { if (cm) cm.refresh(); });
+      }
 
-segmentedButtons.forEach((btn) => {
-  btn.addEventListener('click', () => setViewMode(btn.dataset.mode));
-});
+      segmentedButtons.forEach((btn) => {
+          btn.addEventListener('click', () => setViewMode(btn.dataset.mode));
+        });
 
-window.addEventListener('resize', () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (cm) cm.refresh(); }, 150);
-});
+      window.addEventListener('resize', () => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => { if (cm) cm.refresh(); }, 150);
+        });
 
-/* ==================================================
-   認証UI
-   ================================================== */
+      /* ==================================================
+      認証UI
+      ================================================== */
 
-async function updateAuthUI() {
-  if (!drive) {
-    authStatusTextEl.textContent = '未設定';
-    authStatusEl.classList.remove('online');
-    authBtn.textContent = 'ログイン';
-    authBtn.disabled = true;
-    return;
-  }
-  authBtn.disabled = false;
-  const status = drive.checker();
-  if (status.ok) {
-    authBtn.textContent = 'ログアウト';
-    authStatusEl.classList.add('online');
-    authStatusTextEl.textContent = '確認中…';
-    try {
-      const email = await drive.getEmail();
-      authStatusTextEl.textContent = email;
-    } catch (e) {
-      authStatusTextEl.textContent = 'ログイン中';
-      log('warn', `メールアドレスの取得に失敗しました: ${e.message}`);
-    }
-  } else {
-    authBtn.textContent = 'ログイン';
-    authStatusEl.classList.remove('online');
-    authStatusTextEl.textContent = '未ログイン';
-  }
-}
+      async function updateAuthUI() {
+        if (!drive) {
+          authStatusTextEl.textContent = '未設定';
+          authStatusEl.classList.remove('online');
+          authBtn.textContent = 'ログイン';
+          authBtn.disabled = true;
+          return;
+        }
+        authBtn.disabled = false;
+        const status = drive.checker();
+        if (status.ok) {
+          authBtn.textContent = 'ログアウト';
+          authStatusEl.classList.add('online');
+          authStatusTextEl.textContent = '確認中…';
+          try {
+            const email = await drive.getEmail();
+            authStatusTextEl.textContent = email;
+          } catch (e) {
+            authStatusTextEl.textContent = 'ログイン中';
+            log('warn', `メールアドレスの取得に失敗しました: ${e.message}`);
+          }
+        } else {
+          authBtn.textContent = 'ログイン';
+          authStatusEl.classList.remove('online');
+          authStatusTextEl.textContent = '未ログイン';
+        }
+      }
 
-async function ensureLoggedIn() {
-  if (!drive) {
-    openSettingsModal();
-    throw new Error('Drive連携が未設定です。設定を行ってください。');
-  }
-  const status = drive.checker();
-  if (status.ok) return true;
+      async function ensureLoggedIn() {
+        if (!drive) {
+          openSettingsModal();
+          throw new Error('Drive連携が未設定です。設定を行ってください。');
+        }
+        const status = drive.checker();
+        if (status.ok) return true;
 
-  log('info', 'ログイン状態を確認しています…');
-  const silentResult = await drive.auth(true);
-  if (silentResult && silentResult.ok) {
-    updateAuthUI();
-    return true;
-  }
+        log('info', 'ログイン状態を確認しています…');
+        const silentResult = await drive.auth(true);
+        if (silentResult && silentResult.ok) {
+          updateAuthUI();
+          return true;
+        }
 
-  log('info', 'ログインしてください。ポップアップウィンドウを確認してください。');
-  await drive.auth();
-  updateAuthUI();
-  return true;
-}
+        log('info', 'ログインしてください。ポップアップウィンドウを確認してください。');
+        await drive.auth();
+        updateAuthUI();
+        return true;
+      }
 
-authBtn.addEventListener('click', async () => {
-  if (!drive) {
-    openSettingsModal();
-    log('warn', 'Drive連携の設定を入力してください。');
-    return;
-  }
-  const status = drive.checker();
-  if (status.ok) {
-    drive.signOut();
-    log('info', 'ログアウトしました。');
-    updateAuthUI();
-    return;
-  }
-  authBtn.disabled = true;
-  try {
-    log('info', 'ログイン処理を開始します。ポップアップウィンドウを確認してください。');
-    await drive.auth();
-    log('info', 'ログインに成功しました。');
-  } catch (e) {
-    log('error', `ログインに失敗しました: ${e.message}`);
-  } finally {
-    authBtn.disabled = false;
-    updateAuthUI();
-  }
-});
+      authBtn.addEventListener('click', async () => {
+          if (!drive) {
+            openSettingsModal();
+            log('warn', 'Drive連携の設定を入力してください。');
+            return;
+          }
+          const status = drive.checker();
+          if (status.ok) {
+            drive.signOut();
+            log('info', 'ログアウトしました。');
+            updateAuthUI();
+            return;
+          }
+          authBtn.disabled = true;
+          try {
+            log('info', 'ログイン処理を開始します。ポップアップウィンドウを確認してください。');
+            await drive.auth();
+            log('info', 'ログインに成功しました。');
+          } catch (e) {
+            log('error', `ログインに失敗しました: ${e.message}`);
+          } finally {
+            authBtn.disabled = false;
+            updateAuthUI();
+          }
+        });
 
-/* ==================================================
-   ファイル操作: 新規 / 開く / 保存 / ダウンロード
-   ================================================== */
+      /* ==================================================
+      ファイル操作: 新規 / 開く / 保存 / ダウンロード
+      ================================================== */
 
-function confirmDiscardIfDirty(message) {
-  if (!dirty) return true;
-  return window.confirm(message);
-}
+      function confirmDiscardIfDirty(message) {
+        if (!dirty) return true;
+        return window.confirm(message);
+      }
 
-newBtn.addEventListener('click', () => {
-  if (!confirmDiscardIfDirty('保存されていない変更があります。新規作成すると失われます。続行しますか?')) return;
-  setEditorValue('');
-  currentFile = { id: null, name: '無題.md' };
-  markClean();
-  renderPreview();
-  log('info', '新規ドキュメントを作成しました。');
-});
+      newBtn.addEventListener('click', () => {
+          if (!confirmDiscardIfDirty('保存されていない変更があります。新規作成すると失われます。続行しますか?')) return;
+          setEditorValue('');
+          currentFile = { id: null, name: '無題.md' };
+          markClean();
+          renderPreview();
+          log('info', '新規ドキュメントを作成しました。');
+        });
 
-openDriveBtn.addEventListener('click', async () => {
-  try {
-    await ensureLoggedIn();
-  } catch (e) {
-    log('error', e.message);
-    return;
-  }
-  if (!confirmDiscardIfDirty('保存されていない変更があります。開くと失われます。続行しますか?')) return;
+      openDriveBtn.addEventListener('click', async () => {
+          try {
+            await ensureLoggedIn();
+          } catch (e) {
+            log('error', e.message);
+            return;
+          }
+          if (!confirmDiscardIfDirty('保存されていない変更があります。開くと失われます。続行しますか?')) return;
 
-  try {
-    log('info', 'Google Drive のファイル選択ダイアログを開きます。');
-    const picked = await drive.openPicker({
-      mimeType: 'text/markdown,text/plain,text/x-markdown',
-      title: 'Markdownファイルを選択'
-    });
-    if (!picked) {
-      log('info', 'ファイル選択をキャンセルしました。');
-      return;
-    }
-    log('info', `「${picked.name}」を読み込んでいます…`);
-    const content = await drive.getFile({ fileId: picked.id });
-    setEditorValue(typeof content === 'string' ? content : String(content ?? ''));
-    currentFile = { id: picked.id, name: picked.name };
-    markClean();
-    renderPreview();
-    log('info', `「${picked.name}」を読み込みました。`);
-  } catch (e) {
-    log('error', `ファイルの読み込みに失敗しました: ${e.message}`);
-  }
-});
+          try {
+            log('info', 'Google Drive のファイル選択ダイアログを開きます。');
+            const picked = await drive.openPicker({
+                mimeType: 'text/markdown,text/plain,text/x-markdown',
+                title: 'Markdownファイルを選択'
+              });
+            if (!picked) {
+              log('info', 'ファイル選択をキャンセルしました。');
+              return;
+            }
+            log('info', `「${picked.name}」を読み込んでいます…`);
+            const content = await drive.getFile({ fileId: picked.id });
+            setEditorValue(typeof content === 'string' ? content : String(content ?? ''));
+            currentFile = { id: picked.id, name: picked.name };
+            markClean();
+            renderPreview();
+            log('info', `「${picked.name}」を読み込みました。`);
+          } catch (e) {
+            log('error', `ファイルの読み込みに失敗しました: ${e.message}`);
+          }
+        });
 
-openLocalBtn.addEventListener('click', () => {
-  if (!confirmDiscardIfDirty('保存されていない変更があります。開くと失われます。続行しますか?')) return;
-  localFileInputEl.click();
-});
+      openLocalBtn.addEventListener('click', () => {
+          if (!confirmDiscardIfDirty('保存されていない変更があります。開くと失われます。続行しますか?')) return;
+          localFileInputEl.click();
+        });
 
-localFileInputEl.addEventListener('change', (event) => {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    setEditorValue(String(reader.result ?? ''));
-    currentFile = { id: null, name: file.name };
-    markClean();
-    renderPreview();
-    log('info', `ローカルファイル「${file.name}」を読み込みました。`);
-  };
-  reader.onerror = () => {
-    log('error', `ローカルファイルの読み込みに失敗しました: ${reader.error?.message ?? '不明なエラー'}`);
-  };
-  reader.readAsText(file, 'utf-8');
-  localFileInputEl.value = '';
-});
+      localFileInputEl.addEventListener('change', (event) => {
+          const file = event.target.files && event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            setEditorValue(String(reader.result ?? ''));
+            currentFile = { id: null, name: file.name };
+            markClean();
+            renderPreview();
+            log('info', `ローカルファイル「${file.name}」を読み込みました。`);
+          };
+          reader.onerror = () => {
+            log('error', `ローカルファイルの読み込みに失敗しました: ${reader.error?.message ?? '不明なエラー'}`);
+          };
+          reader.readAsText(file, 'utf-8');
+          localFileInputEl.value = '';
+        });
 
-async function saveCurrentFile() {
-  try {
-    await ensureLoggedIn();
-  } catch (e) {
-    log('error', e.message);
-    return;
-  }
+      async function saveCurrentFile() {
+        try {
+          await ensureLoggedIn();
+        } catch (e) {
+          log('error', e.message);
+          return;
+        }
 
-  if (currentFile.id) {
-    try {
-      saveBtn.disabled = true;
-      log('info', `「${currentFile.name}」を保存しています…`);
-      await drive.saveFile({ fileId: currentFile.id, data: getEditorValue(), mimeType: 'text/markdown' });
+        if (currentFile.id) {
+          try {
+            saveBtn.disabled = true;
+            log('info', `「${currentFile.name}」を保存しています…`);
+            await drive.saveFile({ fileId: currentFile.id, data: getEditorValue(), mimeType: 'text/markdown' });
+            markClean();
+            flashFeedback(saveBtn, '保存済み');
+            log('info', `「${currentFile.name}」を保存しました。`);
+          } catch (e) {
+            log('error', `保存に失敗しました: ${e.message}`);
+          } finally {
+            saveBtn.disabled = false;
+          }
+        } else {
+          await saveAsFlow();
+        }
+      }
+
+      async function saveAsFlow() {
+        try {
+          await ensureLoggedIn();
+        } catch (e) {
+          log('error', e.message);
+          return;
+        }
+
+        const defaultName = currentFile.name || '無題.md';
+        let filename = window.prompt('保存するファイル名を入力してください(例: memo.md、folder/memo.md)', defaultName);
+        if (filename === null) {
+          log('info', '名前を付けて保存をキャンセルしました。');
+          return;
+        }
+        filename = filename.trim();
+        if (!filename) {
+          log('warn', 'ファイル名が空のため保存を中止しました。');
+          return;
+        }
+        if (!/\.(md|markdown|txt)$/i.test(filename)) {
+          filename += '.md';
+        }
+
+        try {
+          saveAsBtn.disabled = true;
+          log('info', `「${filename}」として保存しています…`);
+          const res = await drive.saveFile({ path: filename, data: getEditorValue(), mimeType: 'text/markdown' });
+          let newId = res && res.id ? res.id : null;
+          if (!newId) {
+            newId = await drive.getFileId({ path: filename });
+          }
+          currentFile = { id: newId || null, name: filename.split('/').pop() };
+          markClean();
+          flashFeedback(saveAsBtn, '保存済み');
+          log('info', `「${filename}」として保存しました。`);
+        } catch (e) {
+          log('error', `名前を付けて保存に失敗しました: ${e.message}`);
+        } finally {
+          saveAsBtn.disabled = false;
+        }
+      }
+
+      saveBtn.addEventListener('click', saveCurrentFile);
+      saveAsBtn.addEventListener('click', saveAsFlow);
+
+      downloadBtn.addEventListener('click', () => {
+          try {
+            const name = currentFile.name || '無題.md';
+            const blob = new Blob([getEditorValue()], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+            log('info', `「${name}」をダウンロードしました。`);
+          } catch (e) {
+            log('error', `ダウンロードに失敗しました: ${e.message}`);
+          }
+        });
+
+      newTabBtn.addEventListener('click', openPreviewInNewTab);
+
+      document.addEventListener('keydown', (event) => {
+          const isSaveCombo = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+          if (isSaveCombo) {
+            event.preventDefault();
+            saveCurrentFile();
+          }
+        });
+
+      /* ==================================================
+      設定モーダル
+      ================================================== */
+
+      function openSettingsModal() {
+        const current = loadSettings();
+        settingClientIdEl.value = current.clientId || '';
+        settingRedirectUriEl.value = current.redirectUri || '';
+        settingSpaceEl.value = current.space || 'file';
+        settingsModalEl.classList.remove('hidden');
+      }
+
+      function closeSettingsModal() {
+        settingsModalEl.classList.add('hidden');
+      }
+
+      settingsBtn.addEventListener('click', openSettingsModal);
+      settingsCancelBtn.addEventListener('click', closeSettingsModal);
+      settingsModalEl.addEventListener('click', (event) => {
+          if (event.target === settingsModalEl) closeSettingsModal();
+        });
+
+      settingsSaveBtn.addEventListener('click', () => {
+          const clientId = settingClientIdEl.value.trim();
+          const redirectUri = settingRedirectUriEl.value.trim();
+          const space = settingSpaceEl.value;
+          if (!clientId || !redirectUri) {
+            log('warn', 'Client ID と Redirect URI の両方を入力してください。');
+            return;
+          }
+          saveSettings({ clientId, redirectUri, space });
+          initDrive();
+          closeSettingsModal();
+          log('info', 'Drive連携の設定を保存しました。');
+        });
+
+      /* ==================================================
+      起動処理
+      ================================================== */
+
+      if (typeof marked !== 'undefined') {
+        marked.setOptions({ gfm: true, breaks: true });
+      }
+      if (typeof DOMPurify === 'undefined') {
+        log('warn', 'DOMPurifyが読み込まれていないため、プレビューのサニタイズが行われません。');
+      }
+
+      initEditor();
+      setEditorValue(WELCOME_TEXT);
       markClean();
-      flashFeedback(saveBtn, '保存済み');
-      log('info', `「${currentFile.name}」を保存しました。`);
-    } catch (e) {
-      log('error', `保存に失敗しました: ${e.message}`);
-    } finally {
-      saveBtn.disabled = false;
-    }
-  } else {
-    await saveAsFlow();
-  }
-}
+      renderPreview();
+      initDrive();
+      setViewMode(window.innerWidth < 760 ? 'edit' : 'split');
 
-async function saveAsFlow() {
-  try {
-    await ensureLoggedIn();
-  } catch (e) {
-    log('error', e.message);
-    return;
-  }
+      log('info', `Markdown Editor を起動しました。(DriveAPIManager v${DriveAPIManager.ver})`);
+      if (loadSettings().clientId === PLACEHOLDER_CLIENT_ID) {
+        log('warn', 'Client ID/Redirect URIがプレースホルダーのままです。コード内のEMBEDDED_CLIENT_ID/EMBEDDED_REDIRECT_URIを書き換えるか、「設定」から登録してください。');
+      }
 
-  const defaultName = currentFile.name || '無題.md';
-  let filename = window.prompt('保存するファイル名を入力してください(例: memo.md、folder/memo.md)', defaultName);
-  if (filename === null) {
-    log('info', '名前を付けて保存をキャンセルしました。');
-    return;
-  }
-  filename = filename.trim();
-  if (!filename) {
-    log('warn', 'ファイル名が空のため保存を中止しました。');
-    return;
-  }
-  if (!/\.(md|markdown|txt)$/i.test(filename)) {
-    filename += '.md';
-  }
-
-  try {
-    saveAsBtn.disabled = true;
-    log('info', `「${filename}」として保存しています…`);
-    const res = await drive.saveFile({ path: filename, data: getEditorValue(), mimeType: 'text/markdown' });
-    let newId = res && res.id ? res.id : null;
-    if (!newId) {
-      newId = await drive.getFileId({ path: filename });
-    }
-    currentFile = { id: newId || null, name: filename.split('/').pop() };
-    markClean();
-    flashFeedback(saveAsBtn, '保存済み');
-    log('info', `「${filename}」として保存しました。`);
-  } catch (e) {
-    log('error', `名前を付けて保存に失敗しました: ${e.message}`);
-  } finally {
-    saveAsBtn.disabled = false;
-  }
-}
-
-saveBtn.addEventListener('click', saveCurrentFile);
-saveAsBtn.addEventListener('click', saveAsFlow);
-
-downloadBtn.addEventListener('click', () => {
-  try {
-    const name = currentFile.name || '無題.md';
-    const blob = new Blob([getEditorValue()], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-    log('info', `「${name}」をダウンロードしました。`);
-  } catch (e) {
-    log('error', `ダウンロードに失敗しました: ${e.message}`);
-  }
-});
-
-newTabBtn.addEventListener('click', openPreviewInNewTab);
-
-document.addEventListener('keydown', (event) => {
-  const isSaveCombo = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
-  if (isSaveCombo) {
-    event.preventDefault();
-    saveCurrentFile();
-  }
-});
-
-/* ==================================================
-   設定モーダル
-   ================================================== */
-
-function openSettingsModal() {
-  const current = loadSettings();
-  settingClientIdEl.value = current.clientId || '';
-  settingRedirectUriEl.value = current.redirectUri || '';
-  settingSpaceEl.value = current.space || 'file';
-  settingsModalEl.classList.remove('hidden');
-}
-
-function closeSettingsModal() {
-  settingsModalEl.classList.add('hidden');
-}
-
-settingsBtn.addEventListener('click', openSettingsModal);
-settingsCancelBtn.addEventListener('click', closeSettingsModal);
-settingsModalEl.addEventListener('click', (event) => {
-  if (event.target === settingsModalEl) closeSettingsModal();
-});
-
-settingsSaveBtn.addEventListener('click', () => {
-  const clientId = settingClientIdEl.value.trim();
-  const redirectUri = settingRedirectUriEl.value.trim();
-  const space = settingSpaceEl.value;
-  if (!clientId || !redirectUri) {
-    log('warn', 'Client ID と Redirect URI の両方を入力してください。');
-    return;
-  }
-  saveSettings({ clientId, redirectUri, space });
-  initDrive();
-  closeSettingsModal();
-  log('info', 'Drive連携の設定を保存しました。');
-});
-
-/* ==================================================
-   起動処理
-   ================================================== */
-
-if (typeof marked !== 'undefined') {
-  marked.setOptions({ gfm: true, breaks: true });
-}
-if (typeof DOMPurify === 'undefined') {
-  log('warn', 'DOMPurifyが読み込まれていないため、プレビューのサニタイズが行われません。');
-}
-
-initEditor();
-setEditorValue(WELCOME_TEXT);
-markClean();
-renderPreview();
-initDrive();
-setViewMode(window.innerWidth < 760 ? 'edit' : 'split');
-
-log('info', `Markdown Editor を起動しました。(DriveAPIManager v${DriveAPIManager.ver})`);
-if (loadSettings().clientId === PLACEHOLDER_CLIENT_ID) {
-  log('warn', 'Client ID/Redirect URIがプレースホルダーのままです。コード内のEMBEDDED_CLIENT_ID/EMBEDDED_REDIRECT_URIを書き換えるか、「設定」から登録してください。');
-}
-
-</script>
-</body>
+    </script>
+  </body>
 </html>
