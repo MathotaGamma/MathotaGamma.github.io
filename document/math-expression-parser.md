@@ -1,8 +1,8 @@
 # 数式パーサー
 
 ## 目標
-* Formula<->Code
-* Formula<->Latex
+* Inline<->Code
+* Inline<->Latex
 * Code<->Latex
 
 ## 手順
