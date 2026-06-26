@@ -172,7 +172,7 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
         <th scope="row">arctan2</th>
         <td>/^(acrtan2|atan2)/</td>
         <td>true</td>
-        <td>**false**</td>
+        <td>*false</td>
       </tr>
       <tr>
         <th scope="row">arctan</th>
@@ -184,7 +184,7 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
         <th scope="row">log10</th>
         <td>/^log10/</td>
         <td>true</td>
-        <td>__false__</td>
+        <td>*false</td>
       </tr>
       <tr>
         <th scope="row">log</th>
@@ -214,13 +214,13 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
         <th scope="row">max</th>
         <td>/^max/</td>
         <td>true</td>
-        <td>false</td>
+        <td>*false</td>
       </tr>
       <tr>
         <th scope="row">min</th>
         <td>/^min/</td>
         <td>true</td>
-        <td>**false**</td>
+        <td>*false</td>
       </tr>
       <tr>
         <th scope="row">e</th>
