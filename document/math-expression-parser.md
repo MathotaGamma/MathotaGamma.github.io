@@ -257,9 +257,9 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
 
   #### 注釈
   *※numReg: (?:\[0-9\]+(?:\\.\[0-9\]\*)?|\\.\[0-9\]+)*<br>
-  *※characterReg: \[a-zA-Z\\u0391-\\u03A9\\u03B1-\\u03C9\]*
-  注1: `^${numReg}`
-  注2: `^(?:${characterReg}(?:(?:0|[1-9][0-9]*)(?!${characterReg})|_(?:${characterReg}|${numReg})*)?)`
+  *※characterReg: \[a-zA-Z\\u0391-\\u03A9\\u03B1-\\u03C9\]*<br>
+  注1: \`^${numReg}\`<br>
+  注2: \`^(?:${characterReg}(?:(?:0|[1-9][0-9]*)(?!${characterReg})|_(?:${characterReg}|${numReg})*)?)\`
 </details>
 
 ## parser
