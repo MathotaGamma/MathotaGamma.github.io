@@ -184,7 +184,7 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
         <th scope="row">log10</th>
         <td>/^log10/</td>
         <td>true</td>
-        <td style="font-style: italic">false</td>
+        <td>__false__</td>
       </tr>
       <tr>
         <th scope="row">log</th>
