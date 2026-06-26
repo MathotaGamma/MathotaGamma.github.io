@@ -242,13 +242,13 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
       </tr>
       <tr>
         <th scope="row">num</th>
-        <td>[^1]</td>
+        <td>注1</td>
         <td>false</td>
         <td>null</td>
       </tr>
       <tr>
         <th scope="row">value</th>
-        <td>[^2]</td>
+        <td>注2</td>
         <td>false</td>
         <td>null</td>
       </tr>
@@ -257,9 +257,9 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
 
   #### 注釈
   *※numReg: (?:\[0-9\]+(?:\\.\[0-9\]\*)?|\\.\[0-9\]+)*<br>
-  *characterReg: \[a-zA-Z\\u0391-\\u03A9\\u03B1-\\u03C9\]*
-  [^1]: `^${numReg}`
-  [^2]: `^(?:${characterReg}(?:(?:0|[1-9][0-9]*)(?!${characterReg})|_(?:${characterReg}|${numReg})*)?)`
+  *※characterReg: \[a-zA-Z\\u0391-\\u03A9\\u03B1-\\u03C9\]*
+  注1: `^${numReg}`
+  注2: `^(?:${characterReg}(?:(?:0|[1-9][0-9]*)(?!${characterReg})|_(?:${characterReg}|${numReg})*)?)`
 </details>
 
 ## parser
