@@ -314,7 +314,7 @@ sin 2\*π-3という式でsinの引数を2\*πでまとめる等。<br>
 構造の生成アルゴリズムは後に記載しています。<br>
 例1... 1+2*3/4
 ```mermaid
-flowchart TD
+graph TD
   A["+"]
   A ----> B["1"]
   A ----> C["/"]
@@ -322,6 +322,12 @@ flowchart TD
   C ----> E["4"]
   D ----> F["2"]
   D ----> G["3"]
+```
+
+例2... 2*sin(π/2)+3
+```mermaid
+flowchart TD
+  A["*"]
 ```
 ### precedence(優先順位)
 
