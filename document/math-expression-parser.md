@@ -354,6 +354,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["bp: A"]
-  A --> |"bp < A"| B["bp: B"]
+  A --> |"A > bp"| B["親にする"]
+  A --> |"A ≦ bp"| C["子に追加する"]
 ```
 ※powだけは、右から計算する。
