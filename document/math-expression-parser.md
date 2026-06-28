@@ -266,6 +266,38 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
 
 ## parser
 構文解析には、再帰下降構文解析の一種であるPrattパーサーを用いてAST(抽象構文木)を作成する。<br>
-重要になってくるのが、binding power(以下、bp)である。<br>
+重要になってくるのが、binding power(以下、bpとする)である。<br>
 例えば、1+2\*3-4という式において2\*3を先に計算したり、<br>
-sin 2\*π-3という式でsinの引数を2\*πで区切ったりする。
+sin 2\*π-3という式でsinの引数を2\*πでまとめる等。<br>
+<details><summary>bpリスト</summary>
+  <table>
+    <thead>
+      <tr>
+        <th>字句名</th>
+        <th>bp</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">plus</th>
+        <td>10</td>
+      </tr>
+      <tr>
+        <th scope="row">minus</th>
+        <td>10</td>
+      </tr>
+      <tr>
+        <th scope="row">pro</th>
+        <td>50</td>
+      </tr>
+      <tr>
+        <th scope="row">div</th>
+        <td>50</td>
+      </tr>
+      <tr>
+        <th scope="row">pow</th>
+        <td>50</td>
+      </tr>
+    </tbody>
+  </table>
+</details>
