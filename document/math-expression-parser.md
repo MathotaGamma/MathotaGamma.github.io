@@ -351,10 +351,44 @@ flowchart TD
   G ----> I["5"]
 ```
 ### AST作成のアルゴリズム
-```mermaid
-flowchart TD
-  A["bp: A"]
-  A --> |"A > bp"| B["親にする"]
-  A --> |"A ≦ bp"| C["子に追加する"]
+```
+bp = {
+  "+": 10,
+  "-": 10,
+  "*": 50,
+  "/": 50,
+  "^": 70,
+  "+(単項演算子)": 100,
+  "-(単項演算子)": 100
+}
+
+// メイン関数
+FUNC parse_expression(current_bp):
+
+    // 次のtoken
+    // next_token()は破壊的
+    left = next_token()
+
+    IF left is (単項)演算子:
+        left += next_token()
+
+    operator = next_token()
+
+    WHILE operator is 演算子 AND bp[operator] > current_bp:
+        next_bp = bp[operator]
+        
+        IF operator == "^"
+            next_limit_bp = next_bp - 1
+        ELSE
+            next_limit_bp = next_bp
+
+        // 再帰処理
+        right = parse_expression(next_limit_bp)
+        
+        left = { operator: [left, right] }
+        
+    ENDWHILE
+    
+    RETURN left
 ```
 ※powだけは、右から計算する。
