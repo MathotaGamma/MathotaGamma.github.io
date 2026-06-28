@@ -315,7 +315,7 @@ sin 2\*π-3という式でsinの引数を2\*πでまとめる等。<br>
 例1... 1+2*3-4
 ```mermaid
 flowchart TD
-  A([*])
+  A(*)
   A ----> B[あ]
 ```
 ### precedence(優先順位)
