@@ -279,11 +279,11 @@ sin 2\*π-3という式でsinの引数を2\*πでまとめる等。<br>
     </thead>
     <tbody>
       <tr>
-        <th scope="row">plus</th>
+        <th scope="row">add</th>
         <td>10</td>
       </tr>
       <tr>
-        <th scope="row">minus</th>
+        <th scope="row">sub</th>
         <td>10</td>
       </tr>
       <tr>
@@ -296,8 +296,19 @@ sin 2\*π-3という式でsinの引数を2\*πでまとめる等。<br>
       </tr>
       <tr>
         <th scope="row">pow</th>
-        <td>50</td>
+        <td>70</td>
+      </tr>
+      <tr>
+        <th scope="row">plus</th>
+        <td>100</td>
+      </tr>
+      <tr>
+        <th scope="row">minus</th>
+        <td>100</td>
       </tr>
     </tbody>
   </table>
 </details>
+### precedence(優先順位)
+
+※powだけは、右から計算する。
