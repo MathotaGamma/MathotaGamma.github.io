@@ -350,6 +350,10 @@ flowchart TD
   G ----> H["4"]
   G ----> I["5"]
 ```
-### precedence(優先順位)
-
+### AST作成のアルゴリズム
+```mermaid
+flowchart TD
+  A["bp: A"]
+  A --> ｜"bp < A"｜B["bp: B"]
+```
 ※powだけは、右から計算する。
