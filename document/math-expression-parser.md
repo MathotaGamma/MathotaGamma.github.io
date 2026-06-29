@@ -60,6 +60,33 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
         <td>null</td>
       </tr>
       <tr>
+        <td colspan="4">絶対値はわからないので|* *|又はabs()を用いる。</td>
+      </tr>
+      <tr>
+        <th scope="row">absStart</th>
+        <td>/^\|\*/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">absEnd</th>
+        <td>/^\*\|/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">vectorStart</th>
+        <td>/^\[/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
+        <th scope="row">vectorEnd</th>
+        <td>/^\]/</td>
+        <td>false</td>
+        <td>null</td>
+      </tr>
+      <tr>
         <th scope="row">add</th>
         <td>/^\+/</td>
         <td>false</td>
@@ -86,21 +113,6 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
       <tr>
         <th scope="row">pow</th>
         <td>/^\^/</td>
-        <td>false</td>
-        <td>null</td>
-      </tr>
-      <tr>
-        <td colspan="4">絶対値はわからないので\[\]又はabs()を用いる。</td>
-      </tr>
-      <tr>
-        <th scope="row">absStart</th>
-        <td>/^\[/</td>
-        <td>false</td>
-        <td>null</td>
-      </tr>
-      <tr>
-        <th scope="row">absEnd</th>
-        <td>/^\]/</td>
         <td>false</td>
         <td>null</td>
       </tr>
