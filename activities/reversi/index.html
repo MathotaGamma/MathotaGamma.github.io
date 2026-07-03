@@ -280,39 +280,36 @@
 					showOverlay("サーバーに接続中... 相手の参加を待っています（操作ロック中）", false);
 
 					const serverUrl = "signaling-server-dman.onrender.com";
+					
+					// 【重要】P2PManagerの内部ロジックを一切壊さないよう、純粋にインスタンスを生成してconnectを走らせます
 					p2p = new P2PManager(serverUrl, roomId);
 
-					// シグナリングサーバー（WS）経由の部屋作成・参加メッセージイベントを直接キャッチして先攻後攻（Player番号）を完璧に決定
-					// これにより、P2PManager内部のWebRTC接続処理を一切邪魔せずに確実に同期します
-					const originalConnect = p2p.connect.bind(p2p);
-					p2p.connect = () => {
-						originalConnect();
-						
-						if (p2p.ws) {
+					// 既存の通信処理に影響を与えないよう、定期チェックで安全にシグナリングサーバー（WS）から届いたメッセージを横取り監視
+					const checkInterval = setInterval(() => {
+						if (p2p && p2p.ws && p2p.ws.readyState === WebSocket.OPEN) {
+							clearInterval(checkInterval);
+							
 							const originalOnMessage = p2p.ws.onmessage;
 							p2p.ws.onmessage = (event) => {
 								if (originalOnMessage) originalOnMessage(event);
-								
 								try {
 									const message = JSON.parse(event.data);
-									// 先番：部屋を作成して待つ側
+									// 先にボタンを押して部屋を作り、待機状態になった側 ＝ Player 1
 									if (message.type === "created") {
 										myPlayerNumber = 1;
 									}
-									// 後番：既存の部屋に参加した側
+									// 後からボタンを押し、既存の部屋へ入った側 ＝ Player 2
 									if (message.type === "joined") {
 										myPlayerNumber = 2;
 									}
-								} catch (e) {
-									console.error("WSパケット解析エラー:", e);
-								}
+								} catch (e) {}
 							};
 						}
-					};
+					}, 50);
 
 					p2p.onStatusChanged = (status) => {
 						if (status === "P2P直結完了 (超低遅延)") {
-							// 万が一WSイベントをすり抜けた場合の最終バックアップ識別
+							// 確実なフォールバック判定（万が一WSフックが何らかの理由で漏れた場合、DataChannelのIDをもとに競合を完全に排除して決定）
 							if (myPlayerNumber === null) {
 								myPlayerNumber = (p2p.dataChannel && p2p.dataChannel.id === 0) ? 2 : 1;
 							}
@@ -335,27 +332,25 @@
 						console.log(`[P2P] 片道レイテンシ: ${latency.toFixed(1)}ms`);
 					};
 
-					// 既存のDataChannelパケット（石を置いた通信）を確実に相手へ同期させる
-					const originalSetupEvents = p2p._setupDataChannelEvents.bind(p2p);
-					p2p._setupDataChannelEvents = (channel) => {
-						originalSetupEvents(channel);
-						const originalOnChannelMessage = channel.onmessage;
-						channel.onmessage = (event) => {
-							try {
-								const data = JSON.parse(event.data);
-								if (data.type === "move") {
-									const ret = check(data.x, data.y);
-									if (typeof ret !== "string") {
-										executeMove(data.x, data.y, ret);
-									}
-								} else {
-									if (originalOnChannelMessage) originalOnChannelMessage(event);
-								}
-							} catch (e) {
+					// 相手から送られてくる「石の配置パケット」を盤面に反映するフック処理を、安全な多重化で再構成
+					const dataChannelCheck = setInterval(() => {
+						if (p2p && p2p.dataChannel) {
+							clearInterval(dataChannelCheck);
+							const originalOnChannelMessage = p2p.dataChannel.onmessage;
+							p2p.dataChannel.onmessage = (event) => {
 								if (originalOnChannelMessage) originalOnChannelMessage(event);
-							}
-						};
-					};
+								try {
+									const data = JSON.parse(event.data);
+									if (data.type === "move") {
+										const ret = check(data.x, data.y);
+										if (typeof ret !== "string") {
+											executeMove(data.x, data.y, ret);
+										}
+									}
+								} catch (e) {}
+							};
+						}
+					}, 100);
 
 					p2p.connect();
 				});
