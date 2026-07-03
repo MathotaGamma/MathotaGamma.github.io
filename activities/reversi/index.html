@@ -1,658 +1,574 @@
 <!DOCTYPE html>
 <html lang="ja">
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<meta name="description" content="1～4人で遊べるリバーシのブラウザゲーム。複数人対応、短時間で楽しめるゲームを公開しています。">
-		<title>Multi-Mode Reversi (P2PManager)</title>
-		<link rel="stylesheet" href="/statics/main-style.css" />
-		<script type="module" src="/statics/main-script.js"></script>
-		<style>
-			html, body {
-				width: 100%;
-				height: 100%;
-				margin: 0;
-				padding: 0;
-				display: flex;
-				flex-direction: column;
-				overflow: hidden;
-				font-family: sans-serif;
-			}
-			
-			header {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 5px;
-				background: grey;
-				padding: 5px;
-				align-items: center;
-				box-sizing: border-box;
-				flex-shrink: 0;
-			}
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="2～4人で遊べるリバーシのブラウザゲーム。複数人対応、短時間で楽しめるゲームを公開しています。">
+    <title>Reversi</title>
+    <link rel="stylesheet" href="/statics/main-style.css" />
+    <script type="module" src="/statics/main-script.js"></script>
+    <style>
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
 
-			.controls-group {
-				display: flex;
-				flex-wrap: wrap;
-				align-items: center;
-				gap: 5px;
-			}
-			
-			.label {
-				color: black;
-				background: white;
-				padding: 0 5px;
-				height: 36px;
-				line-height: 36px;
-				font-size: 14px;
-				box-sizing: border-box;
-				white-space: nowrap;
-			}
-			
-			select, input {
-				box-sizing: border-box;
-				margin: 0;
-				border: none;
-				height: 36px;
-				border-radius: 0px;
-				font-size: 16px;
-				vertical-align: middle;
-			}
+      header {
+        display: -webkit-flex;
+        display: flex;
+        width: 100vw;
+        height: 40px;
+        background: grey;
+        padding: 0px 0px 0px 10px;
+      }
 
-			#playMode {
-				background: #ffb74d;
-				font-weight: bold;
-			}
-			
-			#explain {
-				color: white;
-				background: #dd2500;
-				cursor: pointer;
-			}
-			
-			#p2pConnectBtn {
-				background: #1e88e5;
-				color: white;
-				font-weight: bold;
-				cursor: pointer;
-			}
+      .label {
+        margin: auto 0px auto 2px;
+        color: black;
+        background: white;
+      }
 
-			#p2pConnectBtn:disabled {
-				background: #666;
-				color: #aaa;
-				cursor: not-allowed;
-			}
+      select, input {
+        box-sizing: border-box;
+        margin: 2px;
+        border: none;
+        height: 36px;
+        border-radius: 0px;
+        font-size: 16px;
+      }
 
-			#online-ui {
-				display: none;
-				align-items: center;
-				gap: 5px;
-				flex-wrap: wrap;
-			}
-			
-			main {
-				flex: 1;
-				display: flex;
-				justify-content: center;
-				align-items: center;
-				background: #333;
-				position: relative;
-				box-sizing: border-box;
-			}
-			
-			#canvas {
-				display: block;
-				max-width: 100%;
-				max-height: 100%;
-			}
+      #explain {
+        color: white;
+        margin-left: 50px;
+        background: #dd2500;
+      }
 
-			footer {
-				height: 40px;
-				background: #eee;
-				display: flex;
-				gap: 15px;
-				padding: 0 10px;
-				justify-content: center;
-				align-items: center;
-				border-top: 1px solid black;
-				box-sizing: border-box;
-				flex-shrink: 0;
-			}
+      #home {
+        color: black;
+        background: #5ccca0;
+      }
 
-			#overlay {
-				display: none;
-				position: fixed;
-				top: 0;
-				left: 0;
-				width: 100%;
-				height: 100%;
-				background: rgba(0,0,0,0.6);
-				z-index: 1000;
-				justify-content: center;
-				align-items: center;
-			}
-			
-			#overlay-area {
-				background: white;
-				padding: 25px 40px;
-				border-radius: 8px;
-				text-align: center;
-				font-size: 18px;
-				box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-			}
+      #overlay-button {
+        border: none;
+        height: 25px;
+        border-radius: 0px;
+        font-size: 20px;
+      }
 
-			#overlay-button {
-				margin-top: 15px;
-				padding: 5px 20px;
-				background: #333;
-				color: white;
-				cursor: pointer;
-				font-weight: bold;
-			}
-		</style>
-	</head>
-	<body>
-		<header>
-			<div class="controls-group">
-				<span class="label">モード:</span>
-				<select id="playMode">
-					<option value="local">この端末で遊ぶ</option>
-					<option value="online">通信対戦で遊ぶ</option>
-				</select>
+      #overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
 
-				<span id="online-ui">
-					<span class="label">部屋ID:</span>
-					<input type="text" id="p2pRoomId" value="reversi-room-1" style="width: 120px; padding: 0 5px;">
-					<input type="button" id="p2pConnectBtn" value="P2P接続">
-				</span>
+      #overlay-area {
+        background: white;
+        padding: 20px 40px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 18px;
+      }
 
-				<span class="label">user:</span>
-				<select id="userNum">
-					<option>1</option>
-					<option selected>2</option>
-					<option>3</option>
-					<option>4</option>
-				</select>
-				<span class="label">size:</span>
-				<select id="size">
-					<option>6</option>
-					<option selected>8</option>
-					<option>10</option>
-					<option>12</option>
-					<option>14</option>
-					<option>20</option>
-				</select>
-				<span class="label">補助:</span>
-				<select id="assist">
-					<option>あり</option>
-					<option>なし</option>
-				</select>
-				<span class="label" id="extinctLabel">全滅:</span>
-				<select id="extinct">
-					<option>あり</option>
-					<option selected>なし</option>
-				</select>
-				<input type="button" value="新規開始" onclick="start();">
-			</div>
-			<div>
-				<input type="button" value="遊び方" id="explain" onclick="explain();">
-			</div>
-		</header>
-		
-		<main>
-			<canvas id="canvas"></canvas>
-		</main>
+      #canvas {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        left: 50%;
+        top: 50%;
+        margin: 0;
+      }
 
-		<footer id="footer"></footer>
-		
-		<div id="overlay">
-			<div id="overlay-area">
-				<div id="overlay-text">
-					ようこそ!<br>
-					<span style="color: red;">※3・4人用でプレイする場合は、<br>
-					ヘッダーの「遊び方」をご参照ください。<br>
-					⚠️人数/盤面サイズを変更すると、<span style="color: #700">盤面がリセット</span>されます。
-					</span>
-				</div>
-				<input type="button" id="overlay-button" value="OK" onclick="closeOverlay()">
-			</div>
-		</div>
-		
-		<script type="module">
-			import P2PManager from 'https://mathotagamma.github.io/statics/p2p/manager.js'; 
+      #footer {
+        position: absolute;
+        bottom: 0px;
+        width: 100vw;
+        height: 20px;
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+        justify-content: center;
+        align-items: center;
+        font-family: sans-serif;
+        border: 1px solid black;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <nav class="breadcrumb" data-bg-color="rgba( 255, 255, 255, 0.3)"></nav>
+      </div>
+      <div>
+        <span class="label">user:</span>
+        <select id="userNum">
+          <option>2</option>
+          <option>3</option>
+          <option>4</option>
+        </select>
+        <span class="label">size:</span>
+        <select id="size">
+          <option>6</option>
+          <option selected>8</option>
+          <option>10</option>
+          <option>12</option>
+          <option>14</option>
+          <option>20</option>
+        </select>
+        <span class="label">補助:</span>
+        <select id="assist">
+          <option>あり</option>
+          <option>なし</option>
+        </select>
+        <span class="label" id="extinctLabel">全滅:</span>
+        <select id="extinct">
+          <option>あり</option>
+          <option selected>なし</option>
+        </select>
+        <input type="button" value="新規開始" onclick="start();">
+      </div>
+      <div>
+        <input type="button" value="遊び方" id="explain" onclick="explain();">
+      </div>
+    </header>
 
-			const color = {
-				1: "black",
-				2: "white",
-				3: "#cc0000",
-				4: "#0000cc",
-			}
-			
-			let p2p = null;
-			let myPlayerNumber = null; 
+    <!-- オーバーレイ -->
+    <div id="overlay">
+      <div id="overlay-area">
+        <div id="overlay-text">
+          ようこそ!<br>
+          <span style="color: red;">※3・4人用でプレイする場合は、<br>
+          ヘッダーの「遊び方」をご参照ください。<br>
+          ⚠️人数/盤面サイズを変更すると、<span style="color: #700">盤面がリセット</span>されます。
+          </span>
+        </div>
+        <input type="button" id="overlay-button" value="OK" onclick="closeOverlay()">
+      </div>
+    </div>
 
-			window.onload = () => {
-				function showOverlay(text, showButton = true) {
-					document.getElementById("overlay-text").innerHTML = text;
-					document.getElementById("overlay-button").style.display = showButton ? "inline-block" : "none";
-					document.getElementById("overlay").style.display = "flex";
-				}
+    <canvas id="canvas"></canvas>
 
-				window.closeOverlay = () => {
-					document.getElementById("overlay").style.display = "none";
-				}
-				
-				const canvas = document.getElementById("canvas");
-				const sizeElem = document.getElementById("size");
-				const userElem = document.getElementById("userNum");
-				const modeElem = document.getElementById("playMode");
-				const onlineUi = document.getElementById("online-ui");
+    <footer id="footer"></footer>
 
-				modeElem.addEventListener("change", (e) => {
-					if (e.target.value === "online") {
-						onlineUi.style.display = "inline-flex";
-						if (p2p) { cleanupP2P(); }
-						start();
-					} else {
-						onlineUi.style.display = "none";
-						cleanupP2P();
-						showOverlay("ローカル対戦モードに切り替えました。");
-						start();
-					}
-				});
+    <script>
+      const COLORS = {
+        1: "black",
+        2: "white",
+        3: "#cc0000",
+        4: "#0000cc",
+      };
 
-				function cleanupP2P() {
-					if (p2p) {
-						if (p2p.ws) p2p.ws.close();
-						if (p2p.peerConnection) p2p.peerConnection.close();
-						p2p = null;
-					}
-					myPlayerNumber = null;
-					document.getElementById("p2pConnectBtn").disabled = false;
-					document.getElementById("p2pRoomId").disabled = false;
-				}
-				
-				document.getElementById("p2pConnectBtn").addEventListener("click", () => {
-					const roomId = document.getElementById("p2pRoomId").value.trim();
-					if (!roomId) return alert("部屋IDを入力してください");
+      window.onload = () => {
+        const canvas = document.getElementById("canvas");
+        const sizeElem = document.getElementById("size");
+        const userElem = document.getElementById("userNum");
+        const assistElem = document.getElementById("assist");
+        const extinctElem = document.getElementById("extinct");
+        const extinctLabelElem = document.getElementById("extinctLabel");
+        const footerElem = document.getElementById("footer");
+        const overlayElem = document.getElementById("overlay");
+        const overlayTextElem = document.getElementById("overlay-text");
 
-					document.getElementById("p2pConnectBtn").disabled = true;
-					document.getElementById("p2pRoomId").disabled = true;
-					showOverlay("サーバーに接続中... 相手の参加を待っています（操作ロック中）", false);
+        const l = Math.min(innerWidth, innerHeight) - 100;
+        canvas.width = l;
+        canvas.height = l;
+        const ctx = canvas.getContext("2d");
 
-					const serverUrl = "signaling-server-dman.onrender.com";
-					
-					// 【重要】P2PManagerの内部ロジックを一切壊さないよう、純粋にインスタンスを生成してconnectを走らせます
-					p2p = new P2PManager(serverUrl, roomId);
+        // ---- ゲーム状態 ----
+        let map = [];
+        let validList = [];
+        let assist = true;
+        let extinctAllowed = false; // 「全滅」あり/なし
+        let user = 3;               // プレイヤー人数(数値)
+        let num = 8;                // 盤面サイズ(数値)
+        let r = l / num;
+        let player = 1;             // 現在の手番プレイヤー番号
+        let extinctList = [];       // 全滅済みプレイヤー番号のリスト
 
-					// 既存の通信処理に影響を与えないよう、定期チェックで安全にシグナリングサーバー（WS）から届いたメッセージを横取り監視
-					const checkInterval = setInterval(() => {
-						if (p2p && p2p.ws && p2p.ws.readyState === WebSocket.OPEN) {
-							clearInterval(checkInterval);
-							
-							const originalOnMessage = p2p.ws.onmessage;
-							p2p.ws.onmessage = (event) => {
-								if (originalOnMessage) originalOnMessage(event);
-								try {
-									const message = JSON.parse(event.data);
-									// 先にボタンを押して部屋を作り、待機状態になった側 ＝ Player 1
-									if (message.type === "created") {
-										myPlayerNumber = 1;
-									}
-									// 後からボタンを押し、既存の部屋へ入った側 ＝ Player 2
-									if (message.type === "joined") {
-										myPlayerNumber = 2;
-									}
-								} catch (e) {}
-							};
-						}
-					}, 50);
+        function showOverlay(html) {
+          overlayTextElem.innerHTML = html;
+          overlayElem.style.display = "flex";
+        }
 
-					p2p.onStatusChanged = (status) => {
-						if (status === "P2P直結完了 (超低遅延)") {
-							// 確実なフォールバック判定（万が一WSフックが何らかの理由で漏れた場合、DataChannelのIDをもとに競合を完全に排除して決定）
-							if (myPlayerNumber === null) {
-								myPlayerNumber = (p2p.dataChannel && p2p.dataChannel.id === 0) ? 2 : 1;
-							}
-							
-							setTimeout(() => {
-								const maxUser = parseInt(userElem.value);
-								if (myPlayerNumber > maxUser) {
-									myPlayerNumber = maxUser; 
-								}
-								showOverlay(`⚡ 通信対戦開始！ あなたは <span style="color:${color[myPlayerNumber]}">Player ${myPlayerNumber}</span> です。`, true);
-								start();
-								p2p.sendPing();
-							}, 500);
-						} else {
-							showOverlay(`ステータス: ${status}`, false);
-						}
-					};
+        window.closeOverlay = () => {
+          overlayElem.style.display = "none";
+        };
 
-					p2p.onLatencyCalculated = (latency, errorFrame) => {
-						console.log(`[P2P] 片道レイテンシ: ${latency.toFixed(1)}ms`);
-					};
+        // 現在ゲームに参加している(全滅していない)プレイヤー番号一覧
+        function activePlayers() {
+          const list = [];
+          for (let p = 1; p <= user; p++) {
+            if (!extinctList.includes(p)) list.push(p);
+          }
+          return list;
+        }
 
-					// 相手から送られてくる「石の配置パケット」を盤面に反映するフック処理を、安全な多重化で再構成
-					const dataChannelCheck = setInterval(() => {
-						if (p2p && p2p.dataChannel) {
-							clearInterval(dataChannelCheck);
-							const originalOnChannelMessage = p2p.dataChannel.onmessage;
-							p2p.dataChannel.onmessage = (event) => {
-								if (originalOnChannelMessage) originalOnChannelMessage(event);
-								try {
-									const data = JSON.parse(event.data);
-									if (data.type === "move") {
-										const ret = check(data.x, data.y);
-										if (typeof ret !== "string") {
-											executeMove(data.x, data.y, ret);
-										}
-									}
-								} catch (e) {}
-							};
-						}
-					}, 100);
+        function updateExtinctControlState() {
+          const disabled = user === 2;
+          extinctLabelElem.style.opacity = disabled ? "0.2" : "1";
+          extinctElem.style.opacity = disabled ? "0.2" : "1";
+          extinctElem.disabled = disabled;
+        }
 
-					p2p.connect();
-				});
+        function view() {
+          ctx.clearRect(0, 0, l, l);
+          ctx.fillStyle = "#008800";
+          ctx.fillRect(0, 0, l, l);
+          ctx.strokeStyle = "black";
+          for (let k = 1; k < num; k++) {
+            ctx.beginPath();
+            ctx.moveTo(k * r, 0);
+            ctx.lineTo(k * r, l);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, k * r);
+            ctx.lineTo(l, k * r);
+            ctx.stroke();
+          }
 
-				sizeElem.addEventListener("change", () => { resizeCanvas(); start(); });
-				userElem.addEventListener("change", (e) => {
-					const val = e.target.value;
-					if(val == "1" || val == "2") {
-						sizeElem.innerHTML = `<option>6</option><option selected>8</option><option>10</option><option>12</option><option>14</option><option>20</option>`;
-					} else if(val == "3") {
-						sizeElem.innerHTML = `<option>7</option><option selected>9</option><option>11</option><option>13</option><option>15</option><option>21</option>`;
-					} else if(val == "4") {
-						sizeElem.innerHTML = `<option>8</option><option selected>10</option><option>12</option><option>14</option><option>16</option><option>22</option>`;
-					}
-					start();
-					if(user <= 2) {
-						document.getElementById("extinctLabel").style.opacity = "0.2";
-						document.getElementById("extinct").style.opacity = "0.2";
-						document.getElementById("extinct").disabled = true;
-					} else {
-						document.getElementById("extinctLabel").style.opacity = "1";
-						document.getElementById("extinct").style.opacity = "1";
-						document.getElementById("extinct").disabled = false;
-					}
-				});
-				
-				function renderFooter() {
-					const footer = document.getElementById("footer");
-					footer.innerHTML = ""; 
+          if (assist) {
+            ctx.strokeStyle = COLORS[player];
+            for (const [x, y] of validList) {
+              ctx.beginPath();
+              ctx.arc(x * r + r / 2, y * r + r / 2, r / 4, 0, 2 * Math.PI);
+              ctx.stroke();
+            }
+          }
 
-					for (let i = 1; i <= user; i++) {
-						const span = document.createElement("span");
-						span.style.display = "flex";
-						span.style.alignItems = "center";
-						span.style.gap = "5px";
+          for (let row = 0; row < num; row++) {
+            for (let col = 0; col < num; col++) {
+              const stone = map[row][col];
+              if (stone !== 0) {
+                ctx.beginPath();
+                ctx.fillStyle = COLORS[stone];
+                ctx.arc(col * r + r / 2, row * r + r / 2, (3 * r) / 8, 0, 2 * Math.PI);
+                ctx.fill();
+              }
+            }
+          }
+        }
 
-						const circle = document.createElement("div");
-						circle.style.width = "20px";
-						circle.style.height = "20px";
-						circle.style.borderRadius = "50%";
-						circle.style.background = color[i];
-						circle.style.border = i === player ? "3px solid gold" : "1px solid #333"; 
+        function renderFooter() {
+          footerElem.innerHTML = "";
+          for (let p = 1; p <= user; p++) {
+            if (extinctList.includes(p)) continue;
 
-						span.appendChild(circle);
-						const num = map.flat().filter(v => v === i).length;
-						
-						let textNode = "Player"+i+": "+num+"石";
-						if (modeElem.value === "online" && p2p && i === myPlayerNumber) {
-							textNode += " (あなた)";
-						}
-						span.appendChild(document.createTextNode(textNode));
-						footer.appendChild(span);
-					}
-				}
+            const span = document.createElement("span");
+            span.style.display = "flex";
+            span.style.alignItems = "center";
+            span.style.gap = "5px";
 
-				window.explain = () => {
-					showOverlay(`このゲームは1～4人で遊べるオセロ風ゲームです。<br>・プレイヤーは順番に空きマスに自分の石を置き、縦・横・斜目で相手の石を挟むと自分の色に変えられます。<br>・人数を変更すると盤面がリセットされます。`, true);
-				}
-				
-				const ctx = canvas.getContext('2d');
-				let map = [];
-				let validList = [];
-				let assist = true;
-				let extinct = false; 
-				
-				let user = 2;
-				let num = 8;
-				let r = 0;
-				let player = 1;
-				let extinctList = [];
+            const circle = document.createElement("div");
+            circle.style.width = "20px";
+            circle.style.height = "20px";
+            circle.style.borderRadius = "50%";
+            circle.style.background = COLORS[p];
+            circle.style.border = p === player ? "3px solid gold" : "1px solid #333";
 
-				function resizeCanvas() {
-					const mainArea = document.querySelector('main');
-					const l = Math.min(mainArea.clientWidth, mainArea.clientHeight) - 20;
-					canvas.width = l;
-					canvas.height = l;
-					r = l / num;
-				}
-				
-				function view() {
-					const l = canvas.width;
-					ctx.clearRect(0,0,l,l);
-					ctx.fillStyle = "#008800";
-					ctx.fillRect(0,0,l,l);
-					ctx.strokeStyle = "black";
-					for(let k = 1; k < num; k++){
-						ctx.beginPath(); ctx.moveTo(k*r, 0); ctx.lineTo(k*r, l); ctx.stroke();
-						ctx.beginPath(); ctx.moveTo(0, k*r); ctx.lineTo(l, k*r); ctx.stroke();
-					}
-					if(assist) {
-						for(let k of validList) {
-							ctx.beginPath();
-							ctx.strokeStyle = color[player];
-							ctx.arc(k[0]*r + r/2, k[1]*r + r/2, r/4, 0, 2*Math.PI);
-							ctx.stroke();
-						}
-					}
-					for(let row = 0; row < num; row++){
-						for(let col = 0; col < num; col++){
-							if(map[row][col] != 0) {
-								ctx.beginPath();
-								ctx.fillStyle = color[map[row][col]];
-								ctx.arc(col*r + r/2, row*r + r/2, 3*r/8, 0, 2*Math.PI);
-								ctx.fill();
-							}
-						}
-					}
-				}
-				
-				document.getElementById("assist").addEventListener("change", (e) => {
-					assist = e.target.value == "あり";
-					view();
-				});
+            const count = map.flat().filter((v) => v === p).length;
 
-				document.getElementById("extinct").addEventListener("change", (e) => {
-					if(user <= 2) return;
-					extinct = e.target.value == "あり";
-					validList = hasValidMove(player);
-					view();
-				});
-				
-				function set(x, y, dir) {
-					map[y][x] = player;
-					for(let k = 0; k < dir.length; k++){
-						map[dir[k][1]][dir[k][0]] = player;
-					}
-				}
-				
-				function checkStone(x, y) {
-					if(map[y][x] != 0) return "すでに置かれているため配置できません。";
-					
-					const dx = [-1, 0, 1, -1, 1, -1, 0, 1];
-					const dy = [-1, -1, -1, 0, 0, 1, 1, 1];
-					const opponent = (p) => p !== 0 && p !== player;
-					let stonesToFlip = [];
+            span.appendChild(circle);
+            span.appendChild(document.createTextNode("Player" + p + ": " + count + "石"));
+            footerElem.appendChild(span);
+          }
+        }
 
-					for (let k = 0; k < 8; k++) {
-						let nx = x + dx[k]; let ny = y + dy[k]; let tempFlips = [];
-						if (nx < 0 || nx >= num || ny < 0 || ny >= num) continue;
-						if (map[ny][nx] === 0 || map[ny][nx] === player) continue;
+        window.explain = () => {
+          showOverlay(`このゲームは2～4人で遊べるオセロ風ゲームです。<br>
+・プレイヤーは順番に空きマスに自分の石を置き、縦・横・斜めで相手の石を挟むと自分の色に変えられます。<br>
+  ・人数を変更すると、<span style="color: #700">盤面がリセット</span>されます。<br>
+  ・「全滅」"あり"の場合、<span style="color: #700">3人以上でのプレイでは、置いた結果、他プレイヤーの石がなくなる場所には置けません。</span><br>
+  ・「全滅」を"なし"にした場合、置ける場所がない場合は手番がスキップされます。<br>
+  ・全員が置ける場所を失した時点でゲームは終了し、石の数が最も多いプレイヤーが勝利です。`);
+        };
 
-						while (nx >= 0 && nx < num && ny >= 0 && ny < num) {
-							if (map[ny][nx] === 0) break;
-							if (map[ny][nx] === player) {
-								if (tempFlips.length > 0) stonesToFlip.push(...tempFlips);
-								break;
-							}
-							if (opponent(map[ny][nx])) tempFlips.push([nx, ny]);
-							nx += dx[k]; ny += dy[k];
-						}
-					}
+        // (x, y) に forPlayer が石を置いた場合に反転する石の座標一覧を返す
+        function stonesToFlip(x, y, forPlayer) {
+          const dx = [-1, 0, 1, -1, 1, -1, 0, 1];
+          const dy = [-1, -1, -1, 0, 0, 1, 1, 1];
+          const flips = [];
 
-					if(!extinct) {
-						for(let k = 1; k <= user; k++){
-							if(k == player) continue;
-							if(user >= 3 && map.flat().filter(num => num === k).length == stonesToFlip.filter(num => map[num[1]][num[0]] === k).length && !extinctList.includes(k)) 
-								return "player"+String(k)+"の石が無くなるため配置できません。";
-						}
-					}
-					if(stonesToFlip.length == 0) return "返す石がないため配置できません。";
-					return stonesToFlip;
-				}
+          for (let k = 0; k < 8; k++) {
+            let nx = x + dx[k];
+            let ny = y + dy[k];
+            const line = [];
 
-				function check(x,y){
-					if(x < 0 || y < 0 || x >= num || y >= num) return false;
-					return checkStone(x, y);
-				}
-				
-				function hasValidMove(p) {
-					let validList_k = [];
-					for (let y = 0; y < num; y++) {
-						for (let x = 0; x < num; x++) {
-							const ret = checkStone(x, y);
-							if (typeof ret !== "string") validList_k.push([x, y]);
-						}
-					}
-					return validList_k;
-				}
-				
-				function finish(){
-					let result = ""; let countList = [];
-					for(let k = 1; k <= user; k++) {
-						countList.push(map.flat().filter(num => num === k).length);
-						result += '<span style="color: '+color[k]+'; -webkit-text-stroke: 1px black; text-stroke: 1px black;">player'+String(k)+'</span>:<span style="font-weight: bold;">'+String(countList[k-1])+"</span><br>"
-					}
-					const maxVal = Math.max(...countList); const winners = [];
-					for (let i = 0; i < countList.length; i++) {
-						if (countList[i] === maxVal) winners.push("player"+String(i+1));
-					}
-					if(winners.length == user) result += "引き分け";
-					else result += '勝利:<span style="font-weight: bold;">'+winners.join("と")+"</span>";
-					showOverlay(result, true);
-				}
-				
-				function next() {
-					validList = []; let skipList = [];
-					for(let k = 0; k < user; k++){
-						player = player % user + 1;
-						validList = hasValidMove(player);
-						if(validList.length > 0) break;
-						else {
-							if(k == user-1) { showOverlay("置く場所がないため、終了します。", true); finish(); return; }
-							else skipList.push(player);
-						}
-					}
-					for(let k of skipList) {
-						if(!extinctList.includes(k)) showOverlay("player"+String(k)+"は配置できる場所がないため、スキップします。", true);
-					}
-					renderFooter();
+            while (nx >= 0 && nx < num && ny >= 0 && ny < num) {
+              const stone = map[ny][nx];
+              if (stone === 0) break;
+              if (stone === forPlayer) {
+                flips.push(...line);
+                break;
+              }
+              line.push([nx, ny]);
+              nx += dx[k];
+              ny += dy[k];
+            }
+          }
+          return flips;
+        }
 
-					if (user == 1 && player !== 1 && validList.length > 0) {
-						setTimeout(() => {
-							const randomMove = validList[Math.floor(Math.random() * validList.length)];
-							const ret = check(randomMove[0], randomMove[1]);
-							executeMove(randomMove[0], randomMove[1], ret);
-						}, 500);
-					}
-				}
-				
-				function init() {
-					extinctList = []; map = []; let col = [];
-					for(let k = 0; k < num; k++) col.push(0);
-					
-					if(user == "1" || user == "2") {
-						for(let row = 0; row < num; row++){
-							let colClone = structuredClone(col);
-							if(row == num / 2 - 1) { colClone[row] = 2; colClone[row+1] = 1; }
-							else if(row == num / 2){ colClone[row-1] = 1; colClone[row] = 2; }
-							map.push(colClone);
-						}
-						if(user == "1") user = 2; 
-					} else if(user == "3"){
-						for(let row = 0; row < num; row++){
-							let colClone = structuredClone(col);
-							if(row == (num-1) / 2 - 1) { colClone[row] = 2; colClone[row+1] = 1; colClone[row+2] = 3; }
-							else if(row == (num-1) / 2){ colClone[row-1] = 3; colClone[row] = 2; colClone[row+1] = 1; }
-							else if(row == (num-1) / 2 + 1){ colClone[row-2] = 1; colClone[row-1] = 3; colClone[row] = 2; }
-							map.push(colClone);
-						}
-					} else if(user == "4"){
-						for(let row = 0; row < num; row++){
-							let colClone = structuredClone(col);
-							if(row == num / 2 - 2) { colClone[row] = 1; colClone[row+2] = 3; colClone[row+3] = 2; }
-							else if(row == num / 2 - 1){ colClone[row-1] = 2; colClone[row] = 4; colClone[row+1] = 1; }
-							else if(row == num / 2){ colClone[row-1] = 3; colClone[row] = 2; colClone[row+1] = 4; }
-							else if(row == num / 2 + 1){ colClone[row-3] = 4; colClone[row-2] = 1; colClone[row] = 3; }
-							map.push(colClone);
-						}
-					}
-					validList = hasValidMove(player);
-					view();
-				}
+        // 配置可能かどうかを判定する。可能なら反転する石の配列、不可能なら理由の文字列を返す
+        function checkStone(x, y, forPlayer) {
+          if (map[y][x] !== 0) return "すでに置かれているため配置できません。";
 
-				function executeMove(x, y, ret) {
-					set(x, y, ret);
-					for (let k = 1; k <= user; k++) {
-						if (!extinctList.includes(k) && map.flat().filter(v => v === k).length === 0) {
-							showOverlay("player" + String(k) + "の石が無くなりました。", true);
-							extinctList.push(k);
-						}
-					}
-					next();
-					view();
-				}
+          const flips = stonesToFlip(x, y, forPlayer);
+          if (flips.length === 0) return "返す石がないため配置できません。";
 
-				window.start = () => {
-					user = parseInt(document.getElementById("userNum").value);
-					num = parseInt(document.getElementById("size").value);
-					resizeCanvas();
-					player = 1;
-					init();
-					renderFooter();
-				}
-				
-				window.addEventListener("resize", () => {
-					resizeCanvas();
-					view();
-				});
+          if (!extinctAllowed && user >= 3) {
+            for (const p of activePlayers()) {
+              if (p === forPlayer) continue;
+              const total = map.flat().filter((v) => v === p).length;
+              const flipped = flips.filter(([fx, fy]) => map[fy][fx] === p).length;
+              if (total === flipped) {
+                return "player" + p + "の石が無くなるため配置できません。";
+              }
+            }
+          }
 
-				canvas.addEventListener("touchstart", (e) => {
-					e.preventDefault();
+          return flips;
+        }
 
-					if (modeElem.value === "online" && p2p && myPlayerNumber !== null && player !== myPlayerNumber) {
-						return; 
-					}
+        function check(x, y) {
+          if (x < 0 || y < 0 || x >= num || y >= num) return "盤面の外には配置できません。";
+          return checkStone(x, y, player);
+        }
 
-					const rect = canvas.getBoundingClientRect();
-					const x = Math.floor((e.touches[0].clientX - rect.left) / r);
-					const y = Math.floor((e.touches[0].clientY - rect.top) / r);
-					
-					const ret = check(x, y);
-					if(typeof ret === "string") showOverlay(ret, true);
-					else {
-						executeMove(x, y, ret);
-						if (modeElem.value === "online" && p2p && p2p.dataChannel && p2p.dataChannel.readyState === 'open') {
-							p2p.dataChannel.send(JSON.stringify({ type: "move", x: x, y: y }));
-						}
-					}
-				});
-				
-				start();
-			}
-		</script>
-	</body>
+        function hasValidMove(forPlayer) {
+          const moves = [];
+          for (let y = 0; y < num; y++) {
+            for (let x = 0; x < num; x++) {
+              if (typeof checkStone(x, y, forPlayer) !== "string") moves.push([x, y]);
+            }
+          }
+          return moves;
+        }
+
+        function placeStone(x, y, flips) {
+          map[y][x] = player;
+          for (const [fx, fy] of flips) map[fy][fx] = player;
+        }
+
+        // 石が0個になったプレイヤーを全滅リストへ追加する
+        function updateExtinctList() {
+          for (const p of activePlayers()) {
+            const remaining = map.flat().filter((v) => v === p).length;
+            if (remaining === 0) {
+              extinctList.push(p);
+              showOverlay("player" + p + "の石が無くなりました。");
+            }
+          }
+        }
+
+        function finish() {
+          let result = "";
+          const counts = [];
+          for (let p = 1; p <= user; p++) {
+            const count = map.flat().filter((v) => v === p).length;
+            counts.push(count);
+            result +=
+              '<span style="color: ' + COLORS[p] + '; -webkit-text-stroke: 1px black; text-stroke: 1px black;">player' +
+              p + '</span>:<span style="font-weight: bold;">' + count + "</span><br>";
+          }
+
+          const maxVal = Math.max(...counts);
+          const winners = [];
+          for (let i = 0; i < counts.length; i++) {
+            if (counts[i] === maxVal) winners.push("player" + (i + 1));
+          }
+
+          result += winners.length === user
+            ? "引き分け"
+            : '勝利:<span style="font-weight: bold;">' + winners.join("と") + "</span>";
+          showOverlay(result);
+        }
+
+        // 手番を次の「配置可能な、全滅していないプレイヤー」へ進める
+        // 誰も置ける場所がない場合はゲームを終了する
+        function next() {
+          const active = activePlayers();
+          if (active.length === 0) {
+            finish();
+            return;
+          }
+
+          const startIndex = Math.max(active.indexOf(player), 0);
+          const skipped = [];
+
+          for (let i = 1; i <= active.length; i++) {
+            const candidate = active[(startIndex + i) % active.length];
+            const moves = hasValidMove(candidate);
+
+            if (moves.length > 0) {
+              player = candidate;
+              validList = moves;
+              for (const p of skipped) {
+                showOverlay("player" + p + "は配置できる場所がないため、スキップします。");
+              }
+              renderFooter();
+              return;
+            }
+            skipped.push(candidate);
+          }
+
+          // 全員が配置不可
+          showOverlay("置く場所がないため、終了します。");
+          finish();
+        }
+
+        function init() {
+          extinctList = [];
+          map = [];
+          const emptyRow = () => new Array(num).fill(0);
+          for (let k = 0; k < num; k++) map.push(emptyRow());
+
+          updateExtinctControlState();
+
+          if (user === 2) {
+            for (let row = 0; row < num; row++) {
+              if (row === num / 2 - 1) {
+                map[row][row] = 2;
+                map[row][row + 1] = 1;
+              } else if (row === num / 2) {
+                map[row][row - 1] = 1;
+                map[row][row] = 2;
+              }
+            }
+          } else if (user === 3) {
+            for (let row = 0; row < num; row++) {
+              if (row === (num - 1) / 2 - 1) {
+                map[row][row] = 2;
+                map[row][row + 1] = 1;
+                map[row][row + 2] = 3;
+              } else if (row === (num - 1) / 2) {
+                map[row][row - 1] = 3;
+                map[row][row] = 2;
+                map[row][row + 1] = 1;
+              } else if (row === (num - 1) / 2 + 1) {
+                map[row][row - 2] = 1;
+                map[row][row - 1] = 3;
+                map[row][row] = 2;
+              }
+            }
+          } else if (user === 4) {
+            for (let row = 0; row < num; row++) {
+              if (row === num / 2 - 2) {
+                map[row][row] = 1;
+                map[row][row + 2] = 3;
+                map[row][row + 3] = 2;
+              } else if (row === num / 2 - 1) {
+                map[row][row - 1] = 2;
+                map[row][row] = 4;
+                map[row][row + 1] = 1;
+              } else if (row === num / 2) {
+                map[row][row - 1] = 3;
+                map[row][row] = 2;
+                map[row][row + 1] = 4;
+              } else if (row === num / 2 + 1) {
+                map[row][row - 3] = 4;
+                map[row][row - 2] = 1;
+                map[row][row] = 3;
+              }
+            }
+          }
+
+          player = 1;
+          validList = hasValidMove(player);
+          view();
+          renderFooter();
+        }
+
+        window.start = () => {
+          user = parseInt(userElem.value, 10);
+          num = parseInt(sizeElem.value, 10);
+          r = l / num;
+          init();
+        };
+
+        assistElem.addEventListener("change", (e) => {
+          assist = e.target.value === "あり";
+          view();
+        });
+
+        extinctElem.addEventListener("change", (e) => {
+          if (user === 2) return;
+          extinctAllowed = e.target.value === "あり";
+          validList = hasValidMove(player);
+          view();
+        });
+
+        sizeElem.addEventListener("change", () => {
+          start();
+        });
+
+        userElem.addEventListener("change", () => {
+          if (userElem.value === "2") {
+            sizeElem.innerHTML = `
+              <option>6</option>
+              <option selected>8</option>
+              <option>10</option>
+              <option>12</option>
+              <option>14</option>
+              <option>20</option>
+            `;
+          } else if (userElem.value === "3") {
+            sizeElem.innerHTML = `
+              <option>7</option>
+              <option selected>9</option>
+              <option>11</option>
+              <option>13</option>
+              <option>15</option>
+              <option>21</option>
+            `;
+          } else if (userElem.value === "4") {
+            sizeElem.innerHTML = `
+              <option>8</option>
+              <option selected>10</option>
+              <option>12</option>
+              <option>14</option>
+              <option>16</option>
+              <option>22</option>
+            `;
+          }
+          start();
+        });
+
+        function handlePointer(clientX, clientY) {
+          const rect = canvas.getBoundingClientRect();
+          const x = Math.floor((clientX - rect.left) / r);
+          const y = Math.floor((clientY - rect.top) / r);
+
+          const ret = check(x, y);
+          if (typeof ret === "string") {
+            showOverlay(ret);
+            return;
+          }
+
+          placeStone(x, y, ret);
+          updateExtinctList();
+          next();
+          view();
+        }
+
+        canvas.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          handlePointer(e.touches[0].clientX, e.touches[0].clientY);
+        });
+
+        canvas.addEventListener("click", (e) => {
+          handlePointer(e.clientX, e.clientY);
+        });
+
+        start();
+      };
+    </script>
+  </body>
 </html>
