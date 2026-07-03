@@ -1,4 +1,4 @@
-// P2PManager.js
+// P2P Manager
 export default class P2PManager {
     constructor(serverUrl, roomId) {
         this.serverUrl = serverUrl;
