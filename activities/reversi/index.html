@@ -282,33 +282,36 @@
 					const serverUrl = "signaling-server-dman.onrender.com";
 					p2p = new P2PManager(serverUrl, roomId);
 
-					// P2PManagerの初期化拡張：現在選ばれているuserNum（最大人数）設定を加味して同期
-					const originalSetupWebRTC = p2p._setupWebRTC.bind(p2p);
-					p2p._setupWebRTC = () => {
-						originalSetupWebRTC();
+					// WebRTCネゴシエーション側でのPlayer1, 2の判定競合を修正
+					// `p2p.connect()` が呼ばれてシグナリングが動く過程を監視
+					const originalConnect = p2p.connect.bind(p2p);
+					p2p.connect = () => {
+						originalConnect();
 						
-						// 自分からDataChannelを開設した側をPlayer1とする
-						if (p2p.dataChannel) {
-							myPlayerNumber = 1;
-						}
+						// シグナリングサーバーの接続後に、自分がホスト(Offer側)かクライアント(Answer側)かをWebSocketのメッセージフック、
+						// あるいはpeerConnection自体のローカルディスクリプション作成有無で厳密に確定
+						p2p.peerConnection.addEventListener("negotiationneeded", () => {
+							// NegotiationNeededが自発的に走る＝自分が部屋を立てて待っている主（Player 1）
+							if (myPlayerNumber === null) myPlayerNumber = 1;
+						});
 						
-						// 相手からの接続を検知した側をPlayer2（以降）とする
-						const originalOnDataChannel = p2p.peerConnection.ondatachannel;
-						p2p.peerConnection.ondatachannel = (event) => {
-							myPlayerNumber = 2; 
-							if (originalOnDataChannel) originalOnDataChannel(event);
-						};
+						p2p.peerConnection.addEventListener("datachannel", (event) => {
+							// 相手からDataChannelが飛んでくる＝自分は後から部屋に入った側（Player 2）
+							myPlayerNumber = 2;
+						});
 					};
-
-					p2p._setupWebRTC();
 
 					p2p.onStatusChanged = (status) => {
 						if (status === "P2P直結完了 (超低遅延)") {
+							// もしどちらのイベントもすり抜けて判定がnullだった場合のセーフティ
+							if (myPlayerNumber === null) {
+								myPlayerNumber = (p2p.dataChannel && p2p.dataChannel.id === 0) ? 2 : 1;
+							}
+							
 							setTimeout(() => {
-								// 1人〜4人設定すべてにおいて、現在の自分のPlayer番号をフック
 								const maxUser = parseInt(userElem.value);
 								if (myPlayerNumber > maxUser) {
-									myPlayerNumber = maxUser; // 設定人数上限を超えないようセーフティ
+									myPlayerNumber = maxUser; 
 								}
 								showOverlay(`⚡ 通信対戦開始！ あなたは <span style="color:${color[myPlayerNumber]}">Player ${myPlayerNumber}</span> です。`, true);
 								start();
@@ -549,7 +552,6 @@
 					}
 					renderFooter();
 
-					// 1人（CPUモード）かつ、現在の手番がCPU（本来いないPlayer2など）であれば自動シミュレーション
 					if (user == 1 && player !== 1 && validList.length > 0) {
 						setTimeout(() => {
 							const randomMove = validList[Math.floor(Math.random() * validList.length)];
@@ -570,7 +572,6 @@
 							else if(row == num / 2){ colClone[row-1] = 1; colClone[row] = 2; }
 							map.push(colClone);
 						}
-						// 1人プレイの場合は内部的にダミーのPlayer2と対戦させる構造にします
 						if(user == "1") user = 2; 
 					} else if(user == "3"){
 						for(let row = 0; row < num; row++){
@@ -623,7 +624,6 @@
 				canvas.addEventListener("touchstart", (e) => {
 					e.preventDefault();
 
-					// オンライン時は自分の手番以外の入力を拒否
 					if (modeElem.value === "online" && p2p && myPlayerNumber !== null && player !== myPlayerNumber) {
 						return; 
 					}
