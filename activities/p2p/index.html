@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>P2P 超低遅延・フレーム誤差計測テスト</title>
+        <style>
+            body { font-family: sans-serif; margin: 20px; background: #eceff1; color: #333; }
+            .container { max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .status { padding: 10px; margin: 10px 0; border-radius: 4px; font-weight: bold; text-align: center; }
+            .disconnected { background: #ffebee; color: #c62828; }
+            .connected { background: #e8f5e9; color: #2e7d32; }
+            .result-panel { background: #f5f5f5; border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 15px 0; }
+            .metric { font-size: 24px; font-weight: bold; color: #1565c0; }
+            .log-box { background: #263238; color: #00e676; padding: 15px; border-radius: 4px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 13px; }
+            button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; }
+            button:disabled { cursor: not-allowed; opacity: 0.6; }
+            #sendBtn { background: #1e88e5; color: white; border: none; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+
+        <div class="container">
+            <h2>P2P フレーム誤差・レイテンシ計測</h2>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="roomId">ルームID: </label>
+                <input type="text" id="roomId" value="latency-test-room" style="padding: 5px; font-size: 16px;">
+                <button id="connectBtn">接続</button>
+            </div>
+
+            <div id="statusLabel" class="status disconnected">状態: 未接続</div>
+
+            <div class="result-panel">
+                <h3>直近の受信データ誤差</h3>
+                <div>通信遅延 (ミリ秒): <span id="msValue" class="metric">--</span> ms</div>
+                <div>誤差フレーム数 (1f = 16.67ms): <span id="frameValue" class="metric" style="color: #e53935;">--</span> f</div>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <button id="sendBtn" disabled>シグナル送信（誤差を計測）</button>
+            </div>
+
+            <h4>通信ログ</h4>
+            <div id="log" class="log-box"></div>
+        </div>
+
+        <script>
+            const SERVER_URL = "signaling-server-dman.onrender.com";
+            let ws = null;
+            let peerConnection = null;
+            let dataChannel = null;
+
+            const connectBtn = document.getElementById('connectBtn');
+            const sendBtn = document.getElementById('sendBtn');
+            const statusLabel = document.getElementById('statusLabel');
+            const logBox = document.getElementById('log');
+            const roomIdInput = document.getElementById('roomId');
+            
+            const msValue = document.getElementById('msValue');
+            const frameValue = document.getElementById('frameValue');
+
+            function log(message) {
+                logBox.innerHTML += `[${new Date().toLocaleTimeString()}] ${message}<br>`;
+                logBox.scrollTop = logBox.scrollHeight;
+            }
+
+            // 1. シグナリングサーバー（Render）へ接続
+            connectBtn.addEventListener('click', () => {
+                const roomId = roomIdInput.value.trim();
+                if (!roomId) return alert("ルームIDを入力してください");
+
+                connectBtn.disabled = true;
+                roomIdInput.disabled = true;
+                
+                ws = new WebSocket(`wss://${SERVER_URL}/ws/${roomId}`);
+                log(`シグナリング開始... Room: ${roomId}`);
+
+                setupSignaling();
+            });
+
+            // 2. シグナリング処理（登録・交渉・接続決定）
+            function setupSignaling() {
+                ws.onopen = () => {
+                    statusLabel.textContent = "状態: マッチング待機中";
+                    setupWebRTC();
+                };
+
+                ws.onmessage = async (event) => {
+                    const message = JSON.parse(event.data);
+
+                    if (message.type === 'ready') {
+                        log("相手を検出。P2P接続要求（Offer）を送信します。");
+                        createOffer();
+                    } 
+                    else if (message.type === 'offer') {
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp));
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+                        ws.send(JSON.stringify({ type: 'answer', sdp: answer }));
+                    } 
+                    else if (message.type === 'answer') {
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp));
+                    } 
+                    else if (message.type === 'candidate') {
+                        if (message.candidate) {
+                            await peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate));
+                        }
+                    }
+                };
+            }
+
+            // 3. WebRTC基盤 ＆ 最速UDPデータチャネルの構築
+            function setupWebRTC() {
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+                    }
+                };
+
+                // 順番無視・再送なし（UDPモード）
+                dataChannel = peerConnection.createDataChannel("latencyChannel", {
+                    ordered: false,
+                    maxRetransmits: 0
+                });
+                
+                setupDataChannelEvents(dataChannel);
+
+                peerConnection.ondatachannel = (event) => {
+                    dataChannel = event.channel;
+                    setupDataChannelEvents(dataChannel);
+                };
+            }
+
+            // 4. P2P開通後のイベント ＆ 誤差計算ロジック
+            function setupDataChannelEvents(channel) {
+                channel.onopen = () => {
+                    statusLabel.textContent = "状態: P2P直結完了 (超低遅延)";
+                    statusLabel.className = "status connected";
+                    sendBtn.disabled = false;
+                    log("⚡ P2Pの直結に成功しました。サーバーから切断し直接通信します。");
+                    ws.close(); 
+                };
+
+                // ★データ受信時：ここで相手との時間差（誤差フレーム）を瞬時に計算
+                channel.onmessage = (event) => {
+                    const now = performance.now(); // 受信時の超精密タイムスタンプ
+                    const data = JSON.parse(event.data);
+                    
+                    // 送信時と受信時の差分（ミリ秒）を計算
+                    const latencyMs = now - data.sentAt;
+                    
+                    // 1フレーム = 16.666...ms (60fps換算) としてフレーム誤差を算出
+                    const errorFrame = latencyMs / (1000 / 60);
+
+                    // 画面の数値を更新（小数点以下2桁まで表示）
+                    msValue.textContent = latencyMs.toFixed(2);
+                    frameValue.textContent = errorFrame.toFixed(2);
+
+                    log(`🎯 【受信】 誤差: ${latencyMs.toFixed(1)}ms (${errorFrame.toFixed(1)}f)`);
+                };
+            }
+
+            async function createOffer() {
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                ws.send(JSON.stringify({ type: 'offer', sdp: offer }));
+            }
+
+            // 5. ボタンを押した「その瞬間」の時間を記録して相手に投げる
+            sendBtn.addEventListener('click', () => {
+                if (dataChannel && dataChannel.readyState === 'open') {
+                    const payload = {
+                        sentAt: performance.now() // ブラウザ起動からの高精度ミリ秒を取得
+                    };
+                    dataChannel.send(JSON.stringify(payload));
+                    log("🚀 シグナルを送信しました...");
+                }
+            });
+        </script>
+
+    </body>
+</html>
