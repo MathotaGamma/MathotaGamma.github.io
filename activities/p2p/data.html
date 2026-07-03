@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P データ送受信デモ</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+    .box { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+    .status { font-weight: bold; color: #0066cc; }
+    textarea { width: 100%; height: 80px; margin-bottom: 10px; resize: none; }
+    #log { height: 150px; overflow-y: scroll; background: #f9f9f9; border: 1px solid #ddd; padding: 10px; font-family: monospace; }
+  </style>
+</head>
+<body>
+
+  <h2>P2P DataChannel デモ</h2>
+
+  <div class="box">
+    <div>現在の状態: <span id="status-label" class="status">IDLE</span></div>
+    <div style="margin-top: 10px;">
+      <button id="connect-btn">接続開始</button>
+      <button id="disconnect-btn" disabled>切断</button>
