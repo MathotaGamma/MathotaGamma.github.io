@@ -801,79 +801,94 @@
           renderMyPlayerBadge();
         }
 
-        window.connectOnline = () => {
-          const roomId = roomIdInputElem.value.trim();
-          if (!roomId) {
-            showOverlay("部屋IDを入力してください。");
-            return;
-          }
+window.connectOnline = () => {
+  const roomId = roomIdInputElem.value.trim();
+  if (!roomId) {
+    showOverlayLocal("部屋IDを入力してください。");
+    return;
+  }
 
-          if (p2p) p2p.disconnect();
+  if (p2p && (
+    p2p.status === P2PManager.STATUS.WAITING ||
+    p2p.status === P2PManager.STATUS.CONNECTING ||
+    p2p.status === P2PManager.STATUS.CONNECTED
+  )) {
+    console.log("[connectOnline] すでに有効な接続処理中のため、新たな接続をスキップしました。");
+    return;
+  }
 
-          p2p = new P2PManager(SIGNALING_SERVER_URL, roomId);
-          isHost = false;
-          myPlayer = null;
-          connectedPeerCount = 1;
-          updateConnectingOverlay(P2PManager.STATUS.WAITING);
+  if (p2p) p2p.disconnect();
 
-          // "ready"シグナル(相手が既に部屋にいた場合)を受け取った側がオファーを送る=ホスト
-          // 相手のofferを受け取った側がゲスト、というP2PManagerの挙動に合わせて判定する
-          let offerReceived = false;
+  // ICEサーバーの設定
+  const iceServers = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun.ekiga.net" }
+  ];
 
-          const originalConnect = p2p._setupSignaling.bind(p2p);
-          p2p._setupSignaling = () => {
-            originalConnect();
-            const originalOnMessage = p2p.ws.onmessage;
-            p2p.ws.onmessage = async (event) => {
-              const message = JSON.parse(event.data);
-              alert(JSON.stringify(message));
-              if (message.count == 1) {
-                isHost = true;
-                myPlayer = 1;
-              } else if (message.count >= 2 && !offerReceived) {
-                offerReceived = true;
-                isHost = false;
-                myPlayer = message.count;
-              }
-              await originalOnMessage(event);
-            };
-          };
+  // クラスの引数に合わせてオプションを渡す
+  p2p = new P2PManager(SIGNALING_SERVER_URL, roomId, { 
+    mode: "reliable",
+    iceServers: iceServers // クラス内の this.iceServers = options.iceServers にマッピングされます
+  });
 
-          p2p.onStatusChanged = (status) => {
-            connectionStatusElem.textContent = statusLabel(status);
+  // 初期状態のリセット
+  isHost = false;
+  myPlayer = null;
+  connectedPeerCount = 1;
+  updateConnectingOverlay(P2PManager.STATUS.WAITING);
 
-            if (status === P2PManager.STATUS.CONNECTED) {
-              connectedPeerCount = 2;
-              startButtonElem.disabled = !isHost;
-              userElem.disabled = !isHost;
-              sizeElem.disabled = !isHost;
-              updateExtinctControlState();
+  // 💡 クラス側が welcome / ready を自律的に処理するため、
+  // ここにあった `p2p._setupSignaling` のハック処理（モンキーパッチ）は完全に削除しました。
 
-              if (isHost) {
-                start(); // ホストが初期盤面を作成し、相手へ配信する
-              }
-              renderMyPlayerBadge();
-            }
+  p2p.onStatusChanged = (status) => {
+    connectionStatusElem.textContent = statusLabel(status);
 
-            if (status === P2PManager.STATUS.DISCONNECTED) {
-              connectedPeerCount = 1;
-              showOverlay("相手との接続が切断されました。");
-            }
+    // 接続完了時、クラス側で確定したホスト/プレイヤー情報をアプリ側に同期
+    if (status === P2PManager.STATUS.CONNECTED) {
+      isHost = p2p.isHost;          // クラスが判定した結果を代入
+      myPlayer = p2p.playerNumber;  // 1 または 2 を代入
+      
+      connectedPeerCount = 2;
+      startButtonElem.disabled = !isHost;
+      userElem.disabled = !isHost;
+      sizeElem.disabled = !isHost;
+      updateExtinctControlState();
 
-            updateConnectingOverlay(status);
-          };
+      if (isHost) {
+        start();
+      }
+      renderMyPlayerBadge();
+    }
 
-          p2p.onMessage = (payload) => {
-            applyFullState(payload);
-          };
+    if (status === P2PManager.STATUS.DISCONNECTED) {
+      connectedPeerCount = 1;
+      showOverlayLocal("相手との接続が切断されました。");
+    }
 
-          p2p.onError = (message, detail) => {
-            console.error(message, detail);
-            showOverlay(message);
-          };
+    updateConnectingOverlay(status);
+  };
 
-          p2p.connect();
-        };
+  p2p.onMessage = (payload) => {
+    if (payload.kind === "data") {
+      applyFullState(payload.data);
+    } else if (payload.kind === "overlay") {
+      if (payload.data.reason === "overlay_show") {
+        showOverlayLocal(payload.data.text);
+      } else if (payload.data.reason === "overlay_close") {
+        closeOverlayLocal();
+      }
+    }
+  };
+
+  p2p.onError = (message, detail) => {
+    console.error(message, detail);
+    showOverlayLocal(message);
+  };
+
+  p2p.connect();
+};
 
         function statusLabel(status) {
           switch (status) {
