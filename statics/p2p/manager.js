@@ -25,7 +25,7 @@ export default class P2PManager {
     this.roomId = roomId;
     this.iceServers = options.iceServers || [{ urls: "stun:stun.l.google.com:19302" }];
     
-    // ★コンストラクタのみでモードを受け取り保持（デフォルトは "fast"）
+    // モードを受け取り保持（デフォルトは "fast"）
     this.mode = options.mode || "fast";
 
     this.ws = null;
@@ -34,6 +34,10 @@ export default class P2PManager {
     
     // 初期状態の設定
     this.status = P2PManager.STATUS.IDLE;
+
+    // --- プレイヤー特定用のプロパティ（v2対応） ---
+    this.playerNumber = null;         // 1: 1人目(Host), 2: 2人目(Guest)
+    this.isHost = false;              // 自分がホスト（1人目の入室者）かどうか
 
     // --- 外部通知用コールバック関数 ---
     this.onStatusChanged = null;     // ステータス変更時
@@ -45,7 +49,6 @@ export default class P2PManager {
 
   /**
    * シグナリングサーバーおよびWebRTCの接続を開始します
-   * （既にインスタンスが存在、または接続中の場合はエラー防止のため安全にスキップ・再初期化します）
    */
   connect() {
     if (this.status !== P2PManager.STATUS.IDLE && this.status !== P2PManager.STATUS.DISCONNECTED) {
@@ -53,7 +56,7 @@ export default class P2PManager {
       return;
     }
 
-    // 既存リソースを完全に解放して初期化（シグナリングエラーの撲滅）
+    // 既存リソースを完全に解放して初期化
     this._clearResources();
 
     this._setupWebRTC();
@@ -73,6 +76,9 @@ export default class P2PManager {
    * 内部メソッド：接続リソースの完全なクリア
    */
   _clearResources() {
+    this.playerNumber = null;
+    this.isHost = false;
+
     if (this.dataChannel) {
       try { this.dataChannel.close(); } catch(e) {}
       this.dataChannel = null;
@@ -95,7 +101,6 @@ export default class P2PManager {
    */
   sendData(customData) {
     if (this.dataChannel && this.dataChannel.readyState === "open") {
-      // 以前のコードと全く同じ、余計なkeyが入らない純粋な送信処理
       this.dataChannel.send(JSON.stringify({
         type: "user_data",
         payload: customData
@@ -127,12 +132,26 @@ export default class P2PManager {
     this.ws.onmessage = async (event) => {
       try {
         const message = JSON.parse(event.data);
-        if (message.type === "ready") {
+
+        // 【新仕様】サーバー入室時の初期通知
+        if (message.type === "welcome") {
+          this.playerNumber = message.count;
+          this.isHost = (message.count === 1);
+          console.log(`[P2PManager] ルームに入室しました。プレイヤー番号: ${this.playerNumber} (Host: ${this.isHost})`);
+
+          // 自分が2人目の場合、1人目（ホスト）に接続準備完了（ready）を通知してWebRTCを開始させる
+          if (this.playerNumber === 2) {
+            this.ws.send(JSON.stringify({ type: "ready" }));
+          }
+        } 
+        // 2人目が入室したシグナルを1人目（ホスト）が受信したとき
+        else if (message.type === "ready") {
           this._updateStatus(P2PManager.STATUS.CONNECTING);
           // Offer（送信）側が指定のモードでデータチャネルを作成
           this._createDataChannel();
           await this._createOffer();
-        } else if (message.type === "offer") {
+        } 
+        else if (message.type === "offer") {
           this._updateStatus(P2PManager.STATUS.CONNECTING);
           await this.peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp));
           const answer = await this.peerConnection.createAnswer();
@@ -140,9 +159,11 @@ export default class P2PManager {
           if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ type: "answer", sdp: answer }));
           }
-        } else if (message.type === "answer") {
+        } 
+        else if (message.type === "answer") {
           await this.peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp));
-        } else if (message.type === "candidate" && message.candidate) {
+        } 
+        else if (message.type === "candidate" && message.candidate) {
           await this.peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate));
         }
       } catch (err) {
@@ -185,10 +206,8 @@ export default class P2PManager {
     let dcOptions = {};
 
     if (this.mode === "reliable") {
-      // 【正確さ優先モード】 順序を保証、到達を100%保証（TCP互換）
       dcOptions = { ordered: true };
     } else {
-      // 【超低遅延モード (fast)】 順序保証なし・再送なし（UDP互換）
       dcOptions = { ordered: false, maxRetransmits: 0 };
     }
 
@@ -216,7 +235,7 @@ export default class P2PManager {
       let data;
       try { data = JSON.parse(event.data); } catch (err) { return; }
 
-      // --- 遅延測定処理（サブ機能） ---
+      // --- 遅延測定処理 ---
       if (data.type === "ping") {
         channel.send(JSON.stringify({ type: "pong", sentAt: data.sentAt }));
       } else if (data.type === "pong") {
@@ -228,7 +247,7 @@ export default class P2PManager {
           this.onLatencyCalculated(oneWayLatency, errorFrame);
         }
       } 
-      // --- 汎用データ処理（メイン機能） ---
+      // --- 汎用データ処理 ---
       else if (data.type === "user_data") {
         if (this.onMessage) this.onMessage(data.payload);
       }
