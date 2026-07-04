@@ -16,12 +16,17 @@ export default class P2PManager {
   /**
    * @param {string} serverUrl - シグナリングサーバーのURL
    * @param {string} roomId - 接続対象のルームID
-   * @param {Object} [options={}] - 接続オプション（ICEサーバー設定など）
+   * @param {Object} [options={}] - 接続オプション
+   * @param {"fast"|"reliable"} [options.mode="fast"] - 通信モードの指定
+   * @param {Array} [options.iceServers] - カスタムICEサーバー設定
    */
   constructor(serverUrl, roomId, options = {}) {
     this.serverUrl = serverUrl;
     this.roomId = roomId;
     this.iceServers = options.iceServers || [{ urls: "stun:stun.l.google.com:19302" }];
+    
+    // ★コンストラクタのみでモードを受け取り保持（デフォルトは "fast"）
+    this.mode = options.mode || "fast";
 
     this.ws = null;
     this.peerConnection = null;
@@ -40,8 +45,17 @@ export default class P2PManager {
 
   /**
    * シグナリングサーバーおよびWebRTCの接続を開始します
+   * （既にインスタンスが存在、または接続中の場合はエラー防止のため安全にスキップ・再初期化します）
    */
   connect() {
+    if (this.status !== P2PManager.STATUS.IDLE && this.status !== P2PManager.STATUS.DISCONNECTED) {
+      console.warn("[P2PManager] 既に接続処理中、または接続が完了しています。");
+      return;
+    }
+
+    // 既存リソースを完全に解放して初期化（シグナリングエラーの撲滅）
+    this._clearResources();
+
     this._setupWebRTC();
     this.ws = new WebSocket(`wss://${this.serverUrl}/ws/${this.roomId}`);
     this._setupSignaling();
@@ -51,19 +65,37 @@ export default class P2PManager {
    * すべての接続を明示的に終了し、リソースを解放します
    */
   disconnect() {
-    if (this.dataChannel) { this.dataChannel.close(); this.dataChannel = null; }
-    if (this.peerConnection) { this.peerConnection.close(); this.peerConnection = null; }
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.close();
-    this.ws = null;
+    this._clearResources();
     this._updateStatus(P2PManager.STATUS.IDLE);
   }
 
   /**
+   * 内部メソッド：接続リソースの完全なクリア
+   */
+  _clearResources() {
+    if (this.dataChannel) {
+      try { this.dataChannel.close(); } catch(e) {}
+      this.dataChannel = null;
+    }
+    if (this.peerConnection) {
+      try { this.peerConnection.close(); } catch(e) {}
+      this.peerConnection = null;
+    }
+    if (this.ws) {
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        try { this.ws.close(); } catch(e) {}
+      }
+      this.ws = null;
+    }
+  }
+
+  /**
    * メイン機能：相手クライアントへ任意のデータを送信します
-   * @param {*} customData - 送信するデータ（オブジェクト、文字列、数値など）
+   * @param {*} customData - 送信するデータ
    */
   sendData(customData) {
     if (this.dataChannel && this.dataChannel.readyState === "open") {
+      // 以前のコードと全く同じ、余計なkeyが入らない純粋な送信処理
       this.dataChannel.send(JSON.stringify({
         type: "user_data",
         payload: customData
@@ -87,7 +119,6 @@ export default class P2PManager {
     this.ws.onopen = () => this._updateStatus(P2PManager.STATUS.WAITING);
     this.ws.onerror = (event) => this._notifyError("シグナリングサーバーとの通信でエラーが発生しました", event);
     this.ws.onclose = () => {
-      // P2P接続が既に成功している場合は、シグナリングサーバーの切断を正常系として扱います
       if (this.status !== P2PManager.STATUS.CONNECTED) {
         this._updateStatus(P2PManager.STATUS.DISCONNECTED);
       }
@@ -98,6 +129,7 @@ export default class P2PManager {
         const message = JSON.parse(event.data);
         if (message.type === "ready") {
           this._updateStatus(P2PManager.STATUS.CONNECTING);
+          // Offer（送信）側が指定のモードでデータチャネルを作成
           this._createDataChannel();
           await this._createOffer();
         } else if (message.type === "offer") {
@@ -105,7 +137,9 @@ export default class P2PManager {
           await this.peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp));
           const answer = await this.peerConnection.createAnswer();
           await this.peerConnection.setLocalDescription(answer);
-          this.ws.send(JSON.stringify({ type: "answer", sdp: answer }));
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: "answer", sdp: answer }));
+          }
         } else if (message.type === "answer") {
           await this.peerConnection.setRemoteDescription(new RTCSessionDescription(message.sdp));
         } else if (message.type === "candidate" && message.candidate) {
@@ -137,6 +171,7 @@ export default class P2PManager {
       }
     };
     
+    // Answer（受信）側は送られてきたデータチャネルをそのまま受け取る
     this.peerConnection.ondatachannel = (event) => {
       this.dataChannel = event.channel;
       this._setupDataChannelEvents(this.dataChannel);
@@ -144,14 +179,20 @@ export default class P2PManager {
   }
 
   /**
-   * 内部メソッド：Offer側におけるデータチャネルの生成
+   * 内部メソッド：Offer側におけるデータチャネルの生成（指定モードによる分岐）
    */
   _createDataChannel() {
-    // リアルタイム性を最優先とするため、順序保証なし・再送なし（UDP互換モード）で生成
-    this.dataChannel = this.peerConnection.createDataChannel("latencyChannel", {
-      ordered: false,
-      maxRetransmits: 0,
-    });
+    let dcOptions = {};
+
+    if (this.mode === "reliable") {
+      // 【正確さ優先モード】 順序を保証、到達を100%保証（TCP互換）
+      dcOptions = { ordered: true };
+    } else {
+      // 【超低遅延モード (fast)】 順序保証なし・再送なし（UDP互換）
+      dcOptions = { ordered: false, maxRetransmits: 0 };
+    }
+
+    this.dataChannel = this.peerConnection.createDataChannel("p2pDataChannel", dcOptions);
     this._setupDataChannelEvents(this.dataChannel);
   }
 
@@ -161,7 +202,6 @@ export default class P2PManager {
   _setupDataChannelEvents(channel) {
     channel.onopen = () => {
       this._updateStatus(P2PManager.STATUS.CONNECTED);
-      // P2P直結が成功したため、シグナリングサーバー（WebSocket）から安全に切断します
       if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.close();
     };
     
@@ -174,12 +214,7 @@ export default class P2PManager {
 
     channel.onmessage = (event) => {
       let data;
-      try { 
-        data = JSON.parse(event.data); 
-      } catch (err) { 
-        this._notifyError("受信データの解析に失敗しました", err);
-        return; 
-      }
+      try { data = JSON.parse(event.data); } catch (err) { return; }
 
       // --- 遅延測定処理（サブ機能） ---
       if (data.type === "ping") {
@@ -187,7 +222,7 @@ export default class P2PManager {
       } else if (data.type === "pong") {
         const now = performance.now();
         const oneWayLatency = (now - data.sentAt) / 2;
-        const errorFrame = oneWayLatency / (1000 / 60); // 60FPS換算におけるズレフレーム数
+        const errorFrame = oneWayLatency / (1000 / 60);
 
         if (this.onLatencyCalculated) {
           this.onLatencyCalculated(oneWayLatency, errorFrame);
@@ -207,7 +242,9 @@ export default class P2PManager {
     try {
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
-      this.ws.send(JSON.stringify({ type: "offer", sdp: offer }));
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: "offer", sdp: offer }));
+      }
     } catch (err) { 
       this._notifyError("オファーの作成に失敗しました", err); 
     }
