@@ -808,6 +808,15 @@
             return;
           }
 
+          if (p2p && (
+            p2p.status === P2PManager.STATUS.WAITING ||
+            p2p.status === P2PManager.STATUS.CONNECTING ||
+            p2p.status === P2PManager.STATUS.CONNECTED
+          )) {
+            console.log("[connectOnline] すでに有効な接続処理中のため、新たな接続をスキップしました。");
+            return;
+          }
+
           if (p2p) p2p.disconnect();
 
           p2p = new P2PManager(SIGNALING_SERVER_URL, roomId);
