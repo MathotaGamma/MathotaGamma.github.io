@@ -13,15 +13,30 @@
         height: 100%;
         margin: 0;
         padding: 0;
+        overflow: hidden;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
       }
 
       header {
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
+        flex-shrink: 0;
         width: 100vw;
-        min-height: 40px;
         background: grey;
-        padding: 4px 0px 4px 10px;
+        padding: 4px 10px;
+        box-sizing: border-box;
+        gap: 4px;
+      }
+
+      .headerRow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2px;
       }
 
       .label {
@@ -61,6 +76,48 @@
         font-size: 14px;
       }
 
+      #myPlayerBadge {
+        margin: auto 0px auto 10px;
+        color: white;
+        font-family: sans-serif;
+        font-size: 14px;
+        display: none;
+      }
+
+      #main {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        position: relative;
+      }
+
+      #boardArea {
+        flex: 1 1 auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 0;
+      }
+
+      #canvas {
+        display: block;
+      }
+
+      footer {
+        flex-shrink: 0;
+        width: 100vw;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 10px;
+        justify-content: center;
+        align-items: center;
+        font-family: sans-serif;
+        border-top: 1px solid black;
+        box-sizing: border-box;
+      }
+
       #overlay-button {
         border: none;
         height: 25px;
@@ -90,47 +147,38 @@
         max-width: 80vw;
       }
 
-      #canvas {
+      #connectingOverlay {
+        display: none;
         position: absolute;
-        transform: translate(-50%, -50%);
-        left: 50%;
-        top: 50%;
-        margin: 0;
-      }
-
-      #footer {
-        position: absolute;
-        bottom: 0px;
-        width: 100vw;
-        height: 20px;
-        display: flex;
-        gap: 10px;
-        padding: 10px;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        z-index: 900;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
+        color: white;
         font-family: sans-serif;
-        border: 1px solid black;
+        text-align: center;
+        gap: 12px;
       }
 
-      #myPlayerBadge {
-        position: absolute;
-        top: 45px;
-        left: 10px;
-        font-family: sans-serif;
-        background: rgba(255,255,255,0.85);
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 14px;
-        display: none;
+      #connectingOverlay .spinnerText {
+        font-size: 18px;
+      }
+
+      #connectingOverlay .peerCount {
+        font-size: 15px;
+        opacity: 0.9;
       }
     </style>
   </head>
   <body>
     <header>
-      <div>
+      <div class="headerRow">
         <nav class="breadcrumb" data-bg-color="rgba( 255, 255, 255, 0.3)"></nav>
-      </div>
-      <div>
         <span class="label">モード:</span>
         <select id="modeSelect">
           <option value="local">ローカル(1台)</option>
@@ -162,17 +210,30 @@
           <option selected>なし</option>
         </select>
         <input type="button" value="新規開始" id="startButton" onclick="start();">
+        <input type="button" value="遊び方" id="explain" onclick="explain();">
       </div>
-      <div id="onlinePanel" style="display: none;">
+      <div class="headerRow" id="onlinePanel" style="display: none;">
         <span class="label">部屋ID:</span>
         <input type="text" id="roomIdInput" placeholder="room123">
         <input type="button" value="接続" id="connectButton" onclick="connectOnline();">
         <span id="connectionStatus">未接続</span>
-      </div>
-      <div>
-        <input type="button" value="遊び方" id="explain" onclick="explain();">
+        <span id="myPlayerBadge"></span>
       </div>
     </header>
+
+    <div id="main">
+      <div id="boardArea">
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <!-- 通信対戦中の操作不可オーバーレイ -->
+      <div id="connectingOverlay">
+        <div class="spinnerText" id="connectingOverlayText">相手の接続を待っています…</div>
+        <div class="peerCount" id="peerCountText">接続人数: 1人</div>
+      </div>
+    </div>
+
+    <footer id="footer"></footer>
 
     <!-- オーバーレイ -->
     <div id="overlay">
@@ -188,13 +249,8 @@
       </div>
     </div>
 
-    <canvas id="canvas"></canvas>
-    <div id="myPlayerBadge"></div>
-
-    <footer id="footer"></footer>
-
     <script type="module">
-      import P2PManager from "https://mathotagamma.github.io/statics/p2p/manager.js";
+      import P2PManager from "./p2p-manager_v3.js";
 
       const COLORS = {
         1: "black",
@@ -203,8 +259,8 @@
         4: "#0000cc",
       };
 
-      // 通信時のシグナリングサーバーURL
-      const SIGNALING_SERVER_URL = "signaling-server-dman.onrender.com";
+      // 通信対戦時のシグナリングサーバーURL(環境に合わせて変更してください)
+      const SIGNALING_SERVER_URL = "your-signaling-server.example.com";
 
       window.onload = () => {
         const canvas = document.getElementById("canvas");
@@ -222,8 +278,12 @@
         const connectionStatusElem = document.getElementById("connectionStatus");
         const startButtonElem = document.getElementById("startButton");
         const myPlayerBadgeElem = document.getElementById("myPlayerBadge");
+        const boardAreaElem = document.getElementById("boardArea");
+        const connectingOverlayElem = document.getElementById("connectingOverlay");
+        const connectingOverlayTextElem = document.getElementById("connectingOverlayText");
+        const peerCountTextElem = document.getElementById("peerCountText");
 
-        const l = Math.min(innerWidth, innerHeight) - 100;
+        let l = Math.min(boardAreaElem.clientWidth, boardAreaElem.clientHeight) - 20;
         canvas.width = l;
         canvas.height = l;
         const ctx = canvas.getContext("2d");
@@ -244,6 +304,21 @@
         let p2p = null;             // P2PManagerインスタンス
         let myPlayer = null;        // 通信対戦時、自分が担当するプレイヤー番号
         let isHost = false;         // 通信対戦時、部屋を作成した側(ホスト)かどうか
+        let connectedPeerCount = 1; // 通信対戦時、現在部屋に接続している人数(自分を含む)
+
+        function updateConnectingOverlay(status) {
+          if (mode !== "online" || status === P2PManager.STATUS.CONNECTED) {
+            connectingOverlayElem.style.display = "none";
+            return;
+          }
+          connectingOverlayElem.style.display = "flex";
+          connectingOverlayTextElem.textContent =
+            status === P2PManager.STATUS.WAITING ? "相手の接続を待っています…" :
+            status === P2PManager.STATUS.CONNECTING ? "接続処理中…" :
+            status === P2PManager.STATUS.DISCONNECTED ? "接続が切断されました" :
+            "通信対戦の準備をしています…";
+          peerCountTextElem.textContent = "接続人数: " + connectedPeerCount + "人";
+        }
 
         function showOverlay(html) {
           overlayTextElem.innerHTML = html;
@@ -672,17 +747,20 @@
             p2p = null;
             myPlayer = null;
             isHost = false;
+            connectedPeerCount = 1;
             connectionStatusElem.textContent = "未接続";
             startButtonElem.disabled = false;
             userElem.disabled = false;
             sizeElem.disabled = false;
             updateExtinctControlState();
             renderMyPlayerBadge();
+            updateConnectingOverlay(P2PManager.STATUS.IDLE);
           } else {
             // オンラインモードでは、接続完了までは開始・設定変更を無効化
             startButtonElem.disabled = true;
             userElem.disabled = true;
             sizeElem.disabled = true;
+            updateConnectingOverlay(P2PManager.STATUS.IDLE);
           }
         });
 
@@ -735,6 +813,8 @@
           p2p = new P2PManager(SIGNALING_SERVER_URL, roomId);
           isHost = false;
           myPlayer = null;
+          connectedPeerCount = 1;
+          updateConnectingOverlay(P2PManager.STATUS.WAITING);
 
           // "ready"シグナル(相手が既に部屋にいた場合)を受け取った側がオファーを送る=ホスト
           // 相手のofferを受け取った側がゲスト、というP2PManagerの挙動に合わせて判定する
@@ -762,6 +842,7 @@
             connectionStatusElem.textContent = statusLabel(status);
 
             if (status === P2PManager.STATUS.CONNECTED) {
+              connectedPeerCount = 2;
               startButtonElem.disabled = !isHost;
               userElem.disabled = !isHost;
               sizeElem.disabled = !isHost;
@@ -774,8 +855,11 @@
             }
 
             if (status === P2PManager.STATUS.DISCONNECTED) {
+              connectedPeerCount = 1;
               showOverlay("相手との接続が切断されました。");
             }
+
+            updateConnectingOverlay(status);
           };
 
           p2p.onMessage = (payload) => {
@@ -800,6 +884,14 @@
             default: return status;
           }
         }
+
+        window.addEventListener("resize", () => {
+          l = Math.min(boardAreaElem.clientWidth, boardAreaElem.clientHeight) - 20;
+          canvas.width = l;
+          canvas.height = l;
+          r = l / num;
+          view();
+        });
 
         start();
       };
