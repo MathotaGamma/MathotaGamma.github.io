@@ -819,7 +819,7 @@
 
           if (p2p) p2p.disconnect();
 
-          p2p = new P2PManager(SIGNALING_SERVER_URL, roomId);
+          p2p = new P2PManager(SIGNALING_SERVER_URL, roomId, { mode: "reliable" });
           isHost = false;
           myPlayer = null;
           connectedPeerCount = 1;
