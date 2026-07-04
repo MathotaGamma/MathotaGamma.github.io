@@ -32,28 +32,6 @@
         gap: 4px;
       }
 
-      #main {
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        position: relative;
-      }
-
-      footer {
-        flex-shrink: 0; 
-        width: 100vw;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        padding: 10px;
-        justify-content: center;
-        align-items: center;
-        font-family: sans-serif;
-        border-top: 1px solid black;
-        box-sizing: border-box;
-      }
-
       .headerRow {
         display: flex;
         flex-wrap: wrap;
@@ -106,6 +84,14 @@
         display: none;
       }
 
+      #main {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        position: relative;
+      }
+
       #boardArea {
         flex: 1 1 auto;
         display: flex;
@@ -116,6 +102,20 @@
 
       #canvas {
         display: block;
+      }
+
+      footer {
+        flex-shrink: 0;
+        width: 100vw;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 10px;
+        justify-content: center;
+        align-items: center;
+        font-family: sans-serif;
+        border-top: 1px solid black;
+        box-sizing: border-box;
       }
 
       #overlay-button {
@@ -226,6 +226,7 @@
         <canvas id="canvas"></canvas>
       </div>
 
+      <!-- 通信対戦中の操作不可オーバーレイ -->
       <div id="connectingOverlay">
         <div class="spinnerText" id="connectingOverlayText">相手の接続を待っています…</div>
         <div class="peerCount" id="peerCountText">接続人数: 1人</div>
@@ -234,6 +235,7 @@
 
     <footer id="footer"></footer>
 
+    <!-- オーバーレイ -->
     <div id="overlay">
       <div id="overlay-area">
         <div id="overlay-text">
@@ -248,7 +250,7 @@
     </div>
 
     <script type="module">
-      import P2PManager from "https://mathotagamma.github.io/statics/p2p/manager.js";
+      import P2PManager from "./p2p-manager_v3.js";
 
       const COLORS = {
         1: "black",
@@ -257,7 +259,8 @@
         4: "#0000cc",
       };
 
-      const SIGNALING_SERVER_URL = "signaling-server-dman.onrender.com";
+      // 通信対戦時のシグナリングサーバーURL(環境に合わせて変更してください)
+      const SIGNALING_SERVER_URL = "your-signaling-server.example.com";
 
       window.onload = () => {
         const canvas = document.getElementById("canvas");
@@ -285,21 +288,23 @@
         canvas.height = l;
         const ctx = canvas.getContext("2d");
 
+        // ---- ゲーム状態 ----
         let map = [];
         let validList = [];
         let assist = true;
-        let extinctAllowed = false;
-        let user = 3;
-        let num = 8;
+        let extinctAllowed = false; // 「全滅」あり/なし
+        let user = 3;               // プレイヤー人数(数値)
+        let num = 8;                // 盤面サイズ(数値)
         let r = l / num;
-        let player = 1;
-        let extinctList = [];
+        let player = 1;             // 現在の手番プレイヤー番号
+        let extinctList = [];       // 全滅済みプレイヤー番号のリスト
 
-        let mode = "local";
-        let p2p = null;
-        let myPlayer = null;
-        let isHost = false;
-        let connectedPeerCount = 1;
+        // ---- 通信対戦の状態 ----
+        let mode = "local";         // "local" | "online"
+        let p2p = null;             // P2PManagerインスタンス
+        let myPlayer = null;        // 通信対戦時、自分が担当するプレイヤー番号
+        let isHost = false;         // 通信対戦時、部屋を作成した側(ホスト)かどうか
+        let connectedPeerCount = 1; // 通信対戦時、現在部屋に接続している人数(自分を含む)
 
         function updateConnectingOverlay(status) {
           if (mode !== "online" || status === P2PManager.STATUS.CONNECTED) {
@@ -315,35 +320,16 @@
           peerCountTextElem.textContent = "接続人数: " + connectedPeerCount + "人";
         }
 
-        // 💡 相手に送信せず、自分の画面だけにダイアログを出す安全な内部関数
-        function showOverlayLocal(html) {
+        function showOverlay(html) {
           overlayTextElem.innerHTML = html;
           overlayElem.style.display = "flex";
         }
 
-        // 💡 ゲーム進行上「相手にも見せたい通知」を出すときだけこの関数を呼ぶ
-        function showOverlay(html) {
-          showOverlayLocal(html); // まず自分に出す
-
-          if (mode === "online" && p2p) {
-            broadcast("overlay_show", { kind: "overlay", overlayText: html });
-          }
-        }
-
-        // 💡 OKボタンを押して閉じる処理
         window.closeOverlay = () => {
           overlayElem.style.display = "none";
-          // 閉じる動作も同期（片方が閉じたら両方閉じる）
-          if (mode === "online" && p2p) {
-            broadcast("overlay_close", { kind: "overlay", overlayText: "" });
-          }
         };
 
-        // 💡 個別で閉じたい（または受信側が安全に閉じる）ための関数
-        function closeOverlayLocal() {
-          overlayElem.style.display = "none";
-        }
-
+        // 現在ゲームに参加している(全滅していない)プレイヤー番号一覧
         function activePlayers() {
           const list = [];
           for (let p = 1; p <= user; p++) {
@@ -431,9 +417,8 @@
           myPlayerBadgeElem.textContent = "あなたは Player" + myPlayer + " (" + COLORS[myPlayer] + ")";
         }
 
-        // 💡 遊び方は完全に「個別」表示。相手の画面を邪魔しないようshowOverlayLocalを使う
         window.explain = () => {
-          showOverlayLocal(`このゲームは2～4人で遊べるオセロ風ゲームです。<br>
+          showOverlay(`このゲームは2～4人で遊べるオセロ風ゲームです。<br>
 ・プレイヤーは順番に空きマスに自分の石を置き、縦・横・斜めで相手の石を挟むと自分の色に変えられます。<br>
   ・人数を変更すると、<span style="color: #700">盤面がリセット</span>されます。<br>
   ・「全滅」"あり"の場合、<span style="color: #700">3人以上でのプレイでは、置いた結果、他プレイヤーの石がなくなる場所には置けません。</span><br>
@@ -443,6 +428,7 @@
   ・部屋を作成した側がホストとなり、盤面設定(人数・サイズなど)を管理します。`);
         };
 
+        // (x, y) に forPlayer が石を置いた場合に反転する石の座標一覧を返す
         function stonesToFlip(x, y, forPlayer) {
           const dx = [-1, 0, 1, -1, 1, -1, 0, 1];
           const dy = [-1, -1, -1, 0, 0, 1, 1, 1];
@@ -468,6 +454,7 @@
           return flips;
         }
 
+        // 配置可能かどうかを判定する。可能なら反転する石の配列、不可能なら理由の文字列を返す
         function checkStone(x, y, forPlayer) {
           if (map[y][x] !== 0) return "すでに置かれているため配置できません。";
 
@@ -508,6 +495,7 @@
           for (const [fx, fy] of flips) map[fy][fx] = player;
         }
 
+        // 石が0個になったプレイヤーを全滅リストへ追加する
         function updateExtinctList() {
           for (const p of activePlayers()) {
             const remaining = map.flat().filter((v) => v === p).length;
@@ -541,6 +529,8 @@
           showOverlay(result);
         }
 
+        // 手番を次の「配置可能な、全滅していないプレイヤー」へ進める
+        // 誰も置ける場所がない場合はゲームを終了する
         function next() {
           const active = activePlayers();
           if (active.length === 0) {
@@ -568,6 +558,7 @@
             skipped.push(candidate);
           }
 
+          // 全員が配置不可
           showOverlay("置く場所がないため、終了します。");
           finish();
         }
@@ -635,6 +626,7 @@
           renderMyPlayerBadge();
         }
 
+        // ローカル/オンライン共通の開始処理(オンラインではホストのみ実行可)
         window.start = () => {
           if (mode === "online" && !isHost) return;
 
@@ -644,7 +636,7 @@
           init();
 
           if (mode === "online" && p2p) {
-            broadcast("init");
+            broadcastFullState("init");
           }
         };
 
@@ -660,17 +652,17 @@
           view();
 
           if (mode === "online" && p2p) {
-            broadcast("settings");
+            broadcastFullState("settings");
           }
         });
 
         sizeElem.addEventListener("change", () => {
-          if (mode === "online" && !isHost) return;
+          if (mode === "online" && !isHost) return; // 参加者側は盤面設定を変更できない
           start();
         });
 
         userElem.addEventListener("change", () => {
-          if (mode === "online" && !isHost) return;
+          if (mode === "online" && !isHost) return; // 参加者側は盤面設定を変更できない
 
           if (userElem.value === "2") {
             sizeElem.innerHTML = `
@@ -706,8 +698,7 @@
         function attemptMove(x, y) {
           const ret = check(x, y);
           if (typeof ret === "string") {
-            // 💡 置けない理由の警告ポップアップは自分だけの個別の通知にする
-            showOverlayLocal(ret);
+            showOverlay(ret);
             return;
           }
 
@@ -717,13 +708,14 @@
           view();
 
           if (mode === "online" && p2p) {
-            broadcast("move");
+            broadcastFullState("move");
           }
         }
 
         function handlePointer(clientX, clientY) {
+          // 通信対戦時は自分の手番以外は操作できない
           if (mode === "online" && player !== myPlayer) {
-            showOverlayLocal("自分の手番ではありません。");
+            showOverlay("自分の手番ではありません。");
             return;
           }
 
@@ -741,6 +733,10 @@
         canvas.addEventListener("click", (e) => {
           handlePointer(e.clientX, e.clientY);
         });
+
+        // ==== ここから通信対戦(P2P)関連 ====
+        // 方式: ホスト(部屋の作成者)が盤面の唯一の権威(Source of Truth)を持ち、
+        // 自分の手番の操作のみ許可され、操作結果を毎回相手へ全送信する簡易同期方式です。
 
         modeSelectElem.addEventListener("change", () => {
           mode = modeSelectElem.value;
@@ -760,6 +756,7 @@
             renderMyPlayerBadge();
             updateConnectingOverlay(P2PManager.STATUS.IDLE);
           } else {
+            // オンラインモードでは、接続完了までは開始・設定変更を無効化
             startButtonElem.disabled = true;
             userElem.disabled = true;
             sizeElem.disabled = true;
@@ -767,31 +764,19 @@
           }
         });
 
-        function broadcast(reason, {kind="data", overlayText=""}={}) {
-          if (kind === "data") {
-            p2p.sendData({
-              kind,
-              data: {
-                reason,
-                user,
-                num,
-                assist,
-                extinctAllowed,
-                map,
-                player,
-                extinctList,
-                validList
-              }
-            });
-          } else if(kind === "overlay") {
-            p2p.sendData({
-              kind,
-              data: {
-                reason,
-                text: overlayText
-              }
-            });
-          }
+        // 盤面の全状態を相手に送る(ホストが権威を持つ簡易同期方式)
+        function broadcastFullState(reason) {
+          p2p.sendData({
+            reason,
+            user,
+            num,
+            assist,
+            extinctAllowed,
+            map,
+            player,
+            extinctList,
+            validList,
+          });
         }
 
         function applyFullState(state) {
@@ -819,43 +804,20 @@
         window.connectOnline = () => {
           const roomId = roomIdInputElem.value.trim();
           if (!roomId) {
-            showOverlayLocal("部屋IDを入力してください。");
-            return;
-          }
-
-          if (p2p && (
-            p2p.status === P2PManager.STATUS.WAITING ||
-            p2p.status === P2PManager.STATUS.CONNECTING ||
-            p2p.status === P2PManager.STATUS.CONNECTED
-          )) {
-            console.log("[connectOnline] すでに有効な接続処理中のため、新たな接続をスキップしました。");
+            showOverlay("部屋IDを入力してください。");
             return;
           }
 
           if (p2p) p2p.disconnect();
 
-          // 💡 どんなライブラリ構造でもSTUNサーバーが適用されるよう、想定されるすべてのプロパティ名で設定を注入します
-          const iceConfig = {
-            iceServers: [
-              { urls: "stun:stun.l.google.com:19302" },
-              { urls: "stun:stun1.l.google.com:19302" },
-              { urls: "stun:stun2.l.google.com:19302" },
-              { urls: "stun:stun.ekiga.net" }
-            ]
-          };
-
-          p2p = new P2PManager(SIGNALING_SERVER_URL, roomId, { 
-            mode: "reliable",
-            config: iceConfig,
-            rtcConfiguration: iceConfig,
-            peerConnectionConfig: iceConfig
-          });
-
+          p2p = new P2PManager(SIGNALING_SERVER_URL, roomId);
           isHost = false;
           myPlayer = null;
           connectedPeerCount = 1;
           updateConnectingOverlay(P2PManager.STATUS.WAITING);
 
+          // "ready"シグナル(相手が既に部屋にいた場合)を受け取った側がオファーを送る=ホスト
+          // 相手のofferを受け取った側がゲスト、というP2PManagerの挙動に合わせて判定する
           let offerReceived = false;
 
           const originalConnect = p2p._setupSignaling.bind(p2p);
@@ -864,13 +826,14 @@
             const originalOnMessage = p2p.ws.onmessage;
             p2p.ws.onmessage = async (event) => {
               const message = JSON.parse(event.data);
-              if (message.type === "ready") {
+              alert(JSON.stringify(message));
+              if (message.count == 1) {
                 isHost = true;
                 myPlayer = 1;
-              } else if (message.type === "offer" && !offerReceived) {
+              } else if (message.count >= 2 && !offerReceived) {
                 offerReceived = true;
                 isHost = false;
-                myPlayer = 2;
+                myPlayer = message.count;
               }
               await originalOnMessage(event);
             };
@@ -887,34 +850,26 @@
               updateExtinctControlState();
 
               if (isHost) {
-                start();
+                start(); // ホストが初期盤面を作成し、相手へ配信する
               }
               renderMyPlayerBadge();
             }
 
             if (status === P2PManager.STATUS.DISCONNECTED) {
               connectedPeerCount = 1;
-              showOverlayLocal("相手との接続が切断されました。");
+              showOverlay("相手との接続が切断されました。");
             }
 
             updateConnectingOverlay(status);
           };
 
           p2p.onMessage = (payload) => {
-            if (payload.kind === "data") {
-              applyFullState(payload.data);
-            } else if (payload.kind === "overlay") {
-              if (payload.data.reason === "overlay_show") {
-                showOverlayLocal(payload.data.text);
-              } else if (payload.data.reason === "overlay_close") {
-                closeOverlayLocal();
-              }
-            }
+            applyFullState(payload);
           };
 
           p2p.onError = (message, detail) => {
             console.error(message, detail);
-            showOverlayLocal(message);
+            showOverlay(message);
           };
 
           p2p.connect();
