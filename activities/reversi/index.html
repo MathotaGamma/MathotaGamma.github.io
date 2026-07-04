@@ -834,17 +834,23 @@
 
           if (p2p) p2p.disconnect();
 
-          p2p = new P2PManager(SIGNALING_SERVER_URL, roomId, { mode: "reliable" });
-          p2p = new P2PManager(SIGNALING_SERVER_URL, roomId, {
-              mode: "reliable",
-              rtcConfiguration: {
-                iceServers: [
-                  { urls: "stun:stun.l.google.com:19302" },
-                  { urls: "stun:stun1.l.google.com:19302" },
-                  { urls: "stun:stun2.l.google.com:19302" }
-                ]
-              }
-            });
+          // 💡 どんなライブラリ構造でもSTUNサーバーが適用されるよう、想定されるすべてのプロパティ名で設定を注入します
+          const iceConfig = {
+            iceServers: [
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:stun1.l.google.com:19302" },
+              { urls: "stun:stun2.l.google.com:19302" },
+              { urls: "stun:stun.ekiga.net" }
+            ]
+          };
+
+          p2p = new P2PManager(SIGNALING_SERVER_URL, roomId, { 
+            mode: "reliable",
+            config: iceConfig,
+            rtcConfiguration: iceConfig,
+            peerConnectionConfig: iceConfig
+          });
+
           isHost = false;
           myPlayer = null;
           connectedPeerCount = 1;
@@ -898,7 +904,6 @@
             if (payload.kind === "data") {
               applyFullState(payload.data);
             } else if (payload.kind === "overlay") {
-              // 💡 受信時は再送（ループ）させないよう、ローカル関数を直接叩く
               if (payload.data.reason === "overlay_show") {
                 showOverlayLocal(payload.data.text);
               } else if (payload.data.reason === "overlay_close") {
