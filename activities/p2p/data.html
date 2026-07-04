@@ -21,3 +21,161 @@
     <div style="margin-top: 10px;">
       <button id="connect-btn">接続開始</button>
       <button id="disconnect-btn" disabled>切断</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <h3>データの送信 (メイン機能)</h3>
+    <textarea id="message-input" placeholder="送信するテキストを入力してください..." disabled></textarea>
+    <button id="send-btn" disabled>データを送信</button>
+  </div>
+
+  <div class="box">
+    <h3>遅延測定 (サブ機能)</h3>
+    <button id="ping-btn" disabled>Pingを送信 (単発)</button>
+    <div style="margin-top: 5px;">
+      片道遅延: <span id="latency-label">--</span> ms / 
+      ズレ: <span id="frame-label">--</span> フレーム
+    </div>
+  </div>
+
+  <h3>通信ログ</h3>
+  <div id="log"></div>
+
+  <script type="module">
+    import P2PManager from 'https://mathotagamma.github.io/statics/p2p/manager.js';
+
+    // 接続設定（環境に合わせて書き換えてください）
+    const SERVER_URL = "signaling-server-dman.onrender.com";
+    const ROOM_ID = "html-demo-room";
+
+    let p2p = null;
+    let pingInterval = null;
+
+    // HTML要素の取得
+    const connectBtn = document.getElementById("connect-btn");
+    const disconnectBtn = document.getElementById("disconnect-btn");
+    const sendBtn = document.getElementById("send-btn");
+    const pingBtn = document.getElementById("ping-btn");
+    const messageInput = document.getElementById("message-input");
+    const statusLabel = document.getElementById("status-label");
+    const latencyLabel = document.getElementById("latency-label");
+    const frameLabel = document.getElementById("frame-label");
+    const logDiv = document.getElementById("log");
+
+    // ログ出力用ユーティリティ
+    function appendLog(text) {
+      const p = document.createElement("p");
+      p.style.margin = "4px 0";
+      p.innerText = `[${new Date().toLocaleTimeString()}] ${text}`;
+      logDiv.appendChild(p);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    // 「接続開始」ボタンのイベント
+    connectBtn.addEventListener("click", () => {
+      p2p = new P2PManager(SERVER_URL, ROOM_ID);
+
+      // 1. 状態変化の監視
+      p2p.onStatusChanged = (status) => {
+        statusLabel.innerText = status;
+        appendLog(`ステータス変更: ${status}`);
+
+        // 接続完了（CONNECTED）時のUI活性化制御
+        if (status === P2PManager.STATUS.CONNECTED) {
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          sendBtn.disabled = false;
+          pingBtn.disabled = false;
+          messageInput.disabled = false;
+
+          // 自動で遅延測定を行う場合は、ここでタイマーを起動することも可能です
+          // pingInterval = setInterval(() => p2p.sendPing(), 2000);
+        } else if (status === P2PManager.STATUS.DISCONNECTED || status === P2PManager.STATUS.IDLE) {
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          sendBtn.disabled = true;
+          pingBtn.disabled = true;
+          messageInput.disabled = true;
+          
+          if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+        }
+      };
+
+      // 2. メイン機能：汎用データの受信
+      p2p.onMessage = (data) => {
+        appendLog(`相手から受信: ${data.text}`);
+      };
+
+      // 3. サブ機能：遅延測定結果の受信
+      p2p.onLatencyCalculated = (latencyMs, errorFrame) => {
+        latencyLabel.innerText = latencyMs.toFixed(1);
+        frameLabel.innerText = errorFrame.toFixed(1);
+        appendLog(`遅延計測完了: ${latencyMs.toFixed(1)}ms`);
+      };
+
+      // 4. エラーと切断のハンドリング
+      p2p.onError = (message, detail) => {
+  let errorReason = "";
+
+  if (detail instanceof Error) {
+    // 標準的な例外エラー（コードのタイポなど）の場合
+    errorReason = `${detail.name}: ${detail.message}`;
+  } else if (detail instanceof Event) {
+    // WebSocketやWebRTCなどのブラウザイベントの場合
+    errorReason = detail.target?.constructor?.name || "Unknown Event";
+    
+    // 特定のイベント（WebSocketのクローズなど）でコードがある場合
+    if ('code' in detail) errorReason += ` (Code: ${detail.code})`;
+    if ('reason' in detail && detail.reason) errorReason += ` - ${detail.reason}`;
+  } else if (typeof detail === 'object') {
+    errorReason = JSON.stringify(detail);
+  } else {
+    errorReason = String(detail);
+  }
+
+  // 画面のログに出力
+  appendLog(`【エラー】 ${message} [詳細: ${errorReason}]`);
+  
+  // デベロッパーツールのコンソールにはオブジェクトのまま流すとツリー展開して見られます
+  console.error(message, detail);
+};
+
+      p2p.onDisconnected = (reason) => {
+        appendLog(`切断されました (原因: ${reason})`);
+      };
+
+      // 接続処理の実行
+      p2p.connect();
+      appendLog("シグナリングサーバーへ接続を試みています...");
+    });
+
+    // 「切断」ボタンのイベント
+    disconnectBtn.addEventListener("click", () => {
+      if (p2p) {
+        p2p.disconnect();
+        appendLog("明示的に切断しました。");
+      }
+    });
+
+    // 「データを送信」ボタンのイベント (メイン機能)
+    sendBtn.addEventListener("click", () => {
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      // 相手にオブジェクト形式でデータを送信
+      p2p.sendData({ text: text });
+      appendLog(`自分から送信: ${text}`);
+      messageInput.value = "";
+    });
+
+    // 「Pingを送信」ボタンのイベント (サブ機能)
+    pingBtn.addEventListener("click", () => {
+      if (p2p) {
+        p2p.sendPing();
+        appendLog("Pingを送信しました...");
+      }
+    });
+  </script>
+</body>
+</html>
