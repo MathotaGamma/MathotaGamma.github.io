@@ -74,7 +74,8 @@
 
     // 「接続開始」ボタンのイベント
     connectBtn.addEventListener("click", () => {
-      p2p = new P2PManager(SERVER_URL, ROOM_ID);
+      const status_pre = p2p ? p2p.status : null;
+      if (status_pre !== P2PManager.STATUS.CONNECTING) p2p = new P2PManager(SERVER_URL, ROOM_ID);
 
       // 1. 状態変化の監視
       p2p.onStatusChanged = (status) => {
@@ -146,8 +147,10 @@
       };
 
       // 接続処理の実行
-      p2p.connect();
-      appendLog("シグナリングサーバーへ接続を試みています...");
+      if (status_pre !== P2PManager.STATUS.CONNECTING) {
+        p2p.connect();
+        appendLog("シグナリングサーバーへ接続を試みています...");
+      }
     });
 
     // 「切断」ボタンのイベント
