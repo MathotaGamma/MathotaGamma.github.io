@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="2～4人で遊べるリバーシのブラウザゲーム。複数人対応、短時間で楽しめるゲームを公開しています。">
+    <meta name="description" content="2～4人で遊べるリバーシのブラウザゲーム。ローカル対戦・オンライン対戦(P2P)の両方に対応しています。">
     <title>Reversi</title>
     <link rel="stylesheet" href="/statics/main-style.css" />
     <script type="module" src="/statics/main-script.js"></script>
@@ -16,12 +16,12 @@
       }
 
       header {
-        display: -webkit-flex;
         display: flex;
+        flex-wrap: wrap;
         width: 100vw;
-        height: 40px;
+        min-height: 40px;
         background: grey;
-        padding: 0px 0px 0px 10px;
+        padding: 4px 0px 4px 10px;
       }
 
       .label {
@@ -45,9 +45,20 @@
         background: #dd2500;
       }
 
-      #home {
-        color: black;
-        background: #5ccca0;
+      #roomIdInput {
+        width: 120px;
+      }
+
+      #connectButton {
+        color: white;
+        background: #2266cc;
+      }
+
+      #connectionStatus {
+        margin: auto 0px auto 10px;
+        color: white;
+        font-family: sans-serif;
+        font-size: 14px;
       }
 
       #overlay-button {
@@ -66,7 +77,6 @@
         height: 100%;
         background: rgba(0,0,0,0.5);
         z-index: 1000;
-        display: flex;
         justify-content: center;
         align-items: center;
       }
@@ -77,6 +87,7 @@
         border-radius: 8px;
         text-align: center;
         font-size: 18px;
+        max-width: 80vw;
       }
 
       #canvas {
@@ -100,6 +111,18 @@
         font-family: sans-serif;
         border: 1px solid black;
       }
+
+      #myPlayerBadge {
+        position: absolute;
+        top: 45px;
+        left: 10px;
+        font-family: sans-serif;
+        background: rgba(255,255,255,0.85);
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 14px;
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -108,6 +131,11 @@
         <nav class="breadcrumb" data-bg-color="rgba( 255, 255, 255, 0.3)"></nav>
       </div>
       <div>
+        <span class="label">モード:</span>
+        <select id="modeSelect">
+          <option value="local">ローカル(1台)</option>
+          <option value="online">通信対戦</option>
+        </select>
         <span class="label">user:</span>
         <select id="userNum">
           <option>2</option>
@@ -133,7 +161,13 @@
           <option>あり</option>
           <option selected>なし</option>
         </select>
-        <input type="button" value="新規開始" onclick="start();">
+        <input type="button" value="新規開始" id="startButton" onclick="start();">
+      </div>
+      <div id="onlinePanel" style="display: none;">
+        <span class="label">部屋ID:</span>
+        <input type="text" id="roomIdInput" placeholder="room123">
+        <input type="button" value="接続" id="connectButton" onclick="connectOnline();">
+        <span id="connectionStatus">未接続</span>
       </div>
       <div>
         <input type="button" value="遊び方" id="explain" onclick="explain();">
@@ -155,16 +189,22 @@
     </div>
 
     <canvas id="canvas"></canvas>
+    <div id="myPlayerBadge"></div>
 
     <footer id="footer"></footer>
 
-    <script>
+    <script type="module">
+      import P2PManager from "./p2p-manager_v3.js";
+
       const COLORS = {
         1: "black",
         2: "white",
         3: "#cc0000",
         4: "#0000cc",
       };
+
+      // 通信対戦時のシグナリングサーバーURL(環境に合わせて変更してください)
+      const SIGNALING_SERVER_URL = "your-signaling-server.example.com";
 
       window.onload = () => {
         const canvas = document.getElementById("canvas");
@@ -176,6 +216,12 @@
         const footerElem = document.getElementById("footer");
         const overlayElem = document.getElementById("overlay");
         const overlayTextElem = document.getElementById("overlay-text");
+        const modeSelectElem = document.getElementById("modeSelect");
+        const onlinePanelElem = document.getElementById("onlinePanel");
+        const roomIdInputElem = document.getElementById("roomIdInput");
+        const connectionStatusElem = document.getElementById("connectionStatus");
+        const startButtonElem = document.getElementById("startButton");
+        const myPlayerBadgeElem = document.getElementById("myPlayerBadge");
 
         const l = Math.min(innerWidth, innerHeight) - 100;
         canvas.width = l;
@@ -192,6 +238,12 @@
         let r = l / num;
         let player = 1;             // 現在の手番プレイヤー番号
         let extinctList = [];       // 全滅済みプレイヤー番号のリスト
+
+        // ---- 通信対戦の状態 ----
+        let mode = "local";         // "local" | "online"
+        let p2p = null;             // P2PManagerインスタンス
+        let myPlayer = null;        // 通信対戦時、自分が担当するプレイヤー番号
+        let isHost = false;         // 通信対戦時、部屋を作成した側(ホスト)かどうか
 
         function showOverlay(html) {
           overlayTextElem.innerHTML = html;
@@ -212,9 +264,9 @@
         }
 
         function updateExtinctControlState() {
-          const disabled = user === 2;
-          extinctLabelElem.style.opacity = disabled ? "0.2" : "1";
-          extinctElem.style.opacity = disabled ? "0.2" : "1";
+          const disabled = user === 2 || (mode === "online" && !isHost);
+          extinctLabelElem.style.opacity = user === 2 ? "0.2" : "1";
+          extinctElem.style.opacity = user === 2 ? "0.2" : "1";
           extinctElem.disabled = disabled;
         }
 
@@ -234,7 +286,7 @@
             ctx.stroke();
           }
 
-          if (assist) {
+          if (assist && (mode === "local" || player === myPlayer)) {
             ctx.strokeStyle = COLORS[player];
             for (const [x, y] of validList) {
               ctx.beginPath();
@@ -281,13 +333,24 @@
           }
         }
 
+        function renderMyPlayerBadge() {
+          if (mode !== "online" || myPlayer === null) {
+            myPlayerBadgeElem.style.display = "none";
+            return;
+          }
+          myPlayerBadgeElem.style.display = "block";
+          myPlayerBadgeElem.textContent = "あなたは Player" + myPlayer + " (" + COLORS[myPlayer] + ")";
+        }
+
         window.explain = () => {
           showOverlay(`このゲームは2～4人で遊べるオセロ風ゲームです。<br>
 ・プレイヤーは順番に空きマスに自分の石を置き、縦・横・斜めで相手の石を挟むと自分の色に変えられます。<br>
   ・人数を変更すると、<span style="color: #700">盤面がリセット</span>されます。<br>
   ・「全滅」"あり"の場合、<span style="color: #700">3人以上でのプレイでは、置いた結果、他プレイヤーの石がなくなる場所には置けません。</span><br>
   ・「全滅」を"なし"にした場合、置ける場所がない場合は手番がスキップされます。<br>
-  ・全員が置ける場所を失した時点でゲームは終了し、石の数が最も多いプレイヤーが勝利です。`);
+  ・全員が置ける場所を失した時点でゲームは終了し、石の数が最も多いプレイヤーが勝利です。<br><br>
+  ・「通信対戦」を選ぶと、同じ部屋IDを入力した相手とオンラインで対戦できます。<br>
+  ・部屋を作成した側がホストとなり、盤面設定(人数・サイズなど)を管理します。`);
         };
 
         // (x, y) に forPlayer が石を置いた場合に反転する石の座標一覧を返す
@@ -414,6 +477,7 @@
                 showOverlay("player" + p + "は配置できる場所がないため、スキップします。");
               }
               renderFooter();
+              renderMyPlayerBadge();
               return;
             }
             skipped.push(candidate);
@@ -484,13 +548,21 @@
           validList = hasValidMove(player);
           view();
           renderFooter();
+          renderMyPlayerBadge();
         }
 
+        // ローカル/オンライン共通の開始処理(オンラインではホストのみ実行可)
         window.start = () => {
+          if (mode === "online" && !isHost) return;
+
           user = parseInt(userElem.value, 10);
           num = parseInt(sizeElem.value, 10);
           r = l / num;
           init();
+
+          if (mode === "online" && p2p) {
+            broadcastFullState("init");
+          }
         };
 
         assistElem.addEventListener("change", (e) => {
@@ -499,17 +571,24 @@
         });
 
         extinctElem.addEventListener("change", (e) => {
-          if (user === 2) return;
+          if (user === 2 || (mode === "online" && !isHost)) return;
           extinctAllowed = e.target.value === "あり";
           validList = hasValidMove(player);
           view();
+
+          if (mode === "online" && p2p) {
+            broadcastFullState("settings");
+          }
         });
 
         sizeElem.addEventListener("change", () => {
+          if (mode === "online" && !isHost) return; // 参加者側は盤面設定を変更できない
           start();
         });
 
         userElem.addEventListener("change", () => {
+          if (mode === "online" && !isHost) return; // 参加者側は盤面設定を変更できない
+
           if (userElem.value === "2") {
             sizeElem.innerHTML = `
               <option>6</option>
@@ -541,11 +620,7 @@
           start();
         });
 
-        function handlePointer(clientX, clientY) {
-          const rect = canvas.getBoundingClientRect();
-          const x = Math.floor((clientX - rect.left) / r);
-          const y = Math.floor((clientY - rect.top) / r);
-
+        function attemptMove(x, y) {
           const ret = check(x, y);
           if (typeof ret === "string") {
             showOverlay(ret);
@@ -556,6 +631,23 @@
           updateExtinctList();
           next();
           view();
+
+          if (mode === "online" && p2p) {
+            broadcastFullState("move");
+          }
+        }
+
+        function handlePointer(clientX, clientY) {
+          // 通信対戦時は自分の手番以外は操作できない
+          if (mode === "online" && player !== myPlayer) {
+            showOverlay("自分の手番ではありません。");
+            return;
+          }
+
+          const rect = canvas.getBoundingClientRect();
+          const x = Math.floor((clientX - rect.left) / r);
+          const y = Math.floor((clientY - rect.top) / r);
+          attemptMove(x, y);
         }
 
         canvas.addEventListener("touchstart", (e) => {
@@ -566,6 +658,148 @@
         canvas.addEventListener("click", (e) => {
           handlePointer(e.clientX, e.clientY);
         });
+
+        // ==== ここから通信対戦(P2P)関連 ====
+        // 方式: ホスト(部屋の作成者)が盤面の唯一の権威(Source of Truth)を持ち、
+        // 自分の手番の操作のみ許可され、操作結果を毎回相手へ全送信する簡易同期方式です。
+
+        modeSelectElem.addEventListener("change", () => {
+          mode = modeSelectElem.value;
+          onlinePanelElem.style.display = mode === "online" ? "flex" : "none";
+
+          if (mode === "local") {
+            if (p2p) p2p.disconnect();
+            p2p = null;
+            myPlayer = null;
+            isHost = false;
+            connectionStatusElem.textContent = "未接続";
+            startButtonElem.disabled = false;
+            userElem.disabled = false;
+            sizeElem.disabled = false;
+            updateExtinctControlState();
+            renderMyPlayerBadge();
+          } else {
+            // オンラインモードでは、接続完了までは開始・設定変更を無効化
+            startButtonElem.disabled = true;
+            userElem.disabled = true;
+            sizeElem.disabled = true;
+          }
+        });
+
+        // 盤面の全状態を相手に送る(ホストが権威を持つ簡易同期方式)
+        function broadcastFullState(reason) {
+          p2p.sendData({
+            reason,
+            user,
+            num,
+            assist,
+            extinctAllowed,
+            map,
+            player,
+            extinctList,
+            validList,
+          });
+        }
+
+        function applyFullState(state) {
+          user = state.user;
+          num = state.num;
+          r = l / num;
+          assist = state.assist;
+          extinctAllowed = state.extinctAllowed;
+          map = state.map;
+          player = state.player;
+          extinctList = state.extinctList;
+          validList = state.validList;
+
+          userElem.value = String(user);
+          sizeElem.value = String(num);
+          assistElem.value = assist ? "あり" : "なし";
+          extinctElem.value = extinctAllowed ? "あり" : "なし";
+          updateExtinctControlState();
+
+          view();
+          renderFooter();
+          renderMyPlayerBadge();
+        }
+
+        window.connectOnline = () => {
+          const roomId = roomIdInputElem.value.trim();
+          if (!roomId) {
+            showOverlay("部屋IDを入力してください。");
+            return;
+          }
+
+          if (p2p) p2p.disconnect();
+
+          p2p = new P2PManager(SIGNALING_SERVER_URL, roomId);
+          isHost = false;
+          myPlayer = null;
+
+          // "ready"シグナル(相手が既に部屋にいた場合)を受け取った側がオファーを送る=ホスト
+          // 相手のofferを受け取った側がゲスト、というP2PManagerの挙動に合わせて判定する
+          let offerReceived = false;
+
+          const originalConnect = p2p._setupSignaling.bind(p2p);
+          p2p._setupSignaling = () => {
+            originalConnect();
+            const originalOnMessage = p2p.ws.onmessage;
+            p2p.ws.onmessage = async (event) => {
+              const message = JSON.parse(event.data);
+              if (message.type === "ready") {
+                isHost = true;
+                myPlayer = 1;
+              } else if (message.type === "offer" && !offerReceived) {
+                offerReceived = true;
+                isHost = false;
+                myPlayer = 2;
+              }
+              await originalOnMessage(event);
+            };
+          };
+
+          p2p.onStatusChanged = (status) => {
+            connectionStatusElem.textContent = statusLabel(status);
+
+            if (status === P2PManager.STATUS.CONNECTED) {
+              startButtonElem.disabled = !isHost;
+              userElem.disabled = !isHost;
+              sizeElem.disabled = !isHost;
+              updateExtinctControlState();
+
+              if (isHost) {
+                start(); // ホストが初期盤面を作成し、相手へ配信する
+              }
+              renderMyPlayerBadge();
+            }
+
+            if (status === P2PManager.STATUS.DISCONNECTED) {
+              showOverlay("相手との接続が切断されました。");
+            }
+          };
+
+          p2p.onMessage = (payload) => {
+            applyFullState(payload);
+          };
+
+          p2p.onError = (message, detail) => {
+            console.error(message, detail);
+            showOverlay(message);
+          };
+
+          p2p.connect();
+        };
+
+        function statusLabel(status) {
+          switch (status) {
+            case P2PManager.STATUS.IDLE: return "未接続";
+            case P2PManager.STATUS.WAITING: return "マッチング待機中";
+            case P2PManager.STATUS.CONNECTING: return "接続中";
+            case P2PManager.STATUS.CONNECTED: return "接続完了";
+            case P2PManager.STATUS.DISCONNECTED: return "切断";
+            default: return status;
+          }
+        }
 
         start();
       };
