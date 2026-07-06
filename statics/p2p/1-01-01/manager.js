@@ -13,6 +13,8 @@ class Transmission {
     this.onJoin = null;
     this.onLeave = null;
     this.onDataReceived = null;
+    this.onLog = null;
+    this.onAssignedId = null;
     this.status = Transmission.STATUS.IDLE;
     this.myNumber = null;
     
@@ -35,7 +37,8 @@ class Transmission {
     }
     
     const onError = (message) => {
-      console.error(message);
+      if (this.onLog)
+        this.onLog('error', message);
       this.statusUpdate(Transmission.STATUS.DISCONNECTED);
     }
     
@@ -50,14 +53,17 @@ class Transmission {
     this.ws.onmessage = (event) => {
       if (event && event.data) {
         const data = JSON.parse(event.data);
-        console.log("受信したdata", event.data);
+        if (this.onLog)
+          this.onLog('debug', "受信したdata:\n"+event.data);
         
         // 入った人しか受信しない。
         if (data.type === "join") {
           this.myId = null;
           this.statusUpdate(Transmission.STATUS.WAITING);
           if (method === "p2p") {
-            console.log("myId", data.id);
+            if (this.onAssignedId) this.onAssignedId(data.id);
+            if (this.onLog)
+              this.onLog('debug', "myId: "+data.id);
             this.myId = data.id;
             
             this.tms = {};
@@ -134,7 +140,6 @@ class Transmission {
       this.tms[to].sendData(protocol, data);
     } else {
       for (const tm of Object.values(this.tms)) {
-        console.log(tm);
         tm.sendData(protocol, data);
       }
     }
@@ -252,11 +257,13 @@ Transmission.P2P = class {
       if (this.parent.onDataReceived) this.parent.onDataReceived(JSON.parse(event.data));
     }
     channel.onopen = () => {
-      console.log("from: "+this.parent.myId+", to: "+this.targetId+" ... channel opened.");
+      if (this.onLog)
+        this.onLog('debug', "from: "+this.parent.myId+", to: "+this.targetId+" ... channel opened.");
       this.parent.checkAllConnections();
     }
     channel.onclose = () => {
-      console.log(`${channel.label} がクローズしました。`);
+      if (this.onLog)
+        this.onLog('debug', `${channel.label} がクローズしました。`);
     }
   }
   
@@ -277,7 +284,8 @@ Transmission.P2P = class {
         }));
       }
     } catch(error) {
-      console.error("Offer 作成失敗")
+      if (this.onLog)
+        this.onLog('error', "Offer 作成失敗")
     }
   }
   
@@ -314,7 +322,8 @@ Transmission.P2P = class {
           sdp: answer
         }));
     } catch(error) {
-      console.error("Offerの処理に失敗しました:", error);
+      if (this.onLog)
+        this.onLog('error', "Offerの処理に失敗しました: "+error.message);
     }
   }
   
@@ -328,13 +337,12 @@ Transmission.P2P = class {
         await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       this.candidateQueue = [];
     } catch(error) {
-      console.error("Answerの処理に失敗しました:", error);
+      if (this.onLog)
+        this.onLog('error', "Answerの処理に失敗しました: "+error.message);
     }
   }
   
   async handleCandidate(data) {
-    console.log('candidate受信:', data.candidate);
-    
     // まだ相手のSDPを登録していなければ、キューに貯めて処理を抜ける
     if (!this.peerConnection.remoteDescription) {
       this.candidateQueue.push(data.candidate);
@@ -344,7 +352,8 @@ Transmission.P2P = class {
     try {
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
     } catch(error) {
-      console.error("Candidateの追加に失敗しました:", error);
+      if (this.onLog)
+        this.onLog('error', "Candidateの追加に失敗しました: "+error.message);
     }
   }
   
@@ -353,7 +362,8 @@ Transmission.P2P = class {
     if (channel && channel.readyState === "open") {
       channel.send(JSON.stringify(data));
     } else {
-      console.warn(`[${protocol}] チャネルがオープンしていないため、データを送信できませんでした。`);
+      if (this.onLog)
+        this.onLog('warn', `[${protocol}] チャネルがオープンしていないため、データを送信できませんでした。`);
     }
   }
 }
