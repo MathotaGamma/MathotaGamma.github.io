@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>P2P,FullMeshテスト</title>
+    <script src="/statics/p2p/1-01-01/manager.js"></script>
+  </head>
+  <body>
+    <input type="text" value="room" id="room"/>
+    <select id="type">
+      <option value="p2p" selected>P2P</option>
+      <option value="mesh">FullMesh</option>
+    </select>
+    <input type="button" value="接続" onclick="connect_onclick();" /><div id="status"></div><div id="number"></div><br>
+    <textarea id="data" placeholder="送信するデータ"></textarea><br>
+    <input type="button" value="送信" onclick="sendData_onclick();"/>
+    <textarea id="log" readonly></textarea>
+    <script>
+alert(Transmission);
+window.onload = () => {
+  let tm;
+  const logTextarea = document.getElementById('log');
+  const dataTextarea = document.getElementById('data');
+  const statusDiv = document.getElementById("status");
+  const typeSelect = document.getElementById('type');
+  
+  typeSelect.addEventListener('change', () => {
+    logTextarea.value += 'type changed: '+typeSelect.value+'\n';
+  })
+  
+  window.connect_onclick = () => {
+    if (tm) {
+      tm.clear();
+      tm = null;
+    }
+    tm = new Transmission("signaling-server-dman.onrender.com", document.getElementById('room').value);
+    statusDiv.innerHTML = tm.status;
+    tm.onStatusUpdate = (status) => {
+      statusDiv.innerHTML = status;
+    }
+    tm.connect(typeSelect.value);
+    
+    tm.onDataReceived = (data) => {
+      logTextarea.innerHTML += JSON.stringify(data);
+    }
+  }
+  
+  window.sendData_onclick = () => {
+    tm.sendData('udp', JSON.parse(dataTextarea.value));
+  }
+}
+    </script>
+  </body>
+</html>
