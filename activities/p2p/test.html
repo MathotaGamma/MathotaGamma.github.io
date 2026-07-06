@@ -41,7 +41,14 @@ window.onload = () => {
     tm.connect(typeSelect.value);
     
     tm.onDataReceived = (data) => {
-      logTextarea.innerHTML += JSON.stringify(data);
+      logTextarea.innerHTML += JSON.stringify(data)+'\n';
+    }
+
+    tm.onLog = (type, message) => {
+      logTextarea.innerHTML += message+'\n';
+    }
+    tm.onAssignedId = (id) => {
+      logTextarea.innerHTML += 'ID: '+id+'\n';
     }
   }
   
