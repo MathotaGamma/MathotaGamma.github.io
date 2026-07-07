@@ -12,7 +12,7 @@
       <option value="mesh">FullMesh</option>
     </select>
     <input type="button" value="接続" onclick="connect_onclick();" /><div id="status"></div><div id="number"></div><br>
-    <div id="my-id">My ID: </div><div id="connector-ids">connector IDs: </div>
+    <div id="my-id">My ID: ---</div><div id="connector-ids">connector IDs: ---</div>
     <textarea id="data" placeholder="送信するデータ※JSON形式で">{
   "text": "test"
 }</textarea><br>
@@ -38,6 +38,8 @@ window.onload = () => {
       tm = null;
     }
     tm = new Transmission("signaling-server-dman.onrender.com", document.getElementById('room').value);
+    document.getElementById('connector-ids').innerHTML = 'Connector IDs: ---';
+    document.getElementById('my-id').innerHTML = 'My ID: ---';
     statusDiv.innerHTML = tm.status;
     tm.onStatusUpdate = (status) => {
       statusDiv.innerHTML = status;
