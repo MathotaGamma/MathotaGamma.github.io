@@ -1,4 +1,4 @@
-class Transmission {
+export default class Transmission {
   static STATUS = {
     IDLE: "IDLE",
     PREPARING: "PREPARING",
@@ -110,13 +110,21 @@ class Transmission {
           }
         } else if (data.type === "error") {
           onError(data.message);
+          
         } else if (data.type === "new_peer") {
           const id = data.id;
+          
+          if (this.tms[id]) {
+            if (this.onLog)
+              this.onLog('debug', `leaveより先にnew_peerが届いたため、古いインスタンス[${id}]を強制クローズします。`);
+            this.tms[id].close();
+            delete this.tms[id];
+          }
+          
           const tm = new Transmission.P2P(this);
           this.tms[id] = tm;
           await tm.connect(id, false); 
-          if (this.onJoin)
-            this.onJoin(id);
+          if (this.onJoin) this.onJoin(id);
         } else if(data.type === "leave") {
           const id = data.id;
           
@@ -258,10 +266,19 @@ Transmission.P2P = class {
       if (state === "disconnected" || state === "failed") {
         if (!this.parent.tms[this.targetId]) return;
         
-        this.parent.statusUpdate(Transmission.STATUS.RECONNECTING);
-        
         if (this.parent.onLog)
           this.parent.onLog('warn', `[${this.targetId}] との通信が途絶しました（状態: ${state}）。`);
+        
+        const p2pInstances = Object.values(this.parent.tms);
+        const hasActiveIssue = p2pInstances.some(
+          tm => !tm.dataChannels
+                || tm.dataChannels.udp?.readyState !== "open"
+                || tm.dataChannels.tcp?.readyState !== "open"
+        );
+
+        if (hasActiveIssue) {
+          this.parent.statusUpdate(Transmission.STATUS.RECONNECTING);
+        }
       }
       
       // disconnectedの自動復旧ができなかった場合。
