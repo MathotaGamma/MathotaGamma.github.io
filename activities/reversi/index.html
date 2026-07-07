@@ -226,7 +226,6 @@
         <canvas id="canvas"></canvas>
       </div>
 
-      <!-- 通信対戦中の操作不可オーバーレイ -->
       <div id="connectingOverlay">
         <div class="spinnerText" id="connectingOverlayText">相手の接続を待っています…</div>
         <div class="peerCount" id="peerCountText">接続人数: 1人</div>
@@ -235,7 +234,6 @@
 
     <footer id="footer"></footer>
 
-    <!-- オーバーレイ -->
     <div id="overlay">
       <div id="overlay-area">
         <div id="overlay-text">
@@ -250,8 +248,8 @@
     </div>
 
     <script type="module">
-      // 最新のゾンビ対策入りマネージャーをインポート
-      import P2PManager from "https://mathotagamma.github.io/statics/p2p/1-01-02/manager.js";
+      // P2PManager から Transmission クラスに変更してインポート
+      import Transmission from "https://mathotagamma.github.io/statics/p2p/1-01-02/manager.js";
 
       const COLORS = {
         1: "black",
@@ -310,15 +308,15 @@
         let connectedPeerCount = 1; // 通信対戦時、現在部屋に接続している人数(自分を含む)
 
         function updateConnectingOverlay(status) {
-          if (mode !== "online" || status === "connected") {
+          if (mode !== "online" || status === "CONNECTED") {
             connectingOverlayElem.style.display = "none";
             return;
           }
           connectingOverlayElem.style.display = "flex";
           connectingOverlayTextElem.textContent =
-            status === "waiting" ? "相手の接続を待っています…" :
-            status === "connecting" ? "接続処理中…" :
-            status === "disconnected" ? "接続が切断されました" :
+            status === "WAITING" ? "相手の接続を待っています…" :
+            status === "CONNECTING" ? "接続処理中…" :
+            status === "DISCONNECTED" ? "接続が切断されました" :
             "通信対戦の準備をしています…";
           peerCountTextElem.textContent = "接続人数: " + connectedPeerCount + "人";
         }
@@ -431,7 +429,6 @@
   ・部屋を作成した側がホストとなり、盤面設定(人数・サイズなど)を管理します。`);
         };
 
-        // (x, y) に forPlayer が石を置いた場合に反転する石の座標一覧を返す
         function stonesToFlip(x, y, forPlayer) {
           const dx = [-1, 0, 1, -1, 1, -1, 0, 1];
           const dy = [-1, -1, -1, 0, 0, 1, 1, 1];
@@ -457,7 +454,6 @@
           return flips;
         }
 
-        // 配置可能かどうかを判定する。可能なら反転する石の配列、不可能なら理由の文字列を返す
         function checkStone(x, y, forPlayer) {
           if (map[y][x] !== 0) return "すでに置かれているため配置できません。";
 
@@ -498,7 +494,6 @@
           for (const [fx, fy] of flips) map[fy][fx] = player;
         }
 
-        // 石が0個になったプレイヤーを全滅リストへ追加する
         function updateExtinctList() {
           for (const p of activePlayers()) {
             const remaining = map.flat().filter((v) => v === p).length;
@@ -532,7 +527,6 @@
           showOverlay(result);
         }
 
-        // 手番を次の「配置可能な、全滅していないプレイヤー」へ進める
         function next() {
           const active = activePlayers();
           if (active.length === 0) {
@@ -560,7 +554,6 @@
             skipped.push(candidate);
           }
 
-          // 全員が配置不可
           showOverlay("置く場所がないため、終了します。");
           finish();
         }
@@ -628,7 +621,6 @@
           renderMyPlayerBadge();
         }
 
-        // ローカル/オンライン共通の開始処理
         window.start = () => {
           if (mode === "online" && !isHost) return;
 
@@ -741,7 +733,6 @@
           onlinePanelElem.style.display = mode === "online" ? "flex" : "none";
 
           if (mode === "local") {
-            // モード切り替え時に古いゾンビを完全に滅ぼす
             if (window.tm) window.tm.clear();
             window.tm = null;
             myPlayer = null;
@@ -753,16 +744,16 @@
             sizeElem.disabled = false;
             updateExtinctControlState();
             renderMyPlayerBadge();
-            updateConnectingOverlay("idle");
+            updateConnectingOverlay("IDLE");
           } else {
             startButtonElem.disabled = true;
             userElem.disabled = true;
             sizeElem.disabled = true;
-            updateConnectingOverlay("idle");
+            updateConnectingOverlay("IDLE");
           }
         });
 
-        // 盤面の全状態を相手に送る
+        // 盤面の全状態を相手に送る（Transmissionの仕様に合わせてデータチャンネル種別を "udp" から "udp" / "tcp" のうち対応している方へ、あるいはそのまま送信）
         function broadcastFullState(reason) {
           if (!window.tm) return;
           window.tm.sendData("udp", {
@@ -807,37 +798,35 @@
             return;
           }
 
-          // ボタン連打対策：既存の通信があれば確実にクリアして生存フラグを折る
           if (window.tm) {
             window.tm.clear();
             window.tm = null;
           }
 
-          // 新しい Transmission インスタンスを生成して window.tm へ格納
-          window.tm = new P2PManager(SIGNALING_SERVER_URL, roomId);
+          // Transmissionインスタンスを正しく生成
+          window.tm = new Transmission(SIGNALING_SERVER_URL, roomId);
 
-          // 初期状態のリセット
           isHost = false;
           myPlayer = null;
           connectedPeerCount = 1;
-          updateConnectingOverlay("waiting");
+          updateConnectingOverlay("WAITING");
 
-          // 最新マネージャーのコールバックイベントに合わせてマッピング
+          // Transmissionの内部大文字ステータスと連携
           window.tm.onStatusUpdate = (status) => {
             connectionStatusElem.textContent = statusLabel(status);
             
-            // クラス内部でP2P接続完了を検知したとき
-            if (status === "connected") {
-              // ルームリスト内の順序等から、自分が部屋主(Host)か参加者かを決定するロジック
-              // (2人対戦時の簡易判定：リストの最初が自分＝ホスト)
+            if (status === "CONNECTED") {
               const ids = window.tm.getConnectorIds() || [];
-              const myId = window.tm.myId;
+              const myId = window.tm.getMyId ? window.tm.getMyId() : window.tm.myId;
               
-              // 部屋にいるメンバーリスト等から自分の立場を確定
-              isHost = (window.tm.list && window.tm.list[0] === myId) || ids.length === 0;
-              myPlayer = isHost ? 1 : 2;
+              // 接続中のPeerIDリストをソートし、自分が先頭、またはメンバーがまだ居なければホストとする
+              const allMembers = [myId, ...ids].filter(Boolean).sort();
+              isHost = (allMembers[0] === myId) || ids.length === 0;
               
-              connectedPeerCount = 2;
+              // ホストならPlayer1、ゲストならPlayer2以降を割り当て
+              myPlayer = isHost ? 1 : allMembers.indexOf(myId) + 1;
+              
+              connectedPeerCount = allMembers.length;
               startButtonElem.disabled = !isHost;
               userElem.disabled = !isHost;
               sizeElem.disabled = !isHost;
@@ -849,13 +838,25 @@
               renderMyPlayerBadge();
             }
 
-            if (status === "disconnected") {
+            if (status === "DISCONNECTED") {
               connectedPeerCount = 1;
               showOverlay("相手との接続が切断されました。");
             }
 
             updateConnectingOverlay(status);
           };
+
+          // ピア参加・退出時の人数動的更新
+          const handleRoomChange = () => {
+            if (window.tm && window.tm.status === "CONNECTED") {
+              const ids = window.tm.getConnectorIds() || [];
+              connectedPeerCount = ids.length + 1;
+              peerCountTextElem.textContent = "接続人数: " + connectedPeerCount + "人";
+            }
+          };
+
+          window.tm.onJoin = handleRoomChange;
+          window.tm.onLeave = handleRoomChange;
 
           // データ受信処理
           window.tm.onDataReceived = (payload) => {
@@ -866,14 +867,13 @@
 
           // エラーハンドリング
           window.tm.onLog = (type, message) => {
-            console.log(`[P2P Log - ${type}]`, message);
+            console.log(`[Transmission Log - ${type}]`, message);
             if (type === "error") {
               showOverlay(message);
             }
           };
 
-          // 接続処理を実行（セレクトボックスに応じた通信タイプを動的に流す）
-          // リバーシ側が 1vs1 であれば "p2p"、3〜4人であれば "mesh" を自動選択
+          // プレイヤー人数に応じた接続方式の設定
           const numPlayers = parseInt(userElem.value, 10);
           const connectionType = numPlayers > 2 ? "mesh" : "p2p";
           
@@ -882,11 +882,12 @@
 
         function statusLabel(status) {
           switch (status) {
-            case "idle": return "未接続";
-            case "waiting": return "マッチング待機中";
-            case "connecting": return "接続中";
-            case "connected": return "接続完了";
-            case "disconnected": return "切断";
+            case "IDLE": return "未接続";
+            case "PREPARING": return "準備中";
+            case "WAITING": return "マッチング待機中";
+            case "CONNECTING": return "接続中";
+            case "CONNECTED": return "接続完了";
+            case "DISCONNECTED": return "切断";
             default: return status;
           }
         }
