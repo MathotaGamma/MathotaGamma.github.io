@@ -19,8 +19,8 @@
     <input type="button" value="送信" onclick="sendData_onclick();"/><br>
     <input type="button" value="Log Clear" onclick="logClear();"/><br>
     <textarea id="log" style="width: 100%; height: 200px;" placeholder="LOG..." readonly></textarea>
-    <script src="https://mathotagamma.github.io/statics/p2p/1-01-02/manager.js"></script>
-    <script>
+    <script type="module">
+import Transmission from "https://mathotagamma.github.io/statics/p2p/1-01-02/manager.js";
 window.onload = () => {
   let tm;
   const logTextarea = document.getElementById('log');
