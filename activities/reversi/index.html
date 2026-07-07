@@ -248,8 +248,7 @@
     </div>
 
     <script type="module">
-      // P2PManager から Transmission クラスに変更してインポート
-      import Transmission from "https://mathotagamma.github.io/statics/p2p/1-01-02/manager.js";
+      import Transmission from "./transmission.js";
 
       const COLORS = {
         1: "black",
@@ -258,11 +257,9 @@
         4: "#0000cc",
       };
 
-      // 通信対戦時のシグナリングサーバーURL
       const SIGNALING_SERVER_URL = "signaling-server-dman.onrender.com";
 
       window.onload = () => {
-        // グローバルでの参照を確実にするため、window.tm を初期化
         window.tm = null;
 
         const canvas = document.getElementById("canvas");
@@ -294,18 +291,18 @@
         let map = [];
         let validList = [];
         let assist = true;
-        let extinctAllowed = false; // 「全滅」あり/なし
-        let user = 3;               // プレイヤー人数(数値)
-        let num = 8;                // 盤面サイズ(数値)
+        let extinctAllowed = false; 
+        let user = 3;               
+        let num = 8;                
         let r = l / num;
-        let player = 1;             // 現在の手番プレイヤー番号
-        let extinctList = [];       // 全滅済みプレイヤー番号のリスト
+        let player = 1;             
+        let extinctList = [];       
 
         // ---- 通信対戦の状態 ----
-        let mode = "local";         // "local" | "online"
-        let myPlayer = null;        // 通信対戦時、自分が担当するプレイヤー番号
-        let isHost = false;         // 通信対戦時、部屋を作成した側(ホスト)かどうか
-        let connectedPeerCount = 1; // 通信対戦時、現在部屋に接続している人数(自分を含む)
+        let mode = "local";         
+        let myPlayer = null;        
+        let isHost = false;         
+        let connectedPeerCount = 1; 
 
         function updateConnectingOverlay(status) {
           if (mode !== "online" || status === "CONNECTED") {
@@ -314,23 +311,37 @@
           }
           connectingOverlayElem.style.display = "flex";
           connectingOverlayTextElem.textContent =
-            status === "WAITING" ? "相手の接続を待っています…" :
+            status === "WAITING" ? "参加者の接続を待っています…" :
             status === "CONNECTING" ? "接続処理中…" :
             status === "DISCONNECTED" ? "接続が切断されました" :
             "通信対戦の準備をしています…";
           peerCountTextElem.textContent = "接続人数: " + connectedPeerCount + "人";
         }
 
-        function showOverlay(html) {
+        // 基本のローカル表示用。自分にしか見せたくない警告などに使う。
+        function showLocalOverlay(html) {
           overlayTextElem.innerHTML = html;
           overlayElem.style.display = "flex";
+        }
+
+        // 【修正】全員の画面に表示させる大事なメッセージ用の関数
+        function showGlobalOverlay(html, fromRemote = false) {
+          overlayTextElem.innerHTML = html;
+          overlayElem.style.display = "flex";
+
+          // オンライン対戦中、かつリモート（相手）から受信したものでないなら全員へ送信
+          if (mode === "online" && window.tm && !fromRemote) {
+            window.tm.sendData("udp", {
+              reason: "MSG",
+              html: html
+            });
+          }
         }
 
         window.closeOverlay = () => {
           overlayElem.style.display = "none";
         };
 
-        // 現在ゲームに参加している(全滅していない)プレイヤー番号一覧
         function activePlayers() {
           const list = [];
           for (let p = 1; p <= user; p++) {
@@ -419,7 +430,7 @@
         }
 
         window.explain = () => {
-          showOverlay(`このゲームは2～4人で遊べるオセロ風ゲームです。<br>
+          showLocalOverlay(`このゲームは2～4人で遊べるオセロ風ゲームです。<br>
 ・プレイヤーは順番に空きマスに自分の石を置き、縦・横・斜めで相手の石を挟むと自分の色に変えられます。<br>
   ・人数を変更すると、<span style="color: #700">盤面がリセット</span>されます。<br>
   ・「全滅」"あり"の場合、<span style="color: #700">3人以上でのプレイでは、置いた結果、他プレイヤーの石がなくなる場所には置けません。</span><br>
@@ -499,7 +510,8 @@
             const remaining = map.flat().filter((v) => v === p).length;
             if (remaining === 0) {
               extinctList.push(p);
-              showOverlay("player" + p + "の石が無くなりました。");
+              // 【修正】全滅は重要なゲーム進行情報なので全員に通知
+              showGlobalOverlay("player" + p + "の石が無くなりました。");
             }
           }
         }
@@ -524,7 +536,9 @@
           result += winners.length === user
             ? "引き分け"
             : '勝利:<span style="font-weight: bold;">' + winners.join("と") + "</span>";
-          showOverlay(result);
+          
+          // 【修正】ゲーム終了画面は全員に共有
+          showGlobalOverlay(result);
         }
 
         function next() {
@@ -545,7 +559,8 @@
               player = candidate;
               validList = moves;
               for (const p of skipped) {
-                showOverlay("player" + p + "は配置できる場所がないため、スキップします。");
+                // 【修正】パスが発生したことは全員に通知
+                showGlobalOverlay("player" + p + "は配置できる場所がないため、スキップします。");
               }
               renderFooter();
               renderMyPlayerBadge();
@@ -554,7 +569,8 @@
             skipped.push(candidate);
           }
 
-          showOverlay("置く場所がないため、終了します。");
+          // 【修正】置く場所が全滅して終了するアナウンスを全員に通知
+          showGlobalOverlay("置く場所がないため、終了します。");
           finish();
         }
 
@@ -692,7 +708,8 @@
         function attemptMove(x, y) {
           const ret = check(x, y);
           if (typeof ret === "string") {
-            showOverlay(ret);
+            // 【修正】置けない警告は本人のみのローカル画面に出す
+            showLocalOverlay(ret);
             return;
           }
 
@@ -708,7 +725,8 @@
 
         function handlePointer(clientX, clientY) {
           if (mode === "online" && player !== myPlayer) {
-            showOverlay("自分の手番ではありません。");
+            // 【修正】手番違いの警告は本人のみのローカル画面に出す
+            showLocalOverlay("自分の手番ではありません。");
             return;
           }
 
@@ -727,7 +745,7 @@
           handlePointer(e.clientX, e.clientY);
         });
 
-        // ==== ここから通信対戦(P2P)関連 ====
+        // ==== 通信対戦(P2P)関連 ====
         modeSelectElem.addEventListener("change", () => {
           mode = modeSelectElem.value;
           onlinePanelElem.style.display = mode === "online" ? "flex" : "none";
@@ -753,7 +771,6 @@
           }
         });
 
-        // 盤面の全状態を相手に送る（Transmissionの仕様に合わせてデータチャンネル種別を "udp" から "udp" / "tcp" のうち対応している方へ、あるいはそのまま送信）
         function broadcastFullState(reason) {
           if (!window.tm) return;
           window.tm.sendData("udp", {
@@ -781,6 +798,15 @@
           validList = state.validList;
 
           userElem.value = String(user);
+          
+          if (user === 3) {
+            sizeElem.innerHTML = `<option>7</option><option selected>9</option><option>11</option><option>13</option><option>15</option><option>21</option>`;
+          } else if (user === 4) {
+            sizeElem.innerHTML = `<option>8</option><option selected>10</option><option>12</option><option>14</option><option>16</option><option>22</option>`;
+          } else {
+            sizeElem.innerHTML = `<option>6</option><option selected>8</option><option>10</option><option>12</option><option>14</option><option>20</option>`;
+          }
+          
           sizeElem.value = String(num);
           assistElem.value = assist ? "あり" : "なし";
           extinctElem.value = extinctAllowed ? "あり" : "なし";
@@ -794,7 +820,7 @@
         window.connectOnline = async () => {
           const roomId = roomIdInputElem.value.trim();
           if (!roomId) {
-            showOverlay("部屋IDを入力してください。");
+            showLocalOverlay("部屋IDを入力してください。");
             return;
           }
 
@@ -803,7 +829,6 @@
             window.tm = null;
           }
 
-          // Transmissionインスタンスを正しく生成
           window.tm = new Transmission(SIGNALING_SERVER_URL, roomId);
 
           isHost = false;
@@ -811,7 +836,6 @@
           connectedPeerCount = 1;
           updateConnectingOverlay("WAITING");
 
-          // Transmissionの内部大文字ステータスと連携
           window.tm.onStatusUpdate = (status) => {
             connectionStatusElem.textContent = statusLabel(status);
             
@@ -819,11 +843,9 @@
               const ids = window.tm.getConnectorIds() || [];
               const myId = window.tm.getMyId ? window.tm.getMyId() : window.tm.myId;
               
-              // 接続中のPeerIDリストをソートし、自分が先頭、またはメンバーがまだ居なければホストとする
               const allMembers = [myId, ...ids].filter(Boolean).sort();
               isHost = (allMembers[0] === myId) || ids.length === 0;
               
-              // ホストならPlayer1、ゲストならPlayer2以降を割り当て
               myPlayer = isHost ? 1 : allMembers.indexOf(myId) + 1;
               
               connectedPeerCount = allMembers.length;
@@ -840,40 +862,56 @@
 
             if (status === "DISCONNECTED") {
               connectedPeerCount = 1;
-              showOverlay("相手との接続が切断されました。");
+              showLocalOverlay("相手との接続が切断されました。");
             }
 
             updateConnectingOverlay(status);
           };
 
-          // ピア参加・退出時の人数動的更新
           const handleRoomChange = () => {
             if (window.tm && window.tm.status === "CONNECTED") {
               const ids = window.tm.getConnectorIds() || [];
-              connectedPeerCount = ids.length + 1;
+              const myId = window.tm.getMyId ? window.tm.getMyId() : window.tm.myId;
+              const allMembers = [myId, ...ids].filter(Boolean).sort();
+              
+              isHost = (allMembers[0] === myId);
+              myPlayer = allMembers.indexOf(myId) + 1;
+              
+              connectedPeerCount = allMembers.length;
               peerCountTextElem.textContent = "接続人数: " + connectedPeerCount + "人";
+              
+              startButtonElem.disabled = !isHost;
+              userElem.disabled = !isHost;
+              sizeElem.disabled = !isHost;
+              
+              if (isHost) {
+                broadcastFullState("sync");
+              }
+              renderMyPlayerBadge();
             }
           };
 
           window.tm.onJoin = handleRoomChange;
           window.tm.onLeave = handleRoomChange;
 
-          // データ受信処理
           window.tm.onDataReceived = (payload) => {
-            if (payload && payload.reason) {
-              applyFullState(payload);
+            if (payload) {
+              if (payload.reason === "MSG") {
+                // 【修正】ゲーム内での重要アナウンス（パス・全滅・終了）のみ同期表示する
+                showGlobalOverlay(payload.html, true);
+              } else if (payload.reason) {
+                applyFullState(payload);
+              }
             }
           };
 
-          // エラーハンドリング
           window.tm.onLog = (type, message) => {
             console.log(`[Transmission Log - ${type}]`, message);
             if (type === "error") {
-              showOverlay(message);
+              showLocalOverlay(message);
             }
           };
 
-          // プレイヤー人数に応じた接続方式の設定
           const numPlayers = parseInt(userElem.value, 10);
           const connectionType = numPlayers > 2 ? "mesh" : "p2p";
           
