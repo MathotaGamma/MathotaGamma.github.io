@@ -5,11 +5,14 @@ class Transmission {
     WAITING: "WAITING",
     CONNECTING: "CONNECTING",
     CONNECTED: "CONNECTED",
+    RECONNECTING: "RECONNECTING",
     DISCONNECTED: "DISCONNECTED"
   }
 
   constructor(wsUrl, roomId) {
     this.onStatusUpdate = null;
+    // 開始時
+    this.onOpen = null;
     this.onJoin = null;
     this.onLeave = null;
     this.onDataReceived = null;
@@ -24,13 +27,22 @@ class Transmission {
     this.roomId = roomId;
   }
   
+  getMyId() {
+    return this.myId;
+  }
+  
+  getConnectorIds() {
+    return Object.keys(this.tms);
+  }
+  
   statusUpdate(status) {
     this.status = status;
     if (this.onStatusUpdate) this.onStatusUpdate(status);
   }
   
   // method: p2p, mesh, group
-  connect(method="p2p") {
+  async connect(method="p2p") {
+    
     if (this.ws) {
       if (this.status !== Transmission.STATUS.IDLE && this.status !== Transmission.STATUS.DISCONNECTED) return;
       return;
@@ -50,7 +62,7 @@ class Transmission {
     this.ws.onopen = () => {
       
     }
-    this.ws.onmessage = (event) => {
+    this.ws.onmessage = async (event) => {
       if (event && event.data) {
         const data = JSON.parse(event.data);
         if (this.onLog)
@@ -72,22 +84,28 @@ class Transmission {
                 if (id !== data.id) {
                   const tm = new Transmission.P2P(this);
                   this.tms[id] = tm;
-                  tm.connect(id, true);
+                  await tm.connect(id, true);
                 }
               }
+              if (this.onOpen)
+                this.onOpen();
             }
           } else if (method === "mesh") {
+            if (this.onAssignedId)
+              this.onAssignedId(data.id);
+            
             const list = data.list;
             this.myId = data.id;
             this.tms = {};
             if (data.list.length >= 2) {
-              for (const id of data.list) {
-                if (id !== data.id) {
+              data.list.filter(id => id !== data.id)
+                .map(async (id) => {
                   const tm = new Transmission.P2P(this);
                   this.tms[id] = tm;
                   tm.connect(id, true);
-                }
-              }
+              });
+              if (this.onOpen)
+                this.onOpen();
             }
           }
         } else if (data.type === "error") {
@@ -96,23 +114,37 @@ class Transmission {
           const id = data.id;
           const tm = new Transmission.P2P(this);
           this.tms[id] = tm;
-          tm.connect(id, false); 
+          await tm.connect(id, false); 
+          if (this.onJoin)
+            this.onJoin(id);
         } else if(data.type === "leave") {
           const id = data.id;
-          if (method === "p2p") {
-            if (Object.keys(this.tms).includes(id)) {
-              delete this.tms[id];
+          
+          if (Object.keys(this.tms).includes(id)) {
+            if (this.onLog)
+              this.onLog('debug', `ユーザー退室処理を開始: ${id}`);
+            
+            // WebRTC のコネクションを物理的にクローズする
+            this.tms[id].close();
+            
+            // 管理連想配列から削除
+            delete this.tms[id];
+            
+            // コールバック
+            if (this.onLeave) this.onLeave(id);
+            
+            // 残った接続メンバー
+            const remainingPeers = Object.keys(this.tms).length;
+            if (remainingPeers === 0) {
+              // 誰もいなくなったとき
               this.statusUpdate(Transmission.STATUS.WAITING);
-              if (this.onLeave) this.onLeave(id);
+            } else {
+              // 他の人が残っているとき
+              this.checkAllConnections();
             }
-          } else if (method === "mesh") {
-            if (Object.keys(this.tms).includes(id)) {
-              delete this.tms[id];
-              if (Object.keys(this.tms).length === 0) {
-                this.statusUpdate(Transmission.STATUS.WAITING);
-              }
-              if (this.onLeave) this.onLeave(id);
-            }
+            
+            if (this.onLog)
+              this.onLog('debug', `ユーザー退室処理成功: ${id}`);
           }
         } else if (["offer", "answer", "candidate"].includes(data.type)) {
           
@@ -132,12 +164,13 @@ class Transmission {
   }
   
   sendData(protocol, data, to=null) {
-    console.log(this.myId, Object.keys(this.tms));
     if (Object.keys(this.tms).length === 0)
       throw new Error("Error");
     
     if (to !== null) {
-      this.tms[to].sendData(protocol, data);
+      for (const id of to) {
+        this.tms[id].sendData(protocol, data);
+      }
     } else {
       for (const tm of Object.values(this.tms)) {
         tm.sendData(protocol, data);
@@ -185,11 +218,17 @@ Transmission.P2P = class {
     this.parent = parent;
     this.targetId = null;
     
+    this.role = null;
+    
     this.peerConnection = null;
     this.candidateQueue = [];
   }
 
-  connect(id, offer) {
+  async connect(id, offer) {
+    console.log("connect start", this.parent.onLog)
+    if (this.parent.onLog)
+      this.parent.onLog('debug', "connect started");
+    this.role = offer ? "offer" : "answer";
     this.parent.statusUpdate(Transmission.STATUS.CONNECTING);
     this.targetId = id;
     
@@ -199,6 +238,62 @@ Transmission.P2P = class {
         urls: "stun:stun.l.google.com:19302"
       }],
     });
+    
+    this.peerConnection.onconnectionstatechange = async () => {
+      // connected, disconnected(断線&自動で経路再探索), failed(再探索で見つからず完全断線)
+      const state = this.peerConnection.connectionState;
+      if (this.parent.onLog)
+        this.parent.onLog('debug', `P2P 接続ステータス変化 [${this.targetId}]: ${state}`);
+      
+      if (state === "connected") {
+        if (!this.parent.tms[this.targetId]) return;
+        
+        if (this.parent.onLog)
+          this.parent.onLog('debug', `[${this.targetId}] との通信を開始しました。`);
+        
+        this.parent.checkAllConnections();
+      }
+      
+      // 通信途絶はdisconnectedとなり、軽度の途絶は自動で復旧する。
+      if (state === "disconnected" || state === "failed") {
+        if (!this.parent.tms[this.targetId]) return;
+        
+        this.parent.statusUpdate(Transmission.STATUS.RECONNECTING);
+        
+        if (this.parent.onLog)
+          this.parent.onLog('warn', `[${this.targetId}] との通信が途絶しました（状態: ${state}）。`);
+      }
+      
+      // disconnectedの自動復旧ができなかった場合。
+      if (state === "failed") {
+        if (!this.parent.tms[this.targetId]) return;
+        this.parent.statusUpdate(Transmission.STATUS.RECONNECTING);
+        if (this.parent.onLog) {
+          if (this.role === "offer")
+            this.parent.onLog('warn', "接続が失敗しました。ICE Restart を試みます...");
+          else if (this.role === "answer")
+            this.parent.onLog('warn', "接続が失敗しました。ICE Restart の受信を待機します...");
+        }
+        if (this.role === "offer") {
+          try {
+            const offer = await this.peerConnection.createOffer({ iceRestart: true });
+            await this.peerConnection.setLocalDescription(offer);
+          
+            if (this.parent.ws) {
+              this.parent.ws.send(JSON.stringify({
+                type: "offer",
+                sdp: offer,
+                from: this.parent.myId,
+                to: this.targetId
+              }));
+            }
+          } catch (error) {
+            if (this.parent.onLog)
+              this.parent.onLog('error', "再接続Offer作成失敗: " + error.message);
+          }
+        }
+      }
+    }
     
     // 経路候補を発見した場合のリスナー
     this.peerConnection.onicecandidate = (event) => {
@@ -229,7 +324,7 @@ Transmission.P2P = class {
       this.setupDataChannelHandlers(this.dataChannels.tcp);
   
       // 接続要求を作る
-      this.createOffer();
+      await this.createOffer();
     } else {
       // 入れ物の用意
       this.dataChannels = {}
@@ -257,13 +352,13 @@ Transmission.P2P = class {
       if (this.parent.onDataReceived) this.parent.onDataReceived(JSON.parse(event.data));
     }
     channel.onopen = () => {
-      if (this.onLog)
-        this.onLog('debug', "from: "+this.parent.myId+", to: "+this.targetId+" ... channel opened.");
+      if (this.parent.onLog)
+        this.parent.onLog('debug', "from: "+this.parent.myId+", to: "+this.targetId+" ... channel opened.");
       this.parent.checkAllConnections();
     }
     channel.onclose = () => {
-      if (this.onLog)
-        this.onLog('debug', `${channel.label} がクローズしました。`);
+      if (this.parent.onLog)
+        this.parent.onLog('debug', `${channel.label} がクローズしました。`);
     }
   }
   
@@ -284,8 +379,8 @@ Transmission.P2P = class {
         }));
       }
     } catch(error) {
-      if (this.onLog)
-        this.onLog('error', "Offer 作成失敗")
+      if (this.parent.onLog)
+        this.parent.onLog('error', "Offer 作成失敗")
     }
   }
   
@@ -322,8 +417,8 @@ Transmission.P2P = class {
           sdp: answer
         }));
     } catch(error) {
-      if (this.onLog)
-        this.onLog('error', "Offerの処理に失敗しました: "+error.message);
+      if (this.parent.onLog)
+        this.parent.onLog('error', "Offerの処理に失敗しました: "+error.message);
     }
   }
   
@@ -337,8 +432,8 @@ Transmission.P2P = class {
         await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       this.candidateQueue = [];
     } catch(error) {
-      if (this.onLog)
-        this.onLog('error', "Answerの処理に失敗しました: "+error.message);
+      if (this.parent.onLog)
+        this.parent.onLog('error', "Answerの処理に失敗しました: "+error.message);
     }
   }
   
@@ -352,18 +447,43 @@ Transmission.P2P = class {
     try {
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
     } catch(error) {
-      if (this.onLog)
-        this.onLog('error', "Candidateの追加に失敗しました: "+error.message);
+      if (this.parent.onLog)
+        this.parent.onLog('error', "Candidateの追加に失敗しました: "+error.message);
     }
   }
   
   sendData(protocol, data) {
+    console.log(this.targetId);
     const channel = this.dataChannels?.[protocol];
     if (channel && channel.readyState === "open") {
       channel.send(JSON.stringify(data));
     } else {
-      if (this.onLog)
-        this.onLog('warn', `[${protocol}] チャネルがオープンしていないため、データを送信できませんでした。`);
+      if (this.parent.onLog)
+        this.parent.onLog('warn', `[${protocol}] チャネルがオープンしていないため、データを送信できませんでした。`);
+    }
+  }
+  
+  // P2Pインスタンスを完全破棄する
+  close() {
+    if (this.dataChannels) {
+      if (this.dataChannels.udp) {
+        this.dataChannels.udp.onmessage = null;
+        this.dataChannels.udp.onopen = null;
+        this.dataChannels.udp.onclose = null;
+        this.dataChannels.udp.close();
+      }
+      if (this.dataChannels.tcp) {
+        this.dataChannels.tcp.onmessage = null;
+        this.dataChannels.tcp.onopen = null;
+        this.dataChannels.tcp.onclose = null;
+        this.dataChannels.tcp.close();
+      }
+    }
+    if (this.peerConnection) {
+      this.peerConnection.onconnectionstatechange = null;
+      this.peerConnection.onicecandidate = null;
+      this.peerConnection.ondatachannel = null;
+      this.peerConnection.close();
     }
   }
 }
