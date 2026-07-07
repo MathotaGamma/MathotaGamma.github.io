@@ -12,9 +12,14 @@
       <option value="mesh">FullMesh</option>
     </select>
     <input type="button" value="接続" onclick="connect_onclick();" /><div id="status"></div><div id="number"></div><br>
-    <textarea id="data" placeholder="送信するデータ"></textarea><br>
+    <div id="my-id">My ID: </div><div id="connector-ids">connector IDs: </div>
+    <textarea id="data" placeholder="送信するデータ※JSON形式で">{
+  "text": "test"
+}</textarea><br>
     <input type="button" value="送信" onclick="sendData_onclick();"/><br>
-    <textarea id="log" style="width: 100%; height: 200px;" placeholder="※JSON形式で記述..." readonly></textarea>
+    <input type="button" value="Log Clear" onclick="logClear();"/><br>
+    <textarea id="log" style="width: 100%; height: 200px;" placeholder="LOG..." readonly></textarea>
+    <script src="https://mathotagamma.github.io/statics/p2p/1-01-01/manager.js"></script>
     <script>
 window.onload = () => {
   let tm;
@@ -27,7 +32,7 @@ window.onload = () => {
     logTextarea.value += 'type changed: '+typeSelect.value+'\n';
   })
   
-  window.connect_onclick = () => {
+  window.connect_onclick = async () => {
     if (tm) {
       tm.clear();
       tm = null;
@@ -37,22 +42,40 @@ window.onload = () => {
     tm.onStatusUpdate = (status) => {
       statusDiv.innerHTML = status;
     }
-    tm.connect(typeSelect.value);
+    
+    tm.onOpen = () => {
+      document.getElementById('connector-ids').innerHTML = 'Connector IDs: '+tm.getConnectorIds().join(', ');
+    }
     
     tm.onDataReceived = (data) => {
-      logTextarea.innerHTML += JSON.stringify(data)+'\n';
+      logTextarea.value += JSON.stringify(data)+'\n';
     }
 
     tm.onLog = (type, message) => {
-      logTextarea.innerHTML += message+'\n';
+      logTextarea.value += message+'\n';
     }
+    
     tm.onAssignedId = (id) => {
-      logTextarea.innerHTML += 'ID: '+id+'\n';
+      document.getElementById('my-id').innerHTML = 'My ID: '+id;
     }
+    
+    tm.onJoin = () => {
+      document.getElementById('connector-ids').innerHTML = 'Connector IDs: '+tm.getConnectorIds().join(', ');
+    }
+    
+    tm.onLeave = () => {
+      document.getElementById('connector-ids').innerHTML = 'Connector IDs: '+tm.getConnectorIds().join(', ');
+    }
+    
+    await tm.connect(typeSelect.value);
   }
   
   window.sendData_onclick = () => {
     tm.sendData('udp', JSON.parse(dataTextarea.value));
+  }
+
+  window.logClear = () => {
+    logTextarea.value = "";
   }
 }
     </script>
