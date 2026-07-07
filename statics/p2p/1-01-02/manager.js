@@ -200,14 +200,17 @@ export default class Transmission {
   }
   
   clear() {
-    // P2P側のリソース解放（RTCPeerConnectionのcloseなど）も今後ここで行う
-    if (this.tm && typeof this.tm.clear === "function") {
-      this.tm.clear();
+    // 管理しているすべてのP2Pコネクションをループでクローズする
+    for (const id in this.tms) {
+      if (this.tms[id] && typeof this.tms[id].close === "function") {
+        if (this.onLog)
+          this.onLog('debug', `clear処理：コネクション [${id}] を物理的に破棄します。`);
+        this.tms[id].close();
+      }
     }
+    this.tms = {}; // 連想配列を空に
 
     if (this.ws) {
-      // メッセージや切断のイベントハンドラを全て抹消して、
-      // clear直後に届くかもしれないメッセージを無視させる
       this.ws.onopen = null;
       this.ws.onmessage = null;
       this.ws.onerror = null;
