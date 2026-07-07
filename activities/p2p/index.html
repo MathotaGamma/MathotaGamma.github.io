@@ -22,7 +22,7 @@
     <script type="module">
 import Transmission from "https://mathotagamma.github.io/statics/p2p/1-01-02/manager.js";
 window.onload = () => {
-  let tm;
+  window.tm = null;
   const logTextarea = document.getElementById('log');
   const dataTextarea = document.getElementById('data');
   const statusDiv = document.getElementById("status");
@@ -33,47 +33,47 @@ window.onload = () => {
   })
   
   window.connect_onclick = async () => {
-    if (tm) {
-      tm.clear();
-      tm = null;
+    if (window.tm) {
+      window.tm.clear();
+      window.tm = null;
     }
-    tm = new Transmission("signaling-server-dman.onrender.com", document.getElementById('room').value);
+    window.tm = new Transmission("signaling-server-dman.onrender.com", document.getElementById('room').value);
     document.getElementById('connector-ids').innerHTML = 'Connector IDs: ---';
     document.getElementById('my-id').innerHTML = 'My ID: ---';
-    statusDiv.innerHTML = tm.status;
-    tm.onStatusUpdate = (status) => {
+    statusDiv.innerHTML = window.tm.status;
+    window.tm.onStatusUpdate = (status) => {
       statusDiv.innerHTML = status;
     }
     
-    tm.onOpen = () => {
-      document.getElementById('connector-ids').innerHTML = 'Connector IDs: '+tm.getConnectorIds().join(', ');
+    window.tm.onOpen = () => {
+      document.getElementById('connector-ids').innerHTML = 'Connector IDs: '+window.tm.getConnectorIds().join(', ');
     }
     
-    tm.onDataReceived = (data) => {
+    window.tm.onDataReceived = (data) => {
       logTextarea.value += JSON.stringify(data)+'\n';
     }
 
-    tm.onLog = (type, message) => {
+    window.tm.onLog = (type, message) => {
       logTextarea.value += message+'\n';
     }
     
-    tm.onAssignedId = (id) => {
+    window.tm.onAssignedId = (id) => {
       document.getElementById('my-id').innerHTML = 'My ID: '+id;
     }
     
-    tm.onJoin = () => {
-      document.getElementById('connector-ids').innerHTML = 'Connector IDs: '+tm.getConnectorIds().join(', ');
+    window.tm.onJoin = () => {
+      document.getElementById('connector-ids').innerHTML = 'Connector IDs: '+window.tm.getConnectorIds().join(', ');
     }
     
-    tm.onLeave = () => {
-      document.getElementById('connector-ids').innerHTML = 'Connector IDs: '+tm.getConnectorIds().join(', ');
+    window.tm.onLeave = () => {
+      document.getElementById('connector-ids').innerHTML = 'Connector IDs: '+window.tm.getConnectorIds().join(', ');
     }
     
-    await tm.connect(typeSelect.value);
+    await window.tm.connect(typeSelect.value);
   }
   
   window.sendData_onclick = () => {
-    tm.sendData('udp', JSON.parse(dataTextarea.value));
+    window.tm.sendData('udp', JSON.parse(dataTextarea.value));
   }
 
   window.logClear = () => {
