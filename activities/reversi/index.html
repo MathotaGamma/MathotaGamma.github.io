@@ -250,7 +250,8 @@
     </div>
 
     <script type="module">
-      import P2PManager from "https://mathotagamma.github.io/statics/p2p/manager.js";
+      // 最新のゾンビ対策入りマネージャーをインポート
+      import P2PManager from "https://mathotagamma.github.io/statics/p2p/1-01-02/manager.js";
 
       const COLORS = {
         1: "black",
@@ -259,10 +260,13 @@
         4: "#0000cc",
       };
 
-      // 通信対戦時のシグナリングサーバーURL(環境に合わせて変更してください)
+      // 通信対戦時のシグナリングサーバーURL
       const SIGNALING_SERVER_URL = "signaling-server-dman.onrender.com";
 
       window.onload = () => {
+        // グローバルでの参照を確実にするため、window.tm を初期化
+        window.tm = null;
+
         const canvas = document.getElementById("canvas");
         const sizeElem = document.getElementById("size");
         const userElem = document.getElementById("userNum");
@@ -301,21 +305,20 @@
 
         // ---- 通信対戦の状態 ----
         let mode = "local";         // "local" | "online"
-        let p2p = null;             // P2PManagerインスタンス
         let myPlayer = null;        // 通信対戦時、自分が担当するプレイヤー番号
         let isHost = false;         // 通信対戦時、部屋を作成した側(ホスト)かどうか
         let connectedPeerCount = 1; // 通信対戦時、現在部屋に接続している人数(自分を含む)
 
         function updateConnectingOverlay(status) {
-          if (mode !== "online" || status === P2PManager.STATUS.CONNECTED) {
+          if (mode !== "online" || status === "connected") {
             connectingOverlayElem.style.display = "none";
             return;
           }
           connectingOverlayElem.style.display = "flex";
           connectingOverlayTextElem.textContent =
-            status === P2PManager.STATUS.WAITING ? "相手の接続を待っています…" :
-            status === P2PManager.STATUS.CONNECTING ? "接続処理中…" :
-            status === P2PManager.STATUS.DISCONNECTED ? "接続が切断されました" :
+            status === "waiting" ? "相手の接続を待っています…" :
+            status === "connecting" ? "接続処理中…" :
+            status === "disconnected" ? "接続が切断されました" :
             "通信対戦の準備をしています…";
           peerCountTextElem.textContent = "接続人数: " + connectedPeerCount + "人";
         }
@@ -530,7 +533,6 @@
         }
 
         // 手番を次の「配置可能な、全滅していないプレイヤー」へ進める
-        // 誰も置ける場所がない場合はゲームを終了する
         function next() {
           const active = activePlayers();
           if (active.length === 0) {
@@ -626,7 +628,7 @@
           renderMyPlayerBadge();
         }
 
-        // ローカル/オンライン共通の開始処理(オンラインではホストのみ実行可)
+        // ローカル/オンライン共通の開始処理
         window.start = () => {
           if (mode === "online" && !isHost) return;
 
@@ -635,7 +637,7 @@
           r = l / num;
           init();
 
-          if (mode === "online" && p2p) {
+          if (mode === "online" && window.tm) {
             broadcastFullState("init");
           }
         };
@@ -651,18 +653,18 @@
           validList = hasValidMove(player);
           view();
 
-          if (mode === "online" && p2p) {
+          if (mode === "online" && window.tm) {
             broadcastFullState("settings");
           }
         });
 
         sizeElem.addEventListener("change", () => {
-          if (mode === "online" && !isHost) return; // 参加者側は盤面設定を変更できない
+          if (mode === "online" && !isHost) return; 
           start();
         });
 
         userElem.addEventListener("change", () => {
-          if (mode === "online" && !isHost) return; // 参加者側は盤面設定を変更できない
+          if (mode === "online" && !isHost) return;
 
           if (userElem.value === "2") {
             sizeElem.innerHTML = `
@@ -707,13 +709,12 @@
           next();
           view();
 
-          if (mode === "online" && p2p) {
+          if (mode === "online" && window.tm) {
             broadcastFullState("move");
           }
         }
 
         function handlePointer(clientX, clientY) {
-          // 通信対戦時は自分の手番以外は操作できない
           if (mode === "online" && player !== myPlayer) {
             showOverlay("自分の手番ではありません。");
             return;
@@ -735,16 +736,14 @@
         });
 
         // ==== ここから通信対戦(P2P)関連 ====
-        // 方式: ホスト(部屋の作成者)が盤面の唯一の権威(Source of Truth)を持ち、
-        // 自分の手番の操作のみ許可され、操作結果を毎回相手へ全送信する簡易同期方式です。
-
         modeSelectElem.addEventListener("change", () => {
           mode = modeSelectElem.value;
           onlinePanelElem.style.display = mode === "online" ? "flex" : "none";
 
           if (mode === "local") {
-            if (p2p) p2p.disconnect();
-            p2p = null;
+            // モード切り替え時に古いゾンビを完全に滅ぼす
+            if (window.tm) window.tm.clear();
+            window.tm = null;
             myPlayer = null;
             isHost = false;
             connectedPeerCount = 1;
@@ -754,19 +753,19 @@
             sizeElem.disabled = false;
             updateExtinctControlState();
             renderMyPlayerBadge();
-            updateConnectingOverlay(P2PManager.STATUS.IDLE);
+            updateConnectingOverlay("idle");
           } else {
-            // オンラインモードでは、接続完了までは開始・設定変更を無効化
             startButtonElem.disabled = true;
             userElem.disabled = true;
             sizeElem.disabled = true;
-            updateConnectingOverlay(P2PManager.STATUS.IDLE);
+            updateConnectingOverlay("idle");
           }
         });
 
-        // 盤面の全状態を相手に送る(ホストが権威を持つ簡易同期方式)
+        // 盤面の全状態を相手に送る
         function broadcastFullState(reason) {
-          p2p.sendData({
+          if (!window.tm) return;
+          window.tm.sendData("udp", {
             reason,
             user,
             num,
@@ -801,102 +800,93 @@
           renderMyPlayerBadge();
         }
 
-window.connectOnline = () => {
-  const roomId = roomIdInputElem.value.trim();
-  if (!roomId) {
-    showOverlayLocal("部屋IDを入力してください。");
-    return;
-  }
+        window.connectOnline = async () => {
+          const roomId = roomIdInputElem.value.trim();
+          if (!roomId) {
+            showOverlay("部屋IDを入力してください。");
+            return;
+          }
 
-  if (p2p && (
-    p2p.status === P2PManager.STATUS.WAITING ||
-    p2p.status === P2PManager.STATUS.CONNECTING ||
-    p2p.status === P2PManager.STATUS.CONNECTED
-  )) {
-    console.log("[connectOnline] すでに有効な接続処理中のため、新たな接続をスキップしました。");
-    return;
-  }
+          // ボタン連打対策：既存の通信があれば確実にクリアして生存フラグを折る
+          if (window.tm) {
+            window.tm.clear();
+            window.tm = null;
+          }
 
-  if (p2p) p2p.disconnect();
+          // 新しい Transmission インスタンスを生成して window.tm へ格納
+          window.tm = new P2PManager(SIGNALING_SERVER_URL, roomId);
 
-  // ICEサーバーの設定
-  const iceServers = [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun.ekiga.net" }
-  ];
+          // 初期状態のリセット
+          isHost = false;
+          myPlayer = null;
+          connectedPeerCount = 1;
+          updateConnectingOverlay("waiting");
 
-  // クラスの引数に合わせてオプションを渡す
-  p2p = new P2PManager(SIGNALING_SERVER_URL, roomId, { 
-    mode: "reliable",
-    iceServers: iceServers // クラス内の this.iceServers = options.iceServers にマッピングされます
-  });
+          // 最新マネージャーのコールバックイベントに合わせてマッピング
+          window.tm.onStatusUpdate = (status) => {
+            connectionStatusElem.textContent = statusLabel(status);
+            
+            // クラス内部でP2P接続完了を検知したとき
+            if (status === "connected") {
+              // ルームリスト内の順序等から、自分が部屋主(Host)か参加者かを決定するロジック
+              // (2人対戦時の簡易判定：リストの最初が自分＝ホスト)
+              const ids = window.tm.getConnectorIds() || [];
+              const myId = window.tm.myId;
+              
+              // 部屋にいるメンバーリスト等から自分の立場を確定
+              isHost = (window.tm.list && window.tm.list[0] === myId) || ids.length === 0;
+              myPlayer = isHost ? 1 : 2;
+              
+              connectedPeerCount = 2;
+              startButtonElem.disabled = !isHost;
+              userElem.disabled = !isHost;
+              sizeElem.disabled = !isHost;
+              updateExtinctControlState();
 
-  // 初期状態のリセット
-  isHost = false;
-  myPlayer = null;
-  connectedPeerCount = 1;
-  updateConnectingOverlay(P2PManager.STATUS.WAITING);
+              if (isHost) {
+                start();
+              }
+              renderMyPlayerBadge();
+            }
 
-  // 💡 クラス側が welcome / ready を自律的に処理するため、
-  // ここにあった `p2p._setupSignaling` のハック処理（モンキーパッチ）は完全に削除しました。
+            if (status === "disconnected") {
+              connectedPeerCount = 1;
+              showOverlay("相手との接続が切断されました。");
+            }
 
-  p2p.onStatusChanged = (status) => {
-    connectionStatusElem.textContent = statusLabel(status);
+            updateConnectingOverlay(status);
+          };
 
-    // 接続完了時、クラス側で確定したホスト/プレイヤー情報をアプリ側に同期
-    if (status === P2PManager.STATUS.CONNECTED) {
-      isHost = p2p.isHost;          // クラスが判定した結果を代入
-      myPlayer = p2p.playerNumber;  // 1 または 2 を代入
-      
-      connectedPeerCount = 2;
-      startButtonElem.disabled = !isHost;
-      userElem.disabled = !isHost;
-      sizeElem.disabled = !isHost;
-      updateExtinctControlState();
+          // データ受信処理
+          window.tm.onDataReceived = (payload) => {
+            if (payload && payload.reason) {
+              applyFullState(payload);
+            }
+          };
 
-      if (isHost) {
-        start();
-      }
-      renderMyPlayerBadge();
-    }
+          // エラーハンドリング
+          window.tm.onLog = (type, message) => {
+            console.log(`[P2P Log - ${type}]`, message);
+            if (type === "error") {
+              showOverlay(message);
+            }
+          };
 
-    if (status === P2PManager.STATUS.DISCONNECTED) {
-      connectedPeerCount = 1;
-      showOverlayLocal("相手との接続が切断されました。");
-    }
-
-    updateConnectingOverlay(status);
-  };
-
-  p2p.onMessage = (payload) => {
-    if (payload.kind === "data") {
-      applyFullState(payload.data);
-    } else if (payload.kind === "overlay") {
-      if (payload.data.reason === "overlay_show") {
-        showOverlayLocal(payload.data.text);
-      } else if (payload.data.reason === "overlay_close") {
-        closeOverlayLocal();
-      }
-    }
-  };
-
-  p2p.onError = (message, detail) => {
-    console.error(message, detail);
-    showOverlayLocal(message);
-  };
-
-  p2p.connect();
-};
+          // 接続処理を実行（セレクトボックスに応じた通信タイプを動的に流す）
+          // リバーシ側が 1vs1 であれば "p2p"、3〜4人であれば "mesh" を自動選択
+          const numPlayers = parseInt(userElem.value, 10);
+          const connectionType = numPlayers > 2 ? "mesh" : "p2p";
+          
+          await window.tm.connect(connectionType);
+        };
 
         function statusLabel(status) {
           switch (status) {
-            case P2PManager.STATUS.IDLE: return "未接続";
-            case P2PManager.STATUS.WAITING: return "マッチング待機中";
-            case P2PManager.STATUS.CONNECTING: return "接続中";
-            case P2PManager.STATUS.CONNECTED: return "接続完了";
-            case P2PManager.STATUS.DISCONNECTED: return "切断";
+            case "idle": return "未接続";
+            case "waiting": return "マッチング待機中";
+            case "connecting": return "接続中";
+            case "connected": return "接続完了";
+            case "disconnected": return "切断";
             default: return status;
           }
         }
