@@ -303,33 +303,42 @@
         let myPlayer = null;        
         let isHost = false;         
         let connectedPeerCount = 1; 
+        let startTimeoutId = null; // 連鎖する接続イベント用タイマー
 
         function updateConnectingOverlay(status) {
-          if (mode !== "online" || status === "CONNECTED") {
+          if (mode !== "online") {
             connectingOverlayElem.style.display = "none";
             return;
           }
+
+          // 【修正】実際の接続人数（connectedPeerCount）が目標設定（user）未満なら、強制的にロック画面を維持
+          if (status === "CONNECTED" && connectedPeerCount >= user) {
+            connectingOverlayElem.style.display = "none";
+            return;
+          }
+
           connectingOverlayElem.style.display = "flex";
-          connectingOverlayTextElem.textContent =
-            status === "WAITING" ? "参加者の接続を待っています…" :
-            status === "CONNECTING" ? "接続処理中…" :
-            status === "DISCONNECTED" ? "接続が切断されました" :
-            "通信対戦の準備をしています…";
+          if (status === "CONNECTED" && connectedPeerCount < user) {
+            connectingOverlayTextElem.textContent = `他の参加者が揃うのを待っています… (${connectedPeerCount}/${user})`;
+          } else {
+            connectingOverlayTextElem.textContent =
+              status === "WAITING" ? "参加者の接続を待っています…" :
+              status === "CONNECTING" ? "接続処理中…" :
+              status === "DISCONNECTED" ? "接続が切断されました" :
+              "通信対戦の準備をしています…";
+          }
           peerCountTextElem.textContent = "接続人数: " + connectedPeerCount + "人";
         }
 
-        // 基本のローカル表示用。自分にしか見せたくない警告などに使う。
         function showLocalOverlay(html) {
           overlayTextElem.innerHTML = html;
           overlayElem.style.display = "flex";
         }
 
-        // 【修正】全員の画面に表示させる大事なメッセージ用の関数
         function showGlobalOverlay(html, fromRemote = false) {
           overlayTextElem.innerHTML = html;
           overlayElem.style.display = "flex";
 
-          // オンライン対戦中、かつリモート（相手）から受信したものでないなら全員へ送信
           if (mode === "online" && window.tm && !fromRemote) {
             window.tm.sendData("udp", {
               reason: "MSG",
@@ -510,7 +519,6 @@
             const remaining = map.flat().filter((v) => v === p).length;
             if (remaining === 0) {
               extinctList.push(p);
-              // 【修正】全滅は重要なゲーム進行情報なので全員に通知
               showGlobalOverlay("player" + p + "の石が無くなりました。");
             }
           }
@@ -537,7 +545,6 @@
             ? "引き分け"
             : '勝利:<span style="font-weight: bold;">' + winners.join("と") + "</span>";
           
-          // 【修正】ゲーム終了画面は全員に共有
           showGlobalOverlay(result);
         }
 
@@ -559,7 +566,6 @@
               player = candidate;
               validList = moves;
               for (const p of skipped) {
-                // 【修正】パスが発生したことは全員に通知
                 showGlobalOverlay("player" + p + "は配置できる場所がないため、スキップします。");
               }
               renderFooter();
@@ -569,7 +575,6 @@
             skipped.push(candidate);
           }
 
-          // 【修正】置く場所が全滅して終了するアナウンスを全員に通知
           showGlobalOverlay("置く場所がないため、終了します。");
           finish();
         }
@@ -639,6 +644,8 @@
 
         window.start = () => {
           if (mode === "online" && !isHost) return;
+          // 【修正】通信対戦中、実際の全接続人数（自分含む）が目標設定に満たない場合は絶対開始しない
+          if (mode === "online" && connectedPeerCount < user) return;
 
           user = parseInt(userElem.value, 10);
           num = parseInt(sizeElem.value, 10);
@@ -708,7 +715,6 @@
         function attemptMove(x, y) {
           const ret = check(x, y);
           if (typeof ret === "string") {
-            // 【修正】置けない警告は本人のみのローカル画面に出す
             showLocalOverlay(ret);
             return;
           }
@@ -725,7 +731,6 @@
 
         function handlePointer(clientX, clientY) {
           if (mode === "online" && player !== myPlayer) {
-            // 【修正】手番違いの警告は本人のみのローカル画面に出す
             showLocalOverlay("自分の手番ではありません。");
             return;
           }
@@ -829,6 +834,7 @@
             window.tm = null;
           }
 
+          user = parseInt(userElem.value, 10);
           window.tm = new Transmission(SIGNALING_SERVER_URL, roomId);
 
           isHost = false;
@@ -845,29 +851,28 @@
               
               const allMembers = [myId, ...ids].filter(Boolean).sort();
               isHost = (allMembers[0] === myId) || ids.length === 0;
-              
               myPlayer = isHost ? 1 : allMembers.indexOf(myId) + 1;
               
+              // 【修正】実際のデータリストの長さから正確に人数を算出
               connectedPeerCount = allMembers.length;
+
               startButtonElem.disabled = !isHost;
               userElem.disabled = !isHost;
               sizeElem.disabled = !isHost;
               updateExtinctControlState();
 
-              if (isHost) {
-                start();
-              }
+              updateConnectingOverlay(status);
               renderMyPlayerBadge();
             }
 
             if (status === "DISCONNECTED") {
               connectedPeerCount = 1;
               showLocalOverlay("相手との接続が切断されました。");
+              updateConnectingOverlay(status);
             }
-
-            updateConnectingOverlay(status);
           };
 
+          // 【修正】連続する入退室イベントを1.5秒待ってから一括評価する（デバウンス処理）
           const handleRoomChange = () => {
             if (window.tm && window.tm.status === "CONNECTED") {
               const ids = window.tm.getConnectorIds() || [];
@@ -876,18 +881,24 @@
               
               isHost = (allMembers[0] === myId);
               myPlayer = allMembers.indexOf(myId) + 1;
-              
               connectedPeerCount = allMembers.length;
-              peerCountTextElem.textContent = "接続人数: " + connectedPeerCount + "人";
               
               startButtonElem.disabled = !isHost;
               userElem.disabled = !isHost;
               sizeElem.disabled = !isHost;
               
-              if (isHost) {
-                broadcastFullState("sync");
-              }
+              updateConnectingOverlay("CONNECTED");
               renderMyPlayerBadge();
+
+              // すでにタイマーがあれば一旦クリアして新しく待つ
+              if (startTimeoutId) clearTimeout(startTimeoutId);
+
+              startTimeoutId = setTimeout(() => {
+                // 1.5秒経ってもまだ人数がしっかり揃っていた場合のみホストが開始する
+                if (isHost && connectedPeerCount === user) {
+                  start();
+                }
+              }, 1500);
             }
           };
 
@@ -897,10 +908,10 @@
           window.tm.onDataReceived = (payload) => {
             if (payload) {
               if (payload.reason === "MSG") {
-                // 【修正】ゲーム内での重要アナウンス（パス・全滅・終了）のみ同期表示する
                 showGlobalOverlay(payload.html, true);
               } else if (payload.reason) {
                 applyFullState(payload);
+                updateConnectingOverlay("CONNECTED");
               }
             }
           };
@@ -912,9 +923,7 @@
             }
           };
 
-          const numPlayers = parseInt(userElem.value, 10);
-          const connectionType = numPlayers > 2 ? "mesh" : "p2p";
-          
+          const connectionType = user > 2 ? "mesh" : "p2p";
           await window.tm.connect(connectionType);
         };
 
