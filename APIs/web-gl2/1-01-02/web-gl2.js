@@ -9,7 +9,6 @@ class WebGL {
     if (this.onLog) this.onLog(level, message);
   }
 
-  // canvasを渡せば既存のcanvasを使い、渡さなければ新規作成してbodyに追加する
   init(canvas = null) {
     this.canvas = canvas || document.createElement('canvas');
     if (!canvas) document.body.appendChild(this.canvas);
@@ -37,8 +36,6 @@ class WebGL {
     return shader;
   }
 
-  // transformFeedbackVaryings: GPGPU（Transform Feedback）で使う場合、
-  // フィードバックしたいvarying名の配列を渡す（例: ['result']）
   createProgram(vertexShaderSource, fragmentShaderSource, transformFeedbackVaryings = null) {
     const gl = this.gl;
     const vertexShader = this.compileShader(gl.VERTEX_SHADER, vertexShaderSource);
@@ -60,7 +57,6 @@ class WebGL {
       this.log('error', 'program info: ' + info);
     }
 
-    // リンク後はシェーダーオブジェクト自体は不要になるので破棄しておく
     gl.deleteShader(vertexShader);
     gl.deleteShader(fragmentShader);
 
@@ -90,18 +86,12 @@ class WebGL {
     return buffer;
   }
 
-  // 既存バッファの中身だけを差し替える（作り直さない＝最速の更新パス）
   updateBufferData(buffer, data, offsetBytes = 0, target = this.gl.ARRAY_BUFFER) {
     const gl = this.gl;
     gl.bindBuffer(target, buffer);
     gl.bufferSubData(target, offsetBytes, data);
   }
 
-  /*
-    互換用（バッファを分けて属性を結びつける汎用版）。
-    毎フレーム呼ぶと属性ごとにバッファ生成が走るため遅い。
-    高速に描画したい場合は下のcreateVAOを使うこと。
-  */
   bindAttributes(program, list = {}) {
     const gl = this.gl;
     const buffers = {};
@@ -129,25 +119,6 @@ class WebGL {
     return buffers;
   }
 
-  /*
-    ------------------------------
-    最速描画用: VAOキャッシュ + インターリーブ属性
-    ------------------------------
-
-    layout = [{ name, size, type }, ...]
-    data はインターリーブ済みの1本の配列
-      例: [x,y,z, r,g,b,a,  x,y,z, r,g,b,a, ...]
-
-    1本のバッファに対してstride（1頂点あたりのバイト数）と
-    offset（各属性の開始バイト位置）を計算し、vertexAttribPointerに渡す。
-    これにより
-      - バッファのbind回数が1回で済む
-      - GPU側のメモリアクセスがまとまり局所性が良くなる
-      - VAOに設定を焼き込むので、描画時はbindVertexArrayだけでよい
-    という理由で複数バッファ方式より高速になる。
-
-    戻り値のVAOハンドルは使い回すこと（毎フレーム作り直さない）。
-  */
   createVAO(program, layout, data, usage = this.gl.STATIC_DRAW) {
     const gl = this.gl;
     const typeSizes = {
@@ -158,7 +129,6 @@ class WebGL {
       [gl.UNSIGNED_SHORT]: 2
     };
 
-    // 各属性のバイトオフセットを前から積算して求める
     let stride = 0;
     const withOffsets = layout.map((attr) => {
       const type = attr.type || gl.FLOAT;
@@ -187,7 +157,6 @@ class WebGL {
     return { vao, buffer, stride, layout: withOffsets };
   }
 
-  // 事前構築済みのVAOをbindして描画するだけ（属性の再設定をしないため最速）
   drawVAO(vaoHandle, mode, first, count) {
     const gl = this.gl;
     gl.bindVertexArray(vaoHandle.vao);
@@ -196,7 +165,7 @@ class WebGL {
   }
 
   // ------------------------------
-  // 描画共通処理
+  // 描画共通処理 / 最速行列対応
   // ------------------------------
 
   updateSize(w, h) {
@@ -212,18 +181,49 @@ class WebGL {
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
-  // flushは基本的に不要（ブラウザが適切なタイミングで自動的に行う）。
-  // 明示的に呼ぶとGPUとの同期待ちが発生し逆に遅くなるため、既定ではオフにしている。
   drawArrays(mode, first, count, flush = false) {
     this.gl.drawArrays(mode, first, count);
     if (flush) this.gl.flush();
   }
 
+  /**
+   * [新規追加] 描画最速化用: Uniform Buffer Object (UBO) の作成
+   * 毎フレーム複数のUniform行列（Proj/View/Worldなど）を個別に送るオーバーヘッドを無くし、
+   * 1本のバッファ転送で全シェーダーに一括共有させます。
+   */
+  createUBO(program, blockName, blockBindingPoint, sizeInBytes) {
+    const gl = this.gl;
+    const blockIndex = gl.getUniformBlockIndex(program, blockName);
+    if (blockIndex === gl.INVALID_INDEX) {
+      this.log('error', `Uniform block '${blockName}' not found.`);
+      return null;
+    }
+    gl.uniformBlockBinding(program, blockIndex, blockBindingPoint);
+
+    const ubo = gl.createBuffer();
+    gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
+    gl.bufferData(gl.UNIFORM_BUFFER, sizeInBytes, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+
+    return ubo;
+  }
+
+  /**
+   * [新規追加] UBOデータの最速更新パス
+   */
+  updateUBO(ubo, float32Data, blockBindingPoint) {
+    const gl = this.gl;
+    gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
+    gl.bufferSubData(gl.UNIFORM_BUFFER, 0, float32Data);
+    gl.bindBufferBase(gl.UNIFORM_BUFFER, blockBindingPoint, ubo);
+    gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+  }
+
+
   // ------------------------------
-  // GPGPU（Transform Feedback）関連
+  // GPGPU（Transform Feedback）関連 / RGBA対応
   // ------------------------------
 
-  // 1チャンネル（R32F）のFloatテクスチャを新規作成する
   createDataTexture(width, height, data) {
     const gl = this.gl;
     const texture = gl.createTexture();
@@ -237,7 +237,6 @@ class WebGL {
     return texture;
   }
 
-  // 既存テクスチャの中身だけを差し替える（作り直さない＝最速の更新パス）
   updateDataTexture(texture, width, height, data) {
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -245,13 +244,34 @@ class WebGL {
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
 
+  /**
+   * [新規追加] 4チャンネル（RGBA32F）のFloatテクスチャを新規作成する（並列処理用）
+   */
+  createDataTextureRGBA(width, height, data) {
+    const gl = this.gl;
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, data);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return texture;
+  }
+
+  /**
+   * [新規追加] RGBA32Fテクスチャの高速データ更新
+   */
+  updateDataTextureRGBA(texture, width, height, data) {
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, data);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
   bindTexture(program, uniformName, texture, unit) {
     const gl = this.gl;
-    // uniform1iは「現在useProgramでアクティブになっているプログラム」に対して働く。
-    // ここでuseProgramを呼ばずにいると、他のプログラム（描画ループの三角形用など）が
-    // アクティブなタイミングで呼ばれた場合にサイレントに失敗し、
-    // サンプラーがデフォルト値（0）のまま＝意図しないテクスチャユニットを参照し続ける
-    // ＝計算結果が壊れる（全部0になるなど）原因になっていた。
     gl.useProgram(program);
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -259,27 +279,6 @@ class WebGL {
     gl.uniform1i(location, unit);
   }
 
-  /*
-    ------------------------------
-    最速GPGPU用: カーネルを事前に一括構築して使い回す
-    ------------------------------
-
-    program / VAO / attribute buffer / 出力バッファ / テクスチャを
-    すべて初回にまとめて作成し、以降は run() を呼ぶだけにする。
-    毎フレームのcreateProgram・createTexture・createBufferを排除するのが目的。
-
-    入力を差し替えたい場合は kernel.setTexture(name, width, height, data) を呼ぶと、
-    サイズが変わらない限りtexSubImage2Dで中身だけ更新される（テクスチャ再生成なし）。
-
-    options = {
-      vertexShaderSource, fragmentShaderSource,
-      varyings,               // 例 ['result']
-      attributes,             // { name: {size, value} } … 通常は使い回すindexバッファなど
-      outputSize,             // 出力要素数（floatの個数）
-      vertexCount,            // 実行する頂点数
-      mode                    // 省略時 gl.POINTS
-    }
-  */
   createGpgpuKernel(options) {
     const gl = this.gl;
     const {
@@ -289,92 +288,194 @@ class WebGL {
       attributes = {},
       outputSize,
       vertexCount,
-      mode = gl.POINTS
+      mode = gl.POINTS,
+      isRGBA = false // [新規追加オプション] RGBA並列フラグ
     } = options;
-  
+
     const program = this.createProgram(vertexShaderSource, fragmentShaderSource, varyings);
-  
+
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao);
     this.bindAttributes(program, attributes);
     gl.bindVertexArray(null);
-  
+
     const outputBuffer = gl.createBuffer();
     gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, outputBuffer);
-    gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, outputSize * 4, gl.DYNAMIC_COPY);
+    // RGBAなら1要素あたり float×4（16バイト）になる
+    const elementSize = isRGBA ? 16 : 4;
+    gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, outputSize * elementSize, gl.DYNAMIC_COPY);
     gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
-  
-    const result = new Float32Array(outputSize);
+
+    // 引数 outputSize に応じた格納先配列
+    const result = new Float32Array(isRGBA ? outputSize * 4 : outputSize);
     const textures = {};
     const textureSizes = {};
     const textureUnits = {};
     let nextUnit = 0;
-  
-    const setTexture = (uniformName, width, height, data) => {
+
+    const setTexture = (uniformName, width, height, data, useRGBA = isRGBA) => {
       const cached = textureSizes[uniformName];
       const sameSize = cached && cached.width === width && cached.height === height;
-  
+
       if (!textures[uniformName]) {
-        textures[uniformName] = this.createDataTexture(width, height, data);
+        textures[uniformName] = useRGBA 
+          ? this.createDataTextureRGBA(width, height, data) 
+          : this.createDataTexture(width, height, data);
         textureUnits[uniformName] = nextUnit++;
       } else if (sameSize) {
-        this.updateDataTexture(textures[uniformName], width, height, data);
+        if (useRGBA) {
+          this.updateDataTextureRGBA(textures[uniformName], width, height, data);
+        } else {
+          this.updateDataTexture(textures[uniformName], width, height, data);
+        }
       } else {
         gl.deleteTexture(textures[uniformName]);
-        textures[uniformName] = this.createDataTexture(width, height, data);
+        textures[uniformName] = useRGBA 
+          ? this.createDataTextureRGBA(width, height, data) 
+          : this.createDataTexture(width, height, data);
       }
-  
+
       textureSizes[uniformName] = { width, height };
       this.bindTexture(program, uniformName, textures[uniformName], textureUnits[uniformName]);
     };
-  
+
     const setUniformInt = (name, value) => {
       gl.useProgram(program);
       gl.uniform1i(gl.getUniformLocation(program, name), value);
     };
-  
+
     const setUniformFloatArray = (name, data) => {
       gl.useProgram(program);
       gl.uniform1fv(gl.getUniformLocation(program, name), data);
     };
-  
+
     const run = () => {
       gl.useProgram(program);
       gl.bindVertexArray(vao);
-      
-      for (const name in textures) {
-        gl.activeTexture(gl.TEXTURE0 + textureUnits[name]);
-        gl.bindTexture(gl.TEXTURE_2D, textures[name]);
-      }
-      
       gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, outputBuffer);
-  
+
       gl.enable(gl.RASTERIZER_DISCARD);
       gl.beginTransformFeedback(mode);
       gl.drawArrays(mode, 0, vertexCount);
       gl.endTransformFeedback();
       gl.disable(gl.RASTERIZER_DISCARD);
-  
+
       gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
       gl.bindVertexArray(null);
-    };
-  
-    const download = () => {
+
       gl.bindBuffer(gl.ARRAY_BUFFER, outputBuffer);
       gl.getBufferSubData(gl.ARRAY_BUFFER, 0, result);
-      gl.bindBuffer(gl.ARRAY_BUFFER, null);
       return result;
     };
-  
+
     const dispose = () => {
       for (const name in textures) gl.deleteTexture(textures[name]);
       gl.deleteBuffer(outputBuffer);
       gl.deleteVertexArray(vao);
       gl.deleteProgram(program);
     };
-  
-    const getTextureObject = (name) => textures[name];
-  
-    return { program, setTexture, setUniformInt, setUniformFloatArray, run, download, getTextureObject, dispose };
+
+    return { program, setTexture, setUniformInt, setUniformFloatArray, run, dispose };
+  }
+
+  /**
+   * [新規追加] 最速GPGPU: 行列掛け算専用カーネル作成 (Matrix Multiplication)
+   * 巨大な行列 A (M x K) と 行列 B (K x N) の乗算を、RGBAテクスチャフェッチと
+   * Transform Feedbackを用いてGPU側で超高速に並列計算します。
+   */
+  createMatrixMulKernel(M, K, N) {
+    // 頂点シェーダー内で、Aの行(K個のfloat = vec4がK/4個) と Bの列 を内積計算する
+    // N個の列 × M個の行 ＝ 合計 M*N 個の要素を出力（RGBAならさらに4倍効率化可能だが、シンプルな位置マッピングで実装）
+    const vs = `#version 300 es
+      in float vertexId;
+      uniform sampler2D texA; // M x ceil(K/4) [RGBA32F]
+      uniform sampler2D texB; // N x ceil(K/4) [RGBA32F] (あらかじめ転置しておくと最速)
+      uniform int uK;
+      uniform int uN;
+      out vec4 resultRGBA; // 1頂点で4成分(1つの結合された結果など)を出力可能
+
+      void main() {
+        int idx = int(vertexId);
+        int row = idx / uN;
+        int col = idx % uN;
+
+        // RGBAフェッチを使い、1回につき4個の要素を同時に積算（最速のメモリアクセス局所性）
+        vec4 sum = vec4(0.0);
+        int blocks = (uK + 3) / 4;
+        
+        for(int i = 0; i < blocks; i++) {
+          vec4 a = texelFetch(texA, ivec2(i, row), 0);
+          vec4 b = texelFetch(texB, ivec2(i, col), 0);
+          sum += a * b;
+        }
+        
+        // 内積の合計
+        float dotResult = sum.x + sum.y + sum.z + sum.w;
+        resultRGBA = vec4(dotResult, 0.0, 0.0, 0.0); 
+      }
+    `;
+
+    const fs = `#version 300 es
+      precision mediump float;
+      void main() {}
+    `;
+
+    // 頂点ID配列の準備
+    const count = M * N;
+    const ids = new Float32Array(count);
+    for(let i = 0; i < count; i++) ids[i] = i;
+
+    const kernel = this.createGpgpuKernel({
+      vertexShaderSource: vs,
+      fragmentShaderSource: fs,
+      varyings: ['resultRGBA'],
+      attributes: {
+        vertexId: { size: 1, value: ids, type: this.gl.FLOAT }
+      },
+      outputSize: count,
+      vertexCount: count,
+      isRGBA: true
+    });
+
+    kernel.setUniformInt('uK', K);
+    kernel.setUniformInt('uN', N);
+
+    /**
+     * 行列データをテクスチャ形式にパックして実行する最速ラップ関数
+     * dataA: Float32Array (M * K)
+     * dataB: Float32Array (K * N) -> ※あらかじめ転置(N * K)して渡すとテクスチャフェッチが連続して最速化
+     */
+    const execute = (dataA, dataB) => {
+      const blocks = Math.ceil(K / 4);
+      
+      // RGBA32Fの幅にパディングしたFloat32Arrayを生成
+      const packedA = new Float32Array(M * blocks * 4);
+      for(let r=0; r<M; r++) {
+        for(let k=0; k<K; k++) {
+          packedA[(r * blocks * 4) + k] = dataA[r * K + k];
+        }
+      }
+
+      const packedB = new Float32Array(N * blocks * 4);
+      for(let c=0; c<N; c++) {
+        for(let k=0; k<K; k++) {
+          // Bが転置されている前提（N行K列）の高速アクセス
+          packedB[(c * blocks * 4) + k] = dataB[c * K + k];
+        }
+      }
+
+      kernel.setTexture('texA', blocks, M, packedA, true);
+      kernel.setTexture('texB', blocks, N, packedB, true);
+      
+      const rawOut = kernel.run();
+      // vec4(x, 0, 0, 0) から等間隔で結果を抽出
+      const finalResult = new Float32Array(M * N);
+      for(let i = 0; i < M * N; i++) {
+        finalResult[i] = rawOut[i * 4];
+      }
+      return finalResult;
+    };
+
+    return { execute, dispose: kernel.dispose };
   }
 }
