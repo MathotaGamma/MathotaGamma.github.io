@@ -186,9 +186,12 @@
                 flex-direction: column;
               }
               #editorPane { background: var(--color-canvas); }
+              
+              /* 【修正】スクロール時の背景切れを防ぐため、
+                 親コンテナ自体に十分なパディングを持たせ、スクロール時の余白を保証します */
               #previewPane {
                 background: var(--color-canvas);
-                overflow: auto;
+                overflow-y: auto;
                 padding: 32px 24px;
               }
               #workspace.mode-edit #previewPane,
@@ -243,8 +246,11 @@
               .cm-s-deskmono .cm-attribute { color: var(--color-teal); }
 
               /* ===== プレビュー(原稿カード) ===== */
+              /* 【修正】親要素のスクロールに追従し、
+                 コンテンツ量に関わらず最低でも親の高さ100%を維持するように修正しました */
               #previewInner {
                 max-width: 720px;
+                width: 100%;
                 margin: 0 auto;
                 background: var(--color-paper);
                 color: var(--color-paper-ink);
@@ -254,7 +260,8 @@
                 padding: 48px 56px;
                 border-radius: var(--radius-md);
                 box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-                min-height: calc(100% - 0px);
+                min-height: 100%; /* 親のスクロール可能な高さにしっかり追従させます */
+                display: flow-root; /* paddingの相殺を防ぎ、高さを正しく計算させます */
               }
               #previewInner h1, #previewInner h2, #previewInner h3, #previewInner h4 {
                 font-weight: 600;
@@ -462,12 +469,12 @@
         </section>
       </main>
 
-      <footer id="consolePanel">
+      <footer id="consolePanel" class="collapsed">
         <div id="consoleHeader">
           <span>コンソール</span>
           <div class="consoleControls">
             <button id="consoleClearBtn" type="button">消去</button>
-            <button id="consoleToggleBtn" type="button">▾</button>
+            <button id="consoleToggleBtn" type="button">▴</button>
           </div>
         </div>
         <div id="consoleBody"></div>
@@ -501,7 +508,6 @@
       </div>
     </div>
 
-    <!-- CodeMirror (コードエディタ部分) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/overlay.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js" crossorigin="anonymous"></script>
@@ -514,7 +520,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/gfm/gfm.min.js" crossorigin="anonymous"></script>
 
-    <!-- Markdown変換 / サニタイズ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
 
@@ -535,7 +540,7 @@
 
       const SETTINGS_KEY = 'mdEditorDriveSettings';
 
-      // ここに実際のGoogle CloudのOAuth Client IDと、Redirect URI(中継ページ)を書き込んでください。
+      // ここに実際のGoogle Cloud of OAuth Client IDと、Redirect URI(中継ページ)を書き込んでください。
       // 設定画面(⚙)から入力した場合はlocalStorageの内容が優先されます。
       const EMBEDDED_CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
       const EMBEDDED_REDIRECT_URI = 'https://mathotagamma.github.io/statics/drive-api/oauth2callback';
@@ -708,6 +713,9 @@ function hello(name) {
       /* ==================================================
       エディタ (CodeMirror / フォールバック)
       ================================================== */
+
+      // 【修正】初期化時にコンソールを閉じているため、起動時のトグルボタンの文字を「▴」に合わせます
+      consoleToggleBtn.textContent = '▴';
 
       function getEditorValue() {
         return cm ? cm.getValue() : editorTextareaEl.value;
