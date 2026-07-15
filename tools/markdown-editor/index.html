@@ -186,8 +186,8 @@
                 flex-direction: column;
               }
               #editorPane { background: var(--color-canvas); }
-              
-              /* 【修正】flexコンテナ化し、スクロール領域と高さを最適化 */
+
+              /* 【背景追従修正】flexコンテナにして子要素の高さが正しく伸びるようにする */
               #previewPane {
                 background: var(--color-canvas);
                 overflow-y: auto;
@@ -247,8 +247,7 @@
               .cm-s-deskmono .cm-attribute { color: var(--color-teal); }
 
               /* ===== プレビュー(原稿カード) ===== */
-              /* 【修正】どれだけ中身が長くても、あるいは空でも、
-                 常に一番底まで原稿の背景色（クリーム色）を伸ばし切るように修正しました */
+              /* 【背景追従修正】flex-grow: 1 と flex-shrink: 0 を使用し、コンテンツ量に関わらず底まで伸ばす */
               #previewInner {
                 max-width: 720px;
                 width: 100%;
@@ -262,9 +261,9 @@
                 border-radius: var(--radius-md);
                 box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
                 
-                flex-grow: 1; /* コンテンツ量に関わらず、プレビュー欄の底まで用紙を引っ張ります */
-                flex-shrink: 0; /* 高さが勝手に潰れるのを防ぎます */
-                display: flow-root; /* paddingの計算相殺バグを防ぎます */
+                flex-grow: 1;
+                flex-shrink: 0;
+                display: flow-root;
               }
               #previewInner h1, #previewInner h2, #previewInner h3, #previewInner h4 {
                 font-weight: 600;
@@ -315,7 +314,9 @@
                 flex-direction: column;
                 max-height: 220px;
               }
+              /* 【初期化修正】初期状態で閉じるためのクラス定義 */
               #consolePanel.collapsed #consoleBody { display: none; }
+              
               #consoleHeader {
                 display: flex;
                 align-items: center;
@@ -536,15 +537,15 @@
 
       let drive = null;
       let cm = null;
-      let currentFile = { id: null, name: '無題.md' };
+      
+      // 【パス記憶修正】現在のファイルの識別情報オブジェクト。pathプロパティにフォルダ階層を含めた初期値を設定
+      let currentFile = { id: null, name: '無題.md', path: '無題.md' };
       let dirty = false;
       let previewTimer = null;
       let resizeTimer = null;
 
       const SETTINGS_KEY = 'mdEditorDriveSettings';
 
-      // ここに実際のGoogle Cloud of OAuth Client IDと、Redirect URI(中継ページ)を書き込んでください。
-      // 設定画面(⚙)から入力した場合はlocalStorageの内容が優先されます。
       const EMBEDDED_CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
       const EMBEDDED_REDIRECT_URI = 'https://mathotagamma.github.io/statics/drive-api/oauth2callback';
       const EMBEDDED_SPACE = 'file';
@@ -648,7 +649,7 @@ function hello(name) {
           const reason = event.reason;
           const message = reason && reason.message ? reason.message : String(reason);
           if (message.includes('browser.storage')) {
-            log('warn', `拡張機能由来と思われる未処理のPromise rejectionです(このページのコードはbrowser.storageを使用していません): ${message}`);
+            log('warn', `拡張機能由来と思われる未処理のPromise rejectionです: ${message}`);
             return;
           }
           log('error', `未処理のPromise rejection: ${message}`);
@@ -657,10 +658,14 @@ function hello(name) {
       consoleClearBtn.addEventListener('click', () => {
           consoleBodyEl.innerHTML = '';
         });
+      
+      // 【初期化修正】初期状態で矢印の向きを上向き(▴)にするため、初期値を設定
+      consoleToggleBtn.textContent = '▴';
       consoleToggleBtn.addEventListener('click', () => {
           consolePanelEl.classList.toggle('collapsed');
           consoleToggleBtn.textContent = consolePanelEl.classList.contains('collapsed') ? '▴' : '▾';
         });
+
       /* ==================================================
       設定の保存/読込
       ================================================== */
@@ -716,9 +721,6 @@ function hello(name) {
       /* ==================================================
       エディタ (CodeMirror / フォールバック)
       ================================================== */
-
-      // 起動時にコンソールが閉じているためボタン表示を「▴」にセット
-      consoleToggleBtn.textContent = '▴';
 
       function getEditorValue() {
         return cm ? cm.getValue() : editorTextareaEl.value;
@@ -783,7 +785,6 @@ function hello(name) {
         }
       }
 
-      // プレビュー内のリンクは新規タブで開く
       previewInnerEl.addEventListener('click', (event) => {
           const anchor = event.target.closest('a');
           if (anchor && anchor.href) {
@@ -1011,7 +1012,7 @@ ${bodyHtml}
       newBtn.addEventListener('click', () => {
           if (!confirmDiscardIfDirty('保存されていない変更があります。新規作成すると失われます。続行しますか?')) return;
           setEditorValue('');
-          currentFile = { id: null, name: '無題.md' };
+          currentFile = { id: null, name: '無題.md', path: '無題.md' };
           markClean();
           renderPreview();
           log('info', '新規ドキュメントを作成しました。');
@@ -1038,11 +1039,15 @@ ${bodyHtml}
             }
             log('info', `「${picked.name}」を読み込んでいます…`);
             const content = await drive.getFile({ fileId: picked.id });
+            
+            // 【パス記憶修正】Pickerから取得したフルパス（無い場合はファイル名）を保持
+            const resolvedPath = picked.path || picked.name;
+
             setEditorValue(typeof content === 'string' ? content : String(content ?? ''));
-            currentFile = { id: picked.id, name: picked.name };
+            currentFile = { id: picked.id, name: picked.name, path: resolvedPath };
             markClean();
             renderPreview();
-            log('info', `「${picked.name}」を読み込みました。`);
+            log('info', `「${resolvedPath}」を読み込みました。`);
           } catch (e) {
             log('error', `ファイルの読み込みに失敗しました: ${e.message}`);
           }
@@ -1059,7 +1064,7 @@ ${bodyHtml}
           const reader = new FileReader();
           reader.onload = () => {
             setEditorValue(String(reader.result ?? ''));
-            currentFile = { id: null, name: file.name };
+            currentFile = { id: null, name: file.name, path: file.name };
             markClean();
             renderPreview();
             log('info', `ローカルファイル「${file.name}」を読み込みました。`);
@@ -1082,11 +1087,11 @@ ${bodyHtml}
         if (currentFile.id) {
           try {
             saveBtn.disabled = true;
-            log('info', `「${currentFile.name}」を保存しています…`);
+            log('info', `「${currentFile.path}」を保存しています…`);
             await drive.saveFile({ fileId: currentFile.id, data: getEditorValue(), mimeType: 'text/markdown' });
             markClean();
             flashFeedback(saveBtn, '保存済み');
-            log('info', `「${currentFile.name}」を保存しました。`);
+            log('info', `「${currentFile.path}」を保存しました。`);
           } catch (e) {
             log('error', `保存に失敗しました: ${e.message}`);
           } finally {
@@ -1105,8 +1110,9 @@ ${bodyHtml}
           return;
         }
 
-        const defaultName = currentFile.name || '無題.md';
-        let filename = window.prompt('保存するファイル名を入力してください(例: memo.md、folder/memo.md)', defaultName);
+        // 【パス記憶修正】現在のフルパス(フォルダ階層付き)を初期値に指定
+        const defaultPath = currentFile.path || '無題.md';
+        let filename = window.prompt('保存するファイル名またはフォルダ階層を含めたパスを入力してください\n(例: memo.md、documents/folder/memo.md)', defaultPath);
         if (filename === null) {
           log('info', '名前を付けて保存をキャンセルしました。');
           return;
@@ -1128,7 +1134,9 @@ ${bodyHtml}
           if (!newId) {
             newId = await drive.getFileId({ path: filename });
           }
-          currentFile = { id: newId || null, name: filename.split('/').pop() };
+          
+          // 【パス記憶修正】次回用にフルパス(filename)を path プロパティに保存
+          currentFile = { id: newId || null, name: filename.split('/').pop(), path: filename };
           markClean();
           flashFeedback(saveAsBtn, '保存済み');
           log('info', `「${filename}」として保存しました。`);
