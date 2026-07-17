@@ -596,7 +596,8 @@
       const settingsCancelBtn = document.getElementById('settingsCancelBtn');
       const settingsSaveBtn = document.getElementById('settingsSaveBtn');
 
-      const WELCOME_TEXT = localStorage.getItem('tools/markdown-editor/:document') ?? `# 無題のドキュメント
+      const STORAGE_TEXT = localStorage.getItem('tools/markdown-editor/:document')
+      const WELCOME_TEXT = (STORAGE_TEXT != null && confirm('以前のデータを復旧しますか？(この操作は取り消せません。)')) ? STORAGE_TEXT : `# 無題のドキュメント
 
 ここに **Markdown** を入力すると、プレビューに反映されます。
 
@@ -738,8 +739,6 @@ function hello(name) {
       }
 
       function setEditorValue(text) {
-        // localStorageに保存
-        localStorage.setItem('tools/markdown-editor/:document', text);
         if (cm) {
           cm.setValue(text);
         } else {
@@ -760,21 +759,27 @@ function hello(name) {
               indentWithTabs: false
             });
           cm.on('change', () => {
-              markDirty();
-              schedulePreviewUpdate();
-            });
+            const text = getEditorValue();
+            // localStorageに保存
+            localStorage.setItem('tools/markdown-editor/:document', text);
+            markDirty();
+            schedulePreviewUpdate();
+          });
           log('info', 'コードエディタ(CodeMirror)を初期化しました。');
         } catch (e) {
           cm = null;
           log('warn', `CodeMirrorの初期化に失敗したため、通常のテキストエリアで動作します: ${e.message}`);
           editorTextareaEl.addEventListener('input', () => {
-              markDirty();
-              schedulePreviewUpdate();
-            });
+            const text = getEditorValue();
+            // localStorageに保存
+            localStorage.setItem('tools/markdown-editor/:document', text);
+            markDirty();
+            schedulePreviewUpdate();
+          });
         }
       }
 
-      documentCopyBtn.addEventListener('click', (v) => {
+      documentCopyBtn.addEventListener('touchstart', (v) => {
         if (!navigator.clipboard) {
           alert("このブラウザはクリップボード操作に対応していません");
           return;
