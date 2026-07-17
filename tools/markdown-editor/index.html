@@ -780,7 +780,7 @@ function hello(name) {
           return;
         }
 
-        navigator.clipboard.writeText(txt.textContent).then(
+        navigator.clipboard.writeText(getEditorValue()).then(
           () => {
             alert('コピーに成功しました');
           },
