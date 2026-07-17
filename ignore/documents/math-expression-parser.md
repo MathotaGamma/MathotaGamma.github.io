@@ -24,7 +24,6 @@ Aの始めの文字からBが続いている場合は先にAを判定する。*
 
 ### 字句リストの例
 <details><summary>字句リスト</summary>
-  
   <table>
     <thead>
       <tr>
