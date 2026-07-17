@@ -1,8 +1,9 @@
 /*
  userがファイルを指定してもらうメソッド openPicker を追加。
+ v6.2: openPickerをDocsView化し、フォルダ階層を開いて中を見られるように変更。
 */
 class DriveAPIManager {
-  static ver = "6.1";
+  static ver = "6.2";
   
   constructor({ clientId, redirectUri, progress, space = 'appdata' }) {
     if (!clientId || !redirectUri)
@@ -60,80 +61,76 @@ class DriveAPIManager {
   }
 
   // userにファイルを選んでもらう(Google Picker API)
-async openPicker({ mimeType = null, title = '選択してください' } = {}) {
-  // 1. ログイン状態とトークンのチェック
-  if (!this.state.loggedIn || !this.state.token) {
-    throw new Error('Pickerを開く前に auth() でログインを完了してください。');
-  }
-
-  this.progress('openPicker', 'loading_scripts');
-
-  // 2. Google API (gapi) のクライアントスクリプトを動的ロード
-  await new Promise((resolve, reject) => {
-    if (window.gapi) return resolve();
-    const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
-    script.onload = () => resolve();
-    script.onerror = (e) => reject(new Error('Google API スクリプトの読み込みに失敗しました。'));
-    document.head.appendChild(script);
-  });
-
-  // 3. picker ライブラリをロード
-  await new Promise((resolve) => {
-    window.gapi.load('picker', { callback: resolve });
-  });
-
-  this.progress('openPicker', 'showing_ui');
-
-  // 4. ピッカーを構築して表示
-  return new Promise((resolve) => {
-    // 表示するビューの制限（デフォルトはマイドライブ）
-    const viewId = mimeType === 'application/vnd.google-apps.folder' 
-      ? window.google.picker.ViewId.FOLDERS 
-      : window.google.picker.ViewId.DOCS;
-      
-    const view = new window.google.picker.View(viewId);
-    if (mimeType) {
-      view.setMimeTypes(mimeType); // 💡特定のMIMEタイプ（フォルダなど）のみに絞り込む
+  // v6.2: DocsViewでフォルダを階層的に開いて中を見られるようにした
+  async openPicker({ mimeType = null, title = '選択してください', parentId = 'root' } = {}) {
+    // 1. ログイン状態とトークンのチェック
+    if (!this.state.loggedIn || !this.state.token) {
+      throw new Error('Pickerを開く前に auth() でログインを完了してください。');
     }
 
-    // 🚀 ここから修正・追加
-    const builder = new window.google.picker.PickerBuilder()
-      .addView(view)
-      .setOAuthToken(this.state.token)
-      .setTitle(title)
-      // 💡 1. 左側に「マイドライブ」「共有アイテム」「最近使用したアイテム」などのナビゲーション（階層）を出す
-      .enableFeature(window.google.picker.Feature.NAV_HIDDEN) // ※これを無効化、または明示的にコントロール
-      
-      // 💡 2. 共有ドライブ（旧チームドライブ）も表示に含める（仕事用なら必須）
-      .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES) 
-      
-      // 💡 3. グリッド表示（カード型）とリスト表示の切り替えボタンを付ける
-      .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED) // 必要なら複数選択も可能に（今回は単一選択なら不要）
+    this.progress('openPicker', 'loading_scripts');
 
-      .setCallback((data) => {
-        if (data.action === window.google.picker.Action.PICKED) {
-          const doc = data.docs[0];
-          this._idCache[doc.name] = doc.id; 
-          this.progress('openPicker', 'picked');
-          resolve({
-            id: doc.id,
-            name: doc.name,
-            mimeType: doc.mimeType
-          });
-        } else if (data.action === window.google.picker.Action.CANCEL) {
-          this.progress('openPicker', 'canceled');
-          resolve(null);
-        }
-      });
+    // 2. Google API (gapi) のクライアントスクリプトを動的ロード
+    await new Promise((resolve, reject) => {
+      if (window.gapi) return resolve();
+      const script = document.createElement('script');
+      script.src = 'https://apis.google.com/js/api.js';
+      script.onload = () => resolve();
+      script.onerror = (e) => reject(new Error('Google API スクリプトの読み込みに失敗しました。'));
+      document.head.appendChild(script);
+    });
 
-    // 💡 4. ピッカーのサイズを大きくして、本物のDriveっぽく見せる（横: 1050px, 縦: 650px など最大級に）
-    builder.setSize(1050, 650);
+    // 3. picker ライブラリをロード
+    await new Promise((resolve) => {
+      window.gapi.load('picker', { callback: resolve });
+    });
 
-    const picker = builder.build();
-    picker.setVisible(true);
-  });
-}
+    this.progress('openPicker', 'showing_ui');
+
+    // フォルダそのものを選びたいケース(mimeTypeにフォルダを指定した場合)かどうか
+    const isFolderPick = mimeType === 'application/vnd.google-apps.folder';
+
+    // 4. ピッカーを構築して表示
+    return new Promise((resolve) => {
+      // 💡 DocsView + setIncludeFolders(true) でフォルダを階層的に開いて中を見られるようにする。
+      //    setSelectFolderEnabled は「フォルダ自体を選択肢として確定できるか」のフラグ。
+      const view = new window.google.picker.DocsView(window.google.picker.ViewId.DOCS)
+        .setParent(parentId)          // 開始位置のフォルダ(既定: マイドライブ直下)
+        .setIncludeFolders(true)      // フォルダをツリーに表示し、開いて中を見られるようにする
+        .setSelectFolderEnabled(isFolderPick); // フォルダ自体を選択可能にするか
+
+      if (mimeType) {
+        view.setMimeTypes(mimeType); // 💡特定のMIMEタイプ（フォルダなど）のみに絞り込む(フォルダ自体は常に表示される)
+      }
+
+      const picker = new window.google.picker.PickerBuilder()
+        .addView(view)
+        .setOAuthToken(this.state.token) // 💡クラス内にある現在のアクセストークンを流用
+        .setTitle(title)
+        .setCallback((data) => {
+          // ユーザーがアクションを起こした時のコールバック
+          if (data.action === window.google.picker.Action.PICKED) {
+            const doc = data.docs[0];
+            
+            // 💡 取得したIDを内部キャッシュに自動登録しておく（あとで getPath や saveFile で使えるように）
+            this._idCache[doc.name] = doc.id; 
+            
+            this.progress('openPicker', 'picked');
+            resolve({
+              id: doc.id,
+              name: doc.name,
+              mimeType: doc.mimeType
+            });
+          } else if (data.action === window.google.picker.Action.CANCEL) {
+            this.progress('openPicker', 'canceled');
+            resolve(null); // キャンセル時は null を返す
+          }
+        })
+        .build();
+
+      picker.setVisible(true);
+    });
+  }
 
   /* ==================================================
      共通
@@ -343,50 +340,50 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
     const parts = currentPath.split('/').filter(Boolean);
     if (parts.length === 0) return this.rootId;
     if (this._idCache[currentPath]) return this._idCache[currentPath];
-    
+
     this.progress('createFolder', 'start');
-    
+
     let lastId = this.rootId;
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       const parent = parts.slice(0, i).join('/');
       const fullSubPath = parent ? `${parent}/${part}` : part;
-      
+
       let targetId = this._idCache[fullSubPath];
       if (!targetId) {
         targetId = await this.getFileId({path: fullSubPath});
       }
-      
+
       if (!targetId) {
         this.progress('createFolder', 'new Folder Creating');
         const created = await this.createFile({parentPath: parent, name: part, mimeType: 'application/vnd.google-apps.folder'});
         targetId = created.id;
       }
-      
+
       lastId = targetId;
       this._idCache[fullSubPath] = lastId;
     }
-    
+
     return lastId;
   }
-  
+
   async createFile({parentPath, parentId, name, mimeType, description=''}) {
     const resolved = await this.integration({path: parentPath, fileId: parentId});
     const _parentId = resolved.fileId;
     const _parentPath = resolved.path;
 
     if ((_parentPath !== "" && !_parentPath) || !name || !mimeType) return null;
-    
+
     const meta = {
       name,
       mimeType,
       parents: [_parentId],
       description
     };
-    
+
     return await this.request('POST', 'files', { body: meta });
   }
-  
+
   async getFileId({path}) {
     const cleanPath = this.filterPath({path});
     const parts = cleanPath.split('/').filter(Boolean);
@@ -403,7 +400,7 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
         parentId = id;
         continue;
       }
-      
+
       const isLast = i === parts.length - 1;
       let q = `'${parentId}' in parents and name = '${part}' and trashed = false`;
       if (!isLast) {
@@ -420,46 +417,46 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
       parentId = res.files[0].id;
       this._idCache[_path] = parentId;
     }
-    
+
     return parentId;
   }
-  
+
   filterPath({path}) {
     if (path === undefined || path === null) return '';
     return path.split('/').filter(Boolean).join('/');
   }
-  
+
   async getPath({fileId}) {
     if (!fileId || fileId === this.rootId) return '';
     const names = [];
     let currentId = fileId;
-    
+
     try {
       do {
         const res = await this.request('GET', `files/${currentId}`, {
           params: { fields: 'name, parents' }
         });
-        
+
         if (!res) break;
         names.unshift(res.name);
-        
+
         if (res.parents && res.parents.length > 0) {
           currentId = res.parents[0];
         } else {
           currentId = null;
         }
       } while(currentId && currentId !== this.rootId);
-      
+
       return names.join('/');
     } catch (e) {
       console.error('[getPath] エラー:', e);
       return '';
     }
   }
-  
+
   async integration({path, fileId}) {
     const cleanPath = path !== undefined && path !== null ? this.filterPath({path}) : null;
-    
+
     let _path = cleanPath;
     let id = fileId;
     if (_path === null && id) {
@@ -467,10 +464,10 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
     } else if (_path !== null && !id) {
       id = await this.getFileId({path: _path});
     }
-    
+
     return { path: _path, fileId: id };
   }
-  
+
   async getParentId({path, id}) {
     if (path !== undefined && path !== null) {
       const cleanPath = this.filterPath({path});
@@ -486,23 +483,23 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
     const res = await this.request('GET', `files/${targetId}`, {
       params: { fields: 'parents' }
     });
-    
+
     if (targetPath && targetId) {
       this._idCache[targetPath] = targetId;
     }
-    
+
     return res.parents ?? [];
   }
-  
+
   async getFileInfo({path, fileId, fields='id, name, mimeType'}) {
     const resolved = await this.integration({path, fileId});
     const targetId = resolved.fileId;
-    
+
     return await this.request('GET', `files/${targetId}`, {
       params: { fields }
     });
   }
-  
+
   async listFiles({path, fileId}) {
     const resolved = await this.integration({path, fileId});
     const parentId = resolved.fileId;
@@ -513,9 +510,9 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
     const fields = 'nextPageToken, files(id, name, mimeType, size, createdTime, modifiedTime)';
     let children = [];
     let pageToken = null;
-    
+
     this.progress('listFiles', 'start');
-    
+
     do {
       const params = {
         q,
@@ -523,11 +520,11 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
         fields: fields,
         pageSize: 100 // パフォーマンス向上のため一括取得件数を引き上げ
       };
-      
+
       if (pageToken) params.pageToken = pageToken;
-      
+
       const res = await this.request('GET', 'files', { params });
-      
+
       if (res.files && res.files.length > 0) {
         for (let file of res.files) {
           const childPath = parentPath ? `${parentPath}/${file.name}` : file.name;
@@ -535,20 +532,20 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
         }
         children = children.concat(res.files);
       }
-      
+
       pageToken = res.nextPageToken;
       if (pageToken) this.progress('listFiles', 'fetching_next_page');
     } while (pageToken);
-    
+
     this.progress('listFiles', `done: total ${children.length} items`);
     return children;
   }
-  
+
   async removeFile({path, fileId}) {
     const resolved = await this.integration({path, fileId});
     const targetPath = resolved.path;
     const targetId = resolved.fileId;
-    
+
     if (!targetId || targetId === this.rootId) {
       console.warn(`[removeFile] パスまたはIDが見つかりません: ${path || fileId}`);
       return null; 
@@ -557,7 +554,7 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
     const file = await this.request('PATCH', `files/${targetId}`, {
       body: { trashed: true }
     });
-    
+
     if (file && targetPath) {
       const cacheKeys = Object.keys(this._idCache);
       for (const key of cacheKeys) {
@@ -566,14 +563,14 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
         }
       }
     }
-    
+
     return file;
   }
-  
+
   async removeAllFiles() {
     const list = await this.listFiles({path: ''});
     if (!list || list.length === 0) return [];
-    
+
     const results = [];
     for (let file of list) {
       const res = await this.removeFile({fileId: file.id});
@@ -582,26 +579,26 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
     }
     return results;
   }
-  
+
   /* ==================================================
      CRUD
      ================================================== */
-     
+
   async saveFile({path, fileId, data, mimeType="application/json"}) {
     const cleanPath = this.filterPath({path});
     if (!cleanPath) return { ok: false };
-    
+
     const {fileId: _fileId} = await this.integration({path, fileId});
     let _mimeType = mimeType;
-    
+
     let bodyData = data;
     if (typeof data === "object" && !(data instanceof Blob) && !(data instanceof ArrayBuffer)) {
       bodyData = JSON.stringify(data);
       _mimeType = "application/json";
     }
-    
+
     this.progress('saveFile', 'start');
-    
+
     if (_fileId && _fileId !== this.rootId) {
       const res = await this.request('PATCH',
         `upload/drive/v3/files/${_fileId}`,
@@ -612,7 +609,7 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
           body: bodyData
         }
       );
-      
+
       this.progress('saveFile', 'update:done');
       return res;
     } else {
@@ -621,13 +618,13 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
       let parentId = (await this.getParentId({path: cleanPath}))?.[0] ?? null;
       if(!parentId)
         parentId = await this.createFolder({path: list.join('/')});
-      
+
       const created = await this.createFile({
         parentId,
         name,
         mimeType: _mimeType
       });
-      
+
       const res = await this.request(
         'PATCH',
         `upload/drive/v3/files/${created.id}`,
@@ -638,14 +635,14 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
           body: bodyData
         }
       );
-      
+
       console.log('file size:', bodyData.length ?? bodyData.size ?? 0);
-      
+
       this.progress('saveFile', 'create:done');
       return res;
     }
   }
-  
+
   async getFile({path, fileId}) {
     const _fileId = fileId ?? await this.getFileId({path});
     if (!_fileId) {
@@ -658,14 +655,14 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
     });
     return res;
   }
-  
+
   async #miniGetStructure({parentPath, parentId}) {
     if (!parentId) return null;
     const q = `'${parentId}' in parents and trashed = false`;
     const fields = 'nextPageToken, files(id, name, mimeType, size)';
     let structure = {};
     let pageToken = null;
-    
+
     do {
       const params = {
         q,
@@ -673,16 +670,16 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
         fields: fields,
         pageSize: 100
       };
-      
+
       if (pageToken) params.pageToken = pageToken;
-      
+
       const res = await this.request('GET', 'files', { params });
-      
+
       if (res.files && res.files.length > 0) {
         for (let file of res.files) {
           const childPath = parentPath ? `${parentPath}/${file.name}` : file.name;
           this._idCache[childPath] = file.id;
-          
+
           if (file.mimeType === 'application/vnd.google-apps.folder') {
             structure[file.name] = await this.#miniGetStructure({parentPath: childPath, parentId: file.id});
           } else {
@@ -695,20 +692,20 @@ async openPicker({ mimeType = null, title = '選択してください' } = {}) {
           }
         }
       }
-      
+
       pageToken = res.nextPageToken;
     } while (pageToken);
-    
+
     return structure;
   }
-  
+
   async getStructure() {
     const parentPath = '';
     const parentId = this.rootId;
-    
+
     return structuredClone(await this.#miniGetStructure({parentPath, parentId}));
   }
-  
+
   async search({path, id, name}) {
     if (path === undefined && id === undefined && name === undefined) return;
     // 必要に応じて拡張可能
