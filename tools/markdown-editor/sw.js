@@ -5,6 +5,7 @@
 
 // 【Ver管理】キャッシュ内容を更新したい場合は、このバージョン文字列を
 // インクリメントしてください（例: v1 -> v2）。古いキャッシュは自動で破棄されます。
+
 const CACHE_VERSION = 'v1';
 const CACHE_NAME = `md-editor-cache-${CACHE_VERSION}`;
 
