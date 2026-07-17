@@ -779,7 +779,7 @@ function hello(name) {
         }
       }
 
-      documentCopyBtn.addEventListener('touchstart', (v) => {
+      documentCopyBtn.addEventListener('click', (v) => {
         if (!navigator.clipboard) {
           alert("このブラウザはクリップボード操作に対応していません");
           return;
