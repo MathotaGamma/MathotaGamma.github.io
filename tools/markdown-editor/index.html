@@ -460,6 +460,8 @@
 
         <button id="newTabBtn" type="button">新規タブで表示</button>
 
+        <button id="documentCopyBtn" type="button">全文をコピー</button>
+
         <span class="authStatus" id="authStatus">
           <span class="dot"></span>
           <span id="authStatusText">未設定</span>
@@ -574,6 +576,7 @@
       const saveAsBtn = document.getElementById('saveAsBtn');
       const downloadBtn = document.getElementById('downloadBtn');
       const newTabBtn = document.getElementById('newTabBtn');
+      const documentCopyBtn = document.getElementById('documentCopyBtn');
       const authBtn = document.getElementById('authBtn');
       const authStatusEl = document.getElementById('authStatus');
       const authStatusTextEl = document.getElementById('authStatusText');
@@ -593,7 +596,7 @@
       const settingsCancelBtn = document.getElementById('settingsCancelBtn');
       const settingsSaveBtn = document.getElementById('settingsSaveBtn');
 
-      const WELCOME_TEXT = `# 無題のドキュメント
+      const WELCOME_TEXT = localStorage.getItem('tools/markdown-editor/:document') ?? `# 無題のドキュメント
 
 ここに **Markdown** を入力すると、プレビューに反映されます。
 
@@ -735,6 +738,8 @@ function hello(name) {
       }
 
       function setEditorValue(text) {
+        // localStorageに保存
+        localStorage.setItem('tools/markdown-editor/:document', text);
         if (cm) {
           cm.setValue(text);
         } else {
@@ -768,6 +773,22 @@ function hello(name) {
             });
         }
       }
+
+      documentCopyBtn.addEventListener('click', (v) => {
+        if (!navigator.clipboard) {
+          alert("このブラウザはクリップボード操作に対応していません");
+          return;
+        }
+
+        navigator.clipboard.writeText(txt.textContent).then(
+          () => {
+            alert('コピーに成功しました');
+          },
+          () => {
+            alert('コピーに失敗しました');
+          }
+        );
+      });
 
       /* ==================================================
       プレビュー
