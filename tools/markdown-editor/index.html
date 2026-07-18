@@ -487,6 +487,11 @@
 
         <button id="newTabBtn" type="button">新規タブで表示</button>
 
+        <button id="copyBtn" type="button">全文をコピーする</button>
+
+        <input id="copyInput" type="text" placeholder="copy と入力で全文コピー" />
+
+
         <span class="authStatus" id="authStatus">
           <span class="dot"></span>
           <span id="authStatusText">未設定</span>
@@ -604,6 +609,8 @@
       const saveAsBtn = document.getElementById('saveAsBtn');
       const downloadBtn = document.getElementById('downloadBtn');
       const newTabBtn = document.getElementById('newTabBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const copyInputEl = document.getElementById('copyInput');
       const authBtn = document.getElementById('authBtn');
       const authStatusEl = document.getElementById('authStatus');
       const authStatusTextEl = document.getElementById('authStatusText');
@@ -641,6 +648,39 @@ function hello(name) {
 
 > コンソールには動作ログとエラーが表示されます。
 `;
+
+      /* ==================================================
+      クリップボードにコピー
+      ================================================== */
+
+      function copyToClipboard() {
+        const text = getEditorValue();
+        if (!navigator.clipboard) {
+          alert("このブラウザはclipboardに対応していません。");
+          return;
+        }
+
+        navigator.clipboard.writeText(text).then(
+          () => {
+            alert('コピーに成功しました。');
+          },
+          () => {
+            alert('⚠️コピーに失敗しました。');
+          }
+        );
+      }
+
+      copyBtn.addEventListener('click', () => {
+        copyToClipboard();
+      });
+
+      copyInputEl.addEventListener('input', () => {
+        if (copyInputEl.value === "copy") {
+          if (confirm('全文をコピーしますか？'))
+            copyToClipboard();
+          copyInputEl.value = "";
+        }
+      });
 
       /* ==================================================
       コンソールログ / エラーハンドリング
