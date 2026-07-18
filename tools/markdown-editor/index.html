@@ -784,7 +784,6 @@ function hello(name) {
             redoBtn.disabled = false;
           }
         } catch (e) {
-          // ボタンの有効/無効判定に失敗しても操作自体は継続できるようにする
           log('warn', `Undo/Redo状態の更新に失敗しました: ${e.message}`);
         }
       }
@@ -793,49 +792,47 @@ function hello(name) {
         try {
           if (typeof CodeMirror === 'undefined') throw new Error('CodeMirrorが読み込まれていません');
           cm = CodeMirror.fromTextArea(editorTextareaEl, {
-              mode: 'gfm',
-              theme: 'deskmono',
-              lineNumbers: true,
-              lineWrapping: true,
-              tabSize: 2,
-              indentUnit: 2,
-              indentWithTabs: false
-            });
+            mode: 'gfm',
+            theme: 'deskmono',
+            lineNumbers: true,
+            lineWrapping: true,
+            tabSize: 2,
+            indentUnit: 2,
+            indentWithTabs: false
+          });
+          
           cm.on('change', () => {
-              // 【安定性修正】ここで例外が漏れるとCodeMirrorの内部操作(operation)が
-              // 完了しない状態のまま残り、以後cm.refresh()/cm.undo()等を呼ぶボタンが
-              // 軒並み反応しなくなることがあるため、必ずここで例外を握りつぶす。
-              try {
-                markDirty();
-                schedulePreviewUpdate();
-                const historyState = cm.getHistory();
-                localStorage.setItem('tools/markdown-editor/:history', JSON.stringify(historyState));
-                updateUndoRedoState();
-              } catch (e) {
-                log('error', `エディタ更新処理でエラーが発生しました: ${e.message}`);
-              }
-            });
-          // エディタを初期化した後に実行する
-          if (cm) {
-            const savedHistory = localStorage.getItem('tools/markdown-editor/:history');
-            if (savedHistory) {
-              try {
-                // JSONからオブジェクトに戻して、CodeMirrorにセットする
-                cm.setHistory(JSON.parse(savedHistory));
-              } catch (e) {
-                log('warn', `履歴の復元に失敗しました: ${e.message}`);
-              }
+            try {
+              markDirty();
+              schedulePreviewUpdate();
+              
+              const state = {
+                text: cm.getValue(),
+                history: cm.getHistory()
+              };
+              localStorage.setItem('tools/markdown-editor/:buffer', JSON.stringify(state));
+              
+              updateUndoRedoState();
+            } catch (e) {
+              log('error', `エディタ更新処理でエラーが発生しました: ${e.message}`);
             }
-          }
+          });
           log('info', 'コードエディタ(CodeMirror)を初期化しました。');
         } catch (e) {
           cm = null;
           log('warn', `CodeMirrorの初期化に失敗したため、通常のテキストエリアで動作します: ${e.message}`);
           editorTextareaEl.addEventListener('input', () => {
-              markDirty();
-              schedulePreviewUpdate();
-              updateUndoRedoState();
-            });
+            markDirty();
+            schedulePreviewUpdate();
+            
+            const state = {
+              text: editorTextareaEl.value,
+              history: null
+            };
+            localStorage.setItem('tools/markdown-editor/:buffer', JSON.stringify(state));
+            
+            updateUndoRedoState();
+          });
         }
         updateUndoRedoState();
       }
@@ -1378,8 +1375,36 @@ ${bodyHtml}
       if (typeof DOMPurify === 'undefined') {
         log('warn', 'DOMPurifyが読み込まれていないため、プレビューのサニタイズが行われません。');
       }
+      
 
+      // 1. LocalStorageからデータを取得してパースする
+      const savedData = localStorage.getItem('tools/markdown-editor/:buffer');
+      let parsedState = null;
+
+      if (savedData) {
+        try {
+          parsedState = JSON.parse(savedData);
+          if (parsedState && parsedState.text !== undefined) {
+            setEditorValue(parsedState.text);
+          }
+        } catch (e) {
+          log('warn', `データのパースに失敗しました: ${e.message}`);
+        }
+      }
+
+      // 2. エディタを初期化する
       initEditor();
+
+      // 3. 正常に CodeMirror が初期化され、かつ保存された履歴データがあれば復元する
+      if (cm && parsedState && parsedState.history && confirm('以前の編集履歴を修復しますか？')) {
+        try {
+          cm.setHistory(parsedState.history);
+          updateUndoRedoState();
+        } catch (e) {
+          log('warn', `履歴の復元に失敗しました: ${e.message}`);
+        }
+      }
+
       setEditorValue(WELCOME_TEXT);
       markClean();
       renderPreview();
