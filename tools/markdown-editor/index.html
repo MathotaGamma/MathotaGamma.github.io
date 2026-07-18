@@ -8,6 +8,8 @@
 
     <!-- 【オフライン対応】ホーム画面追加時に単独アプリとして起動させるための設定 -->
     <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <link rel="icon" href="./icons/icon-192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MD Editor">
@@ -17,6 +19,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
 
     <style>
               /* ==================================================
@@ -129,6 +132,9 @@
                 cursor: pointer;
                 transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
                 white-space: nowrap;
+                /* 【タップ反応性修正】iPad Safariでダブルタップ判定待ちによりタップが
+                   取りこぼされることがあるため、ボタンは即座にタップ確定させる */
+                touch-action: manipulation;
               }
               .toolbar button:hover { background: var(--color-surface-2); border-color: var(--color-ink-muted); }
               .toolbar button:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -312,6 +318,20 @@
               #previewInner ul, #previewInner ol { padding-left: 1.4em; }
               #previewInner li { margin: 0.3em 0; }
 
+              /* ===== LaTeX数式 (KaTeX) ===== */
+              #previewInner .katex-display {
+                margin: 1em 0;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding-bottom: 4px;
+              }
+              #previewInner .katex { font-size: 1.05em; }
+              #previewInner .katex-error {
+                color: var(--color-danger);
+                font-family: var(--font-mono);
+                font-size: 0.9em;
+              }
+
               /* ===== コンソール ===== */
               #consolePanel {
                 flex: 0 0 auto;
@@ -445,6 +465,13 @@
         <div class="toolbarDivider"></div>
 
         <div class="toolbarGroup">
+          <button id="undoBtn" type="button" title="元に戻す (Ctrl+Z)">↶ 元に戻す</button>
+          <button id="redoBtn" type="button" title="やり直す (Ctrl+Shift+Z)">↷ やり直す</button>
+        </div>
+
+        <div class="toolbarDivider"></div>
+
+        <div class="toolbarGroup">
           <button id="saveBtn" type="button" class="primary">保存</button>
           <button id="saveAsBtn" type="button">名前を付けて保存</button>
           <button id="downloadBtn" type="button">ダウンロード</button>
@@ -459,8 +486,6 @@
         </div>
 
         <button id="newTabBtn" type="button">新規タブで表示</button>
-
-        <button id="documentCopyBtn" type="button">全文をコピー</button>
 
         <span class="authStatus" id="authStatus">
           <span class="dot"></span>
@@ -535,6 +560,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
 
     <script type="module">
 
@@ -571,12 +597,13 @@
       const newBtn = document.getElementById('newBtn');
       const openDriveBtn = document.getElementById('openDriveBtn');
       const openLocalBtn = document.getElementById('openLocalBtn');
+      const undoBtn = document.getElementById('undoBtn');
+      const redoBtn = document.getElementById('redoBtn');
       const localFileInputEl = document.getElementById('localFileInput');
       const saveBtn = document.getElementById('saveBtn');
       const saveAsBtn = document.getElementById('saveAsBtn');
       const downloadBtn = document.getElementById('downloadBtn');
       const newTabBtn = document.getElementById('newTabBtn');
-      const documentCopyBtn = document.getElementById('documentCopyBtn');
       const authBtn = document.getElementById('authBtn');
       const authStatusEl = document.getElementById('authStatus');
       const authStatusTextEl = document.getElementById('authStatusText');
@@ -596,8 +623,7 @@
       const settingsCancelBtn = document.getElementById('settingsCancelBtn');
       const settingsSaveBtn = document.getElementById('settingsSaveBtn');
 
-      const STORAGE_TEXT = localStorage.getItem('tools/markdown-editor/:document')
-      const WELCOME_TEXT = (STORAGE_TEXT != null && confirm('以前のデータを復旧しますか？(この操作は取り消せません。)')) ? STORAGE_TEXT : `# 無題のドキュメント
+      const WELCOME_TEXT = `# 無題のドキュメント
 
 ここに **Markdown** を入力すると、プレビューに反映されます。
 
@@ -746,6 +772,23 @@ function hello(name) {
         }
       }
 
+      // 【Undo/Redo】ボタンの有効/無効をCodeMirrorの履歴件数に合わせて更新する
+      function updateUndoRedoState() {
+        try {
+          if (cm) {
+            const size = cm.historySize();
+            undoBtn.disabled = size.undo === 0;
+            redoBtn.disabled = size.redo === 0;
+          } else {
+            undoBtn.disabled = false;
+            redoBtn.disabled = false;
+          }
+        } catch (e) {
+          // ボタンの有効/無効判定に失敗しても操作自体は継続できるようにする
+          log('warn', `Undo/Redo状態の更新に失敗しました: ${e.message}`);
+        }
+      }
+
       function initEditor() {
         try {
           if (typeof CodeMirror === 'undefined') throw new Error('CodeMirrorが読み込まれていません');
@@ -759,45 +802,69 @@ function hello(name) {
               indentWithTabs: false
             });
           cm.on('change', () => {
-            const text = getEditorValue();
-            // localStorageに保存
-            localStorage.setItem('tools/markdown-editor/:document', text);
-            markDirty();
-            schedulePreviewUpdate();
-          });
+              // 【安定性修正】ここで例外が漏れるとCodeMirrorの内部操作(operation)が
+              // 完了しない状態のまま残り、以後cm.refresh()/cm.undo()等を呼ぶボタンが
+              // 軒並み反応しなくなることがあるため、必ずここで例外を握りつぶす。
+              try {
+                markDirty();
+                schedulePreviewUpdate();
+                updateUndoRedoState();
+              } catch (e) {
+                log('error', `エディタ更新処理でエラーが発生しました: ${e.message}`);
+              }
+            });
           log('info', 'コードエディタ(CodeMirror)を初期化しました。');
         } catch (e) {
           cm = null;
           log('warn', `CodeMirrorの初期化に失敗したため、通常のテキストエリアで動作します: ${e.message}`);
           editorTextareaEl.addEventListener('input', () => {
-            const text = getEditorValue();
-            // localStorageに保存
-            localStorage.setItem('tools/markdown-editor/:document', text);
-            markDirty();
-            schedulePreviewUpdate();
-          });
+              markDirty();
+              schedulePreviewUpdate();
+              updateUndoRedoState();
+            });
         }
+        updateUndoRedoState();
       }
 
-      documentCopyBtn.addEventListener('click', (v) => {
-        if (!navigator.clipboard) {
-          alert("このブラウザはクリップボード操作に対応していません");
-          return;
+      /* ==================================================
+      プレビュー / LaTeX (KaTeX) 対応
+      ブロック数式: $$...$$ / \[...\]  インライン数式: $...$ / \(...\)
+      Markdownパーサーが数式中の "_" や "*" を誤って強調記法として解釈しないよう、
+      先に数式部分をプレースホルダーへ退避してからmarked.parse()を実行し、
+      あとでKaTeXのレンダリング結果に置き換える。
+      ================================================== */
+      function renderMarkdownWithMath(text) {
+        if (typeof katex === 'undefined') {
+          return typeof marked !== 'undefined' ? marked.parse(text) : text;
         }
 
-        navigator.clipboard.writeText(getEditorValue()).then(
-          () => {
-            alert('コピーに成功しました');
-          },
-          () => {
-            alert('コピーに失敗しました');
+        const mathStore = [];
+        const stash = (expr, displayMode) => {
+          let html;
+          try {
+            html = katex.renderToString(expr.trim(), { displayMode, throwOnError: false });
+          } catch (e) {
+            html = `<span class="katex-error" title="${escapeForTitle(e.message)}">${escapeForTitle(expr)}</span>`;
           }
-        );
-      });
+          const token = `\u0000MATH${mathStore.length}\u0000`;
+          mathStore.push(html);
+          return token;
+        };
 
-      /* ==================================================
-      プレビュー
-      ================================================== */
+        let processed = text
+          // ブロック数式 $$...$$
+          .replace(/\$\$([\s\S]+?)\$\$/g, (m, expr) => stash(expr, true))
+          // ブロック数式 \[...\]
+          .replace(/\\\[([\s\S]+?)\\\]/g, (m, expr) => stash(expr, true))
+          // インライン数式 \(...\)
+          .replace(/\\\(([\s\S]+?)\\\)/g, (m, expr) => stash(expr, false))
+          // インライン数式 $...$ (直後に空白/数字が来る通貨表記$との混同を避けるため、$の直後直前に空白を許さない)
+          .replace(/(^|[^\\$])\$(?!\s)([^\n$]+?)(?<!\s)\$(?!\$)/g, (m, pre, expr) => pre + stash(expr, false));
+
+        let html = typeof marked !== 'undefined' ? marked.parse(processed) : processed;
+        html = html.replace(/\u0000MATH(\d+)\u0000/g, (m, idx) => mathStore[Number(idx)]);
+        return html;
+      }
 
       function schedulePreviewUpdate() {
         clearTimeout(previewTimer);
@@ -811,8 +878,10 @@ function hello(name) {
             previewInnerEl.textContent = text;
             return;
           }
-          const raw = marked.parse(text);
-          const safe = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
+          const raw = renderMarkdownWithMath(text);
+          const safe = typeof DOMPurify !== 'undefined'
+            ? DOMPurify.sanitize(raw, { USE_PROFILES: { html: true, svg: true, mathMl: true } })
+            : raw;
           previewInnerEl.innerHTML = safe;
         } catch (e) {
           log('error', `プレビューの生成に失敗しました: ${e.message}`);
@@ -836,8 +905,10 @@ function hello(name) {
         if (typeof marked === 'undefined') {
           bodyHtml = `<pre>${escapeForTitle(markdownText)}</pre>`;
         } else {
-          const raw = marked.parse(markdownText);
-          bodyHtml = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
+          const raw = renderMarkdownWithMath(markdownText);
+          bodyHtml = typeof DOMPurify !== 'undefined'
+            ? DOMPurify.sanitize(raw, { USE_PROFILES: { html: true, svg: true, mathMl: true } })
+            : raw;
         }
         return `<!DOCTYPE html>
 <html lang="ja">
@@ -845,6 +916,7 @@ function hello(name) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${escapeForTitle(title)}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
 <style>
   :root { color-scheme: light; }
   body {
@@ -943,7 +1015,9 @@ ${bodyHtml}
             btn.classList.toggle('active', btn.dataset.mode === mode);
           });
         if (mode !== 'edit') renderPreview();
-        window.requestAnimationFrame(() => { if (cm) cm.refresh(); });
+        window.requestAnimationFrame(() => {
+            try { if (cm) cm.refresh(); } catch (e) { log('warn', `エディタ再描画に失敗しました: ${e.message}`); }
+          });
       }
 
       segmentedButtons.forEach((btn) => {
@@ -952,7 +1026,9 @@ ${bodyHtml}
 
       window.addEventListener('resize', () => {
           clearTimeout(resizeTimer);
-          resizeTimer = setTimeout(() => { if (cm) cm.refresh(); }, 150);
+          resizeTimer = setTimeout(() => {
+              try { if (cm) cm.refresh(); } catch (e) { log('warn', `エディタ再描画に失敗しました: ${e.message}`); }
+            }, 150);
         });
 
       /* ==================================================
@@ -1050,6 +1126,36 @@ ${bodyHtml}
           markClean();
           renderPreview();
           log('info', '新規ドキュメントを作成しました。');
+        });
+
+      undoBtn.addEventListener('click', () => {
+          try {
+            if (cm) {
+              cm.undo();
+              cm.focus();
+            } else {
+              editorTextareaEl.focus();
+              document.execCommand('undo');
+            }
+            updateUndoRedoState();
+          } catch (e) {
+            log('error', `元に戻す操作に失敗しました: ${e.message}`);
+          }
+        });
+
+      redoBtn.addEventListener('click', () => {
+          try {
+            if (cm) {
+              cm.redo();
+              cm.focus();
+            } else {
+              editorTextareaEl.focus();
+              document.execCommand('redo');
+            }
+            updateUndoRedoState();
+          } catch (e) {
+            log('error', `やり直す操作に失敗しました: ${e.message}`);
+          }
         });
 
       openDriveBtn.addEventListener('click', async () => {

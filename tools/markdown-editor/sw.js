@@ -6,7 +6,7 @@
 // 【Ver管理】キャッシュ内容を更新したい場合は、このバージョン文字列を
 // インクリメントしてください（例: v1 -> v2）。古いキャッシュは自動で破棄されます。
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `md-editor-cache-${CACHE_VERSION}`;
 
 // 起動時に必ず先読みしておく、同一オリジンの必須ファイル
@@ -15,6 +15,10 @@ const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-512-maskable.png',
+  './icons/apple-touch-icon.png',
   '/statics/drive-api/6-2/manager.js',
 ];
 
