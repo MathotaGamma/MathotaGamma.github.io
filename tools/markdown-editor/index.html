@@ -809,12 +809,25 @@ function hello(name) {
               try {
                 markDirty();
                 schedulePreviewUpdate();
-                
+                const historyState = cm.getHistory();
+                localStorage.setItem('tools/markdown-editor/:history', JSON.stringify(historyState));
                 updateUndoRedoState();
               } catch (e) {
                 log('error', `エディタ更新処理でエラーが発生しました: ${e.message}`);
               }
             });
+          // エディタを初期化した後に実行する
+          if (cm) {
+            const savedHistory = localStorage.getItem('tools/markdown-editor/:history');
+            if (savedHistory) {
+              try {
+                // JSONからオブジェクトに戻して、CodeMirrorにセットする
+                cm.setHistory(JSON.parse(savedHistory));
+              } catch (e) {
+                log('warn', `履歴の復元に失敗しました: ${e.message}`);
+              }
+            }
+          }
           log('info', 'コードエディタ(CodeMirror)を初期化しました。');
         } catch (e) {
           cm = null;
