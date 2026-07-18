@@ -623,8 +623,7 @@
       const settingsCancelBtn = document.getElementById('settingsCancelBtn');
       const settingsSaveBtn = document.getElementById('settingsSaveBtn');
 
-      const STORAGE_TEXT = localStorage.getItem('tools/markdown-editor/:text');
-      const WELCOME_TEXT = (STORAGE_TEXT && confirm('以前のデータを修復しますか？この操作は取り消せません。')) ? STORAGE_TEXT : `# 無題のドキュメント
+      const WELCOME_TEXT = `# 無題のドキュメント
 
 ここに **Markdown** を入力すると、プレビューに反映されます。
 
