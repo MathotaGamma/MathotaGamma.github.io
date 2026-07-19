@@ -98,6 +98,20 @@
                 height: 22px;
                 background: var(--color-border);
               }
+              .copyTriggerInput {
+                font-size: 13px;
+                background: transparent;
+                color: var(--color-ink);
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-sm);
+                padding: 6px 10px;
+                width: 130px;
+                touch-action: manipulation;
+              }
+              .copyTriggerInput:focus {
+                outline: none;
+                border-color: var(--color-brass);
+              }
               .fileLabel {
                 display: flex;
                 align-items: center;
@@ -479,6 +493,13 @@
 
         <div class="toolbarDivider"></div>
 
+        <div class="toolbarGroup">
+          <button id="copyAllBtn" type="button" title="本文全体をクリップボードにコピー">全文コピー</button>
+          <input id="copyTriggerInput" type="text" class="copyTriggerInput" placeholder="「copy」で全文コピー" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        </div>
+
+        <div class="toolbarDivider"></div>
+
         <div class="toolbarGroup segmented" role="group" aria-label="表示モード">
           <button type="button" data-mode="edit">編集</button>
           <button type="button" data-mode="split">分割</button>
@@ -486,11 +507,6 @@
         </div>
 
         <button id="newTabBtn" type="button">新規タブで表示</button>
-
-        <button id="copyBtn" type="button">全文をコピーする</button>
-
-        <input id="copyInput" type="text" placeholder="copy と入力で全文コピー" />
-
 
         <span class="authStatus" id="authStatus">
           <span class="dot"></span>
@@ -583,8 +599,12 @@
       let dirty = false;
       let previewTimer = null;
       let resizeTimer = null;
+      let draftSaveTimer = null;
 
       const SETTINGS_KEY = 'mdEditorDriveSettings';
+      // 【編集履歴保存】ドキュメント本文 + CodeMirrorのUndo/Redo履歴をlocalStorageへ保存するキー
+      // ページを閉じる/リロードしても、直前の編集内容とUndo/Redo履歴を復元できるようにする
+      const DRAFT_KEY = 'tools/markdown-editor/:buffer';
 
       const EMBEDDED_CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
       const EMBEDDED_REDIRECT_URI = 'https://mathotagamma.github.io/statics/drive-api/oauth2callback';
@@ -604,13 +624,13 @@
       const openLocalBtn = document.getElementById('openLocalBtn');
       const undoBtn = document.getElementById('undoBtn');
       const redoBtn = document.getElementById('redoBtn');
+      const copyAllBtn = document.getElementById('copyAllBtn');
+      const copyTriggerInput = document.getElementById('copyTriggerInput');
       const localFileInputEl = document.getElementById('localFileInput');
       const saveBtn = document.getElementById('saveBtn');
       const saveAsBtn = document.getElementById('saveAsBtn');
       const downloadBtn = document.getElementById('downloadBtn');
       const newTabBtn = document.getElementById('newTabBtn');
-      const copyBtn = document.getElementById('copyBtn');
-      const copyInputEl = document.getElementById('copyInput');
       const authBtn = document.getElementById('authBtn');
       const authStatusEl = document.getElementById('authStatus');
       const authStatusTextEl = document.getElementById('authStatusText');
@@ -648,39 +668,6 @@ function hello(name) {
 
 > コンソールには動作ログとエラーが表示されます。
 `;
-
-      /* ==================================================
-      クリップボードにコピー
-      ================================================== */
-
-      function copyToClipboard() {
-        const text = getEditorValue();
-        if (!navigator.clipboard) {
-          alert("このブラウザはclipboardに対応していません。");
-          return;
-        }
-
-        navigator.clipboard.writeText(text).then(
-          () => {
-            alert('コピーに成功しました。');
-          },
-          () => {
-            alert('⚠️コピーに失敗しました。');
-          }
-        );
-      }
-
-      copyBtn.addEventListener('click', () => {
-        copyToClipboard();
-      });
-
-      copyInputEl.addEventListener('input', () => {
-        if (copyInputEl.value === "copy") {
-          if (confirm('全文をコピーしますか？'))
-            copyToClipboard();
-          copyInputEl.value = "";
-        }
-      });
 
       /* ==================================================
       コンソールログ / エラーハンドリング
@@ -771,6 +758,118 @@ function hello(name) {
         }
       }
 
+      /* ==================================================
+      編集履歴データの保存/復元 (localStorage)
+      【パフォーマンス修正】以前は本文+Undo/Redo履歴をキー入力のたびに
+      まとめてJSON.stringifyしていたが、履歴データはドキュメントが育つと
+      肥大化し、その同期保存がちょうど「入力が止まった直後(=ボタンに
+      触れようとする瞬間)」に発生して操作不能に見える原因になっていた。
+      そのため、
+        - 本文(buffer)  : 変更のたびに軽量な内容だけを短い間隔で保存
+        - Undo/Redo履歴  : 重いので間隔を空けて(アイドル時/離脱時)保存
+      と役割を分けている。
+      ================================================== */
+
+      const HISTORY_KEY = `${DRAFT_KEY}:history`;
+      let historyDirty = false;
+
+      function saveDraftToStorage() {
+        try {
+          const draft = {
+            content: getEditorValue(),
+            file: currentFile,
+            dirty: dirty,
+            savedAt: Date.now()
+          };
+          localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        } catch (e) {
+          log('warn', `編集内容の自動保存に失敗しました: ${e.message}`);
+        }
+      }
+
+      function scheduleDraftSave() {
+        clearTimeout(draftSaveTimer);
+        draftSaveTimer = setTimeout(saveDraftToStorage, 800);
+      }
+
+      // Undo/Redo履歴のみを保存する(呼び出し頻度は低く保つこと)
+      function saveHistoryToStorage() {
+        if (!cm) return;
+        try {
+          localStorage.setItem(HISTORY_KEY, JSON.stringify({ history: cm.getHistory(), savedAt: Date.now() }));
+          historyDirty = false;
+        } catch (e) {
+          // 【容量超過対策】履歴が大きすぎる場合は諦める(本文の保存には影響させない)
+          if (e && e.name === 'QuotaExceededError') {
+            try { localStorage.removeItem(HISTORY_KEY); } catch (e2) { /* 無視 */ }
+            log('warn', '編集履歴が大きすぎるため、Undo/Redo履歴の保存を省略しました。');
+          } else {
+            log('warn', `編集履歴の保存に失敗しました: ${e.message}`);
+          }
+        }
+      }
+
+      function loadDraftFromStorage() {
+        try {
+          const raw = localStorage.getItem(DRAFT_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+          log('warn', `保存された編集内容の読み込みに失敗しました: ${e.message}`);
+          return null;
+        }
+      }
+
+      function loadHistoryFromStorage() {
+        try {
+          const raw = localStorage.getItem(HISTORY_KEY);
+          return raw ? JSON.parse(raw).history : null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function clearDraftStorage() {
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+          localStorage.removeItem(HISTORY_KEY);
+        } catch (e) {
+          // 消去に失敗しても致命的ではないため握りつぶす
+        }
+      }
+
+      // 起動時に前回の編集内容を復元する。Undo/Redo履歴も一緒に戻すことで、
+      // リロード後も「元に戻す」を続けられるようにする
+      function restoreDraftIfAny() {
+        const draft = loadDraftFromStorage();
+        if (!draft || typeof draft.content !== 'string') return false;
+        try {
+          setEditorValue(draft.content);
+          const history = loadHistoryFromStorage();
+          if (cm && history) {
+            cm.setHistory(history);
+          }
+          if (draft.file && draft.file.name) {
+            currentFile = draft.file;
+          }
+          if (draft.dirty) {
+            markDirty();
+          } else {
+            markClean();
+          }
+          updateUndoRedoState();
+          log('info', '前回保存されていなかった編集内容を復元しました。');
+          return true;
+        } catch (e) {
+          log('warn', `編集内容の復元に失敗しました: ${e.message}`);
+          return false;
+        }
+      }
+
+      // 履歴保存はアイドル時にまとめて行う(キー入力のたびの重い書き込みを避けるため)
+      setInterval(() => {
+          if (historyDirty) saveHistoryToStorage();
+        }, 8000);
+
       function initDrive() {
         const settings = loadSettings();
         if (!settings.clientId || !settings.redirectUri) {
@@ -824,6 +923,7 @@ function hello(name) {
             redoBtn.disabled = false;
           }
         } catch (e) {
+          // ボタンの有効/無効判定に失敗しても操作自体は継続できるようにする
           log('warn', `Undo/Redo状態の更新に失敗しました: ${e.message}`);
         }
       }
@@ -832,47 +932,38 @@ function hello(name) {
         try {
           if (typeof CodeMirror === 'undefined') throw new Error('CodeMirrorが読み込まれていません');
           cm = CodeMirror.fromTextArea(editorTextareaEl, {
-            mode: 'gfm',
-            theme: 'deskmono',
-            lineNumbers: true,
-            lineWrapping: true,
-            tabSize: 2,
-            indentUnit: 2,
-            indentWithTabs: false
-          });
-          
+              mode: 'gfm',
+              theme: 'deskmono',
+              lineNumbers: true,
+              lineWrapping: true,
+              tabSize: 2,
+              indentUnit: 2,
+              indentWithTabs: false
+            });
           cm.on('change', () => {
-            try {
-              markDirty();
-              schedulePreviewUpdate();
-              
-              const state = {
-                text: cm.getValue(),
-                history: cm.getHistory()
-              };
-              localStorage.setItem('tools/markdown-editor/:buffer', JSON.stringify(state));
-              
-              updateUndoRedoState();
-            } catch (e) {
-              log('error', `エディタ更新処理でエラーが発生しました: ${e.message}`);
-            }
-          });
+              // 【安定性修正】ここで例外が漏れるとCodeMirrorの内部操作(operation)が
+              // 完了しない状態のまま残り、以後cm.refresh()/cm.undo()等を呼ぶボタンが
+              // 軒並み反応しなくなることがあるため、必ずここで例外を握りつぶす。
+              try {
+                markDirty();
+                schedulePreviewUpdate();
+                updateUndoRedoState();
+                scheduleDraftSave();
+                historyDirty = true; // 履歴の保存自体は8秒おきのアイドル処理でまとめて行う
+              } catch (e) {
+                log('error', `エディタ更新処理でエラーが発生しました: ${e.message}`);
+              }
+            });
           log('info', 'コードエディタ(CodeMirror)を初期化しました。');
         } catch (e) {
           cm = null;
           log('warn', `CodeMirrorの初期化に失敗したため、通常のテキストエリアで動作します: ${e.message}`);
           editorTextareaEl.addEventListener('input', () => {
-            markDirty();
-            schedulePreviewUpdate();
-            
-            const state = {
-              text: editorTextareaEl.value,
-              history: null
-            };
-            localStorage.setItem('tools/markdown-editor/:buffer', JSON.stringify(state));
-            
-            updateUndoRedoState();
-          });
+              markDirty();
+              schedulePreviewUpdate();
+              updateUndoRedoState();
+              scheduleDraftSave();
+            });
         }
         updateUndoRedoState();
       }
@@ -1039,10 +1130,25 @@ ${bodyHtml}
       }
 
       window.addEventListener('beforeunload', (event) => {
+          // 【安全策】デバウンス待ちの間にタブが閉じられても消えないよう、
+          // 離脱直前に本文・履歴とも確実に一度保存しておく
+          clearTimeout(draftSaveTimer);
+          saveDraftToStorage();
+          if (historyDirty) saveHistoryToStorage();
           if (dirty) {
             event.preventDefault();
             event.returnValue = '';
           }
+        });
+
+      // iPadでアプリ切替/ホーム画面に戻る際は beforeunload が発火しないことがあるため、
+      // 非表示になったタイミングでも保存しておく(履歴保存はここでまとめて行う分には
+      // 頻度が低いので操作性に影響しない)
+      document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState !== 'hidden') return;
+          clearTimeout(draftSaveTimer);
+          saveDraftToStorage();
+          if (historyDirty) saveHistoryToStorage();
         });
 
       function flashFeedback(button, text) {
@@ -1179,6 +1285,42 @@ ${bodyHtml}
           log('info', '新規ドキュメントを作成しました。');
         });
 
+      // 【全文コピー】クリップボードAPIを優先し、非対応/非セキュアコンテキストの場合は
+      // 従来のselect+execCommand('copy')にフォールバックする
+      async function copyAllToClipboard() {
+        const text = getEditorValue();
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            temp.style.position = 'fixed';
+            temp.style.opacity = '0';
+            document.body.appendChild(temp);
+            temp.focus();
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+          }
+          flashFeedback(copyAllBtn, 'コピーしました');
+          log('info', '本文全体をクリップボードにコピーしました。');
+        } catch (e) {
+          log('error', `クリップボードへのコピーに失敗しました: ${e.message}`);
+        }
+      }
+
+      copyAllBtn.addEventListener('click', copyAllToClipboard);
+
+      // 「copy」と入力すると全文コピーを実行するミニ入力欄(タップ操作が苦手な場面向け)
+      copyTriggerInput.addEventListener('input', () => {
+          if (copyTriggerInput.value.trim().toLowerCase() === 'copy') {
+            copyAllToClipboard();
+            copyTriggerInput.value = '';
+            copyTriggerInput.blur();
+          }
+        });
+
       undoBtn.addEventListener('click', () => {
           try {
             if (cm) {
@@ -1301,9 +1443,26 @@ ${bodyHtml}
           return;
         }
 
-        // 【パス記憶修正】現在のフルパス(フォルダ階層付き)を初期値に指定
-        const defaultPath = currentFile.path || '無題.md';
-        let filename = window.prompt('保存するファイル名またはフォルダ階層を含めたパスを入力してください\n(例: memo.md、documents/folder/memo.md)', defaultPath);
+        // 【タッチ操作対応】保存先フォルダはパスを手入力させず、Google Picker で
+        // フォルダを開いて選んでもらう(ファイル名だけ入力すればよい)
+        let folder;
+        try {
+          log('info', '保存先フォルダを選択してください。');
+          folder = await drive.openPicker({
+              mimeType: 'application/vnd.google-apps.folder',
+              title: '保存先フォルダを選択(フォルダを開いて「選択」で決定)'
+            });
+        } catch (e) {
+          log('error', `フォルダ選択ダイアログの表示に失敗しました: ${e.message}`);
+          return;
+        }
+        if (!folder) {
+          log('info', '名前を付けて保存をキャンセルしました。');
+          return;
+        }
+
+        const defaultName = (currentFile.path || currentFile.name || '無題.md').split('/').pop();
+        let filename = window.prompt(`「${folder.name}」に保存するファイル名を入力してください`, defaultName);
         if (filename === null) {
           log('info', '名前を付けて保存をキャンセルしました。');
           return;
@@ -1319,18 +1478,29 @@ ${bodyHtml}
 
         try {
           saveAsBtn.disabled = true;
-          log('info', `「${filename}」として保存しています…`);
-          const res = await drive.saveFile({ path: filename, data: getEditorValue(), mimeType: 'text/markdown' });
+
+          // 選択したフォルダのフルパスを解決し、ファイル名と結合する
+          // (フォルダがマイドライブ直下の場合は getPath が空文字を返す)
+          let folderPath = '';
+          try {
+            folderPath = await drive.getPath({ fileId: folder.id });
+          } catch (e) {
+            log('warn', `フォルダのパス解決に失敗したため、フォルダ名で代用します: ${e.message}`);
+            folderPath = folder.name;
+          }
+          const fullPath = folderPath ? `${folderPath}/${filename}` : filename;
+
+          log('info', `「${fullPath}」として保存しています…`);
+          const res = await drive.saveFile({ path: fullPath, data: getEditorValue(), mimeType: 'text/markdown' });
           let newId = res && res.id ? res.id : null;
           if (!newId) {
-            newId = await drive.getFileId({ path: filename });
+            newId = await drive.getFileId({ path: fullPath });
           }
-          
-          // 【パス記憶修正】次回用にフルパス(filename)を path プロパティに保存
-          currentFile = { id: newId || null, name: filename.split('/').pop(), path: filename };
+
+          currentFile = { id: newId || null, name: filename, path: fullPath };
           markClean();
           flashFeedback(saveAsBtn, '保存済み');
-          log('info', `「${filename}」として保存しました。`);
+          log('info', `「${fullPath}」として保存しました。`);
         } catch (e) {
           log('error', `名前を付けて保存に失敗しました: ${e.message}`);
         } finally {
@@ -1415,38 +1585,12 @@ ${bodyHtml}
       if (typeof DOMPurify === 'undefined') {
         log('warn', 'DOMPurifyが読み込まれていないため、プレビューのサニタイズが行われません。');
       }
-      
 
-      // 1. LocalStorageからデータを取得してパースする
-      const savedData = localStorage.getItem('tools/markdown-editor/:buffer');
-      let parsedState = null;
-
-      if (savedData) {
-        try {
-          parsedState = JSON.parse(savedData);
-          if (parsedState && parsedState.text !== undefined) {
-            setEditorValue(parsedState.text);
-          }
-        } catch (e) {
-          log('warn', `データのパースに失敗しました: ${e.message}`);
-        }
-      }
-
-      // 2. エディタを初期化する
       initEditor();
-
-      // 3. 正常に CodeMirror が初期化され、かつ保存された履歴データがあれば復元する
-      if (cm && parsedState && parsedState.history && confirm('以前の編集履歴を修復しますか？')) {
-        try {
-          cm.setHistory(parsedState.history);
-          updateUndoRedoState();
-        } catch (e) {
-          log('warn', `履歴の復元に失敗しました: ${e.message}`);
-        }
+      if (!restoreDraftIfAny()) {
+        setEditorValue(WELCOME_TEXT);
+        markClean();
       }
-
-      setEditorValue(WELCOME_TEXT);
-      markClean();
       renderPreview();
       initDrive();
       setViewMode(window.innerWidth < 760 ? 'edit' : 'split');
