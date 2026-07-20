@@ -111,7 +111,7 @@ class DriveAPIManager {
             
             // 取得したIDを使ってフルパスを取得する
             // rootCutも指定
-            const fullPath = await this.getPath({ fileId: doc.id, rootCut });
+            const fullPath = await this.getPath({ fileId: doc.id });
             
             // フルパスで内部キャッシュに自動登録しておく
             if (fullPath) {
@@ -122,7 +122,7 @@ class DriveAPIManager {
             resolve({
               id: doc.id,
               name: doc.name,
-              path: fullPath, // パス（例: "folderA/subfolderB/file.txt"）を返り値に追加
+              path: await this.getPath({ fileId: doc.id, rootCut }), // パス（例: "folderA/subfolderB/file.txt"）を返り値に追加
               mimeType: doc.mimeType
             });
           } else if (data.action === window.google.picker.Action.CANCEL) {
