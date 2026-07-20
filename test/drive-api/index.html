@@ -431,7 +431,7 @@
         runApi(`saveFile('${path}')`, () => drive.saveFile({path, data}));
       });
 
-      document.getElementById('btnSaveFile').addEventListener('click', () => {
+      document.getElementById('btnGetPath').addEventListener('click', () => {
         const id = document.getElementById('filePath').value;
         runApi(`getPath('${id}')`, () => drive.getPath({fileId: id}));
       });
