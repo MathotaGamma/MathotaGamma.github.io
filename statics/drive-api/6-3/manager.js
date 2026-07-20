@@ -1,9 +1,9 @@
 /*
- v6.3: onePickerで、階層のpathを返すようにした。
+  v6.3: onePickerで、階層のpathを返すようにした。
+  また、getPathにrootCut<boolean>のパラメータ指定(初期値: false)を可能にし、trueでApp DataやMy Driveなどのrootを削除する。
 */
 class DriveAPIManager {
   static ver = "6.3";
-  
   constructor({ clientId, redirectUri, progress, space = 'appdata' }) {
     if (!clientId || !redirectUri)
       throw new Error('引数にclient_idとredirect_uriを含めてください。');
@@ -429,13 +429,17 @@ class DriveAPIManager {
     return path.split('/').filter(Boolean).join('/');
   }
 
-  async getPath({fileId}) {
+  async getPath({fileId, rootCut=false}) {
     if (!fileId || fileId === this.rootId) return '';
     const names = [];
     let currentId = fileId;
-
+    this.progress('getPath', `fileId: ${fileId} , rootCut: ${rootCut}でPath取得開始`);
+   
     try {
       do {
+        if (rootCut && (currentId === this.rootId || currentId === 'appDataFolder')) {
+          break;
+        }
         const res = await this.request('GET', `files/${currentId}`, {
           params: { fields: 'name, parents' }
         });
@@ -449,10 +453,10 @@ class DriveAPIManager {
           currentId = null;
         }
       } while(currentId && currentId !== this.rootId);
-
+      this.progress('getPath', `Path: ${names.join('/')}でPath取得完了`);
       return names.join('/');
     } catch (e) {
-      console.error('[getPath] エラー:', e);
+      this.progress('getPath', 'エラー:'+e.message);
       return '';
     }
   }
