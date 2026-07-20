@@ -1488,6 +1488,7 @@ ${bodyHtml}
             log('warn', `フォルダのパス解決に失敗したため、フォルダ名で代用します: ${e.message}`);
             folderPath = folder.name;
           }
+          log('debug', `選択したフォルダのpath: ${folderPath}`);
           const fullPath = folderPath ? `${folderPath}/${filename}` : filename;
 
           log('info', `「${fullPath}」として保存しています…`);
