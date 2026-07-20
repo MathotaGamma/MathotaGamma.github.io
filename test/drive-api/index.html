@@ -226,6 +226,7 @@
           </div>
           <div class="btn-grid">
             <button id="btnSaveFile" class="success">saveFile()</button>
+            <button id="btnGetPath">getPath()</button>
             <button id="btnGetFile" class="primary">getFile()</button>
           </div>
         </div>
@@ -428,6 +429,11 @@
         }
 
         runApi(`saveFile('${path}')`, () => drive.saveFile({path, data}));
+      });
+
+      document.getElementById('btnSaveFile').addEventListener('click', () => {
+        const id = document.getElementById('filePath').value;
+        runApi(`getPath('${id}')`, () => drive.getPath({fileId: id}));
       });
 
       document.getElementById('btnGetFile').addEventListener('click', () => {
