@@ -104,7 +104,7 @@ class DriveAPIManager {
         .addView(view)
         .setOAuthToken(this.state.token)
         .setTitle(title)
-        .setCallback(async (data) => { // 💡 async コールバックに変更
+        .setCallback(async (data) => { // async コールバックに変更
           // ユーザーがアクションを起こした時のコールバック
           if (data.action === window.google.picker.Action.PICKED) {
             const doc = data.docs[0];
@@ -122,7 +122,7 @@ class DriveAPIManager {
             resolve({
               id: doc.id,
               name: doc.name,
-              path: fullPath, // 💡 パス（例: "folderA/subfolderB/file.txt"）を返り値に追加
+              path: fullPath, // パス（例: "folderA/subfolderB/file.txt"）を返り値に追加
               mimeType: doc.mimeType
             });
           } else if (data.action === window.google.picker.Action.CANCEL) {
