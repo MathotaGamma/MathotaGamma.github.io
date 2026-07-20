@@ -15,3 +15,82 @@ nav.breadcrumb.default-bg {
 nav.breadcrumb span {
   display: inline-block;
 }
+
+
+
+/*
+  フロートエリア用(詳しくはmain-script.jsの方を参照してください。
+*/
+/* --- フローティングエリア共通 --- */
+[class*="float-"][class*="-area"] {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  transition: transform 0.2s ease-out;
+}
+
+/* 上下エリア：縦並び */
+.float-top-area, .float-bottom-area {
+  flex-direction: column;
+}
+
+/* 左右エリア：横並び */
+.float-left-area, .float-right-area {
+  flex-direction: row;
+}
+
+/* --- ドラッグバー共通 --- */
+[class*="float-"][class*="-bar"] {
+  background-color: #808080;
+  touch-action: none;
+  user-select: none;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* 上下バー：横長 */
+.float-top-bar, .float-bottom-bar {
+  cursor: ns-resize;
+  height: 30px;
+  min-height: 30px;
+  width: 100%;
+}
+
+/* 左右バー：縦長 */
+.float-left-bar, .float-right-bar {
+  cursor: ew-resize;
+  width: 30px;
+  min-width: 30px;
+  height: 100%;
+}
+
+/* --- 各エリア初期位置 --- */
+.float-top-area {
+  top: 0;
+  left: 0;
+  width: 100vw;
+}
+
+.float-bottom-area {
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+}
+
+.float-left-area {
+  top: 0;
+  left: 0;
+  height: 100vh;
+}
+
+.float-right-area {
+  top: 0;
+  right: 0;
+  height: 100vh;
+}
