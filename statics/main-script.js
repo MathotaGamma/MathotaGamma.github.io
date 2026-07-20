@@ -248,7 +248,7 @@ document.querySelectorAll('.float-top-bar').forEach((bar) => {
   if (!area) return;
   
   if ('height' in area.dataset)
-    area.style.height = area.dataset.height;
+    area.querySelector('.float-content').style.height = area.dataset.height;
 
   let isDragging = false;
   let offsetY = 0;
@@ -347,7 +347,7 @@ document.querySelectorAll('.float-bottom-bar').forEach((bar) => {
   if (!area) return;
   
   if ('height' in area.dataset)
-    area.style.height = area.dataset.height;
+    area.querySelector('.float-content').style.height = area.dataset.height;
     
 
   let isDragging = false;
@@ -458,7 +458,7 @@ document.querySelectorAll('.float-left-bar').forEach((bar) => {
     alert('float-left-areaにdata-widthを指定してください。例: <div class="float-left-area" data-width="200px">');
     return;
   }
-  area.style.width = area.dataset.width;
+  area.querySelector('.float-content').style.width = area.dataset.width;
 
   let isDragging = false;
   let offsetX = 0;
@@ -560,7 +560,7 @@ document.querySelectorAll('.float-right-bar').forEach((bar) => {
     alert('float-right-areaにdata-widthを指定してください。例: <div class="float-right-area" data-width="200px">');
     return;
   }
-  area.style.width = area.dataset.width;
+  area.querySelector('.float-content').style.width = area.dataset.width;
 
   let isDragging = false;
   let offsetX = 0;
