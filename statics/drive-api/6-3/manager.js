@@ -61,7 +61,7 @@ class DriveAPIManager {
   
   // userにファイルを選んでもらう(Google Picker API)
   // v6.3: 階層のpathを返すようにした。
-  async openPicker({ mimeType = null, title = '選択してください', parentId = 'root' } = {}) {
+  async openPicker({ mimeType = null, title = '選択してください', parentId = 'root', rootCut = true } = {}) {
     // 1. ログイン状態とトークンのチェック
     if (!this.state.loggedIn || !this.state.token) {
       throw new Error('Pickerを開く前に auth() でログインを完了してください。');
@@ -109,10 +109,11 @@ class DriveAPIManager {
           if (data.action === window.google.picker.Action.PICKED) {
             const doc = data.docs[0];
             
-            // 💡 取得したIDを使ってフルパスを取得する
-            const fullPath = await this.getPath({ fileId: doc.id });
+            // 取得したIDを使ってフルパスを取得する
+            // rootCutも指定
+            const fullPath = await this.getPath({ fileId: doc.id, rootCut });
             
-            // 💡 フルパスで内部キャッシュに自動登録しておく
+            // フルパスで内部キャッシュに自動登録しておく
             if (fullPath) {
               this._idCache[fullPath] = doc.id; 
             }
