@@ -1483,12 +1483,12 @@ ${bodyHtml}
           // (フォルダがマイドライブ直下の場合は getPath が空文字を返す)
           let folderPath = '';
           try {
-            folderPath = await drive.getPath({ fileId: folder.id });
+            folderPath = await drive.getPath({ fileId: folder.id, rootCut: true });
           } catch (e) {
             log('warn', `フォルダのパス解決に失敗したため、フォルダ名で代用します: ${e.message}`);
             folderPath = folder.name;
           }
-          log('debug', `選択したフォルダのpath: ${folderPath}`);
+          log('info', `選択したフォルダのpath: ${folderPath}`);
           const fullPath = folderPath ? `${folderPath}/${filename}` : filename;
 
           log('info', `「${fullPath}」として保存しています…`);
