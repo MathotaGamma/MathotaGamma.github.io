@@ -112,7 +112,7 @@ class DriveAPIManager {
             // 取得したIDを使ってフルパスを取得する
             // rootCutも指定
             const fullPath = await this.getPath({ fileId: doc.id });
-            const returnPath = rootCut ? await this.getPath({ fileId: doc.id, rootCut }) : fullPath;
+            const returnPath = rootCut ? this.shiftPath({ path: fullPath }) : fullPath;
             
             // フルパスで内部キャッシュに自動登録しておく
             if (fullPath) {
@@ -216,6 +216,22 @@ class DriveAPIManager {
       throw e;
     }
   }
+
+  shiftPath({ path }) {
+    if (!path) return '';
+  
+    const parts = path.split('/');
+  
+    // 階層が2つ以上ある場合（例: ['マイドライブ', 'フォルダ', 'file.md']）
+    // 先頭のルート名を排除して結合する
+    if (parts.length > 1) {
+      return parts.slice(1).join('/');
+    }
+  
+    // ルート直下のファイルなど、スラッシュが含まれない場合はそのまま返す
+    return path;
+  }
+
 
   /* ==================================================
      auth
@@ -439,14 +455,15 @@ class DriveAPIManager {
    
     try {
       do {
-        if (rootCut && (currentId === this.rootId || currentId === 'appDataFolder')) {
-          break;
-        }
         const res = await this.request('GET', `files/${currentId}`, {
           params: { fields: 'name, parents' }
         });
 
         if (!res) break;
+        if (rootCut && (res.parents[0] === this.rootId || res.parents[0] === 'appDataFolder')) {
+          break;
+        }
+        
         names.unshift(res.name);
 
         if (res.parents && res.parents.length > 0) {
