@@ -1453,6 +1453,7 @@ ${bodyHtml}
             title: '保存先フォルダを選択(フォルダを開いて「選択」で決定)',
             rootCut: true,
           });
+          log('info', JSON.stringify(folder));
         } catch (e) {
           log('error', `フォルダ選択ダイアログの表示に失敗しました: ${e.message}`);
           return;
