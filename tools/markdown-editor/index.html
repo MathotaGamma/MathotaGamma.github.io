@@ -1449,9 +1449,10 @@ ${bodyHtml}
         try {
           log('info', '保存先フォルダを選択してください。');
           folder = await drive.openPicker({
-              mimeType: 'application/vnd.google-apps.folder',
-              title: '保存先フォルダを選択(フォルダを開いて「選択」で決定)'
-            });
+            mimeType: 'application/vnd.google-apps.folder',
+            title: '保存先フォルダを選択(フォルダを開いて「選択」で決定)',
+            rootCut: true,
+          });
         } catch (e) {
           log('error', `フォルダ選択ダイアログの表示に失敗しました: ${e.message}`);
           return;
@@ -1462,7 +1463,8 @@ ${bodyHtml}
         }
 
         const defaultName = (currentFile.path || currentFile.name || '無題.md').split('/').pop();
-        let filename = window.prompt(`「${folder.name}」に保存するファイル名を入力してください`, defaultName);
+        const folderPath = folder.path;
+        let filename = window.prompt(`「${folder.path}」に保存するファイル名を入力してください`, defaultName);
         if (filename === null) {
           log('info', '名前を付けて保存をキャンセルしました。');
           return;
@@ -1481,13 +1483,7 @@ ${bodyHtml}
 
           // 選択したフォルダのフルパスを解決し、ファイル名と結合する
           // (フォルダがマイドライブ直下の場合は getPath が空文字を返す)
-          let folderPath = '';
-          try {
-            folderPath = await drive.getPath({ fileId: folder.id, rootCut: true });
-          } catch (e) {
-            log('warn', `フォルダのパス解決に失敗したため、フォルダ名で代用します: ${e.message}`);
-            folderPath = folder.name;
-          }
+          
           log('info', `選択したフォルダのpath: ${folderPath}`);
           const fullPath = folderPath ? `${folderPath}/${filename}` : filename;
 
