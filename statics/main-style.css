@@ -1,3 +1,6 @@
+/*
+  breadcrumbのstyle。詳しくはmain-script.jsをご覧ください
+*/
 .nav-container {
   display: flex;
   align-items: center;
