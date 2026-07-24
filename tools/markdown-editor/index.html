@@ -1194,7 +1194,7 @@ flowchart LR
 ${bodyHtml}
     <script>
       if (typeof mermaid !== 'undefined') {
-        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral', suppressErrorRendering: true });
       }
     <\/script>
   </body>
@@ -1695,6 +1695,10 @@ ${bodyHtml}
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: 'strict',
+          // 【エラー表示修正】構文エラー時、mermaid標準の「爆弾アイコン」エラー図が
+          // DOMに直接挿入されるのを防ぎ、代わりに例外をthrowさせてcatch側の
+          // mermaid-error表示(テキストのみ)に一本化する
+          suppressErrorRendering: true,
           theme: 'base',
           themeVariables: {
             background: '#f1e9d8',
