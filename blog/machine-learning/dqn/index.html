@@ -55,7 +55,7 @@ html
         </section>
         <section id="section1">
           <!-- section1 -->
-          <h2>DQLとは</h2>
+          <h2>機械学習の分類</h2>
           <p>
             皆さんはAI(Artificial Intelligence)という言葉をご存知ですか？
             このページを見ている皆さんですから知らない方は珍しいと思いますが、
@@ -65,11 +65,13 @@ html
             あるタスクを解決または思考するAIは、そのタスクに関する膨大なデータを用いて学習することで作られます。
             そのような学習を機械学習といい、各手法は主に以下の3つのグループに分けることができます。
           </p>
-          <ul>
-            <li>教師あり学習</li>
-            <li>教師なし学習</li>
-            <li>強化学習</li>
-          </ul>
+          <div class="block">
+            <ul>
+              <li>教師あり学習</li>
+              <li>教師なし学習</li>
+              <li>強化学習</li>
+            </ul>
+          </div>
           <p>
             教師あり学習は教師データと呼ばれる、正解のラベルが存在し、学習中のAIが推論した結果とその正解を比較してAIの修正を行うことでAIを学習させていきます。
           </p>
@@ -82,6 +84,7 @@ html
           <p>
             そして、その強化学習の手法の一つが今回から解説していくDQL(DQN)になります。
           </p>
+          <!--
           <div class="block">
             <small>
               <p>divでclass="block"を指定した。</p>
@@ -94,56 +97,38 @@ html
               \end{align*}$$
             </small>
           </div>
+          -->
         </section>
         <section id="section2">
-          <h2>SECTION2</h2>
-          <p>これは</p>
-          <div>
-            &lt;button class="dropdown-toggle"&gt;見出し&lt;/button&gt;<br>
-            &lt;div class="dropdown-content" style="display:none;"&gt;
-          </div>
+          <h2>DQL・DQNについて</h2>
           <p>
-            を用いたドロップダウン。
+            DQLとは「Deep Q-Learning」、DQNは「Deep Q-Network」の頭文字をとった略語です。
           </p>
-          <button class="dropdown-toggle">▼解答▼</button>
-          <div class="dropdown-content equation" style="display:none;">
-            (1) \(y=x^2+6x+2\)
-            $$\begin{align*}
-              y &= x^2 + 6x + 2\\
-                &= (x+3)^2 - 3^2 + 2\\
-                &= (x+3)^2-7
-            \end{align*}$$
-            (2) \(y=x^2-5x\)
-            $$\begin{align*}
-              y &= x^2-5x\\
-                &= \left(x-\frac{5}{2}\right)^2-\left(\frac{5}{2}\right)^2\\
-                &= \left(x-\frac{5}{2}\right)^2-\frac{25}{4}
-            \end{align*}$$
-            (3) \(y=3x^2-6+11\)
-            $$\begin{align*}
-              y &= 3x^2 - 6x + 11\\
-                &= 3(x^2 - 2x) + 11\\
-                &= 3(x-1)^2-3\times1^2+11 \\
-                &{\scriptsize \uparrow \text{補足の\(p=-1\)を使えばここから}}\\
-                &= 3(x-1)^2+8
-            \end{align*}$$
-            (4) \(y=-2x^2+7x-3\)
-            $$\begin{align*}
-              y &= -2x^2 + 7x - 3\\
-                &= -2\left(x^2-\frac{7}{2}x\right)-3\\
-                &= -2\left[\left(x-\frac{7}{4}\right)^2-\left(\frac{7}{4}\right)^2\right]-3\\
-                &= -2\left(x-\frac{7}{4}\right)^2+2\times\frac{49}{16}-3\\
-                &= -2\left(x-\frac{7}{4}\right)^2+\frac{25}{8}
-            \end{align*}$$
-            (補足を使った場合)<br>
-            (4) \(y = -2x^2 + 7x - 3\)
-            $$\begin{align*}
-              y &= -2x^2 + 7x - 3\\
-                &= -2\left[x+\frac{7}{2\times(-2)}\right]^2{\color{red}+}2\times\left[\frac{7}{2\times(-2)}\right]^2-3\\
-                &= -2\left(x-\frac{7}{4}\right)^2+\frac{49}{8}-3\\
-                &= -2\left(x-\frac{7}{4}\right)^2+\frac{25}{8}
-            \end{align*}$$
-          </div>
+          <p>
+            同じ強化学習にQ学習という手法があり、このQ学習と深層ニューラルネットワーク(DNN)を合わせるアプローチ方法がDQLであり、その具体的な手法がDQNです。
+          </p>
+          <p>
+            昨今ではDQLとDQNはほぼ同義の語として使われているため、この2つの違いは特に気にする必要がないです。このサイトでも同義としてみなし、基本DQNとして紹介していきます。
+          </p>
+          <p>
+            話を元に戻しますが、Q学習とは、ある状態である行動を行った際の、
+            現在と将来得られる見込みの報酬の値(Q値)を表にまとめたQテーブルを更新することで、
+            Qテーブルを最適化し、ある状態での最適な行動を選択できるようにする学習方法です。
+          </p>
+          <p>
+            このQ学習は、Qテーブルが離散的な値しか持つことができず、
+            連続な値を処理したり状態や行動のパターンが多い場合、学習がなかなか収束(最適化)しない・
+            データ量が多くなるという点から、単純な状態や行動しか学習することができないこと&nbsp;がデメリットでした。
+          </p>
+          <p>
+            そんなQ学習が生まれて約24年後の2013年に、Deep Mind社(Googleの子会社)がQ学習とDNNを組み合わせたDQNを発表しました。
+          </p>
+          <p>
+            DQNでは、ニューラルネットワーク(後述)を使うため、連続な値を入力値として与えることができ、複雑な入力を素早く処理できるようになりました。
+          </p>
+          <p>
+            次のsectionでは具体的なDQNの仕組みについて解説していきます。
+          </p>
         </section>
       </article>
 
