@@ -346,6 +346,27 @@
                 font-size: 0.9em;
               }
 
+              /* ===== 図表 (Mermaid フローチャート等) ===== */
+              #previewInner .mermaid {
+                display: flex;
+                justify-content: center;
+                margin: 1.2em 0;
+                overflow-x: auto;
+                background: transparent;
+              }
+              #previewInner .mermaid svg { max-width: 100%; height: auto; }
+              #previewInner .mermaid-error {
+                color: var(--color-danger);
+                font-family: var(--font-mono);
+                font-size: 0.85em;
+                white-space: pre-wrap;
+                background: rgba(193, 96, 74, 0.08);
+                border: 1px solid rgba(193, 96, 74, 0.35);
+                border-radius: var(--radius-sm);
+                padding: 12px 14px;
+                margin: 1.2em 0;
+              }
+
               /* ===== コンソール ===== */
               #consolePanel {
                 flex: 0 0 auto;
@@ -582,6 +603,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" crossorigin="anonymous"></script>
 
     <script type="module">
 
@@ -600,6 +622,7 @@
       let previewTimer = null;
       let resizeTimer = null;
       let draftSaveTimer = null;
+      let mermaidRenderSeq = 0;
 
       const SETTINGS_KEY = 'mdEditorDriveSettings';
       // 【編集履歴保存】ドキュメント本文 + CodeMirrorのUndo/Redo履歴をlocalStorageへ保存するキー
@@ -659,6 +682,7 @@
 - Google Drive からファイルを開く・保存する
 - ローカルのファイルを開く・ダウンロードする
 - プレビューを新規タブで開く
+- \`\`\`mermaid\`\`\` フェンスでフローチャートなどの図を描画する
 
 \`\`\`js
 function hello(name) {
@@ -666,7 +690,17 @@ function hello(name) {
 }
 \`\`\`
 
+\`\`\`mermaid
+flowchart LR
+  A[開始] --> B{条件分岐}
+  B -- はい --> C[処理A]
+  B -- いいえ --> D[処理B]
+  C --> E[終了]
+  D --> E
+\`\`\`
+
 > コンソールには動作ログとエラーが表示されます。
+> コード内に \`<div>\` のようなタグを書いても、そのまま文字として表示されます。
 `;
 
       /* ==================================================
@@ -969,7 +1003,50 @@ function hello(name) {
       }
 
       /* ==================================================
-      プレビュー / LaTeX (KaTeX) 対応
+      Markdownレンダラー共通設定
+      【HTMLタグ誤認識修正】CommonMarkの仕様では、コードフェンスの外に書いた
+      生のHTMLタグ(例: 文章中の <div> や、フェンスなしで行頭に書いたタグ)は
+      「生のHTMLとして」そのまま出力に埋め込まれる。このアプリは書いた文字を
+      そのまま見せる用途のため、html/tag系のトークナイザを無効化し、
+      本文中のタグ記法は常にエスケープして「文字」として表示させる。
+      (```コードフェンス内は元々marked自身がエスケープするため影響なし)
+      ================================================== */
+
+      function escapeHtml(text) {
+        return String(text ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      function configureMarked() {
+        if (typeof marked === 'undefined') return;
+        marked.setOptions({ gfm: true, breaks: true });
+
+        const renderer = new marked.Renderer();
+        // フェンス付きコードブロック: ```mermaid``` はダイアグラム描画用のdivに、
+        // それ以外は通常どおりエスケープしたコードとして出力する
+        renderer.code = (code, infostring) => {
+          const lang = (infostring || '').trim().split(/\s+/)[0].toLowerCase();
+          if (lang === 'mermaid') {
+            return `<div class="mermaid">${escapeHtml(code)}</div>\n`;
+          }
+          const langClass = lang ? ` class="language-${escapeHtml(lang)}"` : '';
+          return `<pre><code${langClass}>${escapeHtml(code)}</code></pre>\n`;
+        };
+
+        marked.use({
+          renderer,
+          tokenizer: {
+            // 生のHTMLブロック/インラインタグを無効化し、通常のテキストとして扱わせる
+            html() { return undefined; },
+            tag() { return undefined; }
+          }
+        });
+      }
+
+      /* ==================================================
+      プレビュー / LaTeX (KaTeX) / Mermaid(フローチャート等) 対応
       ブロック数式: $$...$$ / \[...\]  インライン数式: $...$ / \(...\)
       Markdownパーサーが数式中の "_" や "*" を誤って強調記法として解釈しないよう、
       先に数式部分をプレースホルダーへ退避してからmarked.parse()を実行し、
@@ -1025,8 +1102,34 @@ function hello(name) {
             ? DOMPurify.sanitize(raw, { USE_PROFILES: { html: true, svg: true, mathMl: true } })
             : raw;
           previewInnerEl.innerHTML = safe;
+          renderMermaidBlocks();
         } catch (e) {
           log('error', `プレビューの生成に失敗しました: ${e.message}`);
+        }
+      }
+
+      // 【フローチャート対応】プレビュー内の <div class="mermaid"> を実際の図(SVG)に描画する。
+      // 入力中の連続レンダリングで古い非同期処理が新しい結果を上書きしないよう、
+      // 描画のたびに世代番号(mermaidRenderSeq)を発行して破棄判定に使う。
+      async function renderMermaidBlocks() {
+        if (typeof mermaid === 'undefined') return;
+        const nodes = previewInnerEl.querySelectorAll('.mermaid');
+        if (nodes.length === 0) return;
+
+        const seq = ++mermaidRenderSeq;
+        let index = 0;
+        for (const node of nodes) {
+          const source = node.textContent;
+          const graphId = `mermaid-graph-${seq}-${index++}`;
+          try {
+            const { svg } = await mermaid.render(graphId, source);
+            if (seq !== mermaidRenderSeq) return; // 描画中に本文が変わった場合は結果を捨てる
+            node.innerHTML = svg;
+          } catch (e) {
+            if (seq !== mermaidRenderSeq) return;
+            node.outerHTML = `<pre class="mermaid-error">${escapeHtml(`図の描画に失敗しました: ${e.message}`)}</pre>`;
+            log('warn', `Mermaid図の描画に失敗しました: ${e.message}`);
+          }
         }
       }
 
@@ -1054,40 +1157,47 @@ function hello(name) {
         }
         return `<!DOCTYPE html>
 <html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeForTitle(title)}</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-<style>
-  :root { color-scheme: light; }
-  body {
-    font-family: 'IBM Plex Serif', Georgia, 'Hiragino Mincho ProN', 'Yu Mincho', serif;
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 56px 28px 96px;
-    background: #f6f1e6;
-    color: #2a2520;
-    line-height: 1.75;
-  }
-  h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.3; }
-  h1 { font-size: 2.1em; border-bottom: 2px solid #c89a4a; padding-bottom: 0.3em; }
-  h2 { font-size: 1.6em; border-bottom: 1px solid #d8cdb8; padding-bottom: 0.25em; }
-  a { color: #3f7a80; }
-  blockquote { margin: 1em 0; padding: 0.2em 1.2em; border-left: 3px solid #c89a4a; color: #5a5044; font-style: italic; }
-  pre { background: #221e1a; color: #ece5d8; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: 'IBM Plex Mono', monospace; font-size: 0.9em; }
-  code { font-family: 'IBM Plex Mono', monospace; background: rgba(40, 35, 30, 0.08); padding: 0.1em 0.35em; border-radius: 3px; }
-  pre code { background: none; padding: 0; }
-  table { border-collapse: collapse; width: 100%; margin: 1.2em 0; }
-  th, td { border: 1px solid #d8cdb8; padding: 0.5em 0.8em; text-align: left; }
-  th { background: #ece1cb; }
-  img { max-width: 100%; }
-  hr { border: none; border-top: 1px solid #d8cdb8; margin: 2em 0; }
-</style>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${escapeForTitle(title)}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" crossorigin="anonymous"><\/script>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        font-family: 'IBM Plex Serif', Georgia, 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 56px 28px 96px;
+        background: #f6f1e6;
+        color: #2a2520;
+        line-height: 1.75;
+      }
+      h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.3; }
+      h1 { font-size: 2.1em; border-bottom: 2px solid #c89a4a; padding-bottom: 0.3em; }
+      h2 { font-size: 1.6em; border-bottom: 1px solid #d8cdb8; padding-bottom: 0.25em; }
+      a { color: #3f7a80; }
+      blockquote { margin: 1em 0; padding: 0.2em 1.2em; border-left: 3px solid #c89a4a; color: #5a5044; font-style: italic; }
+      pre { background: #221e1a; color: #ece5d8; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: 'IBM Plex Mono', monospace; font-size: 0.9em; }
+      code { font-family: 'IBM Plex Mono', monospace; background: rgba(40, 35, 30, 0.08); padding: 0.1em 0.35em; border-radius: 3px; }
+      pre code { background: none; padding: 0; }
+      table { border-collapse: collapse; width: 100%; margin: 1.2em 0; }
+      th, td { border: 1px solid #d8cdb8; padding: 0.5em 0.8em; text-align: left; }
+      th { background: #ece1cb; }
+      img { max-width: 100%; }
+      hr { border: none; border-top: 1px solid #d8cdb8; margin: 2em 0; }
+      .mermaid { display: flex; justify-content: center; margin: 1.2em 0; }
+    </style>
+  </head>
+  <body>
 ${bodyHtml}
-</body>
+    <script>
+      if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+      }
+    <\/script>
+  </body>
 </html>`;
       }
 
@@ -1373,7 +1483,7 @@ ${bodyHtml}
             log('info', `「${picked.name}」を読み込んでいます…`);
             const content = await drive.getFile({ fileId: picked.id });
             
-            // 【パス記憶修正】Pickerから取得したフルパス（無い場合はファイル名）を保持
+            // 【パス記憶修正】Pickerから取得したフルパス(無い場合はファイル名)を保持
             const resolvedPath = picked.path || picked.name;
 
             setEditorValue(typeof content === 'string' ? content : String(content ?? ''));
@@ -1577,11 +1687,28 @@ ${bodyHtml}
       起動処理
       ================================================== */
 
-      if (typeof marked !== 'undefined') {
-        marked.setOptions({ gfm: true, breaks: true });
-      }
+      configureMarked();
       if (typeof DOMPurify === 'undefined') {
         log('warn', 'DOMPurifyが読み込まれていないため、プレビューのサニタイズが行われません。');
+      }
+      if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          theme: 'base',
+          themeVariables: {
+            background: '#f1e9d8',
+            primaryColor: '#ece1cb',
+            primaryTextColor: '#2a2520',
+            primaryBorderColor: '#c89a4a',
+            lineColor: '#6b6055',
+            secondaryColor: '#dfd2b0',
+            tertiaryColor: '#f1e9d8'
+          },
+          fontFamily: "'IBM Plex Sans', sans-serif"
+        });
+      } else {
+        log('warn', 'Mermaidが読み込まれていないため、フローチャート等の図は描画されません。');
       }
 
       initEditor();
