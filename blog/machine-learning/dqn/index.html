@@ -1,1 +1,154 @@
+<!--
+記述するのは
+html
+ - head
+    - meta:description
+      meta:keywords
+      title
+ - body
+-->
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="descrition" content="これは NeoTopazm サイトのHTMLテンプレートを用いたデモページです。" />
+    <meta name="keywords" content="math,blog,fourier transform,NeoTopazm" />
+    <title>DQLの仕組み | DQN</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+    <script type="module" src="https://mathotagamma.github.io/blog/script-template.js"></script>
+    <script src="https://mathotagamma.github.io/APIs/CompVisJS/latest/CompVisJS.js"></script>
+    <link rel="stylesheet" href="https://mathotagamma.github.io/blog/style-template.css" />
+  </head>
+  <body>
+    <header>
+      <div>DQN</div>
+      <nav id="breadcrumb"></nav>
+    </header>
 
+    <div class="toc-toggle">📑 目次を表示</div> <!-- モバイル用 -->
+    <main>
+      <nav class="toc-wrapper" aria-label="目次">
+        <h2>目次</h2>
+        <ul>
+          <li><a href="#section0" class="anchor">#section0</a></li>
+          <li><a href="#section1" class="anchor">#section1</a></li>
+          <li><a href="#section2" class="anchor">#section2</a></li>
+        </ul>
+      </nav>
+      <article class="article">
+        <h1>DQLの仕組みについて</h1>
+        <p>
+          難易度⭐︎⭐︎
+        </p>
+        <section id="section0">
+          <!-- section0 -->
+          <h2>導入</h2>
+          <p>こんにちは/こんばんは。</p>
+          <p>
+            今回から、強化学習の一種であるDQLと、その中でもよく使われているDQNという手法について語っていきたいと思います。
+          </p>
+        </section>
+        <section id="section1">
+          <!-- section1 -->
+          <h2>DQLとは</h2>
+          <p>
+            皆さんはAI(Artificial Intelligence)という言葉をご存知ですか？
+            このページを見ている皆さんですから知らない方は珍しいと思いますが、
+            一応簡単に説明すると、コンピュータが人間のように推論・思考や学習を行う技術です。
+          </p>
+          <p>
+            あるタスクを解決または思考するAIは、そのタスクに関する膨大なデータを用いて学習することで作られます。
+            そのような学習を機械学習といい、各手法は主に以下の3つのグループに分けることができます。
+          </p>
+          <ul>
+            <li>教師あり学習</li>
+            <li>教師なし学習</li>
+            <li>強化学習</li>
+          </ul>
+          <p>
+            教師あり学習は教師データと呼ばれる、正解のラベルが存在し、学習中のAIが推論した結果とその正解を比較してAIの修正を行うことでAIを学習させていきます。
+          </p>
+          <p>
+            教師なし学習は正解ラベルが与えられず、与えられたデータから特徴を読み取り分類するよう自律的に学習させる方法です。
+          </p>
+          <p>
+            強化学習は、教師データを与えられる代わりに、AIが出した結果に対して報酬(または罰)を与えて、その報酬が最大となるように修正していく手法です。
+          </p>
+          <p>
+            そして、その強化学習の手法の一つが今回から解説していくDQL(DQN)になります。
+          </p>
+          <div class="block">
+            <small>
+              <p>divでclass="block"を指定した。</p>
+              <p>更に、LaTeXを書いてみる。</p>
+              $$\begin{align*}
+                y &= 2x^2+4x-3\\
+                  &= 2\left(x^2+2x\right)-3 \quad {...\large ①}\\
+                  &= 2\left[(x+1)^2-1\right]-3 \quad {...\large ②}\\
+                  &= 2(x+1)^2-5 \quad {...\large ③}
+              \end{align*}$$
+            </small>
+          </div>
+        </section>
+        <section id="section2">
+          <h2>SECTION2</h2>
+          <p>これは</p>
+          <div>
+            &lt;button class="dropdown-toggle"&gt;見出し&lt;/button&gt;<br>
+            &lt;div class="dropdown-content" style="display:none;"&gt;
+          </div>
+          <p>
+            を用いたドロップダウン。
+          </p>
+          <button class="dropdown-toggle">▼解答▼</button>
+          <div class="dropdown-content equation" style="display:none;">
+            (1) \(y=x^2+6x+2\)
+            $$\begin{align*}
+              y &= x^2 + 6x + 2\\
+                &= (x+3)^2 - 3^2 + 2\\
+                &= (x+3)^2-7
+            \end{align*}$$
+            (2) \(y=x^2-5x\)
+            $$\begin{align*}
+              y &= x^2-5x\\
+                &= \left(x-\frac{5}{2}\right)^2-\left(\frac{5}{2}\right)^2\\
+                &= \left(x-\frac{5}{2}\right)^2-\frac{25}{4}
+            \end{align*}$$
+            (3) \(y=3x^2-6+11\)
+            $$\begin{align*}
+              y &= 3x^2 - 6x + 11\\
+                &= 3(x^2 - 2x) + 11\\
+                &= 3(x-1)^2-3\times1^2+11 \\
+                &{\scriptsize \uparrow \text{補足の\(p=-1\)を使えばここから}}\\
+                &= 3(x-1)^2+8
+            \end{align*}$$
+            (4) \(y=-2x^2+7x-3\)
+            $$\begin{align*}
+              y &= -2x^2 + 7x - 3\\
+                &= -2\left(x^2-\frac{7}{2}x\right)-3\\
+                &= -2\left[\left(x-\frac{7}{4}\right)^2-\left(\frac{7}{4}\right)^2\right]-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+2\times\frac{49}{16}-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+\frac{25}{8}
+            \end{align*}$$
+            (補足を使った場合)<br>
+            (4) \(y = -2x^2 + 7x - 3\)
+            $$\begin{align*}
+              y &= -2x^2 + 7x - 3\\
+                &= -2\left[x+\frac{7}{2\times(-2)}\right]^2{\color{red}+}2\times\left[\frac{7}{2\times(-2)}\right]^2-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+\frac{49}{8}-3\\
+                &= -2\left(x-\frac{7}{4}\right)^2+\frac{25}{8}
+            \end{align*}$$
+          </div>
+        </section>
+      </article>
+
+      <aside class="sidebar">
+        <section>
+          <h3>おすすめ記事</h3>
+          <!-- おすすめリンクなど -->
+        </section>
+      </aside>
+    </main>
+  </body>
+</html>
