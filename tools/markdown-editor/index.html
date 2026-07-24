@@ -1122,6 +1122,16 @@ flowchart LR
           const source = node.textContent;
           const graphId = `mermaid-graph-${seq}-${index++}`;
           try {
+            // 【爆弾アイコン対策】mermaid.render()は構文エラー時に例外を投げず、
+            // 「爆弾アイコン」付きのエラー図SVGを正常な戻り値として返すことがある。
+            // そのため先にmermaid.parse(suppressErrors)で構文チェックし、
+            // 不正な場合はrender自体を呼ばずに自前のテキストエラー表示に差し替える。
+            const isValid = await mermaid.parse(source, { suppressErrors: true });
+            if (seq !== mermaidRenderSeq) return;
+            if (!isValid) {
+              node.outerHTML = `<pre class="mermaid-error">${escapeHtml('図の構文が正しくないため描画できません。')}</pre>`;
+              continue;
+            }
             const { svg } = await mermaid.render(graphId, source);
             if (seq !== mermaidRenderSeq) return; // 描画中に本文が変わった場合は結果を捨てる
             node.innerHTML = svg;
