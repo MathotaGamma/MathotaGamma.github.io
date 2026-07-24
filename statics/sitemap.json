@@ -23,6 +23,11 @@
       "_name": "高校化学",
       "_index": "",
       "table": "元素周期表と性質"
+    },
+    "machine-learning": {
+      "_name": "機械学習",
+      "_index": "",
+      "dqn": "DQN"
     }
   },
   "tools": {
