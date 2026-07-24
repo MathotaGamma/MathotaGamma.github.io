@@ -27,7 +27,10 @@
     "machine-learning": {
       "_name": "機械学習",
       "_index": "",
-      "dqn": "DQN"
+      "dqn": {
+        "_name": "DQN",
+        "_index": ""
+      }
     }
   },
   "tools": {
