@@ -160,6 +160,18 @@
               }
               .toolbar button.primary:hover { background: var(--color-brass-strong); border-color: var(--color-brass-strong); }
 
+              .downloadFormatSelect {
+                font-size: 13px;
+                background: transparent;
+                color: var(--color-ink);
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-sm);
+                padding: 6px 8px;
+                cursor: pointer;
+                touch-action: manipulation;
+              }
+              .downloadFormatSelect:hover { border-color: var(--color-ink-muted); }
+
               .segmented {
                 display: inline-flex;
                 border: 1px solid var(--color-border);
@@ -509,6 +521,13 @@
         <div class="toolbarGroup">
           <button id="saveBtn" type="button" class="primary">保存</button>
           <button id="saveAsBtn" type="button">名前を付けて保存</button>
+          <select id="downloadFormatSelect" class="downloadFormatSelect" title="ダウンロード形式">
+            <option value="md" selected>.md</option>
+            <option value="html">.html</option>
+            <option value="pdf">.pdf</option>
+            <option value="png">.png</option>
+            <option value="jpeg">.jpeg</option>
+          </select>
           <button id="downloadBtn" type="button">ダウンロード</button>
         </div>
 
@@ -604,6 +623,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
 
     <script type="module">
 
@@ -652,6 +673,7 @@
       const localFileInputEl = document.getElementById('localFileInput');
       const saveBtn = document.getElementById('saveBtn');
       const saveAsBtn = document.getElementById('saveAsBtn');
+      const downloadFormatSelectEl = document.getElementById('downloadFormatSelect');
       const downloadBtn = document.getElementById('downloadBtn');
       const newTabBtn = document.getElementById('newTabBtn');
       const authBtn = document.getElementById('authBtn');
@@ -700,7 +722,7 @@ flowchart LR
 \`\`\`
 
 > コンソールには動作ログとエラーが表示されます。
-> コード内に \`<div>\` のようなタグを書いても、そのまま文字として表示されます。
+> 生のHTMLタグ(例: <b>太字</b>)はそのままHTMLとして描画されます。文字として見せたい場合は \`<div>\` のようにバッククォートで囲んでください。
 `;
 
       /* ==================================================
@@ -1004,12 +1026,11 @@ flowchart LR
 
       /* ==================================================
       Markdownレンダラー共通設定
-      【HTMLタグ誤認識修正】CommonMarkの仕様では、コードフェンスの外に書いた
-      生のHTMLタグ(例: 文章中の <div> や、フェンスなしで行頭に書いたタグ)は
-      「生のHTMLとして」そのまま出力に埋め込まれる。このアプリは書いた文字を
-      そのまま見せる用途のため、html/tag系のトークナイザを無効化し、
-      本文中のタグ記法は常にエスケープして「文字」として表示させる。
-      (```コードフェンス内は元々marked自身がエスケープするため影響なし)
+      【HTMLタグの扱い】本文中に生のHTMLタグ(<div>や<br>など)を書いた場合は、
+      CommonMark標準の仕様どおりHTMLとして解釈・描画する(DOMPurifyでサニタイズ済み)。
+      タグを「文字」としてそのまま見せたい場合は、従来のMarkdown作法どおり
+      バッククォートで囲む(`<div>`)か、コードフェンス(```)内に書くこと。
+      コードフェンス内は常にエスケープして表示するため、そちらは影響を受けない。
       ================================================== */
 
       function escapeHtml(text) {
@@ -1035,14 +1056,7 @@ flowchart LR
           return `<pre><code${langClass}>${escapeHtml(code)}</code></pre>\n`;
         };
 
-        marked.use({
-          renderer,
-          tokenizer: {
-            // 生のHTMLブロック/インラインタグを無効化し、通常のテキストとして扱わせる
-            html() { return undefined; },
-            tag() { return undefined; }
-          }
-        });
+        marked.use({ renderer });
       }
 
       /* ==================================================
@@ -1629,19 +1643,137 @@ ${bodyHtml}
       saveBtn.addEventListener('click', saveCurrentFile);
       saveAsBtn.addEventListener('click', saveAsFlow);
 
+      /* ==================================================
+      ダウンロード (.md / .html / .pdf / .png / .jpeg)
+      ================================================== */
+
+      // 拡張子を除いたベースファイル名を得る
+      function getBaseFileName() {
+        const name = (currentFile.name || '無題.md').split('/').pop();
+        return name.replace(/\.[^.]+$/, '') || '無題';
+      }
+
+      function triggerBlobDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+
+      function triggerDataUrlDownload(dataUrl, filename) {
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      function downloadAsMarkdown() {
+        const filename = currentFile.name || '無題.md';
+        const blob = new Blob([getEditorValue()], { type: 'text/markdown;charset=utf-8' });
+        triggerBlobDownload(blob, filename);
+        log('info', `「${filename}」をダウンロードしました。`);
+      }
+
+      function downloadAsHtml() {
+        const filename = `${getBaseFileName()}.html`;
+        const html = buildStandaloneHtml(getEditorValue(), currentFile.name || '無題');
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        triggerBlobDownload(blob, filename);
+        log('info', `「${filename}」をダウンロードしました。`);
+      }
+
+      // プレビュー原稿(#previewInner)をhtml2canvasでキャンバスに描き起こす。
+      // PNG/JPEG/PDFの元絵として共通利用する。
+      async function capturePreviewCanvas() {
+        if (typeof html2canvas === 'undefined') {
+          throw new Error('html2canvasが読み込まれていないため、画像/PDF出力はできません。');
+        }
+        // 最新の内容が反映されているように、キャプチャ前にプレビューを確実に再描画する
+        renderPreview();
+        await renderMermaidBlocks();
+        await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+        return html2canvas(previewInnerEl, {
+          backgroundColor: getComputedStyle(previewInnerEl).backgroundColor || '#f1e9d8',
+          scale: Math.min(2, window.devicePixelRatio || 1.5),
+          useCORS: true
+        });
+      }
+
+      async function downloadAsImage(format) {
+        try {
+          downloadBtn.disabled = true;
+          log('info', `${format.toUpperCase()}画像を生成しています…`);
+          const canvas = await capturePreviewCanvas();
+          const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+          const dataUrl = canvas.toDataURL(mime, 0.92);
+          const filename = `${getBaseFileName()}.${format}`;
+          triggerDataUrlDownload(dataUrl, filename);
+          log('info', `「${filename}」をダウンロードしました。`);
+        } catch (e) {
+          log('error', `画像のダウンロードに失敗しました: ${e.message}`);
+        } finally {
+          downloadBtn.disabled = false;
+        }
+      }
+
+      async function downloadAsPdf() {
+        try {
+          if (typeof window.jspdf === 'undefined') {
+            throw new Error('jsPDFが読み込まれていないため、PDF出力はできません。');
+          }
+          downloadBtn.disabled = true;
+          log('info', 'PDFを生成しています…');
+          const canvas = await capturePreviewCanvas();
+          const imgData = canvas.toDataURL('image/png');
+
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const imgWidth = pageWidth;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          let heightLeft = imgHeight;
+          let position = 0;
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+          while (heightLeft > 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+          }
+
+          const filename = `${getBaseFileName()}.pdf`;
+          pdf.save(filename);
+          log('info', `「${filename}」をダウンロードしました。`);
+        } catch (e) {
+          log('error', `PDFのダウンロードに失敗しました: ${e.message}`);
+        } finally {
+          downloadBtn.disabled = false;
+        }
+      }
+
       downloadBtn.addEventListener('click', () => {
+          const format = downloadFormatSelectEl.value;
           try {
-            const name = currentFile.name || '無題.md';
-            const blob = new Blob([getEditorValue()], { type: 'text/markdown;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = name;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(url), 5000);
-            log('info', `「${name}」をダウンロードしました。`);
+            if (format === 'md') {
+              downloadAsMarkdown();
+            } else if (format === 'html') {
+              downloadAsHtml();
+            } else if (format === 'pdf') {
+              downloadAsPdf();
+            } else if (format === 'png' || format === 'jpeg') {
+              downloadAsImage(format);
+            } else {
+              log('warn', `未対応のダウンロード形式です: ${format}`);
+            }
           } catch (e) {
             log('error', `ダウンロードに失敗しました: ${e.message}`);
           }
