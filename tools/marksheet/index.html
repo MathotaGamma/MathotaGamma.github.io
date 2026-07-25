@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>マークシートジェネレーター</title>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: sans-serif;
+        background-color: #f5f5f7;
+        color: #333;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* サイドバー */
+      .sidebar {
+        width: 380px;
+        min-width: 380px;
+        background: #ffffff;
+        border-right: 1px solid #ddd;
+        padding: 16px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* プレビューエリア */
+      .preview-area {
+        flex: 1;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        overflow-y: auto;
+        position: relative;
+        background-color: #eef0f3;
+      }
+
+      h2 {
+        font-size: 1.05rem;
+        margin: 0 0 10px 0;
+        padding-bottom: 4px;
+        border-bottom: 2px solid #0066cc;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      label {
+        font-size: 0.85rem;
+        font-weight: bold;
+        color: #555;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      select {
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 0.9rem;
+      }
+
+      .row-2 {
+        display: flex;
+        gap: 8px;
+      }
+      .row-2 > div {
+        flex: 1;
+      }
+
+      .btn-primary {
+        background-color: #0066cc;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      .btn-primary:hover {
+        background-color: #0052a3;
+      }
+      .btn-primary:disabled {
+        background-color: #88b1dd;
+        cursor: not-allowed;
+      }
+
+      .btn-success {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      .btn-success:hover {
+        background-color: #218838;
+      }
+
+      .btn-reset {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 8px;
+      }
+      .btn-reset:hover {
+        background-color: #c82333;
+      }
+
+      /* ステータスバナー */
+      .status-banner {
+        display: none;
+        padding: 10px 20px;
+        background: #0066cc;
+        color: white;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      }
+
+      /* 画像表示エリア */
+      .image-container {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+      }
+
+      #resultImage {
+        max-width: 100%;
+        border: 1px solid #ccc;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        background: white;
+        display: none;
+      }
+
+      /* ⚠️マークの原因となるiframeを完全非表示化 */
+      #sheetFrame {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        border: 0 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
+      .block-config-card {
+        background: #f9f9fb;
+        border: 1px solid #e1e1e8;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+      }
+      .block-config-card h3 {
+        margin: 0 0 6px 0;
+        font-size: 0.85rem;
+        color: #0066cc;
+      }
+
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- 操作パネル -->
+    <div class="sidebar">
+      <button id="renderBtn" class="btn-primary">プレビュー更新</button>
+      <button id="downloadBtn" class="btn-success">画像をダウンロード</button>
+
+      <h2>基本設定</h2>
+      <div class="control-group">
+        <label>ファイル名</label>
+        <input id="fileName" type="text" value="marksheet_custom" />
+      </div>
+
+      <h2>サイズ・レイアウト調整</h2>
+      <div class="row-2">
+        <div class="control-group">
+          <label>マーク幅 (mm)</label>
+          <input id="markWidth" type="number" step="0.1" value="2.5" />
+        </div>
+        <div class="control-group">
+          <label>マーク高さ (mm)</label>
+          <input id="markHeight" type="number" step="0.1" value="3.5" />
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="control-group">
+          <label>小問の行間 (mm)</label>
+          <input id="rowGap" type="number" step="0.1" value="0.5" />
+        </div>
+        <div class="control-group">
+          <label>選択肢の間隔 (mm)</label>
+          <input id="markGap" type="number" step="0.1" value="1.0" />
+        </div>
+      </div>
+
+      <h2>選択肢の設定</h2>
+      <div class="control-group">
+        <label>選択肢プリセット / カスタム</label>
+        <select id="optionPreset">
+          <option value="num10_minus" selected>[- , 1 ~ 9 , 0]</option>
+          <option value="math">数学用 [- , 0 ~ 9]</option>
+          <option value="num10">数字 [1 ~ 0]</option>
+          <option value="num10_ab">数字+英字 [1 ~ 0, a, b]</option>
+          <option value="custom">任意（指定テキスト）</option>
+        </select>
+      </div>
+      <div class="control-group" id="customOptionsGroup" style="display: none;">
+        <label>任意の選択肢（カンマ区切り）</label>
+        <input id="customOptionsText" type="text" value="-,1,2,3,4,5,6,7,8,9,0" />
+      </div>
+
+      <h2>大問・問題番号の設定</h2>
+      <div class="control-group">
+        <label>大問の分割数</label>
+        <select id="blockCount">
+          <option value="1">1つ</option>
+          <option value="2">2つ</option>
+          <option value="3">3つ</option>
+          <option value="4">4つ</option>
+          <option value="5" selected>5つ</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>問題番号の種類</label>
+        <select id="numType">
+          <option value="number">数値 (01, 02, ...)</option>
+          <option value="hiragana">あいうえお...</option>
+          <option value="katakana">アイウエオ...</option>
+          <option value="alphabet_lower">a, b, c...</option>
+          <option value="alphabet_upper">A, B, C...</option>
+          <option value="custom">任意テキスト指定</option>
+        </select>
+      </div>
+
+      <div class="control-group" id="rowCountGroup">
+        <label>1ブロックあたりの小問数</label>
+        <input id="rowCount" type="number" value="40" min="1" max="100" />
+      </div>
+
+      <div class="control-group" id="customNumTextGroup" style="display: none;">
+        <label>任意テキスト（入力文字数が問題数になります）</label>
+        <input id="customNumText" type="text" value="アイウエオカキクケコ" />
+      </div>
+
+      <div id="blockDetails"></div>
+
+      <button id="resetBtn" class="btn-reset">初期設定にリセット</button>
+    </div>
+
+    <!-- プレビューエリア -->
+    <div class="preview-area">
+      <div id="statusBanner" class="status-banner">プレビュー生成中...</div>
+      <div class="image-container">
+        <img id="resultImage" alt="マークシートプレビュー" />
+      </div>
+    </div>
+
+    <!-- レンダリング専用非表示iframe -->
+    <iframe id="sheetFrame"></iframe>
+
+    <script>
+      const STORAGE_KEY = "/tools/marksheet/:data";
+      const defaultBlockTitles = ["1", "2", "3", "4", "5"];
+
+      const presets = {
+        num10_minus: ["-","1","2","3","4","5","6","7","8","9","0"],
+        math: ["-","0","1","2","3","4","5","6","7","8","9"],
+        num10: ["1","2","3","4","5","6","7","8","9","0"],
+        num10_ab: ["1","2","3","4","5","6","7","8","9","0","a","b"]
+      };
+
+      const charLists = {
+        hiragana: "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん".split(""),
+        katakana: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン".split(""),
+        alphabet_lower: "abcdefghijklmnopqrstuvwxyz".split(""),
+        alphabet_upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")
+      };
+
+      document.getElementById("optionPreset").addEventListener("change", (e) => {
+        document.getElementById("customOptionsGroup").style.display = 
+          e.target.value === "custom" ? "flex" : "none";
+      });
+
+      document.getElementById("numType").addEventListener("change", (e) => {
+        const isCustom = e.target.value === "custom";
+        document.getElementById("customNumTextGroup").style.display = isCustom ? "flex" : "none";
+        document.getElementById("rowCountGroup").style.display = isCustom ? "none" : "flex";
+      });
+
+      document.getElementById("blockCount").addEventListener("change", () => renderBlockDetails());
+
+      function renderBlockDetails(savedBlockConfigs = null) {
+        const count = parseInt(document.getElementById("blockCount").value);
+        const container = document.getElementById("blockDetails");
+        container.innerHTML = "<h2>各ブロックの設定</h2>";
+
+        for (let i = 0; i < count; i++) {
+          let defaultTitle = defaultBlockTitles[i] || String(i + 1);
+          let defaultConnect = false;
+
+          if (savedBlockConfigs && savedBlockConfigs[i]) {
+            defaultTitle = savedBlockConfigs[i].title;
+            defaultConnect = savedBlockConfigs[i].connect;
+          }
+
+          const card = document.createElement("div");
+          card.className = "block-config-card";
+          
+          let connectCheckboxHtml = "";
+          if (i > 0) {
+            connectCheckboxHtml = `
+              <label class="checkbox-label">
+                <input type="checkbox" class="b-connect" ${defaultConnect ? "checked" : ""} />
+                前のブロックから番号を連結
+              </label>
+            `;
+          }
+
+          card.innerHTML = `
+            <h3>ブロック ${i + 1}</h3>
+            <div class="control-group">
+              <label>大問タイトル</label>
+              <input type="text" class="b-title" value="${defaultTitle}" />
+            </div>
+            ${connectCheckboxHtml}
+          `;
+          container.appendChild(card);
+        }
+      }
+
+      function saveConfig() {
+        const blockConfigs = [];
+        document.querySelectorAll(".block-config-card").forEach((card, idx) => {
+          blockConfigs.push({
+            title: card.querySelector(".b-title").value,
+            connect: idx > 0 && card.querySelector(".b-connect") ? card.querySelector(".b-connect").checked : false
+          });
+        });
+
+        const config = {
+          fileName: document.getElementById("fileName").value,
+          markWidth: document.getElementById("markWidth").value,
+          markHeight: document.getElementById("markHeight").value,
+          rowGap: document.getElementById("rowGap").value,
+          markGap: document.getElementById("markGap").value,
+          optionPreset: document.getElementById("optionPreset").value,
+          customOptionsText: document.getElementById("customOptionsText").value,
+          blockCount: document.getElementById("blockCount").value,
+          numType: document.getElementById("numType").value,
+          rowCount: document.getElementById("rowCount").value,
+          customNumText: document.getElementById("customNumText").value,
+          blockConfigs: blockConfigs
+        };
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      }
+
+      function loadConfig() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          resetToDefaults();
+          return;
+        }
+
+        try {
+          const config = JSON.parse(raw);
+          document.getElementById("fileName").value = config.fileName || "marksheet_custom";
+          document.getElementById("markWidth").value = config.markWidth || "2.5";
+          document.getElementById("markHeight").value = config.markHeight || "3.5";
+          document.getElementById("rowGap").value = config.rowGap || "0.5";
+          document.getElementById("markGap").value = config.markGap || "1.0";
+          document.getElementById("optionPreset").value = config.optionPreset || "num10_minus";
+          document.getElementById("customOptionsText").value = config.customOptionsText || "-,1,2,3,4,5,6,7,8,9,0";
+          document.getElementById("blockCount").value = config.blockCount || "5";
+          document.getElementById("numType").value = config.numType || "number";
+          document.getElementById("rowCount").value = config.rowCount || "40";
+          document.getElementById("customNumText").value = config.customNumText || "アイウエオカキクケコ";
+
+          document.getElementById("customOptionsGroup").style.display = 
+            config.optionPreset === "custom" ? "flex" : "none";
+
+          const isCustomNum = config.numType === "custom";
+          document.getElementById("customNumTextGroup").style.display = isCustomNum ? "flex" : "none";
+          document.getElementById("rowCountGroup").style.display = isCustomNum ? "none" : "flex";
+
+          renderBlockDetails(config.blockConfigs);
+        } catch (e) {
+          resetToDefaults();
+        }
+      }
+
+      // フォーム値を直接デフォルト状態（5個）に書き換える処理
+      function resetToDefaults() {
+        localStorage.removeItem(STORAGE_KEY);
+        document.getElementById("fileName").value = "marksheet_custom";
+        document.getElementById("markWidth").value = "2.5";
+        document.getElementById("markHeight").value = "3.5";
+        document.getElementById("rowGap").value = "0.5";
+        document.getElementById("markGap").value = "1.0";
+        document.getElementById("optionPreset").value = "num10_minus";
+        document.getElementById("customOptionsText").value = "-,1,2,3,4,5,6,7,8,9,0";
+        document.getElementById("blockCount").value = "5";
+        document.getElementById("numType").value = "number";
+        document.getElementById("rowCount").value = "40";
+        document.getElementById("customNumText").value = "アイウエオカキクケコ";
+
+        document.getElementById("customOptionsGroup").style.display = "none";
+        document.getElementById("customNumTextGroup").style.display = "none";
+        document.getElementById("rowCountGroup").style.display = "flex";
+
+        renderBlockDetails();
+        updateIframeSrc();
+      }
+
+      function getOptions() {
+        const preset = document.getElementById("optionPreset").value;
+        if (preset === "custom") {
+          return document.getElementById("customOptionsText").value.split(",").map(s => s.trim()).filter(Boolean);
+        }
+        return presets[preset] || presets.num10_minus;
+      }
+
+      // リセットボタンイベント
+      document.getElementById("resetBtn").onclick = () => {
+        resetToDefaults();
+      };
+
+      // プレビュー更新実行
+      document.getElementById("renderBtn").onclick = () => {
+        saveConfig();
+        updateIframeSrc();
+      };
+
+      function setStatus(loading) {
+        const btn = document.getElementById("renderBtn");
+        const banner = document.getElementById("statusBanner");
+        const img = document.getElementById("resultImage");
+
+        if (loading) {
+          btn.disabled = true;
+          banner.style.display = "block";
+          img.style.display = "none";
+        } else {
+          btn.disabled = false;
+          banner.style.display = "none";
+          img.style.display = "block";
+        }
+      }
+
+      function updateIframeSrc() {
+        setStatus(true);
+
+        const markWidth = document.getElementById("markWidth").value + "mm";
+        const markHeight = document.getElementById("markHeight").value + "mm";
+        const rowGap = document.getElementById("rowGap").value + "mm";
+        const markGap = document.getElementById("markGap").value + "mm";
+        
+        const blockCount = parseInt(document.getElementById("blockCount").value);
+        const numType = document.getElementById("numType").value;
+        const rowCount = parseInt(document.getElementById("rowCount").value);
+        const customNumText = document.getElementById("customNumText").value;
+        const symbols = getOptions();
+
+        const blockConfigs = [];
+        document.querySelectorAll(".block-config-card").forEach((card, idx) => {
+          blockConfigs.push({
+            title: card.querySelector(".b-title").value,
+            connect: idx > 0 && card.querySelector(".b-connect") ? card.querySelector(".b-connect").checked : false
+          });
+        });
+
+        const blockWidthPct = (100 / blockCount - 1) + "%";
+
+        const iframe = document.getElementById("sheetFrame");
+        iframe.srcdoc = `
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <style>
+      @page { size: B4 landscape; margin: 0; }
+      body {
+        margin: 0;
+        padding: 4mm;
+        width: 257mm;
+        height: 182mm;
+        font-family: sans-serif;
+        box-sizing: border-box;
+        background-color: #ffffff;
+      }
+      .top-boxes { display: flex; margin-bottom: 5mm; }
+      .top-box {
+        width: 40%;
+        height: 11mm;
+        border: 2px solid red;
+        margin-right: 15mm;
+        box-sizing: border-box;
+      }
+      .block-container {
+        display: flex;
+        justify-content: space-between;
+      }
+      .block {
+        width: ${blockWidthPct};
+        border: 2px solid red;
+        padding: 2mm;
+        box-sizing: border-box;
+      }
+      .block-title {
+        width: 6mm;
+        height: 6mm;
+        border: 1px solid red;
+        margin: 0 auto 1.3mm;
+        box-sizing: border-box;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        margin-bottom: ${rowGap};
+      }
+      .number-box {
+        width: ${markHeight};
+        height: ${markHeight};
+        border: 1px solid red;
+        margin-right: 2mm;
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
+      .mark {
+        width: ${markWidth};
+        height: ${markHeight};
+        border: 1px solid red;
+        border-radius: 50%;
+        margin-right: ${markGap};
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
+      svg { width: 100%; height: 100%; display: block; }
+    </style>
+  </head>
+  <body>
+    <div class="top-boxes">
+      <div class="top-box"></div>
+      <div class="top-box"></div>
+    </div>
+
+    <div class="block-container" id="container"></div>
+
+    <script>
+      const blockConfigs = ${JSON.stringify(blockConfigs)};
+      const symbols = ${JSON.stringify(symbols)};
+      const numType = "${numType}";
+      const defaultRowCount = ${rowCount};
+      const customNumText = "${customNumText}";
+      const charLists = ${JSON.stringify(charLists)};
+
+      function createSVGText(text, fontSize) {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("viewBox", "0 0 100 100");
+        const t = document.createElementNS(svgNS, "text");
+        t.setAttribute("x", "50");
+        t.setAttribute("y", "45");
+        t.setAttribute("text-anchor", "middle");
+        t.setAttribute("dominant-baseline", "middle");
+        t.setAttribute("font-size", fontSize);
+        t.setAttribute("fill", "red");
+        t.textContent = text;
+        svg.appendChild(t);
+        return svg;
+      }
+
+      function getQuestionLabel(absoluteIndex) {
+        if (numType === "custom") {
+          return customNumText[absoluteIndex % customNumText.length] || "";
+        }
+        if (numType === "number") {
+          return String(absoluteIndex + 1).padStart(2, "0");
+        }
+        const list = charLists[numType];
+        if (list) {
+          return list[absoluteIndex % list.length];
+        }
+        return String(absoluteIndex + 1);
+      }
+
+      function getRowsPerBlock() {
+        if (numType === "custom") {
+          return customNumText.length;
+        }
+        return defaultRowCount;
+      }
+
+      const container = document.getElementById("container");
+      const rowsPerBlock = getRowsPerBlock();
+      let currentGlobalIndex = 0;
+
+      blockConfigs.forEach(conf => {
+        const block = document.createElement("div");
+        block.className = "block";
+
+        const titleBox = document.createElement("div");
+        titleBox.className = "block-title";
+        titleBox.appendChild(createSVGText(conf.title, 120));
+        block.appendChild(titleBox);
+
+        if (!conf.connect) {
+          currentGlobalIndex = 0;
+        }
+
+        for (let i = 0; i < rowsPerBlock; i++) {
+          const row = document.createElement("div");
+          row.className = "row";
+
+          const numberBox = document.createElement("div");
+          numberBox.className = "number-box";
+          const labelText = getQuestionLabel(currentGlobalIndex);
+          numberBox.appendChild(createSVGText(labelText, labelText.length > 2 ? 60 : 80));
+          row.appendChild(numberBox);
+
+          symbols.forEach(s => {
+            const mark = document.createElement("div");
+            mark.className = "mark";
+            mark.appendChild(createSVGText(s, 85));
+            row.appendChild(mark);
+          });
+
+          block.appendChild(row);
+          currentGlobalIndex++;
+        }
+
+        container.appendChild(block);
+      });
+    <\/script>
+  </body>
+</html>
+        `;
+
+        iframe.onload = generateImage;
+      }
+
+      async function generateImage() {
+        const iframe = document.getElementById("sheetFrame");
+        if (!iframe.contentDocument || !iframe.contentDocument.body) {
+          setStatus(false);
+          return;
+        }
+        
+        const body = iframe.contentDocument.body;
+        const scale = 300 / 96;
+
+        try {
+          const canvas = await html2canvas(body, {
+            scale: scale,
+            backgroundColor: "#ffffff",
+            logging: false
+          });
+
+          canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            const img = document.getElementById("resultImage");
+            img.src = url;
+            setStatus(false);
+          }, "image/png", 0.95);
+        } catch (err) {
+          console.error(err);
+          setStatus(false);
+        }
+      }
+
+      document.getElementById("downloadBtn").onclick = () => {
+        const img = document.getElementById("resultImage");
+        if (!img.src) return;
+
+        const a = document.createElement("a");
+        a.href = img.src;
+        a.download = (document.getElementById("fileName").value || "marksheet") + ".png";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      // 初期化
+      loadConfig();
+      updateIframeSrc();
+    </script>
+  </body>
+</html>
