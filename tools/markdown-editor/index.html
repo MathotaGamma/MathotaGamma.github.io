@@ -547,6 +547,7 @@
         </div>
 
         <button id="newTabBtn" type="button">新規タブで表示</button>
+        <button id="shareLinkBtn" type="button" title="内容をURLに埋め込んで共有する">共有リンク</button>
 
         <span class="authStatus" id="authStatus">
           <span class="dot"></span>
@@ -607,6 +608,21 @@
       </div>
     </div>
 
+    <div id="shareModal" class="modalOverlay hidden">
+      <div class="modalBox">
+        <h2>共有リンク</h2>
+        <p class="hint">このリンクを開いた相手は、Markdownの内容をそのまま受け取れます(サーバーには保存されません。リンク自体に本文が埋め込まれています)。</p>
+        <label>URL
+          <input type="text" id="shareLinkInput" readonly>
+        </label>
+        <p class="hint" id="shareLinkLengthHint"></p>
+        <div class="modalButtons">
+          <button id="shareLinkCloseBtn" type="button">閉じる</button>
+          <button id="shareLinkCopyBtn" type="button" class="primary">コピー</button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/overlay.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js" crossorigin="anonymous"></script>
@@ -625,6 +641,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js" crossorigin="anonymous"></script>
 
     <script type="module">
 
@@ -676,6 +693,12 @@
       const downloadFormatSelectEl = document.getElementById('downloadFormatSelect');
       const downloadBtn = document.getElementById('downloadBtn');
       const newTabBtn = document.getElementById('newTabBtn');
+      const shareLinkBtn = document.getElementById('shareLinkBtn');
+      const shareModalEl = document.getElementById('shareModal');
+      const shareLinkInputEl = document.getElementById('shareLinkInput');
+      const shareLinkLengthHintEl = document.getElementById('shareLinkLengthHint');
+      const shareLinkCloseBtn = document.getElementById('shareLinkCloseBtn');
+      const shareLinkCopyBtn = document.getElementById('shareLinkCopyBtn');
       const authBtn = document.getElementById('authBtn');
       const authStatusEl = document.getElementById('authStatus');
       const authStatusTextEl = document.getElementById('authStatusText');
@@ -1419,24 +1442,27 @@ ${bodyHtml}
           log('info', '新規ドキュメントを作成しました。');
         });
 
-      // 【全文コピー】クリップボードAPIを優先し、非対応/非セキュアコンテキストの場合は
+      // 【共通化】クリップボードAPIを優先し、非対応/非セキュアコンテキストの場合は
       // 従来のselect+execCommand('copy')にフォールバックする
+      async function copyTextToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return;
+        }
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.style.position = 'fixed';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        temp.focus();
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+      }
+
       async function copyAllToClipboard() {
-        const text = getEditorValue();
         try {
-          if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-          } else {
-            const temp = document.createElement('textarea');
-            temp.value = text;
-            temp.style.position = 'fixed';
-            temp.style.opacity = '0';
-            document.body.appendChild(temp);
-            temp.focus();
-            temp.select();
-            document.execCommand('copy');
-            document.body.removeChild(temp);
-          }
+          await copyTextToClipboard(getEditorValue());
           flashFeedback(copyAllBtn, 'コピーしました');
           log('info', '本文全体をクリップボードにコピーしました。');
         } catch (e) {
@@ -1781,6 +1807,104 @@ ${bodyHtml}
 
       newTabBtn.addEventListener('click', openPreviewInNewTab);
 
+      /* ==================================================
+      共有リンク (本文をURLに圧縮埋め込みして共有する)
+      サーバーを持たない静的サイトのため、内容そのものをURLのハッシュに
+      LZ-Stringで圧縮埋め込みする。相手がそのURLを開くと、ハッシュから
+      本文を復元してエディタに読み込む。
+      ================================================== */
+
+      const SHARE_URL_WARN_LENGTH = 8000; // これを超えると環境によっては開けない可能性がある目安
+
+      function buildShareUrl() {
+        if (typeof LZString === 'undefined') {
+          throw new Error('共有機能に必要なライブラリ(LZString)が読み込まれていません。');
+        }
+        const compressed = LZString.compressToEncodedURIComponent(getEditorValue());
+        return `${location.origin}${location.pathname}#share=${compressed}`;
+      }
+
+      function openShareModal(url) {
+        shareLinkInputEl.value = url;
+        shareLinkLengthHintEl.textContent = url.length > SHARE_URL_WARN_LENGTH
+          ? `リンクが長め(${url.length}文字)です。相手の環境によっては開けない場合があります。分量が多い場合はDrive共有やダウンロードした .md ファイルの送付もご検討ください。`
+          : `リンクの長さ: ${url.length}文字`;
+        shareModalEl.classList.remove('hidden');
+        shareLinkInputEl.focus();
+        shareLinkInputEl.select();
+      }
+
+      function closeShareModal() {
+        shareModalEl.classList.add('hidden');
+      }
+
+      async function shareCurrentDocument() {
+        let url;
+        try {
+          url = buildShareUrl();
+        } catch (e) {
+          log('error', e.message);
+          return;
+        }
+
+        // iPad/iPhoneではWeb Share APIでそのままメッセージ/メール等の共有シートに渡せる
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: currentFile.name || '無題.md', url });
+            log('info', '共有シートを開きました。');
+            return;
+          } catch (e) {
+            if (e.name === 'AbortError') return; // ユーザーがキャンセルした場合は何もしない
+            log('warn', `共有シートの表示に失敗したため、リンクを表示します: ${e.message}`);
+          }
+        }
+        openShareModal(url);
+      }
+
+      shareLinkBtn.addEventListener('click', shareCurrentDocument);
+      shareLinkCloseBtn.addEventListener('click', closeShareModal);
+      shareModalEl.addEventListener('click', (event) => {
+          if (event.target === shareModalEl) closeShareModal();
+        });
+      shareLinkCopyBtn.addEventListener('click', async () => {
+          try {
+            await copyTextToClipboard(shareLinkInputEl.value);
+            flashFeedback(shareLinkCopyBtn, 'コピーしました');
+            log('info', '共有リンクをクリップボードにコピーしました。');
+          } catch (e) {
+            log('error', `共有リンクのコピーに失敗しました: ${e.message}`);
+          }
+        });
+
+      // 起動時: URLのハッシュに #share=... が付いていたら、そこから本文を読み込む
+      function loadSharedContentFromHashIfAny() {
+        const hash = location.hash;
+        const prefix = '#share=';
+        if (!hash.startsWith(prefix)) return false;
+        if (typeof LZString === 'undefined') {
+          log('error', '共有リンクの読み込みに必要なライブラリ(LZString)が読み込まれていません。');
+          return false;
+        }
+        const encoded = hash.slice(prefix.length);
+        try {
+          const decoded = LZString.decompressFromEncodedURIComponent(encoded);
+          if (typeof decoded !== 'string' || decoded.length === 0) {
+            throw new Error('リンクの内容を復元できませんでした。');
+          }
+          setEditorValue(decoded);
+          currentFile = { id: null, name: '共有されたMarkdown.md', path: '共有されたMarkdown.md' };
+          markClean();
+          log('info', '共有リンクからMarkdownを読み込みました。');
+          return true;
+        } catch (e) {
+          log('error', `共有リンクの読み込みに失敗しました: ${e.message}`);
+          return false;
+        } finally {
+          // リロード時に毎回同じ内容へ巻き戻らないよう、読み込み後はハッシュを消しておく
+          history.replaceState(null, '', location.pathname + location.search);
+        }
+      }
+
       document.addEventListener('keydown', (event) => {
           const isSaveCombo = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
           if (isSaveCombo) {
@@ -1858,7 +1982,7 @@ ${bodyHtml}
       }
 
       initEditor();
-      if (!restoreDraftIfAny()) {
+      if (!loadSharedContentFromHashIfAny() && !restoreDraftIfAny()) {
         setEditorValue(WELCOME_TEXT);
         markClean();
       }
