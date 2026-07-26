@@ -21,9 +21,20 @@ nav.breadcrumb span {
 
 
 
-/*
-  フロートエリア用(詳しくはmain-script.jsの方を参照してください。
-*/
+
+/* ==========================================
+  Float Area 統合版 v1
+  - float-*-area : position:fixedで画面上を自由に移動できる版(従来品)
+  - dock-*-area  : position指定なしで親のflex/gridアイテムとして配置できる版
+  2つは名前空間が別なので混在しても問題なし。
+  対応スクリプトは float-dock_v1.js を参照。
+========================================== */
+
+
+/* ==========================================
+  fixed版: float-*-area
+========================================== */
+
 /* --- フローティングエリア共通 --- */
 [class*="float-"][class*="-area"] {
   position: fixed;
@@ -96,4 +107,82 @@ nav.breadcrumb span {
   top: 0;
   right: 0;
   height: 100vh;
+}
+
+
+/* ==========================================
+  flex/grid版: dock-*-area
+========================================== */
+
+/* --- 共通 --- */
+[class*="dock-"][class*="-area"] {
+  display: flex;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  margin: 0;
+  padding: 0;
+  transition: height 0.2s ease-out, width 0.2s ease-out;
+}
+
+.dock-content {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 上下エリア：縦並び、高さで指定 */
+.dock-top-area,
+.dock-bottom-area {
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* 左右エリア：横並び、幅で指定 */
+.dock-left-area,
+.dock-right-area {
+  flex: 0 0 auto;
+  flex-direction: row;
+  height: 100%;
+}
+
+/* --- ドラッグバー(リサイズハンドル)共通 --- */
+[class*="dock-"][class*="-bar"] {
+  background-color: #808080;
+  touch-action: none;
+  user-select: none;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* 上下バー：横長、上下方向にリサイズ */
+.dock-top-bar,
+.dock-bottom-bar {
+  width: 100%;
+  height: 10px;
+  min-height: 10px;
+  cursor: ns-resize;
+}
+
+/* 左右バー：縦長、左右方向にリサイズ */
+.dock-left-bar,
+.dock-right-bar {
+  width: 10px;
+  min-width: 10px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+/* --- 格納状態 --- */
+.dock-top-area.is-collapsed,
+.dock-bottom-area.is-collapsed {
+  height: 10px !important;
+}
+
+.dock-left-area.is-collapsed,
+.dock-right-area.is-collapsed {
+  width: 10px !important;
 }
