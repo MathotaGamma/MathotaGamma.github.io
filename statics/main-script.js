@@ -177,10 +177,10 @@ initBreadcrumb();
 
 
 // ==========================================
-//  Float Area 統合版 v1
+//  Float Area 統合版 v2
 //  - float-*-area : position:fixedで画面上を自由に移動できる版(従来品)
 //  - dock-*-area  : position指定なしで親のflex/gridアイテムとして配置できる版
-//  対応スタイルは float-dock_v1.css を参照。
+//  対応スタイルは float-dock_v2.css を参照。
 // ==========================================
 
 
@@ -653,54 +653,16 @@ document.querySelectorAll('.float-right-bar').forEach((bar) => {
 // ==========================================
 //  flex/grid版: dock-*-area
 // ==========================================
-/*
-  使い方例(dock版)
-  従来のfloat-*-areaは画面上をドラッグで「移動」する形だったが、
-  dock-*-areaは親のflex/grid内に収まる形なので、バーのドラッグは
-  「移動」ではなく「リサイズ」として扱う。位置そのものは、いつも通り
-  親側のflex/gridレイアウト(order, flex-basis, grid-template-areas等)で
-  自由に指定できる。
 
-  <div class="dock-layout" style="display:flex; flex-direction:column; height:100vh;">
-    <div class="dock-top-area" data-height="150px">
-      <div class="dock-content">中身</div>
-      <div class="dock-top-bar"></div>
-    </div>
-
-    <div style="display:flex; flex:1; min-height:0;">
-      <div class="dock-left-area" data-width="200px">
-        <div class="dock-content">中身</div>
-        <div class="dock-left-bar"></div>
-      </div>
-
-      <div style="flex:1; min-width:0;">中央エリア(通常のflex/gridアイテム)</div>
-
-      <div class="dock-right-area" data-width="200px">
-        <div class="dock-right-bar"></div>
-        <div class="dock-content">中身</div>
-      </div>
-    </div>
-
-    <div class="dock-bottom-area" data-height="150px">
-      <div class="dock-bottom-bar"></div>
-      <div class="dock-content">中身</div>
-    </div>
-  </div>
-
-  ・data-height / data-width : 初期サイズ(top/bottomはheight、left/rightはwidth)
-  ・バーの位置はエリアの「中央寄り」の端に置くこと(上記例の並び順を参照)
-  ・バーをドラッグでリサイズ、ダブルクリック/ダブルタップで開閉(格納)
-  ・サイズは親要素のclientWidth/clientHeightを上限として制限される
-*/
-
-// ダブルタップ判定用ヘルパー関数(dock版、fixed版のsetupDoubleTapとは別名にして衝突回避)
 const dockSetupDoubleTap = (element, onDoubleTap) => {
   let lastTapTime = 0;
+  // pointerupだと指を離した判定になるため、スマホではこちらが確実
   element.addEventListener('touchend', (e) => {
     const currentTime = new Date().getTime();
     const tapLength = currentTime - lastTapTime;
     if (tapLength < 300 && tapLength > 0) {
       onDoubleTap(e);
+      // ブラウザ標準のダブルタップズーム等を防止
       if (e.cancelable) e.preventDefault();
     }
     lastTapTime = currentTime;
@@ -720,6 +682,11 @@ function setupDockArea(direction) {
   document.querySelectorAll(`.dock-${direction}-area`).forEach((area) => {
     const bar = area.querySelector(`.dock-${direction}-bar`);
     if (!bar) return;
+
+    // バー中央のタッチ切り替えスクエアを自動追加
+    const toggleSquare = document.createElement('div');
+    toggleSquare.className = 'dock-toggle';
+    bar.appendChild(toggleSquare);
 
     let expandedSize = null;
     if (dimension in area.dataset) {
@@ -748,10 +715,14 @@ function setupDockArea(direction) {
     }
 
     bar.addEventListener('pointerdown', (e) => {
+      // 常にリセットしておく(格納中のearly returnでリセット漏れしないように)
+      hasMoved = false;
+
+      // トグルスクエア上での操作はドラッグ扱いしない
+      if (e.target === toggleSquare) return;
       if (area.classList.contains('is-collapsed')) return;
 
       isDragging = true;
-      hasMoved = false;
       bar.setPointerCapture(e.pointerId);
 
       startPos = isVertical ? e.clientY : e.clientX;
@@ -809,8 +780,15 @@ function setupDockArea(direction) {
       }
     };
 
+    // ダブルクリック / ダブルタップ(バー全体)
     bar.addEventListener('dblclick', toggleCollapse);
     dockSetupDoubleTap(bar, toggleCollapse);
+
+    // シングルタップ/クリック(トグルスクエア専用)
+    toggleSquare.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleCollapse(e);
+    });
   });
 }
 
