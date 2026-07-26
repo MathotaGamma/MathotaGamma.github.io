@@ -176,29 +176,38 @@ initBreadcrumb();
 
 
 
-// フロートエリアを表示する。
-// 使い方は下のコード参照してください。
+// ==========================================
+//  Float Area 統合版 v1
+//  - float-*-area : position:fixedで画面上を自由に移動できる版(従来品)
+//  - dock-*-area  : position指定なしで親のflex/gridアイテムとして配置できる版
+//  対応スタイルは float-dock_v1.css を参照。
+// ==========================================
+
+
+// ==========================================
+//  fixed版: float-*-area
+// ==========================================
 /*
+  使い方例(fixed版)
   ⚠️一方向しか動かせない(戻れない)場合、
   heightやwidthが内容物のサイズに合わせるよう設定されている可能性が高いです。
   px指定などを試してください。
-*/
-// 使い方例
-// ⚠️float-left/right-barにはdata-height指定が必須です。また、float-◯-barの書く順序に注意！
-/*
+
+  ⚠️float-left/right-barにはdata-height指定が必須です。また、float-◯-barの書く順序に注意！
+
  - TOP(上側) (data-heightの指定は任意)
   <div class="float-top-area" data-height="200px">
     <div class="float-content">
       <p>ここがドラッグ移動可能なコンテンツエリアです。</p>
     </div>
-    
+
     <div class="float-top-bar"></div>
   </div>
 
  - BOTTOM(下側) (data-heightの指定は任意)
   <div class="float-bottom-area" data-height="200px">
     <div class="float-bottom-bar"></div>
-    
+
     <div class="float-content">
       <p>ここがドラッグ移動可能なコンテンツエリアです。</p>
     </div>
@@ -209,20 +218,21 @@ initBreadcrumb();
     <div class="float-content">
       <p>ここがドラッグ移動可能なコンテンツエリアです。</p>
     </div>
-    
+
     <div class="float-left-bar"></div>
   </div>
 
  - RIGHT(右側) (⚠️data-widthの指定が必須)
   <div class="float-right-area" data-width="200px">
     <div class="float-right-bar"></div>
-    
+
     <div class="float-content">
       <p>ここがドラッグ移動可能なコンテンツエリアです。</p>
     </div>
   </div>
 */
-// ダブルタップ判定用ヘルパー関数
+
+// ダブルタップ判定用ヘルパー関数(fixed版)
 const setupDoubleTap = (element, onDoubleTap) => {
   let lastTapTime = 0;
   // pointerupだと指を離した判定になるため、スマホではこちらが確実
@@ -239,14 +249,12 @@ const setupDoubleTap = (element, onDoubleTap) => {
 };
 
 
-// ==========================================
-//  TOP 用
-// ==========================================
+// --- TOP 用 ---
 document.querySelectorAll('.float-top-bar').forEach((bar) => {
   const areaClass = bar.className.match(/float-(top|bottom)-bar/)[0].replace('-bar', '-area');
   const area = bar.closest(`.${areaClass}`) || document.querySelector(`.${areaClass}`);
   if (!area) return;
-  
+
   if ('height' in area.dataset)
     area.querySelector('.float-content').style.height = area.dataset.height;
 
@@ -338,17 +346,14 @@ document.querySelectorAll('.float-top-bar').forEach((bar) => {
 });
 
 
-// ==========================================
-//  BOTTOM 用
-// ==========================================
+// --- BOTTOM 用 ---
 document.querySelectorAll('.float-bottom-bar').forEach((bar) => {
   const areaClass = bar.className.match(/float-(top|bottom)-bar/)[0].replace('-bar', '-area');
   const area = bar.closest(`.${areaClass}`) || document.querySelector(`.${areaClass}`);
   if (!area) return;
-  
+
   if ('height' in area.dataset)
     area.querySelector('.float-content').style.height = area.dataset.height;
-    
 
   let isDragging = false;
   let offsetY = 0; // 指とバーの相対距離
@@ -384,7 +389,6 @@ document.querySelectorAll('.float-bottom-bar').forEach((bar) => {
 
     const rect = area.getBoundingClientRect();
 
-    // 【バグ修正】
     // スマホのスクロール分(pageYOffset)を考慮した正確なオフセットを計算
     // これにより、タッチした瞬間に要素がジャンプするのを防ぎます
     const clientY = e.clientY;
@@ -446,14 +450,12 @@ document.querySelectorAll('.float-bottom-bar').forEach((bar) => {
 });
 
 
-// ==========================================
-//  LEFT 用
-// ==========================================
+// --- LEFT 用 ---
 document.querySelectorAll('.float-left-bar').forEach((bar) => {
   const areaClass = bar.className.match(/float-(left|right)-bar/)[0].replace('-bar', '-area');
   const area = bar.closest(`.${areaClass}`) || document.querySelector(`.${areaClass}`);
   if (!area) return;
-  
+
   if (!('width' in area.dataset)) {
     alert('float-left-areaにdata-widthを指定してください。例: <div class="float-left-area" data-width="200px">');
     return;
@@ -548,14 +550,12 @@ document.querySelectorAll('.float-left-bar').forEach((bar) => {
 });
 
 
-// ==========================================
-//  RIGHT 用
-// ==========================================
+// --- RIGHT 用 ---
 document.querySelectorAll('.float-right-bar').forEach((bar) => {
   const areaClass = bar.className.match(/float-(left|right)-bar/)[0].replace('-bar', '-area');
   const area = bar.closest(`.${areaClass}`) || document.querySelector(`.${areaClass}`);
   if (!area) return;
-  
+
   if (!('width' in area.dataset)) {
     alert('float-right-areaにdata-widthを指定してください。例: <div class="float-right-area" data-width="200px">');
     return;
@@ -648,3 +648,170 @@ document.querySelectorAll('.float-right-bar').forEach((bar) => {
   bar.addEventListener('dblclick', toggleCollapse);
   setupDoubleTap(bar, toggleCollapse);
 });
+
+
+// ==========================================
+//  flex/grid版: dock-*-area
+// ==========================================
+/*
+  使い方例(dock版)
+  従来のfloat-*-areaは画面上をドラッグで「移動」する形だったが、
+  dock-*-areaは親のflex/grid内に収まる形なので、バーのドラッグは
+  「移動」ではなく「リサイズ」として扱う。位置そのものは、いつも通り
+  親側のflex/gridレイアウト(order, flex-basis, grid-template-areas等)で
+  自由に指定できる。
+
+  <div class="dock-layout" style="display:flex; flex-direction:column; height:100vh;">
+    <div class="dock-top-area" data-height="150px">
+      <div class="dock-content">中身</div>
+      <div class="dock-top-bar"></div>
+    </div>
+
+    <div style="display:flex; flex:1; min-height:0;">
+      <div class="dock-left-area" data-width="200px">
+        <div class="dock-content">中身</div>
+        <div class="dock-left-bar"></div>
+      </div>
+
+      <div style="flex:1; min-width:0;">中央エリア(通常のflex/gridアイテム)</div>
+
+      <div class="dock-right-area" data-width="200px">
+        <div class="dock-right-bar"></div>
+        <div class="dock-content">中身</div>
+      </div>
+    </div>
+
+    <div class="dock-bottom-area" data-height="150px">
+      <div class="dock-bottom-bar"></div>
+      <div class="dock-content">中身</div>
+    </div>
+  </div>
+
+  ・data-height / data-width : 初期サイズ(top/bottomはheight、left/rightはwidth)
+  ・バーの位置はエリアの「中央寄り」の端に置くこと(上記例の並び順を参照)
+  ・バーをドラッグでリサイズ、ダブルクリック/ダブルタップで開閉(格納)
+  ・サイズは親要素のclientWidth/clientHeightを上限として制限される
+*/
+
+// ダブルタップ判定用ヘルパー関数(dock版、fixed版のsetupDoubleTapとは別名にして衝突回避)
+const dockSetupDoubleTap = (element, onDoubleTap) => {
+  let lastTapTime = 0;
+  element.addEventListener('touchend', (e) => {
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTapTime;
+    if (tapLength < 300 && tapLength > 0) {
+      onDoubleTap(e);
+      if (e.cancelable) e.preventDefault();
+    }
+    lastTapTime = currentTime;
+  });
+};
+
+// direction: 'top' | 'bottom' | 'left' | 'right'
+function setupDockArea(direction) {
+  const isVertical = (direction === 'top' || direction === 'bottom');
+  const dimension = isVertical ? 'height' : 'width';
+
+  // バーをドラッグして「増える」向きが+1になるよう符号を決める。
+  // top/leftはバーが遠端(下/右)にあるので、ドラッグ移動量そのままが増加方向。
+  // bottom/rightはバーが近端(上/左)にあるので、逆方向が増加方向。
+  const sign = (direction === 'top' || direction === 'left') ? 1 : -1;
+
+  document.querySelectorAll(`.dock-${direction}-area`).forEach((area) => {
+    const bar = area.querySelector(`.dock-${direction}-bar`);
+    if (!bar) return;
+
+    let expandedSize = null;
+    if (dimension in area.dataset) {
+      expandedSize = parseFloat(area.dataset[dimension]);
+      area.style[dimension] = area.dataset[dimension];
+    }
+
+    let isDragging = false;
+    let startPos = 0;
+    let startSize = 0;
+    let hasMoved = false;
+
+    function getParentMax() {
+      const parent = area.parentElement;
+      return isVertical ? parent.clientHeight : parent.clientWidth;
+    }
+
+    function getBarSize() {
+      return isVertical ? bar.offsetHeight : bar.offsetWidth;
+    }
+
+    function clampSize(size) {
+      const min = getBarSize();
+      const max = getParentMax();
+      return Math.max(min, Math.min(size, max));
+    }
+
+    bar.addEventListener('pointerdown', (e) => {
+      if (area.classList.contains('is-collapsed')) return;
+
+      isDragging = true;
+      hasMoved = false;
+      bar.setPointerCapture(e.pointerId);
+
+      startPos = isVertical ? e.clientY : e.clientX;
+      startSize = isVertical ? area.offsetHeight : area.offsetWidth;
+
+      area.style.transition = 'none';
+    });
+
+    bar.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+
+      if (area.classList.contains('is-collapsed')) {
+        stopDrag(e);
+        return;
+      }
+
+      const pos = isVertical ? e.clientY : e.clientX;
+      const delta = (pos - startPos) * sign;
+      if (!hasMoved && Math.abs(delta) > 1) hasMoved = true;
+
+      const newSize = clampSize(startSize + delta);
+      area.style[dimension] = `${newSize}px`;
+    });
+
+    const stopDrag = (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      area.style.transition = '';
+      if (bar.hasPointerCapture(e.pointerId)) {
+        bar.releasePointerCapture(e.pointerId);
+      }
+      if (hasMoved) {
+        expandedSize = area.getBoundingClientRect()[dimension];
+      }
+    };
+
+    bar.addEventListener('pointerup', stopDrag);
+    bar.addEventListener('pointercancel', stopDrag);
+
+    const toggleCollapse = (e) => {
+      if (hasMoved) return;
+
+      const willCollapse = !area.classList.contains('is-collapsed');
+      if (willCollapse) {
+        // 格納前のサイズを保存
+        expandedSize = area.getBoundingClientRect()[dimension];
+      }
+
+      area.classList.toggle('is-collapsed');
+
+      if (!willCollapse) {
+        // 展開: 保存していたサイズに戻す(なければ親の半分)
+        const restoreSize = expandedSize ?? getParentMax() / 2;
+        area.style[dimension] = `${clampSize(restoreSize)}px`;
+      }
+    };
+
+    bar.addEventListener('dblclick', toggleCollapse);
+    dockSetupDoubleTap(bar, toggleCollapse);
+  });
+}
+
+['top', 'bottom', 'left', 'right'].forEach(setupDockArea);
