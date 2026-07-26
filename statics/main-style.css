@@ -21,13 +21,17 @@ nav.breadcrumb span {
 
 
 
-
 /* ==========================================
-  Float Area 統合版 v1
-  - float-*-area : position:fixedで画面上を自由に移動できる版(従来品)
+  Float Area 統合版 v2
+  - float-*-area : position:fixedで画面上を自由に移動できる版(従来品、v1から変更なし)
   - dock-*-area  : position指定なしで親のflex/gridアイテムとして配置できる版
   2つは名前空間が別なので混在しても問題なし。
-  対応スクリプトは float-dock_v1.js を参照。
+  対応スクリプトは float-dock_v2.js を参照。
+
+  v1からの変更点(dock-*-areaのみ):
+  ・格納中は .dock-content を display:none にして完全に消す
+    (バーがcontentの後ろに隠れて押せなくなる不具合の修正)
+  ・バー中央にタッチ/クリックで開閉できる正方形(.dock-toggle)を追加
 ========================================== */
 
 
@@ -110,6 +114,7 @@ nav.breadcrumb span {
 }
 
 
+
 /* ==========================================
   flex/grid版: dock-*-area
 ========================================== */
@@ -133,6 +138,14 @@ nav.breadcrumb span {
   min-height: 0;
 }
 
+/* 格納中はcontentを完全に消す(バーが隠れないようにするため) */
+.dock-top-area.is-collapsed .dock-content,
+.dock-bottom-area.is-collapsed .dock-content,
+.dock-left-area.is-collapsed .dock-content,
+.dock-right-area.is-collapsed .dock-content {
+  display: none;
+}
+
 /* 上下エリア：縦並び、高さで指定 */
 .dock-top-area,
 .dock-bottom-area {
@@ -151,6 +164,7 @@ nav.breadcrumb span {
 
 /* --- ドラッグバー(リサイズハンドル)共通 --- */
 [class*="dock-"][class*="-bar"] {
+  position: relative;
   background-color: #808080;
   touch-action: none;
   user-select: none;
@@ -174,6 +188,37 @@ nav.breadcrumb span {
   min-width: 10px;
   height: 100%;
   cursor: ew-resize;
+}
+
+/* --- バー端のタッチ切り替えスクエア --- */
+.dock-toggle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background-color: #555;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* 上下バー：右端寄りに配置(縦位置は中央) */
+.dock-top-bar .dock-toggle,
+.dock-bottom-bar .dock-toggle {
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+}
+
+/* 左右バー：下端寄りに配置(横位置は中央) */
+.dock-left-bar .dock-toggle,
+.dock-right-bar .dock-toggle {
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+}
+
+.dock-toggle:active {
+  background-color: #333;
 }
 
 /* --- 格納状態 --- */
