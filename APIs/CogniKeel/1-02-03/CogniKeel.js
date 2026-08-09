@@ -2517,3 +2517,5 @@ class WebGL extends Common {
     
   }
 }
+
+export { CogniKeel, Layer };
