@@ -1338,7 +1338,7 @@ class Layer extends Common {
     const activation = ActivationLayer.activations[this.activation];
     
     this.func = activation ? activation.func : (x)=>x;
-    this.primeFunc = activation ? activation.primeFunc : (x)=>x;
+    this.primeFunc = activation ? activation.primeFunc : (x)=>1;
   }
   
   inputCheck(inputs, batchSize) {
