@@ -148,7 +148,7 @@
       function getReward() {
         const angleReward = Math.cos(theta);
         const positionPenalty = Math.abs(x) / (W / 2);
-        return angleReward - positionPenalty * 0.3;
+        return angleReward - positionPenalty * 0.6;
       }
 
       // ポインターイベントによる手動介入の確実な管理
