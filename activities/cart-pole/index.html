@@ -26,6 +26,8 @@
 
     var ctx = document.getElementById("chart");
 
+    const epochCountLength = 300;
+    let epochCount = 0;
 
     let theta = (Math.random()-0.5)/4+Math.PI;
     let x = 0;
@@ -153,11 +155,11 @@
       theta = (Math.random()-0.5)/4+Math.PI;
       n = [0,0,0,0];
       N += 1;
-
+      epochCount = 0;
     }
 
     function main(){
-
+      epochCount++;
       let k = Math.floor(theta*180/Math.PI+45);
       if(k < 0){
         k = 0;
@@ -179,6 +181,8 @@
       } else if(pre_s[1] > w_size) { //右端に当たる
         v[pre_s[0]][w_size][pre_s[2]] -= 1;
         n[3] -= 1;
+        reset();
+      } else if (epochCount > epochCountLength) {
         reset();
       } else {
         /*if(Math.abs(theta) >= Math.PI/4){ //45°以上傾く
