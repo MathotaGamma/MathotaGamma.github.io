@@ -182,7 +182,7 @@ class CogniKeel extends Common {
     
     // これらの値を用いた設定
     this.epsilon = this.epsilonStart;
-    this.#replayBuffer.configure(this.minReplayBufferLength);
+    this.#replayBuffer.configure(this.replayBufferSize);
     // オプティマイザの保持
     const opt = this.optimizer;
     this.optimizerType = opt.type;
@@ -1568,6 +1568,20 @@ class ActivationLayer extends Layer {
     // 次の層へ引き渡すために1次元配列(Float32Array)を返す
     this.outputs = outputs;
     return outputs;
+  }
+  
+  backward(duList, batchSize) {
+    super.duListCheck(duList, batchSize);
+    const primes = this.constructor.arrayThroughActivationPrimeFunc({
+      inputs: this.inputs,
+      type: this.type
+    });
+    const length = duList.length;
+    const retDuList = new Float32Array(length);
+    for (let i = 0; i < length; i++) {
+      retDuList[i] = primes[i] * duList[i];
+    }
+    return retDuList;
   }
   
   // Float32Arrayの入力に対するfunc
