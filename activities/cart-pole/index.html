@@ -181,12 +181,12 @@
         n[3] -= 1;
         reset();
       } else {
-        if(Math.abs(theta) >= Math.PI/4){ //45°以上傾く
+        /*if(Math.abs(theta) >= Math.PI/4){ //45°以上傾く
           v[pre_s[0]][pre_s[1]][pre_s[2]] -= 1;
           n[3] -= 1;
           reset();
          //T();
-        } else {
+        } else {*/
 
           //報酬を与える
           v[pre_s[0]][pre_s[1]][pre_s[2]] += 0.01-1/20*Math.sin(Math.abs(theta));
@@ -203,7 +203,7 @@
             //console.log(k,x,a)
             v[pre_s[0]][pre_s[1]][pre_s[2]] = (1-e)*v[pre_s[0]][pre_s[1]][pre_s[2]]+e*(i+v[k][Math.floor(w_size/2+x)][a]);
           }
-        }
+        // }
       }
     }
 
