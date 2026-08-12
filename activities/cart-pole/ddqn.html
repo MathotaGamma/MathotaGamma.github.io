@@ -51,7 +51,7 @@
     <script type="module">
       // NOTE: バグ修正版のCogniKeel(cognikeel_v2.mjs)をこのHTMLと同じ階層に置いて
       // 読み込む前提にしてある。ホスティング先を更新したら元のURLに差し替えてOK。
-      import { CogniKeel, Layer } from "https://mathotagamma.github.io/APIs/CogniKeel/1-02-05/CogniKeel.js";
+      import { CogniKeel, Layer } from "https://mathotagamma.github.io/APIs/CogniKeel/1-02-03/CogniKeel.js";
 
       const canvas = document.getElementById('my-canvas');
       const W = window.innerWidth;
@@ -312,6 +312,7 @@
           Epsilon: ${isEvaluation ? 0 : (ck.epsilon ? ck.epsilon.toFixed(4) : 'N/A')}<br>
           Episode累積報酬: ${totalReward.toFixed(2)}<br>
           <strong>Eval平均累積報酬: ${lastEvaluationResult}</strong><br>
+          Step: ${stepCount}<br>
           <hr>
           Action: ${currentAction} (${isUserInteracting ? 'Manual ' : ''}${moveDir || 'Stay'})<br>
           Angle: ${(theta * 180 / Math.PI).toFixed(1)}°
