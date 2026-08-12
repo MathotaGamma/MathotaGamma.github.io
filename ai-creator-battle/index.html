@@ -12,9 +12,15 @@
         margin: 0;
         padding: 10px;
       }
+      .btn-container {
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+      }
       button {
         background: white;
         border: 1px solid black;
+        border-radius: 10px;
         min-width: 200px;
         min-height: 75px;
       }
@@ -31,7 +37,7 @@
     <p>
       学習率、エポック数、モデルの深さ――。あなたの調整次第で、AIは最強の戦士にも、ただの形骸にも変わります。
     </p>
-    <div style="display: flex;">
+    <div class="btn-container">
       <button onclick="window.open('./model-edit');">モデル編集</button>
       <button onclick="window.open('./soro/');">一人で遊ぶ</button>
       <button onclick="window.open('./online/');">オンラインで遊ぶ</button>
