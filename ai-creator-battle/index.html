@@ -3,6 +3,22 @@
   <head>
     <meta charset="utf-8">
     <title>AI Creator Battle</title>
+    <style>
+      html {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        margin: 0;
+        padding: 10px;
+      }
+      button {
+        background: white;
+        border: 1px solid black;
+        min-width: 200px;
+        min-height: 75px;
+      }
+    </style>
   </head>
   <body>
     <h1>AI Creator Battle</h1>
@@ -16,9 +32,9 @@
       学習率、エポック数、モデルの深さ――。あなたの調整次第で、AIは最強の戦士にも、ただの形骸にも変わります。
     </p>
     <div style="display: flex;">
-      <button onclick="window.onopen('./model-edit');">モデル編集</button>
-      <button onclick="window.onopen('./soro/');">一人で遊ぶ</button>
-      <button onclick="window.onopen('./online/');">オンラインで遊ぶ</button>
+      <button onclick="window.open('./model-edit');">モデル編集</button>
+      <button onclick="window.open('./soro/');">一人で遊ぶ</button>
+      <button onclick="window.open('./online/');">オンラインで遊ぶ</button>
     </div>
   </body>
 </html>
