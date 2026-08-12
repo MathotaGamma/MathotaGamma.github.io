@@ -498,8 +498,9 @@ configure ${configureArgs}`
   }
   
   step(state) {
+    if (!(state instanceof Float32Array))
+      this.throwError('evaluationStep', '入力のstateはFloat32Arrayの必要があります。');
     // 現在の状態に対するonline Q-Tableの出力を得る
-    
     const actions = this.#forward({
       inputs: state,
       batchSize: 1,
@@ -526,7 +527,7 @@ configure ${configureArgs}`
     return { action, actions }
   }
   
-  // valueチェックもする
+  // 性能評価用step(epsilon=0に強制)
   evaluationStep(state) {
     if (!(state instanceof Float32Array))
       this.throwError('evaluationStep', '入力のstateはFloat32Arrayの必要があります。');
