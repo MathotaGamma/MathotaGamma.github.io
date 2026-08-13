@@ -20,25 +20,31 @@ nav.breadcrumb span {
 }
 
 /* ===== 文字サイズ指定 ===== */
-
-/* 1remを10pxにする。 */
-html {
-    font-size: 62.5%;
-}
-
-/*最小値:1.1rem → 可変（0.9rem + 0.625vw（画面幅320px:2px, 800px:5px, 1200px:7.5px））→ 最大値:1.6rem*/
+/* 1rem=16px */
+/*
+  (2px=0.125rem)
+  9px =0.5625rem
+  10px=0.625rem
+  11px=0.6875rem
+  12px=0.75rem
+  14px=0.875rem
+  16px=1rem
+  20px=1.25rem
+  24px=1.5rem
+*/
+/*最小値:0.6875rem → 可変（0.5625rem + 0.625vw（画面幅320px:2px, 800px:5px, 1200px:7.5px））→ 最大値:1rem*/
 .font-size-S {
-    font-size: clamp(1.1rem, calc(0.9rem + 0.625vw), 1.6rem);
+    font-size: clamp(0.6875rem, calc(0.5625rem + 0.625vw), 1rem);
 }
 
-/*最小値:1.2rem → 可変（1rem + 0.625vw（画面幅320px:2px, 800px:5px, 1200px:7.5px））→ 最大値:1.7rem*/
+/*最小値:0.75rem → 可変（0.875rem + 0.625vw（画面幅320px:2px, 800px:5px, 1200px:7.5px））→ 最大値:1.5rem*/
 .font-size-M {
-    font-size: clamp(1.2rem, calc(1rem + 0.625vw), 1.7rem);
+    font-size: clamp(0.875rem, calc(0.625rem + 0.625vw), 1.5rem);
 }
 
-/*最小値:1.6rem → 可変（2.2rem + 0.625vw（画面幅320px:2px, 800px:5px, 1200px:7.5px））→ 最大値:2.9rem*/
+/*最小値:1.5rem → 可変（1.375rem + 0.625vw（画面幅320px:2px, 800px:5px, 1200px:7.5px））→ 最大値:1.8125rem*/
 .font-size-L {
-    font-size: clamp(2.4rem, calc(2.2rem + 0.625vw), 2.9rem);
+    font-size: clamp(1.5rem, calc(1.375rem + 0.625vw), 1.8125rem);
 }
 
 
