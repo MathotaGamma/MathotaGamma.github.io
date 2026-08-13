@@ -651,18 +651,16 @@ document.querySelectorAll('.float-right-bar').forEach((bar) => {
 
 
 // ==========================================
-//  flex/grid版: dock-*-area
+//  flex/grid版: dock-*-area (機能拡張版)
 // ==========================================
 
 const dockSetupDoubleTap = (element, onDoubleTap) => {
   let lastTapTime = 0;
-  // pointerupだと指を離した判定になるため、スマホではこちらが確実
   element.addEventListener('touchend', (e) => {
     const currentTime = new Date().getTime();
     const tapLength = currentTime - lastTapTime;
     if (tapLength < 300 && tapLength > 0) {
       onDoubleTap(e);
-      // ブラウザ標準のダブルタップズーム等を防止
       if (e.cancelable) e.preventDefault();
     }
     lastTapTime = currentTime;
@@ -673,20 +671,26 @@ const dockSetupDoubleTap = (element, onDoubleTap) => {
 function setupDockArea(direction) {
   const isVertical = (direction === 'top' || direction === 'bottom');
   const dimension = isVertical ? 'height' : 'width';
+  const minDimensionAttr = isVertical ? 'minHeight' : 'minWidth'; // data-min-height / data-min-width
 
-  // バーをドラッグして「増える」向きが+1になるよう符号を決める。
-  // top/leftはバーが遠端(下/右)にあるので、ドラッグ移動量そのままが増加方向。
-  // bottom/rightはバーが近端(上/左)にあるので、逆方向が増加方向。
+  // ドラッグ方向の符号計算
   const sign = (direction === 'top' || direction === 'left') ? 1 : -1;
 
   document.querySelectorAll(`.dock-${direction}-area`).forEach((area) => {
     const bar = area.querySelector(`.dock-${direction}-bar`);
     if (!bar) return;
 
-    // バー中央のタッチ切り替えスクエアを自動追加
-    const toggleSquare = document.createElement('div');
-    toggleSquare.className = 'dock-toggle';
-    bar.appendChild(toggleSquare);
+    // 【新規】HTMLの data-toggle-square 属性を見てトグルボタン・DblClickイベントをつけるか判定
+    // 属性の指定がない場合は、従来通り「true（有効）」として動きます
+    const enableToggle = area.dataset.toggleSquare !== 'false';
+    let toggleSquare = null;
+
+    if (enableToggle) {
+      // バー中央のタッチ切り替えスクエアを自動追加
+      toggleSquare = document.createElement('div');
+      toggleSquare.className = 'dock-toggle';
+      bar.appendChild(toggleSquare);
+    }
 
     let expandedSize = null;
     if (dimension in area.dataset) {
@@ -708,18 +712,24 @@ function setupDockArea(direction) {
       return isVertical ? bar.offsetHeight : bar.offsetWidth;
     }
 
+    // 【新規】最小・最大サイズへのクランプ処理（data-min-* を考慮）
     function clampSize(size) {
-      const min = getBarSize();
+      const barSize = getBarSize();
+      // data-min-width/height が指定されていれば取得、なければ0
+      const customMin = area.dataset[minDimensionAttr] ? parseFloat(area.dataset[minDimensionAttr]) : 0;
+      
+      // バーの物理サイズとカスタム最小サイズのうち、大きい方を下限とする
+      const min = Math.max(barSize, customMin);
       const max = getParentMax();
+      
       return Math.max(min, Math.min(size, max));
     }
 
     bar.addEventListener('pointerdown', (e) => {
-      // 常にリセットしておく(格納中のearly returnでリセット漏れしないように)
       hasMoved = false;
 
-      // トグルスクエア上での操作はドラッグ扱いしない
-      if (e.target === toggleSquare) return;
+      // トグルが無効、またはトグルスクエア上での操作はドラッグ扱いしない
+      if (enableToggle && e.target === toggleSquare) return;
       if (area.classList.contains('is-collapsed')) return;
 
       isDragging = true;
@@ -762,33 +772,38 @@ function setupDockArea(direction) {
     bar.addEventListener('pointerup', stopDrag);
     bar.addEventListener('pointercancel', stopDrag);
 
+    // 格納・展開トグル関数
     const toggleCollapse = (e) => {
       if (hasMoved) return;
 
       const willCollapse = !area.classList.contains('is-collapsed');
       if (willCollapse) {
-        // 格納前のサイズを保存
         expandedSize = area.getBoundingClientRect()[dimension];
       }
 
       area.classList.toggle('is-collapsed');
 
       if (!willCollapse) {
-        // 展開: 保存していたサイズに戻す(なければ親の半分)
+        // 展開: 保存していたサイズに戻す（クランプ処理で最小サイズを下回らないように保護）
         const restoreSize = expandedSize ?? getParentMax() / 2;
         area.style[dimension] = `${clampSize(restoreSize)}px`;
       }
     };
 
-    // ダブルクリック / ダブルタップ(バー全体)
-    bar.addEventListener('dblclick', toggleCollapse);
-    dockSetupDoubleTap(bar, toggleCollapse);
+    // 【新規】トグルが有効な場合のみ、各種クリックイベントを登録する
+    if (enableToggle) {
+      // ダブルクリック / ダブルタップ(バー全体)
+      bar.addEventListener('dblclick', toggleCollapse);
+      dockSetupDoubleTap(bar, toggleCollapse);
 
-    // シングルタップ/クリック(トグルスクエア専用)
-    toggleSquare.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleCollapse(e);
-    });
+      // シングルタップ/クリック(トグルスクエア専用)
+      if (toggleSquare) {
+        toggleSquare.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleCollapse(e);
+        });
+      }
+    }
   });
 }
 
