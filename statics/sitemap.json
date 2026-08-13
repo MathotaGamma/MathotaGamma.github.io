@@ -2,6 +2,25 @@
   "_name": "ホーム",
   "_index": "",
   "contact": "お問い合わせ",
+  "ai-creator-battle": {
+    "_name": "AI Battle",
+    "_index": "",
+    "model-editor": {
+      "_name": "Model編集",
+      "_index": ""
+    },
+    "solo": : {
+      "_name": "一人用ゲーム",
+      "_index": "",
+      "cartpole": "カートポール",
+      "breakout": "ブロック崩し"
+    },
+    "online": {
+      "_name": "オンライン対戦",
+      "_index": "",
+      "breakout": "ブロック崩し"
+    }
+  },
   "blog": {
     "_name": "ブログ集",
     "_index": "",
