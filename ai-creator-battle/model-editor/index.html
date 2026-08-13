@@ -54,24 +54,40 @@
       <div class="font-size-L">AI Creator Battle</div>
     </header>
     <main>
-      <div class="dock-left-area">
+      <div class="dock-left-area" data-min-width="150px" data-toggle-square="false">
         <div class="dock-content">
-          <select>
-            <option>カートポール</option>
-            <option>ブロック崩し</option>
+          <select id="game-select">
+            <option value="cartpole">カートポール</option>
+            <!--<option value="breakout">ブロック崩し</option>-->
           </select>
         </div>
         <div class="dock-left-bar"></div>
       </div>
       <div class="right-area">
         <div class="layers-screen">
-      
+          
         </div>
         <div class="layer-editor">
-      
+          <select id="layer-select"></select>
         </div>
       </div>
     </main>
+    <script>
+      const gameSelect = document.getElementById('game-select');
+      const layerSelect = document.getElementById('layer-select');
+
+      let gameKind;
+
+      gameSelect.addEventListener('change', (e) => {
+        gameKind = e.target.value;
+        alert(gameKind);
+      });
+
+      function init() {
+        gameKind = gameSelect.value;
+      }
+      init();
+    </script>
     <script src="/statics/main-script.js"></script>
   </body>
 </html>
