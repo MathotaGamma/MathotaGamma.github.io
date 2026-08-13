@@ -17,8 +17,18 @@
         height: auto;
         display: flex;
       }
-      .sidebar {
+      main {
+        display: flex;
+        width: 100%;
+        height: 
+      }
+      .right-area {
+        position: relative;
         width: 
+      }
+      .layer-editor {
+        position: absolute;
+        bottom: 0;
       }
     </style>
     <script src="/statics/main-script.js"></script>
@@ -29,18 +39,24 @@
       <nav class="breadcrumb"></nav>
       <h1>AI Creator Battle</h1>
     </header>
-    <div class="sidebar">
-      <!-- ゲームの種類を選択 -->
-      <select>
-        <option>カートポール</option>
-        <option>ブロック崩し</option>
-      </select>
-    </div>
-    <div class="layers-screen">
+    <main>
+      <div class="dock-left-area">
+        <div class="dock-content">
+          <select>
+            <option>カートポール</option>
+            <option>ブロック崩し</option>
+          </select>
+        </div>
+        <div class="dock-left-bar"></div>
+      </div>
+      <div class="right-area">
+        <div class="layers-screen">
       
-    </div>
-    <footer class="layer-editor">
+        </div>
+        <div class="layer-editor">
       
-    </footer>
+        </div>
+      </div>
+    </main>
   </body>
 </html>
