@@ -48,7 +48,9 @@
         flex-direction: column;
       }
       .layers-screen {
-        flex: 1;
+        height: auto;
+        display: flex;
+        flex-direction: row;
       }
       .layer-editor {
         flex: 1;
@@ -65,8 +67,8 @@
     <main>
       <div class="main-header">
         <select id="layer-kind-select">
-          <option>Dense</option>
-          <option>Flatten</option>
+          <option value="Dense">Dense</option>
+          <option value="Flatten">Flatten</option>
         </select>
         <button id="add-layer-btn">Layer追加</button>
         <button id="save-btn">保存</button>
@@ -76,14 +78,14 @@
           <div class="dock-content">
             <select id="game-select">
               <option value="cartpole">カートポール</option>
-              <!--<option value="breakout">ブロック崩し</option>-->
+              <option value="breakout">ブロック崩し</option>
             </select>
           </div>
           <div class="dock-left-bar"></div>
         </div>
         <div class="right-area">
           <div class="layers-screen">
-          
+            
           </div>
           <div class="layer-editor">
             <select id="layer-select"></select>
@@ -92,6 +94,7 @@
       </div>
     </main>
     <script>
+      const layersScreen = document.getElementById('layers-screen');
       const gameSelect = document.getElementById('game-select');
       const layerSelect = document.getElementById('layer-select');
       const layerKindSelect = document.getElementById('layer-kind-select');
@@ -99,14 +102,73 @@
       const saveBtn = document.getElementById('save-btn');
 
       let gameKind;
+      let currentGameInfo;
+      let ck;
+      let isChanged = false;
+
+      const gameInfo = {
+        cartpole: {
+          // x, v, theta, omega ... -1 ~ 1
+          inputShape: [ 4 ],
+          
+        }
+      }
+
+      const LayerInitArgs = {
+        Input: {
+          
+        },
+        Dense: {
+          units: 32
+        },
+        Flatten: {
+
+        }
+      }
+
+      function addLayer(kind) {
+        let args = LayerInitArgs[kind];
+        if (Object.keys(args).length === 0)
+          args = undefined;
+        ck.addLayers([
+          Layer[kind](args)
+        ]);
+      }
+
+      function logger(...message) {
+        console.log(message);
+      }
+
+      function initGame() {
+        if (ck)
+          ck.delete();
+        ck = new CogniKeel({
+          inputShape: currentGameInfo.inputShape,
+          onLog: logger
+        });
+        addLayer('Input');
+      }
+
+      function draw() {
+        layersScreen.innerHTML = '';
+      }
 
       gameSelect.addEventListener('change', (e) => {
+        if (isChanged) {
+          if (!confirm('この操作を行うと、保存されていないデータは戻すことができません。'))
+            return;
+        }
         gameKind = e.target.value;
         alert(gameKind);
+        isChanged = false;
+        initGame();
       });
 
       function init() {
         gameKind = gameSelect.value;
+        currentGameInfo = gameInfo[gameKind];
+        initGame();
+        draw();
       }
       init();
     </script>
