@@ -26,12 +26,21 @@
       main {
         display: flex;
         width: 100%;
-        flex-direction: row;
+        flex-direction: column;
         border: 1px solid black;
         flex: 1;
       }
-      .dock-content {
-        min-width: 100px;
+      .main-header {
+        displey: flex;
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+      }
+      .editor-screen {
+        display: flex; width: 100%;
+        flex-direction: row;
+        border-top: 1px solid black;
+        flex: 1;
       }
       .right-area {
         flex: 1;
@@ -54,27 +63,40 @@
       <div class="font-size-L">AI Creator Battle</div>
     </header>
     <main>
-      <div class="dock-left-area" data-min-width="150px" data-width="200px" data-toggle-square="false">
-        <div class="dock-content">
-          <select id="game-select">
-            <option value="cartpole">カートポール</option>
-            <!--<option value="breakout">ブロック崩し</option>-->
-          </select>
-        </div>
-        <div class="dock-left-bar"></div>
+      <div class="main-header">
+        <select id="layer-kind-select">
+          <option>Dense</option>
+          <option>Flatten</option>
+        </select>
+        <button id="add-layer-btn">Layer追加</button>
+        <button id="save-btn">保存</button>
       </div>
-      <div class="right-area">
-        <div class="layers-screen">
-          
+      <div class="editor-screen">
+        <div class="dock-left-area" data-min-width="150px" data-width="200px" data-toggle-square="false">
+          <div class="dock-content">
+            <select id="game-select">
+              <option value="cartpole">カートポール</option>
+              <!--<option value="breakout">ブロック崩し</option>-->
+            </select>
+          </div>
+          <div class="dock-left-bar"></div>
         </div>
-        <div class="layer-editor">
-          <select id="layer-select"></select>
+        <div class="right-area">
+          <div class="layers-screen">
+          
+          </div>
+          <div class="layer-editor">
+            <select id="layer-select"></select>
+          </div>
         </div>
       </div>
     </main>
     <script>
       const gameSelect = document.getElementById('game-select');
       const layerSelect = document.getElementById('layer-select');
+      const layerKindSelect = document.getElementById('layer-kind-select');
+      const addLayerBtn = document.getElementById('add-layer-btn');
+      const saveBtn = document.getElementById('save-btn');
 
       let gameKind;
 
