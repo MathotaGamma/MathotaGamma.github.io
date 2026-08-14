@@ -105,6 +105,7 @@
       let currentGameInfo;
       let ck;
       let isChanged = false;
+      const layers = [];
 
       const gameInfo = {
         cartpole: {
@@ -115,9 +116,6 @@
       }
 
       const LayerInitArgs = {
-        Input: {
-          
-        },
         Dense: {
           units: 32
         },
@@ -126,13 +124,11 @@
         }
       }
 
-      function addLayer(kind) {
+      function addLayer(kind, index=layers.length) {
         let args = LayerInitArgs[kind];
         if (Object.keys(args).length === 0)
           args = undefined;
-        ck.addLayers([
-          Layer[kind](args)
-        ]);
+        layers.splice(index, 0, Layer[kind](args));
       }
 
       function logger(...message) {
@@ -140,17 +136,18 @@
       }
 
       function initGame() {
-        if (ck)
-          ck.delete();
-        ck = new CogniKeel({
-          inputShape: currentGameInfo.inputShape,
-          onLog: logger
-        });
-        addLayer('Input');
+        layers.length = 0;
+        ck = null;
       }
 
       function draw() {
         layersScreen.innerHTML = '';
+        const checkCk = new CogniKeel({
+          inputShape: currentGameInfo.inputShape
+        });
+        checkCk.addLayers(layers);
+        checkCk.configure({});
+        checkCk.initialize();
       }
 
       gameSelect.addEventListener('change', (e) => {
