@@ -1529,6 +1529,11 @@ class ActivationLayer extends Layer {
   }
   
   static activations = {
+    'linear': {
+      variable: 'X',
+      func: (x) => x,
+      primeFunc: (x) => 1
+    },
     'sigmoid': {
       variable: 'Y',
       func: (x) => 1/(1+Math.exp(-x)),
