@@ -80,7 +80,7 @@
       #layers-screen {
         flex: 1;
         flex-basis: 0;
-        padding: 3px 7px;
+        padding: 5px 7px;
         height: auto;
         max-height: max-content;
         display: flex;
@@ -147,8 +147,7 @@
         min-height: 50px;
         display: flex;
         flex-direction: column;
-        overflow: scroll !important;
-        border: 1px solid blue;
+        overflow: scroll;
       }
       .layer-editor-header {
         display: flex;
@@ -184,6 +183,10 @@
         box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
         transform: translate(1px, 1px);
       }
+      .range-container {
+        display: flex;
+        align-items: center;
+      }
       .mono-space {
         font-family: monospace;
         white-space: pre;
@@ -213,7 +216,7 @@
         <div class="dock-left-area" data-min-width="150px" data-width="200px" data-toggle-square="false">
           <div class="dock-content side-editor">
             <select id="game-select">
-              <option value="cartpole">カートポール</option>
+              <option value="cartpole">倒立振子</option>
               <option value="breakout">ブロック崩し</option>
             </select>
             <label id="input-type-container">input shape: <select id="input-type-select"></select></label>
@@ -269,7 +272,7 @@
       const usableInfoOrigin = {
         entirely: {
           // Output含めて
-          layerCountLength: 3,
+          layerCountLength: 7,
           // 使える活性化関数
           // null(=linear), ReLU, tanh, sigmoid
           activationList: ['null', 'ReLU']
@@ -279,8 +282,7 @@
             use: true,
             units: {
               max: 32
-            },
-            count: 2,
+            }
           },
           Flatten: {
             use: true
@@ -291,26 +293,89 @@
               maxSize: 5
             },
             strides: {
-              maxSize: 1
+              maxSize: 2
             },
             filter: {
               max: 32
+            },
+            padding: {
+              max: 5
             }
           },
           Conv2d: {
-            use: true
+            use: true,
+            kernel: {
+              maxSize: 5
+            },
+            strides: {
+              maxSize: 2
+            },
+            filter: {
+              max: 32
+            },
+            padding: {
+              max: 5
+            }
           },
           Conv3d: {
-            use: false
+            use: false,
+            kernel: {
+              maxSize: 5
+            },
+            strides: {
+              maxSize: 2
+            },
+            filter: {
+              max: 32
+            },
+            padding: {
+              max: 5
+            }
           },
           Pooling1d: {
-            use: false
+            use: false,
+            type: {
+              list: ['max', 'avg']
+            },
+            kernel: {
+              maxSize: 5
+            },
+            strides: {
+              maxSize: 2
+            },
+            padding: {
+              max: 5
+            }
           },
           Pooling2d: {
-            use: true
+            use: true,
+            type: {
+              list: ['max', 'avg']
+            },
+            kernel: {
+              maxSize: 5
+            },
+            strides: {
+              maxSize: 2
+            },
+            padding: {
+              max: 5
+            }
           },
           Pooling3d: {
-            use: false
+            use: false,
+            type: {
+              list: ['max', 'avg']
+            },
+            kernel: {
+              maxSize: 5
+            },
+            strides: {
+              maxSize: 2
+            },
+            padding: {
+              max: 5
+            }
           }
         }
       }
@@ -368,45 +433,48 @@
         ]),
         Flatten: new Map(),
         Conv1d: new Map([
-          ['kernel', 5],
-          ['strides', 2],
+          ['kernel', 3],
+          ['strides', 1],
           ['filter', 32],
           ['activation', 'ReLU'],
           ['deficit', false],
           ['padding', 'same']
         ]),
         Conv2d: new Map([
-          ['kernel', 5],
-          ['strides', 2],
+          ['kernel', 3],
+          ['strides', 1],
           ['filter', 32],
           ['activation', 'ReLU'],
           ['deficit', false],
           ['padding', 'same']
         ]),
         Conv3d: new Map([
-          ['kernel', 5],
-          ['strides', 5],
+          ['kernel', 3],
+          ['strides', 1],
           ['filter', 32],
           ['activation', 'ReLU'],
           ['deficit', false],
           ['padding', 'same']
         ]),
         Pooling1d: new Map([
-          ['kernel', 4],
+          ['type', 'max'],
+          ['kernel', 3],
           ['strides', 1],
           ['activation', 'null'],
           ['deficit', false],
           ['padding', 'same'],
         ]),
         Pooling2d: new Map([
-          ['kernel', 4],
+          ['type', 'max'],
+          ['kernel', 3],
           ['strides', 1],
           ['activation', 'null'],
           ['deficit', false],
           ['padding', 'same']
         ]),
         Pooling3d: new Map([
-          ['kernel', 4],
+          ['type', 'max'],
+          ['kernel', 3],
           ['strides', 1],
           ['activation', 'null'],
           ['deficit', false],
@@ -512,10 +580,71 @@
       function logger(...message) {
         
       }
+      
+      // typeの種類
+      /*
+        TXT: 'text/plain;charset=utf-8'
+        JSON: 'application/json'
+        未定義: 'application/octet-stream'
+      */
+      function fileDownloader({ textData, fileName, type='text/plain;charset=utf-8' }) {
+        try {
+          const blob = new Blob([textData], { type });
+          
+          const url = URL.createObjectURL(blob);
+          
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch(err) {
+          console.error(err.message);
+        }
+      }
+      
+      saveBtn.addEventListener('click', () => {
+        // layersInfoをダウンロード
+        fileDownloader({
+          textData: JSON.stringify(layersInfo),
+          fileName: 'layers-info.json',
+          type: 'application/json'
+        });
+        
+        getLayersFromLayersInfo();
+        
+        const checkCk = new CogniKeel({
+          inputShape: currentGameInfo.input.shape
+        });
+        
+        let errorMessage;
+        
+        try {
+          checkCk.addLayers(layers);
+          checkCk.configure({});
+          checkCk.initialize();
+          
+          const mclmData = checkCk.getMCLM('low');
+          
+          // mclmをダウンロード
+          /*fileDownloader({
+            textData: mclmData,
+            fileName: currentGameInfo.gameKind+'.mclm',
+            type: 'application/octet-stream'
+          });*/
+        } catch(err) {
+          errorMessage = err.message;
+          console.error(errorMessage);
+        }
+      })
 
       function initGame() {
         gameKind = gameSelect.value;
         currentGameInfo = structuredClone(gameInfo[gameKind]);
+        currentGameInfo.gameKind = gameKind;
         if (Array.isArray(gameInfo[gameKind].input)) {
           currentGameInfo.inputShapeIdx = 0;
           currentGameInfo.input = currentGameInfo.input[currentGameInfo.inputShapeIdx];
@@ -602,11 +731,12 @@
         
         let isError = false;
         let errorIdx = -1;
-        
+        let errorMessage;
         try {
           checkCk.addLayers(layers);
         } catch(err) {
           // logArrayは初期化時、target,online用のInputLayerで2つ分で、エラーが出たLayerはlogされないのでerrorIdxはlogArray.length-2 (InputLayer含めて)
+          errorMessage = err.message;
           isError = true;
           errorIdx = logArray.length-2;
         }
@@ -686,6 +816,19 @@
       let layerEditItemList;
       function layerEditItemsInit() {
         layerEditItemList = {};
+        
+        // ===== activationSelectを作成 =====
+        // EventListenerは各自でつける。
+        //['null', 'ReLU', 'sigmoid', 'tanh'];
+        const activationTypeSelect = document.createElement('select');
+        const activationTypeList = usableInfo.entirely.activationList;
+        for (let activationType of activationTypeList) {
+          const option = document.createElement('option');
+          option.innerHTML = activationType;
+          option.value = activationType;
+          activationTypeSelect.appendChild(option);
+        }
+        
         // ===== Output =====
         const outputEditItemContainer = document.createElement('div');
         const outputExplanationP = document.createElement('p');
@@ -700,15 +843,17 @@
         layerEditItemList.Output = outputEditItemContainer;
         
         // ===== Dense =====
-        const unitsContainerDiv = document.createElement('div');
+        const denseContainerDiv = document.createElement('div');
         const denseExplanationP = document.createElement('p');
         denseExplanationP.classList.add('layer-explanation');
         denseExplanationP.innerHTML = '全結合層...前の層とこの層の全てのノードが全組み合わせで結合する。';
-        unitsContainerDiv.appendChild(denseExplanationP);
+        denseContainerDiv.appendChild(denseExplanationP);
         const unitsLabel = document.createElement('label');
         unitsLabel.classList.add('mono-space');
         unitsLabel.id = "layer-edit-item-units-label";
         unitsLabel.innerHTML = "units: --";
+        const unitsContainerDiv = document.createElement('div');
+        unitsContainerDiv.classList.add('range-container');
         unitsContainerDiv.appendChild(unitsLabel);
         const unitsRange = document.createElement('input');
         unitsRange.addEventListener('input', () => {
@@ -725,19 +870,13 @@
         unitsRange.max = "128";
         unitsRange.id = "layer-edit-item-units-range";
         unitsContainerDiv.appendChild(unitsRange);
+        denseContainerDiv.appendChild(unitsContainerDiv);
         const denseActivationContainerDiv = document.createElement('div');
         const denseActivationLabel = document.createElement('label');
         denseActivationLabel.innerHTML = 'Activation: ';
         denseActivationContainerDiv.appendChild(denseActivationLabel);
-        const denseActivationTypeSelect = document.createElement('select');
+        const denseActivationTypeSelect = activationTypeSelect.cloneNode(true);
         denseActivationTypeSelect.id = 'layer-edit-item-dense-activation-type-select';
-        const activationTypeList = ['null', 'ReLU', 'sigmoid', 'tanh'];
-        for (let activationType of activationTypeList) {
-          const option = document.createElement('option');
-          option.innerHTML = activationType;
-          option.value = activationType;
-          denseActivationTypeSelect.appendChild(option);
-        }
         denseActivationTypeSelect.addEventListener('change', () => {
           const selectedLayerInfo = layersInfo[selectedIdx];
           selectedLayerInfo.args.set('activation', denseActivationTypeSelect.value);
@@ -745,21 +884,300 @@
           drawLayersScreen();
         });
         denseActivationContainerDiv.appendChild(denseActivationTypeSelect);
-        unitsContainerDiv.appendChild(denseActivationContainerDiv);
-        layerEditItemList.Dense = unitsContainerDiv;
+        denseContainerDiv.appendChild(denseActivationContainerDiv);
+        layerEditItemList.Dense = denseContainerDiv;
         
         // ===== Flatten =====
         const flattenP = document.createElement('p');
         flattenP.classList.add('layer-explanation');
         flattenP.innerHTML = "平坦化層...二次元以上の入力を一次元に展開する。";
         layerEditItemList.Flatten = flattenP;
+        
+        // ===== Conv =====
+        const convContainerDiv = document.createElement('div');
+        const convKernelContainerDiv = document.createElement('div');
+        convKernelContainerDiv.classList.add('range-container');
+        const convKernelRange = document.createElement('input');
+        convKernelRange.type = "range";
+        convKernelRange.id = "layer-edit-item-conv-kernel-range";
+        convKernelRange.min = "2";
+        convKernelRange.step = "1";
+        convKernelRange.max = "3";
+        const convKernelLabel = document.createElement('label');
+        convKernelLabel.innerHTML = "kernel : --";
+        convKernelLabel.classList.add('mono-space');
+        convKernelLabel.id = "layer-edit-item-conv-kernel-label";
+        convKernelRange.addEventListener('input', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('kernel', parseInt(convKernelRange.value));
+          convKernelLabel.innerHTML = "kernel : " + convKernelRange.value.padEnd(3);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        convKernelContainerDiv.appendChild(convKernelLabel);
+        convKernelContainerDiv.appendChild(convKernelRange);
+        convContainerDiv.appendChild(convKernelContainerDiv);
+        const convStridesContainerDiv = document.createElement('div');
+        convStridesContainerDiv.classList.add('range-container');
+        const convStridesRange = document.createElement('input');
+        convStridesRange.type = "range";
+        convStridesRange.id = "layer-edit-item-conv-strides-range";
+        convStridesRange.min = "1";
+        convStridesRange.step = "1";
+        convStridesRange.max = "3";
+        const convStridesLabel = document.createElement('label');
+        convStridesLabel.innerHTML = "strides: --";
+        convStridesLabel.classList.add('mono-space');
+        convStridesLabel.id = "layer-edit-item-conv-strides-label";
+        convStridesRange.addEventListener('input', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('strides', parseInt(convStridesRange.value));
+          convStridesLabel.innerHTML = "strides: " + convStridesRange.value.padEnd(3);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        convStridesContainerDiv.appendChild(convStridesLabel);
+        convStridesContainerDiv.appendChild(convStridesRange);
+        convContainerDiv.appendChild(convStridesContainerDiv);
+        const convFilterContainerDiv = document.createElement('div');
+        convFilterContainerDiv.classList.add('range-container');
+        const convFilterRange = document.createElement('input');
+        convFilterRange.type = "range";
+        convFilterRange.id = "layer-edit-item-conv-filter-range";
+        convFilterRange.min = "1";
+        convFilterRange.step = "1";
+        convFilterRange.max = "32";
+        const convFilterLabel = document.createElement('label');
+        convFilterLabel.innerHTML = "filter : --";
+        convFilterLabel.classList.add('mono-space');
+        convFilterLabel.id = "layer-edit-item-conv-filter-label";
+        convFilterRange.addEventListener('input', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('filter', parseInt(convFilterRange.value));
+          convFilterLabel.innerHTML = "filter: " + convFilterRange.value.padEnd(3);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        convFilterContainerDiv.appendChild(convFilterLabel);
+        convFilterContainerDiv.appendChild(convFilterRange);
+        convContainerDiv.appendChild(convFilterContainerDiv);
+        const convActivationContainerDiv = document.createElement('div');
+        const convActivationTypeLabel = document.createElement('label');
+        convActivationTypeLabel.innerHTML = 'Activation: ';
+        convActivationContainerDiv.appendChild(convActivationTypeLabel);
+        const convActivationTypeSelect = activationTypeSelect.cloneNode(true);
+        convActivationTypeSelect.id = 'layer-edit-item-conv-activation-type-select';
+        convActivationTypeSelect.addEventListener('change', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('activation', convActivationTypeSelect.value);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        convActivationContainerDiv.appendChild(convActivationTypeSelect);
+        convContainerDiv.appendChild(convActivationContainerDiv);
+        const convDeficitContainerDiv = document.createElement('div');
+        const convDeficitLabel = document.createElement('label');
+        convDeficitLabel.innerHTML = 'deficit: ';
+        convDeficitContainerDiv.appendChild(convDeficitLabel);
+        const convDeficitCheckbox = document.createElement('input');
+        convDeficitCheckbox.type = "checkbox";
+        convDeficitCheckbox.id = "layer-edit-item-conv-deficit-checkbox";
+        convDeficitCheckbox.addEventListener('change', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('deficit', convDeficitCheckbox.checked);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        convDeficitContainerDiv.appendChild(convDeficitCheckbox);
+        convContainerDiv.appendChild(convDeficitContainerDiv);
+        const convPaddingModeContainerDiv = document.createElement('div');
+        const convPaddingModeLabel = document.createElement('label');
+        convPaddingModeLabel.innerHTML = 'padding: ';
+        convPaddingModeContainerDiv.appendChild(convPaddingModeLabel);
+        const convPaddingModeSelect = document.createElement('select');
+        convPaddingModeSelect.id = "layer-edit-item-conv-padding-mode-select";
+        ['same', 'custom'].forEach(mode => {
+          const option = document.createElement('option');
+          option.value = mode;
+          option.innerHTML = mode;
+          convPaddingModeSelect.appendChild(option);
+        });
+        convPaddingModeContainerDiv.appendChild(convPaddingModeSelect);
+        convContainerDiv.appendChild(convPaddingModeContainerDiv);
+        const convPaddingRangeContainerDiv = document.createElement('div');
+        convPaddingRangeContainerDiv.classList.add('range-container');
+        convPaddingRangeContainerDiv.id = "layer-edit-item-conv-padding-range-container";
+        const convPaddingRange = document.createElement('input');
+        convPaddingRange.type = "range";
+        convPaddingRange.id = "layer-edit-item-conv-padding-range";
+        convPaddingRange.min = "0";
+        convPaddingRange.step = "1";
+        convPaddingRange.max = "1";
+        const convPaddingLabel = document.createElement('label');
+        convPaddingLabel.innerHTML = "padding: --";
+        convPaddingLabel.classList.add('mono-space');
+        convPaddingLabel.id = "layer-edit-item-conv-padding-label";
+        convPaddingRange.addEventListener('input', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('padding', parseInt(convPaddingRange.value));
+          convPaddingLabel.innerHTML = "padding: " + convPaddingRange.value.padEnd(3);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        convPaddingModeSelect.addEventListener('change', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          if (convPaddingModeSelect.value === 'same') {
+            convPaddingRangeContainerDiv.style.display = "none";
+            selectedLayerInfo.args.set('padding', 'same');
+          } else {
+            convPaddingRangeContainerDiv.style.display = "";
+            selectedLayerInfo.args.set('padding', parseInt(convPaddingRange.value));
+          }
+          isChanged = true;
+          drawLayersScreen();
+        });
+        convPaddingRangeContainerDiv.appendChild(convPaddingLabel);
+        convPaddingRangeContainerDiv.appendChild(convPaddingRange);
+        convContainerDiv.appendChild(convPaddingRangeContainerDiv);
+        layerEditItemList.Conv = convContainerDiv;
+        
+        // ===== Pooling =====
+        const poolingContainerDiv = document.createElement('div');
+        const poolingTypeContainerDiv = document.createElement('div');
+        const poolingTypeLabel = document.createElement('label');
+        poolingTypeLabel.innerHTML = 'type : ';
+        poolingTypeContainerDiv.appendChild(poolingTypeLabel);
+        const poolingTypeSelect = document.createElement('select');
+        poolingTypeSelect.id = 'layer-edit-item-pooling-type-select';
+        poolingTypeSelect.addEventListener('change', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('type', poolingTypeSelect.value);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        poolingTypeContainerDiv.appendChild(poolingTypeSelect);
+        poolingContainerDiv.appendChild(poolingTypeContainerDiv);
+        const poolingKernelContainerDiv = document.createElement('div');
+        poolingKernelContainerDiv.classList.add('range-container');
+        const poolingKernelRange = document.createElement('input');
+        poolingKernelRange.type = "range";
+        poolingKernelRange.id = "layer-edit-item-pooling-kernel-range";
+        poolingKernelRange.min = "2";
+        poolingKernelRange.step = "1";
+        poolingKernelRange.max = "3";
+        const poolingKernelLabel = document.createElement('label');
+        poolingKernelLabel.innerHTML = "kernel : --";
+        poolingKernelLabel.classList.add('mono-space');
+        poolingKernelLabel.id = "layer-edit-item-pooling-kernel-label";
+        poolingKernelRange.addEventListener('input', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('kernel', parseInt(poolingKernelRange.value));
+          poolingKernelLabel.innerHTML = "kernel : " + poolingKernelRange.value.padEnd(3);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        poolingKernelContainerDiv.appendChild(poolingKernelLabel);
+        poolingKernelContainerDiv.appendChild(poolingKernelRange);
+        poolingContainerDiv.appendChild(poolingKernelContainerDiv);
+        const poolingStridesContainerDiv = document.createElement('div');
+        poolingStridesContainerDiv.classList.add('range-container');
+        const poolingStridesRange = document.createElement('input');
+        poolingStridesRange.type = "range";
+        poolingStridesRange.id = "layer-edit-item-pooling-strides-range";
+        poolingStridesRange.min = "1";
+        poolingStridesRange.step = "1";
+        poolingStridesRange.max = "3";
+        const poolingStridesLabel = document.createElement('label');
+        poolingStridesLabel.innerHTML = "strides: --";
+        poolingStridesLabel.classList.add('mono-space');
+        poolingStridesLabel.id = "layer-edit-item-pooling-strides-label";
+        poolingStridesRange.addEventListener('input', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('strides', parseInt(poolingStridesRange.value));
+          poolingStridesLabel.innerHTML = "strides: " + poolingStridesRange.value.padEnd(3);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        poolingStridesContainerDiv.appendChild(poolingStridesLabel);
+        poolingStridesContainerDiv.appendChild(poolingStridesRange);
+        poolingContainerDiv.appendChild(poolingStridesContainerDiv);
+        const poolingDeficitContainerDiv = document.createElement('div');
+        const poolingDeficitLabel = document.createElement('label');
+        poolingDeficitLabel.innerHTML = 'deficit: ';
+        poolingDeficitContainerDiv.appendChild(poolingDeficitLabel);
+        const poolingDeficitCheckbox = document.createElement('input');
+        poolingDeficitCheckbox.type = "checkbox";
+        poolingDeficitCheckbox.id = "layer-edit-item-pooling-deficit-checkbox";
+        poolingDeficitCheckbox.addEventListener('change', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('deficit', poolingDeficitCheckbox.checked);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        poolingDeficitContainerDiv.appendChild(poolingDeficitCheckbox);
+        poolingContainerDiv.appendChild(poolingDeficitContainerDiv);
+        const poolingPaddingModeContainerDiv = document.createElement('div');
+        const poolingPaddingModeLabel = document.createElement('label');
+        poolingPaddingModeLabel.innerHTML = 'padding: ';
+        poolingPaddingModeContainerDiv.appendChild(poolingPaddingModeLabel);
+        const poolingPaddingModeSelect = document.createElement('select');
+        poolingPaddingModeSelect.id = "layer-edit-item-pooling-padding-mode-select";
+        ['same', 'custom'].forEach(mode => {
+          const option = document.createElement('option');
+          option.value = mode;
+          option.innerHTML = mode;
+          poolingPaddingModeSelect.appendChild(option);
+        });
+        poolingPaddingModeContainerDiv.appendChild(poolingPaddingModeSelect);
+        poolingContainerDiv.appendChild(poolingPaddingModeContainerDiv);
+        const poolingPaddingRangeContainerDiv = document.createElement('div');
+        poolingPaddingRangeContainerDiv.classList.add('range-container');
+        poolingPaddingRangeContainerDiv.id = "layer-edit-item-pooling-padding-range-container";
+        const poolingPaddingRange = document.createElement('input');
+        poolingPaddingRange.type = "range";
+        poolingPaddingRange.id = "layer-edit-item-pooling-padding-range";
+        poolingPaddingRange.min = "0";
+        poolingPaddingRange.step = "1";
+        poolingPaddingRange.max = "1";
+        const poolingPaddingLabel = document.createElement('label');
+        poolingPaddingLabel.innerHTML = "padding: --";
+        poolingPaddingLabel.classList.add('mono-space');
+        poolingPaddingLabel.id = "layer-edit-item-pooling-padding-label";
+        poolingPaddingRange.addEventListener('input', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('padding', parseInt(poolingPaddingRange.value));
+          poolingPaddingLabel.innerHTML = "padding: " + poolingPaddingRange.value.padEnd(3);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        poolingPaddingModeSelect.addEventListener('change', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          if (poolingPaddingModeSelect.value === 'same') {
+            poolingPaddingRangeContainerDiv.style.display = "none";
+            selectedLayerInfo.args.set('padding', 'same');
+          } else {
+            poolingPaddingRangeContainerDiv.style.display = "";
+            selectedLayerInfo.args.set('padding', parseInt(poolingPaddingRange.value));
+          }
+          isChanged = true;
+          drawLayersScreen();
+        });
+        poolingPaddingRangeContainerDiv.appendChild(poolingPaddingLabel);
+        poolingPaddingRangeContainerDiv.appendChild(poolingPaddingRange);
+        poolingContainerDiv.appendChild(poolingPaddingRangeContainerDiv);
+        layerEditItemList.Pooling = poolingContainerDiv;
       }
       
       function drawLayerEditor() {
         const selectedLayerInfo = layersInfo[selectedIdx];
         selectedLayerTitleP.innerHTML = selectedLayerInfo.name;
+        let groupKind = selectedLayerInfo.kind;
+        if (groupKind.startsWith('Conv'))
+          groupKind = 'Conv';
+        else if (groupKind.startsWith('Pooling'))
+          groupKind = 'Pooling';
         layerEditItemContainer.innerHTML = "";
-        layerEditItemContainer.appendChild(layerEditItemList[selectedLayerInfo.kind]);
+        layerEditItemContainer.appendChild(layerEditItemList[groupKind]);
         
         outputExplanation.innerHTML = "";
         // 初期値を渡す
@@ -777,6 +1195,94 @@
             label.innerHTML = "units: "+String(range.value).padEnd(3);
             const activationSelect = document.getElementById('layer-edit-item-dense-activation-type-select');
             activationSelect.value = selectedLayerInfo.args.get('activation');
+            break;
+          case "Flatten":
+            break;
+          case "Conv1d":
+          case "Conv2d":
+          case "Conv3d":
+            const kernelLabel = document.getElementById("layer-edit-item-conv-kernel-label");
+            const kernelRange = document.getElementById("layer-edit-item-conv-kernel-range");
+            kernelRange.max = String(usableInfo.layers[selectedLayerInfo.kind].kernel.maxSize);
+            kernelRange.value = String(selectedLayerInfo.args.get('kernel'));
+            kernelLabel.innerHTML = "kernel : "+String(kernelRange.value).padEnd(3);
+            
+            const stridesLabel = document.getElementById("layer-edit-item-conv-strides-label");
+            const stridesRange = document.getElementById("layer-edit-item-conv-strides-range");
+            stridesRange.max = String(usableInfo.layers[selectedLayerInfo.kind].strides.maxSize);
+            stridesRange.value = String(selectedLayerInfo.args.get('strides'));
+            stridesLabel.innerHTML = "strides: "+String(stridesRange.value).padEnd(3);
+            
+            const filterLabel = document.getElementById("layer-edit-item-conv-filter-label");
+            const filterRange = document.getElementById("layer-edit-item-conv-filter-range");
+            filterRange.max = String(usableInfo.layers[selectedLayerInfo.kind].filter.max);
+            filterRange.value = String(selectedLayerInfo.args.get('filter'));
+            filterLabel.innerHTML = "filter : "+String(filterRange.value).padEnd(3);
+            
+            const convActivationSelect = document.getElementById('layer-edit-item-conv-activation-type-select');
+            convActivationSelect.value = selectedLayerInfo.args.get('activation');
+            
+            const convDeficitCheckbox = document.getElementById('layer-edit-item-conv-deficit-checkbox');
+            convDeficitCheckbox.checked = !!selectedLayerInfo.args.get('deficit');
+            
+            const convPaddingModeSelect = document.getElementById('layer-edit-item-conv-padding-mode-select');
+            const convPaddingRangeContainerDiv = document.getElementById('layer-edit-item-conv-padding-range-container');
+            const convPaddingLabel = document.getElementById('layer-edit-item-conv-padding-label');
+            const convPaddingRange = document.getElementById('layer-edit-item-conv-padding-range');
+            convPaddingRange.max = String(usableInfo.layers[selectedLayerInfo.kind].padding.max);
+            const convPaddingValue = selectedLayerInfo.args.get('padding');
+            if (convPaddingValue === 'same') {
+              convPaddingModeSelect.value = 'same';
+              convPaddingRangeContainerDiv.style.display = "none";
+            } else {
+              convPaddingModeSelect.value = 'custom';
+              convPaddingRange.value = String(convPaddingValue);
+              convPaddingLabel.innerHTML = "padding: "+String(convPaddingRange.value).padEnd(3);
+              convPaddingRangeContainerDiv.style.display = "";
+            }
+            break;
+          case "Pooling1d":
+          case "Pooling2d":
+          case "Pooling3d":
+            const poolingTypeSelect = document.getElementById('layer-edit-item-pooling-type-select');
+            poolingTypeSelect.innerHTML = "";
+            usableInfo.layers[selectedLayerInfo.kind].type.list.forEach(type => {
+              const option = document.createElement('option');
+              option.value = type;
+              option.innerHTML = type;
+              poolingTypeSelect.appendChild(option);
+            });
+            
+            const poolingKernelLabel = document.getElementById("layer-edit-item-pooling-kernel-label");
+            const poolingKernelRange = document.getElementById("layer-edit-item-pooling-kernel-range");
+            poolingKernelRange.max = String(usableInfo.layers[selectedLayerInfo.kind].kernel.maxSize);
+            poolingKernelRange.value = String(selectedLayerInfo.args.get('kernel'));
+            poolingKernelLabel.innerHTML = "kernel : "+String(poolingKernelRange.value).padEnd(3);
+            
+            const poolingStridesLabel = document.getElementById("layer-edit-item-pooling-strides-label");
+            const poolingStridesRange = document.getElementById("layer-edit-item-pooling-strides-range");
+            poolingStridesRange.max = String(usableInfo.layers[selectedLayerInfo.kind].strides.maxSize);
+            poolingStridesRange.value = String(selectedLayerInfo.args.get('strides'));
+            poolingStridesLabel.innerHTML = "strides: "+String(poolingStridesRange.value).padEnd(3);
+            
+            const poolingDeficitCheckbox = document.getElementById('layer-edit-item-pooling-deficit-checkbox');
+            poolingDeficitCheckbox.checked = !!selectedLayerInfo.args.get('deficit');
+            
+            const poolingPaddingModeSelect = document.getElementById('layer-edit-item-pooling-padding-mode-select');
+            const poolingPaddingRangeContainerDiv = document.getElementById('layer-edit-item-pooling-padding-range-container');
+            const poolingPaddingLabel = document.getElementById('layer-edit-item-pooling-padding-label');
+            const poolingPaddingRange = document.getElementById('layer-edit-item-pooling-padding-range');
+            poolingPaddingRange.max = String(usableInfo.layers[selectedLayerInfo.kind].padding.max);
+            const poolingPaddingValue = selectedLayerInfo.args.get('padding');
+            if (poolingPaddingValue === 'same') {
+              poolingPaddingModeSelect.value = 'same';
+              poolingPaddingRangeContainerDiv.style.display = "none";
+            } else {
+              poolingPaddingModeSelect.value = 'custom';
+              poolingPaddingRange.value = String(poolingPaddingValue);
+              poolingPaddingLabel.innerHTML = "padding: "+String(poolingPaddingRange.value).padEnd(3);
+              poolingPaddingRangeContainerDiv.style.display = "";
+            }
             break;
         }
       }
@@ -821,6 +1327,7 @@
 
 
         gameKind = gameSelect.value;
+        currentGameInfo.gameKind = gameKind;
         isChanged = false;
         initGame();
       }
@@ -836,8 +1343,8 @@
       }
 
       function init() {
-        layerEditItemsInit();
         initUserData();
+        layerEditItemsInit();
         initGame();
         draw();
       }
