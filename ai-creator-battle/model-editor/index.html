@@ -16,6 +16,7 @@
       body {
         display: flex;
         flex-direction: column;
+        text-wrap: nowrap;
       }
       header {
         width: 100%;
@@ -31,33 +32,164 @@
         flex: 1;
       }
       .main-header {
-        displey: flex;
+        display: flex;
         width: 100%;
         height: auto;
         flex-direction: row;
+        padding: 5px;
       }
       .editor-screen {
-        display: flex; width: 100%;
+        display: flex;
+        width: 100%;
         flex-direction: row;
         border-top: 1px solid black;
         flex: 1;
+      }
+      .side-editor {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        overflow: scroll;
+      }
+      #input-type-container {
+        text-wrap: nowrap;
+        width: 100%;
+        overflow: scroll;
+      }
+      .input-explanation-container {
+        width: 100%;
+      }
+      #input-explanation {
+        overflow: scroll;
+        width: 100%;
+        overscroll-behavior: contain;
+        text-wrap: nowrap;
+        font-size: 0.8rem;
+        padding: 5px 0px 10px 0px;
+        margin: 0px 0px 0px 3px;
+        border: 1px solid rgba(0, 0, 0, 0.5);
       }
       .right-area {
         flex: 1;
         display: flex;
         flex-direction: column;
+        min-width: 0;
+        min-height: 0;
       }
-      .layers-screen {
+      #layers-screen {
+        flex: 1;
+        flex-basis: 0;
+        padding: 3px 7px;
         height: auto;
+        max-height: max-content;
         display: flex;
         flex-direction: row;
+        align-items: start;
+        overflow: scroll;
       }
-      .layer-editor {
+      .arrow-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: auto 0px;
+      }
+      
+      .arrow-container > p, .arrow-container > img {
+        font-size: 20px;
+        margin: 0;
+        width: fit-content;
+      }
+      
+      .layer-container {
+        padding: 0;
+        display: flex;
+        min-height: 100%;
+        flex-direction: column;
+        border: 1px dashed black;
+      }
+      .layer-selected {
+        color: blue;
+      }
+      .layer-error {
+        border: 1px solid red;
+      }
+      .error-text {
+        margin: 0;
+        font-style: italic;
+        color: red;
+      }
+      .layer-title {
+        margin: 0 5px;
+        font-size: 22px;
+        font-weight: bold;
+      }
+      .layer-args-container {
+        display: flex;
+        flex-direction: column;
+      }
+      .layer-args-container > p {
+        margin: 0 3px 0 0;
+        text-wrap: nowrap;
+      }
+      #selected-layer-title-p {
+        font-size: 22px;
+        margin: 5px 0 0 10px;
+      }
+      .layer-explanation {
+        font-weight: bold;
+        margin: 5px auto 3px 5px;
+      }
+      #layer-editor {
         flex: 1;
+        flex-basis: 0;
         border-top: 1px solid black;
+        min-height: 50px;
+        display: flex;
+        flex-direction: column;
+        overflow: scroll !important;
+        border: 1px solid blue;
+      }
+      .layer-editor-header {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+      }
+      #output-explanation {
+        margin: 5px 10px 0 0;
+      }
+      #layer-edit-item-container {
+        overflow: scroll;
+      }
+      
+      
+      select {
+        border: none;
+        border-bottom: 2px solid #a0a0a0;
+        border-radius: 0;
+        background: transparent;
+        outline: none;
+        font-family: inherit;
+        font-size: inherit;
+      }
+      button, input {
+        cursor: pointer;
+        padding: 4px 8px;
+        background: white;
+        margin: 4px;
+        border: none;
+        box-shadow: 3px 3px 3px #000;
+      }
+      button:focus, input:focus, button:active {
+        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        transform: translate(1px, 1px);
+      }
+      .mono-space {
+        font-family: monospace;
+        white-space: pre;
       }
     </style>
-    <link rel="stylesheet" href="/statics/main-style.css" />
+    <link rel="stylesheet" href="https://mathotagamma.github.io/statics/main-style.css" />
   </head>
   <body>
     <header>
@@ -66,109 +198,651 @@
     </header>
     <main>
       <div class="main-header">
-        <select id="layer-kind-select">
-          <option value="Dense">Dense</option>
-          <option value="Flatten">Flatten</option>
-        </select>
+        <label>
+          Layer: 
+          <select id="layer-kind-select">
+            <option value="Dense">Dense</option>
+            <option value="Flatten">Flatten</option>
+          </select>
+        </label>
         <button id="add-layer-btn">Layer追加</button>
+        <button id="del-layer-btn">Layer削除</button>
         <button id="save-btn">保存</button>
       </div>
       <div class="editor-screen">
         <div class="dock-left-area" data-min-width="150px" data-width="200px" data-toggle-square="false">
-          <div class="dock-content">
+          <div class="dock-content side-editor">
             <select id="game-select">
               <option value="cartpole">カートポール</option>
               <option value="breakout">ブロック崩し</option>
             </select>
+            <label id="input-type-container">input shape: <select id="input-type-select"></select></label>
+            <div class="input-explanation-container">
+              入力: <p id="input-explanation"></p>
+            </div>
           </div>
           <div class="dock-left-bar"></div>
         </div>
         <div class="right-area">
-          <div class="layers-screen">
+          <div id="layers-screen">
             
           </div>
-          <div class="layer-editor">
-            <select id="layer-select"></select>
+          <div id="layer-editor">
+            <div class="layer-editor-header">
+              <!-- 選択中のLayer名表示 -->
+              <p id="selected-layer-title-p"></p>
+              <p id="output-explanation"></p>
+              <!-- 空の要素を入れて、3等分する -->
+              <div></div>
+            </div>
+            <div id="layer-edit-item-container"></div>
           </div>
         </div>
       </div>
     </main>
-    <script>
+    <script type="module">
+      import { CogniKeel, Layer } from "https://mathotagamma.github.io/APIs/CogniKeel/1-02-03/CogniKeel.js";
       const layersScreen = document.getElementById('layers-screen');
-      const gameSelect = document.getElementById('game-select');
-      const layerSelect = document.getElementById('layer-select');
+      let gameSelect = document.getElementById('game-select');
+      const inputTypeContainer = document.getElementById('input-type-container');
+      const inputTypeSelect = document.getElementById('input-type-select');
+      const inputExplanation = document.getElementById('input-explanation');
+      const layerEditor = document.getElementById('layer-editor');
       const layerKindSelect = document.getElementById('layer-kind-select');
       const addLayerBtn = document.getElementById('add-layer-btn');
+      const delLayerBtn = document.getElementById('del-layer-btn');
       const saveBtn = document.getElementById('save-btn');
-
+      const selectedLayerTitleP = document.getElementById('selected-layer-title-p');
+      const layerEditItemContainer = document.getElementById('layer-edit-item-container');
+      const outputExplanation = document.getElementById('output-explanation');
+      
+      inputTypeContainer.style.opacity = "0";
+      
+      let selectedIdx = 0;
       let gameKind;
       let currentGameInfo;
       let ck;
       let isChanged = false;
       const layers = [];
+      let usableInfo;
+      
+      const usableInfoOrigin = {
+        entirely: {
+          // Output含めて
+          layerCountLength: 3,
+          // 使える活性化関数
+          // null(=linear), ReLU, tanh, sigmoid
+          activationList: ['null', 'ReLU']
+        },
+        layers: {
+          Dense: {
+            use: true,
+            units: {
+              max: 32
+            },
+            count: 2,
+          },
+          Flatten: {
+            use: true
+          },
+          Conv1d: {
+            use: false,
+            kernel: {
+              maxSize: 5
+            },
+            strides: {
+              maxSize: 1
+            },
+            filter: {
+              max: 32
+            }
+          },
+          Conv2d: {
+            use: true
+          },
+          Conv3d: {
+            use: false
+          },
+          Pooling1d: {
+            use: false
+          },
+          Pooling2d: {
+            use: true
+          },
+          Pooling3d: {
+            use: false
+          }
+        }
+      }
 
       const gameInfo = {
         cartpole: {
           // x, v, theta, omega ... -1 ~ 1
-          inputShape: [ 4 ],
-          
-        }
-      }
-
-      const LayerInitArgs = {
-        Dense: {
-          units: 32
+          input: {
+            explanation: 'shape: [ 4 ] , -1 〜 +1 || 台車のX, Y座標 : 2 | 棒の角度(最下点...-1, 最高点...+1) : 1 | 棒の角速度 : 1',
+            shape: [ 4 ],
+          },
+          // left, right
+          output: {
+            explanation: '左へ移動 | 右へ移動',
+            shape: 2
+          }
         },
-        Flatten: {
-
+        breakout: {
+          input: [
+            {
+              // p_x, x, y, vx, vy
+              name: "玉、パドルの位置",
+              explanation: 'shape: [ 5 ] , -1 〜 +1 || パドルのX座標 : 1 | 玉のX, Y座標 : 2 | 玉の速度(X, Y成分) : 2',
+              shape: [ 5 ],
+            },
+            {
+              // p_x, x, y, vx, vy, ...[blockが存在する ? 1 : -1]
+              // 10*4にするのでlength===45
+              name: "位置+残りブロック",
+              explanation: 'shape: [ 45 ] , -1 〜 +1 || パドルのX座標 : 1 | 玉のX, Y座標 : 2 | 玉の速度(X, Y成分) : 2 | ブロックが存在する...1 存在しない...-1 (ブロックは10*4個): 40',
+              shape: [ 45 ],
+            },
+            {
+              // 直近2frame分の画像を渡す
+              name: "画像",
+              explanation: 'shape: [ 84, 84, 4 ] , 0 〜 1 || 画面を84 * 84に分割し、そのセル内でMAXを取った時の明暗(明...1 暗...0) : 84 , 84 | 84*84の入力を直近 2 Step分入力する : 2',
+              shape: [ 84, 84, 2 ]
+            }
+          ],
+          // left, right
+          output: {
+            explanation: '左へ移動 | 右へ移動',
+            shape: 2
+          }
+        }
+      }
+      
+      const layerInitArgs = {
+        Output: new Map([
+          ["units", null]
+        ]),
+        Dense: new Map([
+          ["units", 16],
+          ["activation", 'ReLU']
+        ]),
+        Flatten: new Map(),
+        Conv1d: new Map([
+          ['kernel', 5],
+          ['strides', 2],
+          ['filter', 32],
+          ['activation', 'ReLU'],
+          ['deficit', false],
+          ['padding', 'same']
+        ]),
+        Conv2d: new Map([
+          ['kernel', 5],
+          ['strides', 2],
+          ['filter', 32],
+          ['activation', 'ReLU'],
+          ['deficit', false],
+          ['padding', 'same']
+        ]),
+        Conv3d: new Map([
+          ['kernel', 5],
+          ['strides', 5],
+          ['filter', 32],
+          ['activation', 'ReLU'],
+          ['deficit', false],
+          ['padding', 'same']
+        ]),
+        Pooling1d: new Map([
+          ['kernel', 4],
+          ['strides', 1],
+          ['activation', 'null'],
+          ['deficit', false],
+          ['padding', 'same'],
+        ]),
+        Pooling2d: new Map([
+          ['kernel', 4],
+          ['strides', 1],
+          ['activation', 'null'],
+          ['deficit', false],
+          ['padding', 'same']
+        ]),
+        Pooling3d: new Map([
+          ['kernel', 4],
+          ['strides', 1],
+          ['activation', 'null'],
+          ['deficit', false],
+          ['padding', 'same']
+        ]),
+      }
+      
+      const layersInfo = [];
+      const layerDuplicationCountList = {};
+      const layerContainerList = [];
+      
+      function confirmChange() {
+        if (isChanged) {
+          if (!confirm('この操作を行うと、保存されていないデータは戻すことができません。'))
+            return false;
+        }
+        isChanged = false;
+        return true;
+      }
+      
+      delLayerBtn.addEventListener('click', (e) => {
+        if (selectedIdx === layers.length-1) {
+          alert('出力層を消すことはできません。');
+          return;
+        }
+        layerContainerList[selectedIdx].removeEventListener('click', layerContainerClicked);
+        layers.splice(selectedIdx, 1);
+        layersInfo.splice(selectedIdx, 1);
+        isChanged = true;
+        updateLayerDuplicationCountList();
+        draw();
+      });
+      
+      function getLayersFromLayersInfo() {
+        layers.length = 0;
+        for (let index = 0; index < layersInfo.length; index++) {
+          const layerInfo = layersInfo[index];
+          const layerKind = layerInfo.layerKind;
+          const args = layerInfo.args;
+          layers.push(Layer[layerKind](args.size === 0 ? undefined : structuredClone(Object.fromEntries(args))));
+        }
+      }
+      
+      // layersInfo, layerDuplicationCountListを設定する
+      function updateLayerDuplicationCountList() {
+        // layerDuplicationCountListを空にする
+        Object.keys(layerDuplicationCountList).forEach(key => delete layerDuplicationCountList[key]);
+        // layersInfoのnameを更新
+        // layerDuplicationCountList,を構築する
+        for (let layerIdx = 0; layerIdx < layersInfo.length; layerIdx++) {
+          const layerInfo = layersInfo[layerIdx];
+          const layerKind_k = layerInfo.layerKind;
+          const isOutputLayer_k = layerInfo.kind === "Output";
+          if (!isOutputLayer_k) {
+            if (layerDuplicationCountList[layerKind_k] == null)
+              layerDuplicationCountList[layerKind_k] = 1;
+            else
+              layerDuplicationCountList[layerKind_k]++;
+          }
+          const layerDuplicationCount = layerDuplicationCountList[layerKind_k];
+          const name = isOutputLayer_k ? "Output" : layerKind_k+'-'+String(layerDuplicationCount);
+          layersInfo[layerIdx].name = name;
         }
       }
 
-      function addLayer(kind, index=layers.length) {
-        let args = LayerInitArgs[kind];
-        if (Object.keys(args).length === 0)
-          args = undefined;
-        layers.splice(index, 0, Layer[kind](args));
+      function addLayer({ kind, index=layersInfo.length-1, init=false }) {
+        if (layersInfo.length + 1 > usableInfo.entirely.layerCountLength) {
+          alert(`現在Userは、出力層を含めて最大で${usableInfo.entirely.layerCountLength}個の層まで配置できます。`);
+          return;
+        }
+        const isOutputLayer = kind === "Output";
+        const layerKind = isOutputLayer ? "Dense" : kind;
+        if (isOutputLayer)
+          index = layersInfo.length;
+        let args = isOutputLayer
+           ? new Map([["units", currentGameInfo.output.shape]])
+           : new Map(layerInitArgs[layerKind]);
+        layersInfo.splice(index, 0, {
+          kind,
+          layerKind,
+          name: "---",
+          args
+        });
+        updateLayerDuplicationCountList();
+        getLayersFromLayersInfo();
+        
+        selectedIdx = index;
+        if (!init)
+          isChanged = true;
       }
+      
+      addLayerBtn.addEventListener('click', () => {
+        addLayer({ kind: layerKindSelect.value, index: selectedIdx });
+        draw();
+      });
+      
+      inputTypeSelect.addEventListener('change', () => {
+        currentGameInfo.inputShapeIdx = parseInt(inputTypeSelect.value);
+        currentGameInfo.input = gameInfo[gameKind].input[parseInt(inputTypeSelect.value)];
+        draw();
+      });
 
       function logger(...message) {
-        console.log(message);
+        
       }
 
       function initGame() {
-        layers.length = 0;
+        gameKind = gameSelect.value;
+        currentGameInfo = structuredClone(gameInfo[gameKind]);
+        if (Array.isArray(gameInfo[gameKind].input)) {
+          currentGameInfo.inputShapeIdx = 0;
+          currentGameInfo.input = currentGameInfo.input[currentGameInfo.inputShapeIdx];
+        }
+        else
+          currentGameInfo.inputShapeIdx = null;
+        
+        layersInfo.length = 0;
+        // 出力層
+        addLayer({ kind: 'Output', init: true });
         ck = null;
+        draw();
+      }
+      
+      function layerContainerClicked(e) {
+        const elem = e.currentTarget;
+        const childrenArray = Array.from(layersScreen.children);
+        
+        selectedIdx = (childrenArray.indexOf(elem)-1)/2;
+        draw();
+      }
+      
+      function draw() {
+        drawMainHeader();
+        drawSideArea();
+        drawLayersScreen();
+        drawLayerEditor();
+      }
+      
+      function drawMainHeader() {
+        const preLayerSelectedKind = layerKindSelect.value;
+        // id: layer-kind-select を構築
+        layerKindSelect.innerHTML = "";
+        const layerKindList = Object.keys(usableInfo.layers);
+        for (let layerKindIdx = 0; layerKindIdx < layerKindList.length; layerKindIdx++) {
+          const layerKind = layerKindList[layerKindIdx];
+          if (!usableInfo.layers[layerKind].use)
+            continue;
+          const option = document.createElement('option');
+          if (layerKind === preLayerSelectedKind)
+            option.selected = true;
+          option.value = layerKind;
+          option.innerHTML = layerKind;
+          layerKindSelect.appendChild(option);
+        }
+      }
+      
+      function drawSideArea() {
+        // gameInfoのgameKindが配列であれば、inputTypeを選択するselectを描画
+        inputTypeSelect.innerHTML = "";
+        if (Array.isArray(gameInfo[gameKind].input)) {
+          const inputTypeList = gameInfo[gameKind].input;
+          for (let inputIdx = 0; inputIdx < inputTypeList.length; inputIdx++) {
+            const typeOption = document.createElement('option');
+            const input = inputTypeList[inputIdx];
+            typeOption.innerHTML = input.name;
+            typeOption.value = String(inputIdx);
+            if (inputIdx === currentGameInfo.inputShapeIdx)
+              typeOption.selected = true;
+            inputTypeSelect.appendChild(typeOption);
+          }
+          inputTypeContainer.style.opacity = "1";
+        }
+        else
+          inputTypeContainer.style.opacity = "0";
+        
+        inputExplanation.innerHTML = currentGameInfo.input.explanation;
       }
 
-      function draw() {
+      function drawLayersScreen() {
+        getLayersFromLayersInfo();
+        for (let index = 0; index < layerContainerList.length; index++) {
+          layerContainerList[index].removeEventListener('click', layerContainerClicked);
+          layerContainerList[index] = null;
+        }
+        layerContainerList.length = 0;
         layersScreen.innerHTML = '';
+        const logArray = [];
+        // ===== Network情報を得るためcheckCkを宣言&初期化
         const checkCk = new CogniKeel({
-          inputShape: currentGameInfo.inputShape
+          inputShape: currentGameInfo.input.shape,
+          onLog: (log) => logArray.push(log)
         });
-        checkCk.addLayers(layers);
+        
+        let isError = false;
+        let errorIdx = -1;
+        
+        try {
+          checkCk.addLayers(layers);
+        } catch(err) {
+          // logArrayは初期化時、target,online用のInputLayerで2つ分で、エラーが出たLayerはlogされないのでerrorIdxはlogArray.length-2 (InputLayer含めて)
+          isError = true;
+          errorIdx = logArray.length-2;
+        }
+        
         checkCk.configure({});
         checkCk.initialize();
+        
+        // 矢印の画像を宣言しておく
+        const image = new Image(60, 50);
+        image.src = "https://mathotagamma.github.io/statics/images/right-arrow-2.jpeg";
+        
+        const gotCkInfo = checkCk.getInfo();
+        
+        // 矢印 layer 矢印 layer ... 矢印 layer 矢印 を作る。
+        // layerIdx === layers.lengthはlayerContainerを飛ばす
+        for (let layerIdx = 0; layerIdx < layers.length+1; layerIdx++) {
+          let ckInfo;
+          if (!isError)
+            ckInfo = gotCkInfo[layerIdx].info;
+          let layerInfo;
+          if (layerIdx < layersInfo.length)
+            layerInfo = layersInfo[layerIdx];
+          
+          // 矢印描画
+          // layerIdx === 0のとき、ckInfoよりInputLayerを指す。
+          const arrowContainer = document.createElement('div');
+          arrowContainer.classList.add('arrow-container');
+          
+          const shapeTextP = document.createElement('p');
+          if (!isError)
+            shapeTextP.innerHTML = ckInfo.outputShape.join(', ');
+          arrowContainer.appendChild(shapeTextP);
+          
+          arrowContainer.appendChild(image.cloneNode(true));
+          layersScreen.appendChild(arrowContainer);
+          
+          
+          // layer描画
+          if (layers.length === layerIdx)
+            break;
+          const isOutputLayer = layers.length - 1 === layerIdx;
+          const layerContainer = document.createElement('div');
+          layerContainer.addEventListener('click', layerContainerClicked);
+          layerContainer.classList.add('layer-container');
+          if (isError && errorIdx === layerIdx) {
+            layerContainer.classList.add('layer-error');
+            const errorTextP = document.createElement('p');
+            errorTextP.classList.add('error-text');
+            errorTextP.innerHTML = 'ERROR';
+            layerContainer.appendChild(errorTextP);
+          }
+          if (selectedIdx === layerIdx)
+            layerContainer.classList.add('layer-selected');
+          const layerTitleP = document.createElement('p');
+          layerTitleP.classList.add('layer-title');
+          layerTitleP.innerHTML = layerInfo.name;
+          layerContainer.appendChild(layerTitleP);
+          const layerArgsContainerDiv = document.createElement('div');
+          layerArgsContainerDiv.classList.add('layer-args-container');
+          const args = layerInfo.args;
+          if (args) {
+            for (let [key, value] of args) {
+              const layerArgP = document.createElement('p');
+              layerArgP.innerHTML = '・'+key+':'+String(value);
+              layerArgsContainerDiv.appendChild(layerArgP);
+            }
+          }
+          
+          layerContainer.appendChild(layerArgsContainerDiv);
+          layerContainerList.push(layerContainer);
+          layersScreen.appendChild(layerContainer);
+        }
+      }
+      
+      // addEventListenerを設定するため、新規作成時のメモリ消費を抑えるために
+      // 初めに一度だけ各Layerの種類に対応したedit itemを生成
+      let layerEditItemList;
+      function layerEditItemsInit() {
+        layerEditItemList = {};
+        // ===== Output =====
+        const outputEditItemContainer = document.createElement('div');
+        const outputExplanationP = document.createElement('p');
+        outputExplanationP.classList.add('layer-explanation');
+        outputExplanationP.innerHTML = "出力層...選択できる行動の数分のunitsを持ったDense層";
+        outputEditItemContainer.appendChild(outputExplanationP);
+        const outputUnitsP = document.createElement('p');
+        outputUnitsP.id = "layer-edit-item-output-units-p";
+        outputUnitsP.classList.add('mono-space');
+        outputUnitsP.innerHTML = "units: --";
+        outputEditItemContainer.appendChild(outputUnitsP);
+        layerEditItemList.Output = outputEditItemContainer;
+        
+        // ===== Dense =====
+        const unitsContainerDiv = document.createElement('div');
+        const denseExplanationP = document.createElement('p');
+        denseExplanationP.classList.add('layer-explanation');
+        denseExplanationP.innerHTML = '全結合層...前の層とこの層の全てのノードが全組み合わせで結合する。';
+        unitsContainerDiv.appendChild(denseExplanationP);
+        const unitsLabel = document.createElement('label');
+        unitsLabel.classList.add('mono-space');
+        unitsLabel.id = "layer-edit-item-units-label";
+        unitsLabel.innerHTML = "units: --";
+        unitsContainerDiv.appendChild(unitsLabel);
+        const unitsRange = document.createElement('input');
+        unitsRange.addEventListener('input', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('units', parseInt(unitsRange.value));
+          unitsLabel.innerHTML = "units: " + unitsRange.value.padEnd(3);
+          isChanged = true;
+          drawLayersScreen();
+        })
+        unitsRange.type = "range";
+        unitsRange.value = String(layerInitArgs.Dense.units);
+        unitsRange.min = "1";
+        unitsRange.step = "1";
+        unitsRange.max = "128";
+        unitsRange.id = "layer-edit-item-units-range";
+        unitsContainerDiv.appendChild(unitsRange);
+        const denseActivationContainerDiv = document.createElement('div');
+        const denseActivationLabel = document.createElement('label');
+        denseActivationLabel.innerHTML = 'Activation: ';
+        denseActivationContainerDiv.appendChild(denseActivationLabel);
+        const denseActivationTypeSelect = document.createElement('select');
+        denseActivationTypeSelect.id = 'layer-edit-item-dense-activation-type-select';
+        const activationTypeList = ['null', 'ReLU', 'sigmoid', 'tanh'];
+        for (let activationType of activationTypeList) {
+          const option = document.createElement('option');
+          option.innerHTML = activationType;
+          option.value = activationType;
+          denseActivationTypeSelect.appendChild(option);
+        }
+        denseActivationTypeSelect.addEventListener('change', () => {
+          const selectedLayerInfo = layersInfo[selectedIdx];
+          selectedLayerInfo.args.set('activation', denseActivationTypeSelect.value);
+          isChanged = true;
+          drawLayersScreen();
+        });
+        denseActivationContainerDiv.appendChild(denseActivationTypeSelect);
+        unitsContainerDiv.appendChild(denseActivationContainerDiv);
+        layerEditItemList.Dense = unitsContainerDiv;
+        
+        // ===== Flatten =====
+        const flattenP = document.createElement('p');
+        flattenP.classList.add('layer-explanation');
+        flattenP.innerHTML = "平坦化層...二次元以上の入力を一次元に展開する。";
+        layerEditItemList.Flatten = flattenP;
+      }
+      
+      function drawLayerEditor() {
+        const selectedLayerInfo = layersInfo[selectedIdx];
+        selectedLayerTitleP.innerHTML = selectedLayerInfo.name;
+        layerEditItemContainer.innerHTML = "";
+        layerEditItemContainer.appendChild(layerEditItemList[selectedLayerInfo.kind]);
+        
+        outputExplanation.innerHTML = "";
+        // 初期値を渡す
+        switch (selectedLayerInfo.kind) {
+          case "Output":
+            outputExplanation.innerHTML = currentGameInfo.output.explanation;
+            document.getElementById("layer-edit-item-output-units-p")
+              .innerHTML = "units: "+String(selectedLayerInfo.args.get('units'));
+            break;
+          case "Dense":
+            const label = document.getElementById('layer-edit-item-units-label');
+            const range = document.getElementById('layer-edit-item-units-range');
+            range.max = String(usableInfo.layers.Dense.units.max);
+            range.value = String(selectedLayerInfo.args.get('units'));
+            label.innerHTML = "units: "+String(range.value).padEnd(3);
+            const activationSelect = document.getElementById('layer-edit-item-dense-activation-type-select');
+            activationSelect.value = selectedLayerInfo.args.get('activation');
+            break;
+        }
+      }
+      
+      // cloneNode(true)は使わない。
+      // optionの構成情報を保持しておく（実際のoption群から動的取得）
+      function getOptionsData(select) {
+        return Array.from(select.options).map(opt => ({
+          value: opt.value,
+          text: opt.text
+        }));
       }
 
-      gameSelect.addEventListener('change', (e) => {
-        if (isChanged) {
-          if (!confirm('この操作を行うと、保存されていないデータは戻すことができません。'))
-            return;
+      // 新規のselectを生成して差し替える
+      function rebuildSelect(oldSelect, selectedValue, optionsData, onChange) {
+        const newSelect = document.createElement('select');
+        newSelect.id = oldSelect.id;
+
+        optionsData.forEach(data => {
+          const opt = document.createElement('option');
+          opt.value = data.value;
+          opt.text = data.text;
+          // .valueではなく selected属性で明示的に指定する
+          opt.selected = (data.value === selectedValue);
+          newSelect.appendChild(opt);
+        });
+
+        newSelect.addEventListener('change', onChange);
+        oldSelect.parentNode.replaceChild(newSelect, oldSelect);
+        return newSelect;
+      }
+
+      function handleChange() {
+        const newValue = gameSelect.value;
+
+        if (!confirmChange()) {
+          // 古いselectを破棄し、新規要素で差し替える
+          const optionsData = getOptionsData(gameSelect);
+          gameSelect = rebuildSelect(gameSelect, gameKind, optionsData, handleChange);
+          return;
         }
-        gameKind = e.target.value;
-        alert(gameKind);
+
+
+        gameKind = gameSelect.value;
         isChanged = false;
         initGame();
-      });
+      }
+      gameSelect.addEventListener('change', handleChange);
+      
+      // ===== 現段階で使用/利用できる情報 =====
+      /*
+       ※ units.max等、数値の範囲を絞る際は、
+         layerInitArgs等の初期値設定が範囲内になるように設定すること！！
+      */
+      function initUserData() {
+        usableInfo = structuredClone(usableInfoOrigin);
+      }
 
       function init() {
-        gameKind = gameSelect.value;
-        currentGameInfo = gameInfo[gameKind];
+        layerEditItemsInit();
+        initUserData();
         initGame();
         draw();
       }
       init();
     </script>
-    <script src="/statics/main-script.js"></script>
+    <script src="https://mathotagamma.github.io/statics/main-script.js"></script>
   </body>
 </html>
