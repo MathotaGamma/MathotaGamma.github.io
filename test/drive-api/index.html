@@ -418,7 +418,7 @@
         const type = document.getElementById('fileDataType').value;
         const rawContent = document.getElementById('fileContent').value;
         
-        let data = rawContant;
+        let data = rawContent;
         if (type === 'json') {
           try {
             data = JSON.parse(rawContent || '{}');
