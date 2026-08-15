@@ -162,6 +162,22 @@
       }
       
       
+      .logger-div {
+        position: absolute;
+        bottom: -50px;
+        left: 100px;
+        transform: translate(0, -100%);
+        background: rgb(255, 150, 150);
+        padding: 10px;
+        max-height: 300px;
+        overflow-y: scroll;
+      }
+      .logger-div.show {
+        bottom: 25px;
+        transform: translate(0, 0);
+      }
+      
+      
       select {
         border: none;
         border-bottom: 2px solid #a0a0a0;
@@ -243,7 +259,11 @@
         </div>
       </div>
     </main>
+    <div class="logger-div show">
+      Logger
+    </div>
     <script type="module">
+      import DriveAPIManager from '/statics/drive-api/manager.js';
       import { CogniKeel, Layer } from "https://mathotagamma.github.io/APIs/CogniKeel/1-02-03/CogniKeel.js";
       const layersScreen = document.getElementById('layers-screen');
       let gameSelect = document.getElementById('game-select');
@@ -266,6 +286,31 @@
       let currentGameInfo;
       let ck;
       let isChanged = false;
+      
+      let drive;
+      // Driveと連携しているか
+      let hasDriveConnection = false;
+      /*
+        ディレクトリは
+        /application-data/ai-creator-battle/
+        である。
+          
+        ===== 保存しているファイル =====
+        ・entirely-layers-info.json
+           - GameKind毎のlayersInfoをまとめたJSONファイル
+             
+             {
+               "cartpole": <layersInfo>,
+               "breakout": <layersInfo>,
+               ...
+             }
+               
+             ※layersInfo.argsはMapなので、Object.fromEntries(layersInfo.args)で
+              Object型に変換しているため、Mapにキャストする必要がある。
+      */
+      const appDataDirectory = '/application-data/ai-creator-battle/';
+      const loadedDriveFiles = {};
+      
       const layers = [];
       let usableInfo;
       
@@ -482,7 +527,8 @@
         ]),
       }
       
-      const layersInfo = [];
+      let entirelyLayersInfo = {};
+      let layersInfo = [];
       const layerDuplicationCountList = {};
       const layerContainerList = [];
       
@@ -577,7 +623,8 @@
         draw();
       });
 
-      function logger(...message) {
+      function logger(status, message=null) {
+        
         
       }
       
@@ -606,22 +653,54 @@
         }
       }
       
-      saveBtn.addEventListener('click', () => {
+      async function dataSaveToDrive() {
+        if (!hasDriveConnection || drive == null)
+          return;
+        try {
+          entirelyLayersInfo[gameKind] = structuredClone(layersInfo);
+          // entirelyLayersInfoを保存
+          const entirelyLayersInfoPath = appDataDirectory + 'entirely-layers-info.json';
+          const convertEntirelyLayersInfo = structuredClone(entirelyLayersInfo);
+          for (let key of Object.keys(entirelyLayersInfo)) {
+            const layersInfo_k = entirelyLayersInfo[key];
+            for (let index = 0; index < layersInfo_k.length; index++) {
+              convertEntirelyLayersInfo[key][index].args = Object.fromEntries(entirelyLayersInfo[key][index].args);
+            }
+          }
+          
+          let res = await drive.saveFile({ path: entirelyLayersInfoPath, data: convertEntirelyLayersInfo });
+          console.log('driveに保存が完了しました');
+          isChanged = false;
+        } catch(err) {
+          logger('error', err.message);
+        }
+      }
+      
+      saveBtn.addEventListener('click', async () => {
+        entirelyLayersInfo[gameKind] = structuredClone(layersInfo);
+        
+        // driveにデータを保存
+        dataSaveToDrive();
+        
         // layersInfoをダウンロード
-        let layersInfoTextData = '';
+        /*
+        let layersInfoTextData = '[';
         for (let layerInfoIdx = 0; layerInfoIdx < layersInfo.length; layerInfoIdx++) {
           const layerInfo = structuredClone(layersInfo[layerInfoIdx]);
           layerInfo.args = Object.fromEntries(layersInfo[layerInfoIdx].args);
           layersInfoTextData += JSON.stringify(layerInfo);
         }
+        layersInfoTextData += ']';
         fileDownloader({
           textData: layersInfoTextData,
           fileName: 'layers-info.json',
           type: 'application/json'
-        });
+        });*/
         
+        
+        // MCLMを取得する
+        /*
         getLayersFromLayersInfo();
-        
         const checkCk = new CogniKeel({
           inputShape: currentGameInfo.input.shape
         });
@@ -636,16 +715,17 @@
           const mclmData = checkCk.getMCLM('low');
           
           // mclmをダウンロード
-          /*fileDownloader({
+          fileDownloader({
             textData: mclmData,
             fileName: currentGameInfo.gameKind+'.mclm',
             type: 'application/octet-stream'
-          });*/
+          });
         } catch(err) {
           errorMessage = err.message;
           console.error(errorMessage);
-        }
-      })
+        }*/
+      });
+      
 
       function initGame() {
         gameKind = gameSelect.value;
@@ -658,9 +738,11 @@
         else
           currentGameInfo.inputShapeIdx = null;
         
-        layersInfo.length = 0;
+        // entirelyLayersInfoからlayersInfo取得
+        layersInfo = structuredClone(entirelyLayersInfo[gameKind]);
         // 出力層
-        addLayer({ kind: 'Output', init: true });
+        if (layersInfo.length === 0)
+          addLayer({ kind: 'Output', init: true });
         ck = null;
         draw();
       }
@@ -1339,6 +1421,72 @@
       }
       gameSelect.addEventListener('change', handleChange);
       
+      async function initDrive() {
+        const EMBEDDED_CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
+        const EMBEDDED_REDIRECT_URI = 'https://mathotagamma.github.io/statics/drive-api/oauth2callback';
+        try {
+          drive = new DriveAPIManager({
+            clientId: EMBEDDED_CLIENT_ID,
+            redirectUri: EMBEDDED_REDIRECT_URI,
+            space: 'appdata',
+            progress: (phase, detail) => {
+              console.log(phase, detail);
+            }
+          });
+          
+          console.log('info', `Drive連携を初期化しました(space: appdata)。`);
+          
+          let res = await drive.auth(true);
+          if (!res.ok)
+            res = await drive.auth(false);
+          if (!res.ok) {
+            alert('Googleアカウントと連携できませんでした。再度試してください。');
+            drive = null;
+            hasDriveConnection = false;
+            return;
+          }
+          hasDriveConnection = true;
+        } catch (e) {
+          drive = null;
+          hasDriveConnection = false;
+          console.log('error', `Drive連携の初期化に失敗しました: ${e.message}`);
+        }
+        console.log('Driveと連携しました');
+      }
+      
+      async function initDataFromDrive() {
+        if (!hasDriveConnection || drive == null)
+          return;
+        
+        // 読み込むファイル
+        // directory +
+        /*
+          entirely-layers-info.json
+        */
+        try {
+          const entirelyLayersInfoPath = appDataDirectory + 'entirely-layers-info.json';
+          
+          let res = await drive.getFileId({ path: entirelyLayersInfoPath });
+          if (res == null) {
+            console.log(entirelyLayersInfoPath+'ファイルが見つかりませんでした。layersInfoを初期化します。');
+            
+          } else {
+            console.log(entirelyLayersInfoPath+'ファイルが見つかりました。entirelyLayersInfoに同期します。');
+            const rawEntirelyLayersInfo = await drive.getFile({ path: entirelyLayersInfoPath, type: 'json' });
+            entirelyLayersInfo = structuredClone(rawEntirelyLayersInfo);
+            for (let key of Object.keys(rawEntirelyLayersInfo)) {
+              const driveLayersInfo_k = rawEntirelyLayersInfo[key];
+              for (let index = 0; index < driveLayersInfo_k.length; index++) {
+                entirelyLayersInfo[key][index].args = new Map(Object.entries(rawEntirelyLayersInfo[key][index].args));
+              }
+            }
+            console.log('同期完了',JSON.stringify(rawEntirelyLayersInfo, null, 2));
+          }
+        } catch(err) {
+          console.log(err.message);
+        }
+      }
+      
       // ===== 現段階で使用/利用できる情報 =====
       /*
        ※ units.max等、数値の範囲を絞る際は、
@@ -1348,7 +1496,14 @@
         usableInfo = structuredClone(usableInfoOrigin);
       }
 
-      function init() {
+      async function init() {
+        for (let gameKind_k of Object.keys(gameInfo)) {
+          entirelyLayersInfo[gameKind_k] = [];
+        }
+        
+        await initDrive();
+        if (hasDriveConnection)
+          await initDataFromDrive();
         initUserData();
         layerEditItemsInit();
         initGame();
