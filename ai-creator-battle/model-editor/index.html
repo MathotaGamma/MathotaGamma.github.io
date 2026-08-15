@@ -7,9 +7,9 @@
       html, body {
         margin: 0;
         padding: 0;
-        -webkit-touch-callout:none;
-        -webkit-user-select:none;
-        overflow:hidden;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        overflow: hidden;
         touch-action: none;
         height: 100%;
       }
@@ -162,18 +162,19 @@
       }
       
       
-      .logger-div {
+      #logger-div {
         position: absolute;
-        bottom: -50px;
+        bottom: 0;
         left: 100px;
-        transform: translate(0, -100%);
+        transform: translate(0, 100%);
         background: rgb(255, 150, 150);
         padding: 10px;
         max-height: 300px;
         overflow-y: scroll;
+        transition: all 0.5s ease;
       }
-      .logger-div.show {
-        bottom: 25px;
+      #logger-div.show {
+        bottom: 40px;
         transform: translate(0, 0);
       }
       
@@ -259,8 +260,8 @@
         </div>
       </div>
     </main>
-    <div class="logger-div show">
-      Logger
+    <div id="logger-div">
+      -----
     </div>
     <script type="module">
       import DriveAPIManager from '/statics/drive-api/manager.js';
@@ -278,6 +279,9 @@
       const selectedLayerTitleP = document.getElementById('selected-layer-title-p');
       const layerEditItemContainer = document.getElementById('layer-edit-item-container');
       const outputExplanation = document.getElementById('output-explanation');
+      const loggerDiv = document.getElementById('logger-div');
+      
+      const logQueue = [];
       
       inputTypeContainer.style.opacity = "0";
       
@@ -286,6 +290,7 @@
       let currentGameInfo;
       let ck;
       let isChanged = false;
+      let isLogging = false;
       
       let drive;
       // Driveと連携しているか
@@ -623,10 +628,27 @@
         draw();
       });
 
-      function logger(status, message=null) {
-        
-        
+      function logger(message=null, durationInp=null) {
+        // messageが配列なら<br>で結合
+        if (message != null)
+          logQueue.push([Array.isArray(message) ? message.join('<br>') : message, durationInp]);
+        if (isLogging || logQueue.length === 0)
+          return;
+        const [logText, duration] = logQueue.shift();
+        loggerDiv.classList.add('show');
+        loggerDiv.innerHTML = logText;
+        isLogging = true;
+        // 1500 ms + 文字数*50 ms の間表示
+        setTimeout(() => {
+          loggerDiv.classList.remove('show');
+          setTimeout(() => {
+            isLogging = false;
+            logger();
+          }, 800);
+        }, duration ? (duration + 500) : (50*loggerDiv.innerHTML.length + 2000));
       }
+      
+      logger('こんにちは！', 1200);
       
       // typeの種類
       /*
@@ -1422,6 +1444,8 @@
       gameSelect.addEventListener('change', handleChange);
       
       async function initDrive() {
+        logger('Google Drive appDataFolderから以前のデータの取得を試みています...<br>しばらくお待ちください。', 3000);
+        
         const EMBEDDED_CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
         const EMBEDDED_REDIRECT_URI = 'https://mathotagamma.github.io/statics/drive-api/oauth2callback';
         try {
@@ -1429,9 +1453,9 @@
             clientId: EMBEDDED_CLIENT_ID,
             redirectUri: EMBEDDED_REDIRECT_URI,
             space: 'appdata',
-            progress: (phase, detail) => {
+            /*progress: (phase, detail) => {
               console.log(phase, detail);
-            }
+            }*/
           });
           
           console.log('info', `Drive連携を初期化しました(space: appdata)。`);
@@ -1451,13 +1475,11 @@
           hasDriveConnection = false;
           console.log('error', `Drive連携の初期化に失敗しました: ${e.message}`);
         }
-        console.log('Driveと連携しました');
       }
       
       async function initDataFromDrive() {
         if (!hasDriveConnection || drive == null)
           return;
-        
         // 読み込むファイル
         // directory +
         /*
@@ -1480,7 +1502,8 @@
                 entirelyLayersInfo[key][index].args = new Map(Object.entries(rawEntirelyLayersInfo[key][index].args));
               }
             }
-            console.log('同期完了',JSON.stringify(rawEntirelyLayersInfo, null, 2));
+            console.log('同期完了');
+            // console.log(JSON.stringify(rawEntirelyLayersInfo, null, 2));
           }
         } catch(err) {
           console.log(err.message);
