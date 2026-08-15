@@ -608,8 +608,14 @@
       
       saveBtn.addEventListener('click', () => {
         // layersInfoをダウンロード
+        let layersInfoTextData = '';
+        for (let layerInfoIdx = 0; layerInfoIdx < layersInfo.length; layerInfoIdx++) {
+          const layerInfo = structuredClone(layersInfo[layerInfoIdx]);
+          layerInfo.args = Object.fromEntries(layersInfo[layerInfoIdx].args);
+          layersInfoTextData += JSON.stringify(layerInfo);
+        }
         fileDownloader({
-          textData: JSON.stringify(layersInfo),
+          textData: layersInfoTextData,
           fileName: 'layers-info.json',
           type: 'application/json'
         });
