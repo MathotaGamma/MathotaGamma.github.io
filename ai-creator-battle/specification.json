@@ -1,0 +1,60 @@
+{
+  "level": {
+    "1": {
+      "layers+Dense+units+max": 48
+    },
+    "2": {
+      "entirely+activationList": "_add+sigmoid",
+      "entirely+activationList": "_add+tanh"
+    },
+    "3": {
+      "entirely+LayerCountLength": 5,
+      "layers+Dense+units+max": 64
+    },
+    "5": {
+      "entirely+LayerCountLength": 7,
+      "game": "_add+breakout"
+    },
+    "7": {
+      "layers+Flatten+use": true,
+      "layers+Pooling1d+use": true,
+      "layers+Pooling2d+use": true,
+      "layers+Pooling3d+use": true
+    },
+    "8": {
+      "layers+Dense+units+max": 96
+    },
+    "9": {
+      "layers+Pooling1d+kernel+maxSize": 8,
+      "layers+Pooling2d+kernel+maxSize": 8,
+      "layers+Pooling3d+kernel+maxSize": 8,
+      "layers+Conv1d+kernel+maxSize": 8,
+      "layers+Conv2d+kernel+maxSize": 8,
+      "layers+Conv3d+kernel+maxSize": 8
+    },
+    "10": {
+      "entirely+LayerCountLength": 10,
+      "layers+Dense+units+max": 128,
+      "layers+Pooling1d+strides+maxSize": 4,
+      "layers+Pooling2d+strides+maxSize": 4,
+      "layers+Pooling3d+strides+maxSize": 4,
+      "layers+Conv1d+strides+maxSize": 4,
+      "layers+Conv2d+strides+maxSize": 4,
+      "layers+Conv3d+strides+maxSize": 4
+    },
+    "15": {
+      "layers+Dense+units+max": 192
+    },
+    "17": {
+      "layers+Dense+units+max": 256
+    }
+  },
+  "battle-count": {
+    "10": {
+      "layers+Flatten+use": true,
+      "layers+Conv1d+use": true,
+      "layers+Conv2d+use": true,
+      "layers+Conv3d+use": true
+    }
+  }
+}
