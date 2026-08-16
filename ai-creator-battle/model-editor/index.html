@@ -347,6 +347,7 @@
       let isChanged = false;
       let isLogging = false;
       
+      let emailAddress = null;
       let isGuest = true;
       
       let drive;
@@ -654,30 +655,35 @@
       let isUserInfoDropdown = false;
       
       // targetに存在しないkeyをsourceから埋める。
-      // 配列はダメ。辞書型の入れ子のみ
+      // 最上層配列はダメ。辞書型の入れ子のみ
       function mergeMissingKeys(target, source) {
-        if (!target || typeof target !== 'object' || Array.isArray(target) ||
-            !source || typeof source !== 'object' || Array.isArray(source)) {
-          return target;
-        }
-
-        for (const key of Object.keys(source)) {
-          const sourceVal = source[key];
-          const targetVal = target[key];
-
-          if (!(key in target)) {
-            target[key] = typeof structuredClone === 'function'
-              ? structuredClone(sourceVal)
-              : JSON.parse(JSON.stringify(sourceVal));
-          } else if (
-            targetVal && typeof targetVal === 'object' && !Array.isArray(targetVal) &&
-            sourceVal && typeof sourceVal === 'object' && !Array.isArray(sourceVal)
-          ) {
-            mergeMissingKeys(targetVal, sourceVal);
+        try {
+          if (!target || typeof target !== 'object' || Array.isArray(target) ||
+              !source || typeof source !== 'object' || Array.isArray(source)) {
+            return target;
           }
-        }
 
-        return target;
+          for (const key of Object.keys(source)) {
+            const sourceVal = source[key];
+            const targetVal = target[key];
+
+            if (!(key in target)) {
+              target[key] = typeof structuredClone === 'function'
+                ? structuredClone(sourceVal)
+                : JSON.parse(JSON.stringify(sourceVal));
+            } else if (
+              targetVal && typeof targetVal === 'object' && !Array.isArray(targetVal) &&
+              sourceVal && typeof sourceVal === 'object' && !Array.isArray(sourceVal)
+            ) {
+              mergeMissingKeys(targetVal, sourceVal);
+            }
+          }
+
+          return target;
+        } catch(err) {
+          console.log('error at mergeMissingKeys: ', err);
+          throw err;
+        }
       }
       
       
@@ -696,9 +702,13 @@
         if (checkRes != null && checkRes.ok)
           return;
         await driveCheck();
-        if (hasDriveConnection && drive != null)
-          if (confirm('Google Driveと連携しました。\nGoogle Drive AppDataから以前のデータを取得しますか？\n保存していない変更は削除されます。'))
+        if (hasDriveConnection && drive != null) {
+          if (confirm('Google Driveと連携しました。\nGoogle Drive AppDataから以前のデータを取得しますか？\n保存していない変更は削除されます。')) {
             await initDataFromDrive();
+            layersInfo = structuredClone(entirelyLayersInfo[gameKind]);
+            draw();
+          }
+        }
       });
       
       signOutBtn.addEventListener('click', async () => {
@@ -707,7 +717,8 @@
           return;
         }
         await drive.signOut();
-        driveCheck(false);
+        alert('reloadします');
+        location.reload();
       });
       
       async function updateGoogleUI() {
@@ -846,8 +857,7 @@ expired...${status.expired}`);
           name: "---",
           args
         });
-        updateLayerDuplicationCountList();
-        getLayersFromLayersInfo();
+        
         
         selectedIdx = index;
         if (!init)
@@ -885,8 +895,6 @@ expired...${status.expired}`);
           }, 800);
         }, duration ? (duration + 500) : (50*loggerDiv.innerHTML.length + 2000));
       }
-      
-      logger('こんにちは！', 800);
       
       // typeの種類
       /*
@@ -1035,6 +1043,10 @@ expired...${status.expired}`);
       }
       
       function draw() {
+        updateLayerDuplicationCountList();
+        getLayersFromLayersInfo();
+        
+        updateGoogleUI();
         drawMainHeader();
         drawSideArea();
         drawLayersScreen();
@@ -1101,6 +1113,8 @@ expired...${status.expired}`);
         let errorMessage;
         try {
           checkCk.addLayers(layers);
+          checkCk.configure({});
+          checkCk.initialize();
         } catch(err) {
           // logArrayは初期化時、target,online用のInputLayerで2つ分で、エラーが出たLayerはlogされないのでerrorIdxはlogArray.length-2 (InputLayer含めて)
           errorMessage = err.message;
@@ -1108,8 +1122,6 @@ expired...${status.expired}`);
           errorIdx = logArray.length-2;
         }
         
-        checkCk.configure({});
-        checkCk.initialize();
         
         // 矢印の画像を宣言しておく
         const image = new Image(60, 50);
@@ -1231,7 +1243,7 @@ expired...${status.expired}`);
           drawLayersScreen();
         })
         unitsRange.type = "range";
-        unitsRange.value = String(layerInitArgs.Dense.units);
+        unitsRange.value = String(layerInitArgs.Dense.get('units'));
         unitsRange.min = "1";
         unitsRange.step = "1";
         unitsRange.max = "128";
@@ -1700,11 +1712,18 @@ expired...${status.expired}`);
       }
       gameSelect.addEventListener('change', handleChange);
       
+      function loginWithAnotherEmail() {
+        if (userInfo.emailAddress === null)
+          return;
+        
+        alert('以前とは異なるアカウントでログインしたため、リロードします(前回:'+userInfo.emailAddress+')。');
+        // window.location.reload();
+        return;
+      }
+      
       async function initDrive() {
         await initDriveManager();
-        if (hasDriveConnection)
-          return await initDataFromDrive();
-        return true;
+        return await initData();
       }
       
       async function initDriveManager() {
@@ -1723,23 +1742,41 @@ expired...${status.expired}`);
           
           console.log('info', `Drive連携を初期化しました(space: appdata)。`);
           let res = await drive.auth(true);
-          // ポップアップをブロックなどをした場合、awaitが返ってこないためsetTimeoutする。
           
           if (!res.ok)
             res = await drive.auth(false);
+            
+          // 成功時リターン
           if (res.ok) {
+            // emailを取得
+            emailAddress = await drive.getAbout('user(emailAddress)');
+            if (emailAddress != null)
+              emailAddress = emailAddress.user.emailAddress;
+            else {
+              emailAddress = null;
+              throw new Error('E-mailを取得できませんでした');
+            }
+            
             // 一度でもログインできた場合はGuestにしない
             isGuest = false;
             hasDriveConnection = true;
+            
+            // 別のアカウントでログイン
+            if (emailAddress !== null && userInfo && userInfo.emailAddress != null && userInfo.emailAddress !== emailAddress)
+              loginWithAnotherEmail();
             return;
+          } else {
+            
+            if (res.error === "popup_blocked")
+              alert('popupがブロックされました。');
           }
         } catch (e) {
           logger(`Drive連携の初期化に失敗しました: ${e.message}`, 2500);
         }
         if (!isGuest)
-          alert('Googleアカウントと連携できませんでした。再度試してください。');
+          logger('Googleアカウントと連携できませんでした。再度試してください。');
         else
-          alert('Googleアカウントと連携できませんでした。ゲストでプレイします。');
+          logger('Googleアカウントと連携できませんでした。ゲストでプレイします。');
         isGuest = true;
         hasDriveConnection = false;
         if (drive != null)
@@ -1748,11 +1785,30 @@ expired...${status.expired}`);
         hasDriveConnection = false;
       }
       
+      async function initData() {
+        initDataFromOrigin();
+        return await initDataFromDrive();
+      }
+      
+      function initDataFromOrigin() {
+        // entirelyLayersInfo
+        for (let gameKind_k of Object.keys(gameInfo)) {
+          entirelyLayersInfo[gameKind_k] = [];
+        }
+        
+        // userInfo, usableInfo
+        userInfo = structuredClone(userInfoOrigin);
+        usableInfo = structuredClone(usableInfoOrigin);
+      }
+      
       // return falseは、初期化を中断してリロードを促す。
       async function initDataFromDrive() {
         if (!hasDriveConnection || drive == null)
-          return;
-        logger('Google Drive appDataFolderから以前のデータの取得を試みています...<br>しばらくお待ちください。', 3000);
+          return true;
+          
+        // 既に初期値が代入されている。
+        
+        logger('Google Drive AppDataから以前のデータの取得を試みています...<br>しばらくお待ちください。', 3000);
         let hasError = false;
         // 読み込むファイル
         // directory +
@@ -1779,14 +1835,12 @@ expired...${status.expired}`);
             // mergeMissingKeysは必要ない。
             // init()内で初めに全てのgameKindをkey、空の配列をvalueとした辞書型に代入しているため。
             console.log('entirelyLayersInfo 同期完了');
-            // console.log(JSON.stringify(rawEntirelyLayersInfo, null, 2));
+            
           }
         } catch(err) {
           hasError = true;
           console.log(err.message);
           logger('Google Drive AppDataからDataを取得中にエラーが発生しました。');
-          
-          // entirelyLayersInfoは既に初期値が代入されている。
         }
         
         try {
@@ -1801,21 +1855,25 @@ expired...${status.expired}`);
           } else {
             console.log(userUsableInfoPath+'ファイルが見つかりました。userInfo, usableInfoを同期します。');
             const rawUserUsableInfo = res;
+            
             userInfo = mergeMissingKeys(structuredClone(rawUserUsableInfo.userInfo), userInfoOrigin);
             usableInfo = mergeMissingKeys(structuredClone(rawUserUsableInfo.usableInfo), usableInfoOrigin);
+            logger('同期が完了しました。');
+            console.log('同期が完了しました。');
           }
         } catch(err) {
           hasError = true;
           console.log(err.message);
           logger('Google Drive AppDataからDataを取得中にエラーが発生しました。');
+          // location.reload();で循環するのは嫌だからユーザーに託す
           if (!confirm('ファイルが壊れている可能性があるため、確認後初期化を行います。\n初期化を避ける場合はキャンセル後リロードを行なってください。')) {
             return false;
           }
-          // 初期値代入
-          // userInfo, usableInfo
-          userInfo = structuredClone(userInfoOrigin);
-          usableInfo = structuredClone(usableInfoOrigin);
         }
+        
+        userInfo.emailAddress = emailAddress;
+        userInfo.isGuest = isGuest;
+        
         if (hasError) {
           // ファイルが壊れている可能性があるため、代入した値で保存する。
           dataSaveToDrive();
@@ -1824,10 +1882,6 @@ expired...${status.expired}`);
       }
 
       async function init() {
-        for (let gameKind_k of Object.keys(gameInfo)) {
-          entirelyLayersInfo[gameKind_k] = [];
-        }
-        
         const ret = await initDrive();
         if (!ret) {
           logger('初期化を中断しました。リロードを行なってください。', 2000);
