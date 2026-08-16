@@ -1920,7 +1920,7 @@ class DenseLayer extends Layer {
             ] = optFunc(w_powBeta1[weightOffset], w_powBeta2[weightOffset], w_m[weightOffset], w_v[weightOffset], w, gradW);
             break;
         }
-        if (isCheck && weightsOriginal[weightOffset] == null || Number.isNaN(weightsOriginal[weightOffset]))
+        if (isCheck && (weightsOriginal[weightOffset] == null || Number.isNaN(weightsOriginal[weightOffset])))
           this.throwError('backward',`weightで数値エラーになりました。units=${this.units}, weightOffset=${weightOffset}, optFunc=${optFunc}`)
       }
     }
