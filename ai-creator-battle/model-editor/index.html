@@ -23,6 +23,43 @@
         height: auto;
         display: flex;
         flex-direction: row;
+        justify-content: space-between;
+        overflow: visible;
+      }
+      .header-user-info-container {
+        position: relative;
+        border: 1px solid red;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        margin: auto 5px auto auto;
+      }
+      #user-name-div {
+        border-bottom: 2px solid rgb(150, 150, 255);
+        min-height: 0;
+        margin: auto 10px auto 5px;
+      }
+      #user-photo-img {
+        border-radius: 50%;
+        background: rgb(150, 150, 150);
+        width: 50px;
+        height: 50px;
+      }
+      #header-user-info-dropdown-container-div {
+        position: absolute;
+        right: 0px;
+        bottom: -2px;
+        transform: translate(0, 100%);
+        border: 1px solid green;
+        z-index: 500;
+        min-width: 150px;
+        min-height: 100px;
+        background: rgba(255, 255, 255, 0.8);
+        display: none;
+      }
+      #sign-out-btn {
+        font-weight: bold;
+        color: rgb(200, 0, 0);
       }
       main {
         display: flex;
@@ -213,8 +250,19 @@
   </head>
   <body>
     <header>
-      <nav class="breadcrumb"></nav>
-      <div class="font-size-L">AI Creator Battle</div>
+      <div class="header-left">
+        <nav class="breadcrumb"></nav>
+        <div class="font-size-L">AI Creator Battle</div>
+      </div>
+      <div class="header-user-info-container">
+        <div id="user-name-div">---</div>
+        <img id="user-photo-img" />
+        <div id="header-user-info-dropdown-container-div">
+          <button id="drive-check-btn">連携状態チェック</button>
+          <button id="sign-in-btn">Sign In</button>
+          <button id="sign-out-btn" disabled>Sign Out</button>
+        </div>
+      </div>
     </header>
     <main>
       <div class="main-header">
@@ -264,8 +312,15 @@
       -----
     </div>
     <script type="module">
-      import DriveAPIManager from '/statics/drive-api/manager.js';
+      import DriveAPIManager from '/statics/drive-api/6-4/manager.js';
       import { CogniKeel, Layer } from "https://mathotagamma.github.io/APIs/CogniKeel/1-02-03/CogniKeel.js";
+      
+      const userNameDiv = document.getElementById('user-name-div');
+      const userPhotoImg = document.getElementById('user-photo-img');
+      const headerUserInfoDropdownContainerDiv = document.getElementById('header-user-info-dropdown-container-div');
+      const driveCheckBtn = document.getElementById('drive-check-btn');
+      const signInBtn = document.getElementById('sign-in-btn');
+      const signOutBtn = document.getElementById('sign-out-btn');
       const layersScreen = document.getElementById('layers-screen');
       let gameSelect = document.getElementById('game-select');
       const inputTypeContainer = document.getElementById('input-type-container');
@@ -292,6 +347,8 @@
       let isChanged = false;
       let isLogging = false;
       
+      let isGuest = true;
+      
       let drive;
       // Driveと連携しているか
       let hasDriveConnection = false;
@@ -312,6 +369,13 @@
                
              ※layersInfo.argsはMapなので、Object.fromEntries(layersInfo.args)で
               Object型に変換しているため、Mapにキャストする必要がある。
+        ・user-usage-info.json
+           - USER情報と、
+             ユーザーがアクセス/編集できる(値の)範囲...usage-info
+             {
+               "user": <user-info>,
+               "usage": <usage-info>
+             }
       */
       const appDataDirectory = '/application-data/ai-creator-battle/';
       const loadedDriveFiles = {};
@@ -327,6 +391,10 @@
           // null(=linear), ReLU, tanh, sigmoid
           activationList: ['null', 'ReLU']
         },
+        game: [
+          "cartpole",
+          "breakout"
+        ],
         layers: {
           Dense: {
             use: true,
@@ -532,10 +600,179 @@
         ]),
       }
       
+      function makeUserInfoOrigin() {
+        const obj = {
+          userName: "#guest",
+          emainAddress: null,
+          isGuest: true,
+          level: 0,
+          // 初登録した時間
+          registrationDate: Date.now(),
+          // inputKindなどを指定
+          game: {
+            // ここに書くobjectを直後に生成
+          },
+          solo: {
+            // ここに書くobjectを直後に生成
+          },
+          online: {
+            // ここに書くobjectを直後に生成
+          }
+        }
+        for (let game of Object.keys(gameInfo)) {
+          obj.game[game] = {
+            inputTypeIdx: 0
+          }
+          obj.solo[game] = {
+            highScore: -1,
+            preScore: -1,
+            playCount: 0
+          }
+          obj.online[game] = {
+            highScore: -1,
+            preScore: -1,
+            // preResultのvalueは"win"|"draw"|"lose"
+            preResult: null,
+            playCount: 0,
+            win: 0,
+            draw: 0,
+            lose: 0
+          }
+        }
+        
+        return structuredClone(obj);
+      }
+      
+      const userInfoOrigin = makeUserInfoOrigin();
+      let userInfo = {};
+      
       let entirelyLayersInfo = {};
       let layersInfo = [];
       const layerDuplicationCountList = {};
       const layerContainerList = [];
+      
+      let isUserInfoDropdown = false;
+      
+      // targetに存在しないkeyをsourceから埋める。
+      // 配列はダメ。辞書型の入れ子のみ
+      function mergeMissingKeys(target, source) {
+        if (!target || typeof target !== 'object' || Array.isArray(target) ||
+            !source || typeof source !== 'object' || Array.isArray(source)) {
+          return target;
+        }
+
+        for (const key of Object.keys(source)) {
+          const sourceVal = source[key];
+          const targetVal = target[key];
+
+          if (!(key in target)) {
+            target[key] = typeof structuredClone === 'function'
+              ? structuredClone(sourceVal)
+              : JSON.parse(JSON.stringify(sourceVal));
+          } else if (
+            targetVal && typeof targetVal === 'object' && !Array.isArray(targetVal) &&
+            sourceVal && typeof sourceVal === 'object' && !Array.isArray(sourceVal)
+          ) {
+            mergeMissingKeys(targetVal, sourceVal);
+          }
+        }
+
+        return target;
+      }
+      
+      
+      userPhotoImg.addEventListener('click', () => {
+        if (isUserInfoDropdown) {
+          headerUserInfoDropdownContainerDiv.style.display = "none";
+          isUserInfoDropdown = false;
+        } else {
+          headerUserInfoDropdownContainerDiv.style.display = "block";
+          isUserInfoDropdown = true;
+        }
+      });
+      
+      signInBtn.addEventListener('click', async () => {
+        const checkRes = drive?.checker();
+        if (checkRes != null && checkRes.ok)
+          return;
+        await driveCheck();
+        if (hasDriveConnection && drive != null)
+          if (confirm('Google Driveと連携しました。\nGoogle Drive AppDataから以前のデータを取得しますか？\n保存していない変更は削除されます。'))
+            await initDataFromDrive();
+      });
+      
+      signOutBtn.addEventListener('click', async () => {
+        if (!hasDriveConnection || drive == null) {
+          signOutBtn.disabled = true;
+          return;
+        }
+        await drive.signOut();
+        driveCheck(false);
+      });
+      
+      async function updateGoogleUI() {
+        // driveと連携していない時
+        if (!hasDriveConnection || drive == null) {
+          userNameDiv.innerHTML = '---';
+          userPhotoImg.removeAttribute('src');
+          signOutBtn.disabled = true;
+          return;
+        }
+        const fields = 'user(displayName, photoLink)'
+        const res = await drive.getAbout(fields);
+        userNameDiv.innerHTML = res.user.displayName;
+        userPhotoImg.src = res.user.photoLink;
+        signOutBtn.disabled = false;
+      }
+      
+      function catchErrorHandler(err) {
+        // Google連携の期限切れによるエラーを解消
+        console.log(err.message);
+        driveCheck();
+      }
+      
+      driveCheckBtn.addEventListener('click', () => {
+        const status = {};
+        status.driveValid = drive != null;
+        if (drive != null) {
+          const checkerRes = drive.checker();
+          status.expired = checkerRes.expired;
+          status.loggedIn = checkerRes.loggedIn;
+          status.ok = checkerRes.ok;
+        } else {
+          status.ok = false;
+        }
+        alert(`Google連携状態...${status.ok ? 'OK' : 'No'}
+loggedIn...${status.loggedIn}
+expired...${status.expired}`);
+      });
+      
+      // 引数にfalseを入れたら、
+      // Googleに再ログインしようとせず、
+      // hasDriveConnection, Driveと、GoogleUIを更新する。
+      async function driveCheck(tryLogIn=true) {
+        // loggin状態を更新(Guestは基本スキップ)
+        if (drive == null)
+          await initDriveManager();
+        if (drive != null) {
+          const checkerRes = drive.checker();
+          // checkerRes.ok, checkerRes.loggedIn, checkerRes.expiredがある
+          // OK(loggedIn && !expired)
+          // console.log('check...'+JSON.stringify(checkerRes));
+          if (checkerRes.ok) {
+            hasDriveConnection = true;
+          }
+          else if (!isGuest) {
+            if (tryLogIn)
+              alert('Googleアカウントとの連携が途切れた もしくはアクセストークンが期限切れである可能性があります。再度ログインを試行します。');
+            hasDriveConnection = false;
+          }
+        }
+        if (tryLogIn && !isGuest && !hasDriveConnection) {
+          await initDriveManager();
+        }
+        updateGoogleUI();
+      }
       
       function confirmChange() {
         if (isChanged) {
@@ -623,6 +860,7 @@
       });
       
       inputTypeSelect.addEventListener('change', () => {
+        userInfo.game[gameKind].inputTypeIdx = parseInt(inputTypeSelect.value);
         currentGameInfo.inputShapeIdx = parseInt(inputTypeSelect.value);
         currentGameInfo.input = gameInfo[gameKind].input[parseInt(inputTypeSelect.value)];
         draw();
@@ -648,7 +886,7 @@
         }, duration ? (duration + 500) : (50*loggerDiv.innerHTML.length + 2000));
       }
       
-      logger('こんにちは！', 1200);
+      logger('こんにちは！', 800);
       
       // typeの種類
       /*
@@ -676,10 +914,14 @@
       }
       
       async function dataSaveToDrive() {
-        if (!hasDriveConnection || drive == null)
+        if (isGuest || !hasDriveConnection || drive == null)
           return;
+        await driveCheck();
         try {
+          logger('Google Drive AppDataへの保存を開始します。このサイトから離れないでください。', 2000);
+          // entirelyLayersInfoにlayersInfoを同期
           entirelyLayersInfo[gameKind] = structuredClone(layersInfo);
+          
           // entirelyLayersInfoを保存
           const entirelyLayersInfoPath = appDataDirectory + 'entirely-layers-info.json';
           const convertEntirelyLayersInfo = structuredClone(entirelyLayersInfo);
@@ -691,10 +933,24 @@
           }
           
           let res = await drive.saveFile({ path: entirelyLayersInfoPath, data: convertEntirelyLayersInfo });
+          console.log(entirelyLayersInfoPath, 'ok:', res != null);
+          // userInfo, usageInfoをmergeする。
+          const userUsableInfo = {
+            userInfo,
+            usableInfo
+          }
+          
+          // userUsableInfoをDriveに保存する
+          const userUsableInfoPath = appDataDirectory + 'user-usable-info.json';
+          res = await drive.saveFile({ path: userUsableInfoPath, data: structuredClone(userUsableInfo) });
+          console.log(userUsableInfoPath, 'ok:', res != null);
+          
           console.log('driveに保存が完了しました');
+          logger('Google Drive AppDataへの保存が完了しました。', 2000);
           isChanged = false;
         } catch(err) {
-          logger('error', err.message);
+          logger('Google Drive AppDataへの保存中にエラーが発生しました。', 2000);
+          catchErrorHandler(err);
         }
       }
       
@@ -753,8 +1009,9 @@
         gameKind = gameSelect.value;
         currentGameInfo = structuredClone(gameInfo[gameKind]);
         currentGameInfo.gameKind = gameKind;
+        // inputKindに選択肢がある場合
         if (Array.isArray(gameInfo[gameKind].input)) {
-          currentGameInfo.inputShapeIdx = 0;
+          currentGameInfo.inputShapeIdx = userInfo.game[gameKind].inputTypeIdx ?? 0;
           currentGameInfo.input = currentGameInfo.input[currentGameInfo.inputShapeIdx];
         }
         else
@@ -1444,8 +1701,14 @@
       gameSelect.addEventListener('change', handleChange);
       
       async function initDrive() {
-        logger('Google Drive appDataFolderから以前のデータの取得を試みています...<br>しばらくお待ちください。', 3000);
-        
+        await initDriveManager();
+        if (hasDriveConnection)
+          return await initDataFromDrive();
+        return true;
+      }
+      
+      async function initDriveManager() {
+        logger('Google Driveに接続中', 1000);
         const EMBEDDED_CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
         const EMBEDDED_REDIRECT_URI = 'https://mathotagamma.github.io/statics/drive-api/oauth2callback';
         try {
@@ -1459,42 +1722,53 @@
           });
           
           console.log('info', `Drive連携を初期化しました(space: appdata)。`);
-          
           let res = await drive.auth(true);
+          // ポップアップをブロックなどをした場合、awaitが返ってこないためsetTimeoutする。
+          
           if (!res.ok)
             res = await drive.auth(false);
-          if (!res.ok) {
-            alert('Googleアカウントと連携できませんでした。再度試してください。');
-            drive = null;
-            hasDriveConnection = false;
+          if (res.ok) {
+            // 一度でもログインできた場合はGuestにしない
+            isGuest = false;
+            hasDriveConnection = true;
             return;
           }
-          hasDriveConnection = true;
         } catch (e) {
-          drive = null;
-          hasDriveConnection = false;
-          console.log('error', `Drive連携の初期化に失敗しました: ${e.message}`);
+          logger(`Drive連携の初期化に失敗しました: ${e.message}`, 2500);
         }
+        if (!isGuest)
+          alert('Googleアカウントと連携できませんでした。再度試してください。');
+        else
+          alert('Googleアカウントと連携できませんでした。ゲストでプレイします。');
+        isGuest = true;
+        hasDriveConnection = false;
+        if (drive != null)
+          await drive.signOut();
+        drive = null;
+        hasDriveConnection = false;
       }
       
+      // return falseは、初期化を中断してリロードを促す。
       async function initDataFromDrive() {
         if (!hasDriveConnection || drive == null)
           return;
+        logger('Google Drive appDataFolderから以前のデータの取得を試みています...<br>しばらくお待ちください。', 3000);
+        let hasError = false;
         // 読み込むファイル
         // directory +
         /*
           entirely-layers-info.json
+          user-usable-info.json
         */
         try {
           const entirelyLayersInfoPath = appDataDirectory + 'entirely-layers-info.json';
           
-          let res = await drive.getFileId({ path: entirelyLayersInfoPath });
+          const res = await drive.getFile({ path: entirelyLayersInfoPath, type: 'json' });
           if (res == null) {
-            console.log(entirelyLayersInfoPath+'ファイルが見つかりませんでした。layersInfoを初期化します。');
-            
+            console.log(entirelyLayersInfoPath+'ファイルが見つかりませんでした。');
           } else {
+            const rawEntirelyLayersInfo = res;
             console.log(entirelyLayersInfoPath+'ファイルが見つかりました。entirelyLayersInfoに同期します。');
-            const rawEntirelyLayersInfo = await drive.getFile({ path: entirelyLayersInfoPath, type: 'json' });
             entirelyLayersInfo = structuredClone(rawEntirelyLayersInfo);
             for (let key of Object.keys(rawEntirelyLayersInfo)) {
               const driveLayersInfo_k = rawEntirelyLayersInfo[key];
@@ -1502,21 +1776,51 @@
                 entirelyLayersInfo[key][index].args = new Map(Object.entries(rawEntirelyLayersInfo[key][index].args));
               }
             }
-            console.log('同期完了');
+            // mergeMissingKeysは必要ない。
+            // init()内で初めに全てのgameKindをkey、空の配列をvalueとした辞書型に代入しているため。
+            console.log('entirelyLayersInfo 同期完了');
             // console.log(JSON.stringify(rawEntirelyLayersInfo, null, 2));
           }
         } catch(err) {
+          hasError = true;
           console.log(err.message);
+          logger('Google Drive AppDataからDataを取得中にエラーが発生しました。');
+          
+          // entirelyLayersInfoは既に初期値が代入されている。
         }
-      }
-      
-      // ===== 現段階で使用/利用できる情報 =====
-      /*
-       ※ units.max等、数値の範囲を絞る際は、
-         layerInitArgs等の初期値設定が範囲内になるように設定すること！！
-      */
-      function initUserData() {
-        usableInfo = structuredClone(usableInfoOrigin);
+        
+        try {
+          const userUsableInfoPath = appDataDirectory + 'user-usable-info.json';
+          
+          const res = await drive.getFile({ path: userUsableInfoPath, type: 'json' });
+          
+          if (res == null) {
+            console.log(userUsableInfoPath+'ファイルが見つかりませんでした。userInfo, usableInfoを初期化します。');
+            userInfo = structuredClone(userInfoOrigin);
+            usableInfo = structuredClone(usableInfoOrigin);
+          } else {
+            console.log(userUsableInfoPath+'ファイルが見つかりました。userInfo, usableInfoを同期します。');
+            const rawUserUsableInfo = res;
+            userInfo = mergeMissingKeys(structuredClone(rawUserUsableInfo.userInfo), userInfoOrigin);
+            usableInfo = mergeMissingKeys(structuredClone(rawUserUsableInfo.usableInfo), usableInfoOrigin);
+          }
+        } catch(err) {
+          hasError = true;
+          console.log(err.message);
+          logger('Google Drive AppDataからDataを取得中にエラーが発生しました。');
+          if (!confirm('ファイルが壊れている可能性があるため、確認後初期化を行います。\n初期化を避ける場合はキャンセル後リロードを行なってください。')) {
+            return false;
+          }
+          // 初期値代入
+          // userInfo, usableInfo
+          userInfo = structuredClone(userInfoOrigin);
+          usableInfo = structuredClone(usableInfoOrigin);
+        }
+        if (hasError) {
+          // ファイルが壊れている可能性があるため、代入した値で保存する。
+          dataSaveToDrive();
+        }
+        return true;
       }
 
       async function init() {
@@ -1524,13 +1828,16 @@
           entirelyLayersInfo[gameKind_k] = [];
         }
         
-        await initDrive();
-        if (hasDriveConnection)
-          await initDataFromDrive();
-        initUserData();
+        const ret = await initDrive();
+        if (!ret) {
+          logger('初期化を中断しました。リロードを行なってください。', 2000);
+          return;
+        }
+        updateGoogleUI();
         layerEditItemsInit();
         initGame();
         draw();
+        logger('構築が完了しました。');
       }
       init();
     </script>
