@@ -26,6 +26,14 @@
         justify-content: space-between;
         overflow: visible;
       }
+      .header-left-container {
+        display: flex;
+        flex-direction: column;
+      }
+      .header-left-mini-container {
+        display: flex;
+        flex-direction: row;
+      }
       .header-user-info-container {
         position: relative;
         border: 1px solid red;
@@ -201,9 +209,9 @@
       
       #logger-div {
         position: absolute;
-        bottom: 0;
+        top: 0;
         left: 100px;
-        transform: translate(0, 100%);
+        transform: translate(0, -100%);
         background: rgb(255, 150, 150);
         padding: 10px;
         max-height: 300px;
@@ -211,7 +219,7 @@
         transition: all 0.5s ease;
       }
       #logger-div.show {
-        bottom: 40px;
+        top: 40px;
         transform: translate(0, 0);
       }
       
@@ -250,12 +258,15 @@
   </head>
   <body>
     <header>
-      <div class="header-left">
+      <div class="header-left-container">
         <nav class="breadcrumb"></nav>
-        <div class="font-size-L">AI Creator Battle</div>
+        <div class="header-left-mini-container">
+          <div class="font-size-L">AI Creator Battle</div>
+          <button id="transition-to-solo" disabled>このモデルで試す</button>
+        </div>
       </div>
       <div class="header-user-info-container">
-        <div id="user-name-div">---</div>
+        <div id="user-name-div">未ログイン</div>
         <img id="user-photo-img" />
         <div id="header-user-info-dropdown-container-div">
           <button id="drive-check-btn">連携状態チェック</button>
@@ -315,6 +326,7 @@
       import DriveAPIManager from '/statics/drive-api/6-4/manager.js';
       import { CogniKeel, Layer } from "https://mathotagamma.github.io/APIs/CogniKeel/1-02-03/CogniKeel.js";
       
+      const transitionToSolo = document.getElementById('transition-to-solo');
       const userNameDiv = document.getElementById('user-name-div');
       const userPhotoImg = document.getElementById('user-photo-img');
       const headerUserInfoDropdownContainerDiv = document.getElementById('header-user-info-dropdown-container-div');
@@ -653,6 +665,13 @@
       const layerContainerList = [];
       
       let isUserInfoDropdown = false;
+      
+      transitionToSolo.addEventListener('click', () => {
+        if (isChanged)
+          if (!confirm('保存していない変更があります。このまま遷移しますか？'))
+            return;
+        window.location.href = "/ai-creator-battle/solo/";
+      });
       
       // targetに存在しないkeyをsourceから埋める。
       // 最上層配列はダメ。辞書型の入れ子のみ
@@ -1892,6 +1911,8 @@ expired...${status.expired}`);
         initGame();
         draw();
         logger('構築が完了しました。');
+        
+        transitionToSolo.disabled = false;
       }
       init();
     </script>
