@@ -951,7 +951,8 @@ class ReplayBuffer extends Common {
       nextState.set(structuredClone(this.nextState[index]), stateOffset);
       done[count] = this.done[index];
 
-      
+      if (rand < 0 || rand >= 1)
+        this.throwError('Xorshift32の値が不正(0<rand<=1でない)です。('+rand+')');
       
       stateOffset += stateLength;
     }
