@@ -952,7 +952,9 @@ class ReplayBuffer extends Common {
       done[count] = this.done[index];
 
       if (rand < 0 || rand >= 1)
-        this.throwError('Xorshift32の値が不正(0<rand<=1でない)です。('+rand+')');
+        this.throwError(`Xorshift32の値が不正(0<rand<=1でない)です。(${rand})`);
+      if (done[count] !== 0 && done[count] !== 1)
+        this.throwError(`doneの値が不正です。${done[count}`);
       
       stateOffset += stateLength;
     }
