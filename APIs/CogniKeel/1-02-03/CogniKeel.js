@@ -1,5 +1,3 @@
-// 1-02-04 エラーハンドリング・null/NaN判定を強化
-
 /*
 new CogniKeel({ inputShape: [84,84,4], 
 */
@@ -951,11 +949,6 @@ class ReplayBuffer extends Common {
       nextState.set(structuredClone(this.nextState[index]), stateOffset);
       done[count] = this.done[index];
 
-      if (rand < 0 || rand >= 1)
-        this.throwError(`Xorshift32の値が不正(0<rand<=1でない)です。(${rand})`);
-      if (done[count] !== 0 && done[count] !== 1)
-        this.throwError(`doneの値が不正です。${done[count}`);
-      
       stateOffset += stateLength;
     }
     
