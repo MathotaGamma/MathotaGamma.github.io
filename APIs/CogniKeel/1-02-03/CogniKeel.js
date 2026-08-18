@@ -1,3 +1,5 @@
+// 1-02-04 エラーハンドリング・null/NaN判定を強化
+
 /*
 new CogniKeel({ inputShape: [84,84,4], 
 */
@@ -943,11 +945,13 @@ class ReplayBuffer extends Common {
     for (; count < batchSize; count++) {
       rand = this.Xorshift32();
       index = Math.floor(length*rand);
-      state.set(this.state[index], stateOffset);
+      state.set(structuredClone(this.state[index]), stateOffset);
       action[count] = this.action[index];
       reward[count] = this.reward[index];
-      nextState.set(this.nextState[index], stateOffset);
+      nextState.set(structuredClone(this.nextState[index]), stateOffset);
       done[count] = this.done[index];
+
+      
       
       stateOffset += stateLength;
     }
