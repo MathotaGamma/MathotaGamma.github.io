@@ -940,21 +940,35 @@ class ReplayBuffer extends Common {
     const reward = new Float32Array(batchSize);
     const nextState = new Float32Array(batchSize*stateLength);
     const done = new Uint8Array(batchSize);
-    
+    let miniState;
+    let miniNextState;
     let stateOffset = 0;
+
     for (; count < batchSize; count++) {
       rand = this.Xorshift32();
       index = Math.floor(length*rand);
-      state.set(structuredClone(this.state[index]), stateOffset);
+      miniState = structuredClone(this.state[index]);
+      miniNextState = structuredClone(this.nextState[index]);
+      state.set(miniState, stateOffset);
       action[count] = this.action[index];
       reward[count] = this.reward[index];
-      nextState.set(structuredClone(this.nextState[index]), stateOffset);
+      nextState.set(miniNextState, stateOffset);
       done[count] = this.done[index];
 
       if (rand < 0 || rand >= 1)
         this.throwError(`Xorshift32の値が不正(0<rand<=1でない)です。(${rand})`);
       if (done[count] !== 0 && done[count] !== 1)
-        this.throwError(`doneの値が不正です。${done[count}`);
+        this.throwError(`doneの値が不正です。${done[count]}`);
+      if (Number.isNaN(action[count]))
+        this.throwError(`actionの値が不正です。${action[count]}`);
+      if (Number.isNaN(reward[count]))
+        this.throwError(`rewardの値が不正です。${reward[count]}`);
+      for (let ind = 0; ind < stateLength; ind++) {
+        if (Number.isNaN(miniState[ind]))
+          this.throwError(`stateの値が不正です。${miniState[ind]}`);
+        if (Number.isNaN(miniNextState[ind]))
+          this.throwError(`nextStateの値が不正です。${miniNextState[ind]}`);
+      }
       
       stateOffset += stateLength;
     }
