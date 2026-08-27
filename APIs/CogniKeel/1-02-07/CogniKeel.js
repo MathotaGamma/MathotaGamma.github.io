@@ -1,5 +1,6 @@
 // 1-02-06 remember()にstate/action/reward/nextState/doneの即時NaN検査を追加、ReplayBuffer.sample()のthrowError呼び出し(引数不足でmessageがundefinedになるバグ)を修正
 // remember()の検証を強化(typeof厳密チェック+Infinityも検出、配列/TypedArrayでのすり抜けを防止)
+// ReplayBuffer.configure()がcapacity数値だけ書き換えて配列を再確保していなかったバグを修正(TypedArrayのサイズと実際のcapacityがズレ、境界外の書き込み/読み込みが黙って無視されreward等がNaN化していた)
 
 /*
 new CogniKeel({ inputShape: [84,84,4], 
@@ -57,6 +58,8 @@ class CogniKeel extends Common {
   #onlineNetwork;
   #targetNetwork;
   #replayBuffer;
+  
+  static VERSION = '1-02-07';
   // 例: [84,84,4]...84*84*4の入力(例えば84px*84pxの画像過去4フレーム)
   // orderがC,H,Wでarray[C][H][W]、nullならそのまま
   /*
@@ -1020,27 +1023,44 @@ configure ${configureArgs}`
 古い経験から捨てていく。(indexを循環させることで古い経験が捨てられる。)
 */
 class ReplayBuffer extends Common {
-  constructor(config) {
+  constructor(capacity) {
     super();
-    this.configure(config);
+    // 次に保存するindex
+    this.index = 0;
+    // 保存されている経験の数
+    this.length = 0;
+    this.configure(capacity);
+  }
+  
+  // replayBufferSizeを決定する。
+  // 実際にSoA配列(state,action,reward,nextState,done)をこのサイズで確保し直す。
+  // バグ修正: 以前はthis.capacityという数値を書き換えるだけで、
+  // 実際のstate/action/reward/nextState/done配列を再確保していなかった。
+  // そのためCogniKeelのconstructor時のreplayBufferSizeと、
+  // その後のck.configure()に渡すreplayBufferSizeが食い違うと、
+  // this.capacity(論理サイズ)と実配列の長さがズレてしまっていた。
+  // state/nextStateは通常のArrayなので境界を超えても黙って伸びて気づかれないが、
+  // action/reward/doneはTypedArray(固定長)のため、境界外の書き込みは黙って無視され、
+  // 読み出すとundefinedが返る。それがFloat32Arrayに代入される際にNaNへ変換され、
+  // 「学習を進めるとcapacity付近のindexでrewardがNaNになる」という
+  // 追いにくいバグを引き起こしていた。
+  configure(capacity) {
+    if (!Number.isInteger(capacity) || capacity <= 0)
+      this.throwError('configure', `capacityは正の整数である必要があります。(capacity: ${capacity})`);
+    // 既に経験が保存された状態でcapacityを変更すると、
+    // 配列を再確保した瞬間にそれまでの経験が失われる(かつindex/lengthの整合性も崩れる)ため、
+    // ズレの再発防止も兼ねて明示的にエラーとする。
+    if (this.length > 0 && capacity !== this.capacity)
+      this.throwError('configure', `既に経験が${this.length}件保存された状態でreplayBufferSize(capacity)を変更することはできません。学習を開始する前(remember()を呼ぶ前)に一度だけ設定してください。(現在のcapacity: ${this.capacity}, 変更後に指定されたcapacity: ${capacity})`);
+    
+    this.capacity = capacity;
     // SoAで保存。
-    const capacity = this.capacity;
     this.state = new Array(capacity);
     this.action = new Uint32Array(capacity);
     this.reward = new Float32Array(capacity);
     this.nextState = new Array(capacity);
     // true...1, false...0
     this.done = new Uint8Array(capacity);
-    
-    // 次に保存するindex
-    this.index = 0;
-    // 保存されている経験の数
-    this.length = 0;
-  }
-  
-  // replayBufferSizeを決定する
-  configure(capacity) {
-    this.capacity = capacity
   }
   
   // 配列に経験を保存し、index,lengthを更新する。
@@ -2692,5 +2712,6 @@ class WebGL extends Common {
     
   }
 }
+
 
 export { CogniKeel, Layer };
