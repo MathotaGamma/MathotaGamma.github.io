@@ -59,7 +59,7 @@ class CogniKeel extends Common {
   #targetNetwork;
   #replayBuffer;
   
-  static VERSION = '1-02-07';
+  static VERSION = '1-02-06';
   // 例: [84,84,4]...84*84*4の入力(例えば84px*84pxの画像過去4フレーム)
   // orderがC,H,Wでarray[C][H][W]、nullならそのまま
   /*
