@@ -1,4 +1,5 @@
 // 1-02-06 remember()にstate/action/reward/nextState/doneの即時NaN検査を追加、ReplayBuffer.sample()のthrowError呼び出し(引数不足でmessageがundefinedになるバグ)を修正
+// remember()の検証を強化(typeof厳密チェック+Infinityも検出、配列/TypedArrayでのすり抜けを防止)
 
 /*
 new CogniKeel({ inputShape: [84,84,4], 
@@ -673,20 +674,38 @@ configure ${configureArgs}`
     done
   })
   {
-    // ここで即座に検査することで、環境(シミュレーション)側で発生したNaNを
+    // ここで即座に検査することで、環境(シミュレーション)側で発生したNaN/Infinityを
     // その場で捕捉する。ReplayBuffer.sample()まで検査を先送りすると、
     // 実際に問題が発生したstepから何ステップも後、たまたまその経験がサンプリング
     // された時に初めてエラーになり、原因の特定が非常に困難になるため。
-    if (reward == null || Number.isNaN(reward))
-      this.throwError('remember', `引数のrewardが不正な値です(NaN, null相当)。reward: ${reward} 環境側の報酬計算(0除算、負数のsqrt/log、範囲外の値など)を確認してください。`);
-    if (action == null || Number.isNaN(action))
-      this.throwError('remember', `引数のactionが不正な値です(NaN, null相当)。action: ${action}`);
+    //
+    // 注意: Number.isNaN()は「型がnumberでNaNの場合のみtrue」を返す。
+    // reward/actionを誤って配列やFloat32Array(例: [NaN], new Float32Array([NaN]))
+    // で渡すとNumber.isNaN()はfalseを返してこのチェックをすり抜けてしまい、
+    // 後でFloat32Arrayへの代入時に暗黙の型変換でNaNとして書き込まれてしまう。
+    // これを防ぐため、typeofまで含めて厳密にチェックする。
+    const checkScalar = (name, value) => {
+      if (typeof value !== 'number' || !Number.isFinite(value))
+        this.throwError('remember', `引数の${name}が不正な値です。有限の数値(number型)である必要があります。${name}: ${value} (型: ${typeof value})`);
+    };
+    
+    const checkVector = (name, value) => {
+      if (value == null)
+        this.throwError('remember', `引数の${name}が不正な値です(null相当)。`);
+      const arr = (Array.isArray(value) || value instanceof Float32Array) ? value : [value];
+      for (let i = 0; i < arr.length; i++) {
+        const v = arr[i];
+        if (typeof v !== 'number' || !Number.isFinite(v))
+          this.throwError('remember', `引数の${name}[${i}]が不正な値です(NaNまたはInfinity、もしくはnumber型でない)。${name}[${i}]: ${v} (型: ${typeof v})`);
+      }
+    };
+    
+    checkScalar('reward', reward);
+    checkScalar('action', action);
     if (done == null)
       this.throwError('remember', `引数のdoneが不正な値です(null相当)。done: ${done}`);
-    if (state == null || (Array.isArray(state) || state instanceof Float32Array ? state : [state]).some(value => value == null || Number.isNaN(value)))
-      this.throwError('remember', `引数のstateに不正な値(NaN, null相当)が含まれています。state: ${state}`);
-    if (nextState == null || (Array.isArray(nextState) || nextState instanceof Float32Array ? nextState : [nextState]).some(value => value == null || Number.isNaN(value)))
-      this.throwError('remember', `引数のnextStateに不正な値(NaN, null相当)が含まれています。nextState: ${nextState} 環境側のstate計算(0除算、角度のラップ処理、積分の発散など)を確認してください。`);
+    checkVector('state', state);
+    checkVector('nextState', nextState);
     
     this.#replayBuffer.add(structuredClone({
       state, action, reward, nextState, done
