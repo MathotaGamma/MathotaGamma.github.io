@@ -10,6 +10,65 @@
     <header>
       <nav class="breadcrumb"></nav>
       <h1>Solo | AI Creator Battle</h1>
+      <script type="module">
+        import { DriveManager, updateDriveUserInfoUI, mergeMissingKeys } from '/ai-creator-battle/drive-manager.js';
+
+        let hasDriveConnection = false;
+        const appDataDirectory = '/application-data/ai-creator-battle/';
+
+        const driveManager = new DriveManager({
+          clientId: '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com',
+          redirectUri: 'https://mathotagamma.github.io/statics/drive-api/oauth2callback',
+          appDataDirectory: '/application-data/',
+          onLog: (message, duration) => logger(message, duration),
+          onLoginWithAnotherEmail: (prevEmail, newEmail) => {
+            alert(`以前とは異なるアカウントでログインしました(前回:${prevEmail})。`);
+          },
+        });
+
+        async function init() {
+          await driveManager.init();
+
+          const ok = await driveConnect();
+          alert(ok);
+          if (!ok)
+            return;
+        }
+
+        async function driveConnect() {
+          hasDriveConnection = await driveManager.driveCheck(false);
+
+          if (!hasDriveConnection) {
+            alert('Google Driveと連携できませんでした。再度お試しください。');
+            return false;
+          }
+          let ok = false;
+          let file = null; 
+          file = await driveManager.getFile({
+            path: appDataDirectory + 'entirely-layers-info.json',
+            type: 'json'
+          });
+          ok = file != null;
+          if (ok) {
+            file = await driveManager.getFile({
+              path: appDataDirectory + 'user-usable-info.json',
+              type: 'json'
+            });
+            ok = file != null;
+          }
+
+          if (!ok) {
+            if (confirm('Driveに、必要なデータが構築されていません。一度、「モデルを編集」ページを訪れる必要があります。\nページを移動しますか？'))
+              window.location.href = '../model-editor/';
+            return;
+          }
+
+          // OK
+          return true;
+        }
+
+        init();
+      </script>
     </header>
   </body>
 </html>
