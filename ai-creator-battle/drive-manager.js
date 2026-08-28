@@ -106,8 +106,14 @@ export class DriveManager {
   // hasDriveConnectionのみ更新する。
   // 戻り値: hasDriveConnection(boolean)
   async driveCheck(tryLogIn = true) {
-    if (this.drive == null)
-      await this.init();
+    if (this.drive == null) {
+      if (tryLogIn)
+        await this.init();
+      else {
+        this.hasDriveConnection = false;
+        return false;
+      }
+    }
 
     if (this.drive != null) {
       const checkerRes = this.checker();
