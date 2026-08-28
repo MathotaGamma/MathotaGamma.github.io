@@ -371,9 +371,9 @@ class CogniKeel extends Common {
   // weightsIncludeは、重み情報を載せるか(つまり、層の情報のみ載せる場合)
   // precisionは、full, high, medium, low, lower, leastで、重みなどの保存桁数を指定する
   getMCLM(args) {
-    const { weightsIncludes=true, precision='high' } = args ?? {};
+    const { weightsInclude=true, precision='high' } = args ?? {};
     let content = '';
-    function getHeader({ weights, precision, configureArgs }) {
+    function getHeader({ weightsInclude, precision, configureArgs }) {
       return `weightsInclude ${String(weightsInclude)}
 precision ${precision}
 configure ${configureArgs}`
