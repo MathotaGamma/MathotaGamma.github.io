@@ -1,4 +1,4 @@
-// 1-02-07 getMCLMの引数を{ weights, precision }に変更。これに伴い、各LayerのtoMCLMのコードも変更
+// 1-02-07 getMCLMの引数を{ weightsInclude, precision }に変更。これに伴い、各LayerのtoMCLMのコードも変更
 
 /*
 new CogniKeel({ inputShape: [84,84,4], 
@@ -368,19 +368,19 @@ class CogniKeel extends Common {
   }
   
   // まだ完成していない
-  // weightsは、重み情報を載せるか(つまり、層の情報のみ載せる場合)
+  // weightsIncludeは、重み情報を載せるか(つまり、層の情報のみ載せる場合)
   // precisionは、full, high, medium, low, lower, leastで、重みなどの保存桁数を指定する
   getMCLM(args) {
-    const { weights=true, precision='high' } = args ?? {};
+    const { weightsIncludes=true, precision='high' } = args ?? {};
     let content = '';
     function getHeader({ weights, precision, configureArgs }) {
-      return `weightsIncludes ${String(weights)}
+      return `weightsInclude ${String(weightsInclude)}
 precision ${precision}
 configure ${configureArgs}`
     }
     
     content += getHeader({
-      weights,
+      weightsInclude,
       precision,
       configureArgs: JSON.stringify(this.#configureArgs)
     });
@@ -389,7 +389,7 @@ configure ${configureArgs}`
     
     for (const layer of layers) {
       content += '\n\n#' + layer.getKind() + '\n';
-      const miniMCLMList = layer.toMCLM({ weights, precision });
+      const miniMCLMList = layer.toMCLM({ weightsInclude, precision });
       for (const miniMCLM of Object.keys(miniMCLMList)) {
         let miniMCLMData = miniMCLMList[miniMCLM];
         if (Array.isArray(miniMCLMData))
@@ -1834,8 +1834,8 @@ class DenseLayer extends Layer {
     super.activationInit();
   }
   
-  toMCLM({ weights, precision }) {
-    if (!weights) {
+  toMCLM({ weightsInclude, precision }) {
+    if (!weightsInclude) {
       return {
         activation: this.activation,
         units: this.units
@@ -2511,7 +2511,7 @@ class BaseSpatialLayer extends Layer {
     return outputs;
   }
   
-  toMCLM({ weights, precision }) {
+  toMCLM({ weightsInclude, precision }) {
     const retData = {
       activation: this.activation,
       kernel: this.originalKernel,
@@ -2523,7 +2523,7 @@ class BaseSpatialLayer extends Layer {
       retData.filter = this.filter;
     if (this.type != null)
       retData.type = this.type;
-    if (weights && this.weights != null && this.biases != null)
+    if (weightsInclude && this.weights != null && this.biases != null)
       ({biases: retData.b, weights: retData.w} = this.getJoinedWeights(precision));
     
     return retData;
