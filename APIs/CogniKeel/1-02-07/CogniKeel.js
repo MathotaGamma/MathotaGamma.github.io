@@ -380,6 +380,7 @@ configure ${configureArgs}`
     }
     
     content += getHeader({
+      weights,
       precision,
       configureArgs: JSON.stringify(this.#configureArgs)
     });
