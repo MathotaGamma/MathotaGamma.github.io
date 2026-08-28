@@ -3,23 +3,61 @@
   <head>
     <meta charset="utf-8" />
     <title>Solo | AI Creator Battle</title>
-    <link rel="stylesheet" href="/statics/main-style.css" />
-    <script type="module" src="/statics/main-script.js"></script>
+    <link rel="stylesheet" href="https://mathotagamma.github.io/statics/main-style.css" />
+    <script type="module" src="https://mathotagamma.github.io/statics/main-script.js"></script>
+    <style>
+      #alert-div {
+        font-weight: bold;
+        color: red;
+        border: 1px solid grey;
+        display: inline-block;
+        padding: 2px;
+      }
+      
+      #btn-container {
+        margin-top: 5px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      
+      button {
+        background: white;
+        border: 1px solid black;
+        border-radius: 10px;
+        min-width: 200px;
+        min-height: 75px;
+        font-size: 20px;
+      }
+    </style>
   </head>
   <body>
     <header>
       <nav class="breadcrumb"></nav>
       <h1>Solo | AI Creator Battle</h1>
+      <div id="alert-div">
+        Google Driveに接続中です。しばらくお待ちください。
+      </div>
+      <div id="btn-container">
+      </div>
       <script type="module">
-        import { DriveManager, updateDriveUserInfoUI, mergeMissingKeys } from '/ai-creator-battle/drive-manager.js';
+        import { DriveManager, updateDriveUserInfoUI, mergeMissingKeys } from 'https://mathotagamma.github.io/ai-creator-battle/drive-manager.js';
 
+        const alertDiv = document.getElementById('alert-div');
+        const btnContainer = document.getElementById('btn-container');
+        
         let hasDriveConnection = false;
+        let userUsableInfo = null;
         const appDataDirectory = '/application-data/ai-creator-battle/';
+        
+        function logger(message, _) {
+          console.log(message)
+        }
 
         const driveManager = new DriveManager({
           clientId: '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com',
           redirectUri: 'https://mathotagamma.github.io/statics/drive-api/oauth2callback',
-          appDataDirectory: '/application-data/',
+          appDataDirectory,
           onLog: (message, duration) => logger(message, duration),
           onLoginWithAnotherEmail: (prevEmail, newEmail) => {
             alert(`以前とは異なるアカウントでログインしました(前回:${prevEmail})。`);
@@ -28,16 +66,31 @@
 
         async function init() {
           await driveManager.init();
-
+          
           const ok = await driveConnect();
-          alert(ok);
+          
           if (!ok)
             return;
+            
+          alertDiv.innerHTML = 'Driveに接続しました。';
+          // alertDiv.innerHTML = JSON.stringify(userUsableInfo, null, 2).replaceAll(/ /g, '&nbsp;').replaceAll(/\n/g, '<br>');
+          alertDiv.style.color = "blue";
+          
+          btnContainer.innerHTML = "";
+          
+          for (let gameKind of Object.keys(userUsableInfo.userInfo.solo)) {
+            const btn = document.createElement('button');
+            btn.innerHTML = gameKind;
+            btn.onclick = () => {
+              window.location.href = './'+gameKind+'/';
+            }
+            btnContainer.appendChild(btn);
+          }
         }
 
         async function driveConnect() {
-          hasDriveConnection = await driveManager.driveCheck(false);
-
+          hasDriveConnection = await driveManager.checker().ok;
+          
           if (!hasDriveConnection) {
             alert('Google Driveと連携できませんでした。再度お試しください。');
             return false;
@@ -45,22 +98,22 @@
           let ok = false;
           let file = null; 
           file = await driveManager.getFile({
-            path: appDataDirectory + 'entirely-layers-info.json',
+            path: 'entirely-layers-info.json',
             type: 'json'
           });
           ok = file != null;
           if (ok) {
-            file = await driveManager.getFile({
-              path: appDataDirectory + 'user-usable-info.json',
+            userUsableInfo = await driveManager.getFile({
+              path: 'user-usable-info.json',
               type: 'json'
             });
-            ok = file != null;
+            ok = userUsableInfo != null;
           }
 
           if (!ok) {
             if (confirm('Driveに、必要なデータが構築されていません。一度、「モデルを編集」ページを訪れる必要があります。\nページを移動しますか？'))
               window.location.href = '../model-editor/';
-            return;
+            return false;
           }
 
           // OK
