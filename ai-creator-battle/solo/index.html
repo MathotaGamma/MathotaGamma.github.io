@@ -89,14 +89,17 @@
         }
 
         async function driveConnect() {
+          alertDiv.innerHTML = 'Google Driveとの接続状況を取得中です。';
           hasDriveConnection = await driveManager.checker().ok;
           
           if (!hasDriveConnection) {
             alert('Google Driveと連携できませんでした。再度お試しください。');
+            alertDiv.innerHTML = 'Google Driveに接続できませんでした。<br>ページのリロードをお試しください。';
             return false;
           }
           let ok = false;
-          let file = null; 
+          let file = null;
+          alertDiv.innerHTML = 'Google Driveからアプリデータ内ファイルを取得中。しばらくお待ち下さい。';
           file = await driveManager.getFile({
             path: 'entirely-layers-info.json',
             type: 'json'
@@ -111,11 +114,12 @@
           }
 
           if (!ok) {
-            if (confirm('Driveに、必要なデータが構築されていません。一度、「モデルを編集」ページを訪れる必要があります。\nページを移動しますか？'))
+            if (confirm('Google Driveに、必要なデータが構築されていません。一度、「モデルを編集」ページを訪れる必要があります。\nページを移動しますか？'))
               window.location.href = '../model-editor/';
+            alertDiv.innerHTML = 'Google Driveに、必要なデータが構築されていません。<br>一度、「モデルを編集」ページを訪れる必要があります。<br><a href="../model-editor/">モデルを編集</a>';
             return false;
           }
-
+          alertDiv.innerHTML = 'Google Driveに正常に接続できました。<br>AIを実行するゲームを選んでください。';
           // OK
           return true;
         }
