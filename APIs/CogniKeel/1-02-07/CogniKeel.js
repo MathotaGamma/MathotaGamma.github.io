@@ -1834,7 +1834,7 @@ class DenseLayer extends Layer {
   }
   
   toMCLM({ weights, precision }) {
-    if (!weihts) {
+    if (!weights) {
       return {
         activation: this.activation,
         units: this.units
