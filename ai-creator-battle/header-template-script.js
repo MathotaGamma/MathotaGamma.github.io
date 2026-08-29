@@ -1,7 +1,9 @@
 // ============================================================
+// Sign In / Sign Out / 連携状態チェックの実行中に、
+// 「進行中」「成功」「失敗」がひと目で分かるステータス表示を追加。
 // 
 // 使い方:
-//   import { createHeader } from './header_template_script.js';
+//   import { createHeader } from 'https://mathotagamma.github.io/ai-creator-battle/header-template-script.js';
 //
 //   const header = createHeader({
 //     title: 'AI Creator Battle',
@@ -40,6 +42,7 @@ export function createHeader({
   } = drive;
 
   let isDropdownOpen = false;
+  let statusHideTimeoutId = null;
 
   // ===== DOM構築 =====
   const headerElem = document.createElement('header');
@@ -88,6 +91,12 @@ export function createHeader({
   const dropdownContainer = document.createElement('div');
   dropdownContainer.classList.add('app-header-user-info-dropdown-container');
 
+  // ===== 進行状況表示用のステータス行 =====
+  const statusP = document.createElement('p');
+  statusP.classList.add('app-header-drive-status');
+  statusP.style.display = 'none';
+  dropdownContainer.appendChild(statusP);
+
   const driveCheckBtn = document.createElement('button');
   driveCheckBtn.innerHTML = '連携状態チェック';
   dropdownContainer.appendChild(driveCheckBtn);
@@ -118,6 +127,27 @@ export function createHeader({
 
   userPhotoImg.addEventListener('click', toggleDropdown);
   userNameDiv.addEventListener('click', toggleDropdown);
+
+  // ===== ステータス表示 =====
+  // kind: 'progress' | 'success' | 'error'
+  // progressは自動で消さない(次のsetStatusまたはhideStatusまで表示し続ける)。
+  // success/errorは一定時間後に自動で消える。
+  function setStatus(text, kind = 'info') {
+    clearTimeout(statusHideTimeoutId);
+    statusP.textContent = text;
+    statusP.dataset.kind = kind;
+    statusP.style.display = 'block';
+    if (kind !== 'progress') {
+      statusHideTimeoutId = setTimeout(() => {
+        statusP.style.display = 'none';
+      }, 3000);
+    }
+  }
+
+  function hideStatus() {
+    clearTimeout(statusHideTimeoutId);
+    statusP.style.display = 'none';
+  }
 
   // ===== Google連携まわりの関数(呼び出し元のロジックをつなぐ) =====
 
@@ -154,7 +184,7 @@ export function createHeader({
   // 連携状態チェック(ボタン押下時、および外部からも呼べる)
   async function driveCheck() {
     if (typeof onCheck !== 'function') {
-      alert('連携状態チェックの処理が設定されていません。');
+      setStatus('連携状態チェックの処理が設定されていません。', 'error');
       return null;
     }
     const status = await onCheck();
@@ -162,28 +192,70 @@ export function createHeader({
     return status;
   }
 
+  // 全ボタンの有効/無効を一括制御(処理中は誤操作を防ぐため全て無効化)
+  function setButtonsDisabled(bool) {
+    driveCheckBtn.disabled = bool;
+    signInBtn.disabled = bool;
+    // signOutBtnは接続状態に応じて別途updateGoogleUI側でも制御されるため、
+    // 処理中のみここでtrueにし、処理後はupdateGoogleUIの結果に委ねる。
+    if (bool)
+      signOutBtn.disabled = true;
+  }
+
   driveCheckBtn.addEventListener('click', async () => {
-    const status = await driveCheck();
-    if (status)
-      alert(`Google連携状態...${status.ok ? 'OK' : 'No'}
-loggedIn...${status.loggedIn}
-expired...${status.expired}`);
+    setStatus('連携状態を確認中...', 'progress');
+    setButtonsDisabled(true);
+    try {
+      const stat = await driveCheck();
+      setStatus(
+        stat != null
+          ? `確認完了: ${stat.ok ? 'OK' : 'NG'}(loggedIn: ${stat.loggedIn}, expired: ${stat.expired}）`
+          : '確認できませんでした。',
+        stat != null && stat.ok ? 'success' : 'error'
+      );
+    } catch (err) {
+      console.error('driveCheck error:', err);
+      setStatus('確認中にエラーが発生しました。', 'error');
+    } finally {
+      setButtonsDisabled(false);
+      await updateGoogleUI();
+    }
   });
 
   signInBtn.addEventListener('click', async () => {
-    if (typeof onSignIn === 'function')
-      await onSignIn();
-    await updateGoogleUI();
-    closeDropdown();
+    setStatus('サインイン処理中...', 'progress');
+    setButtonsDisabled(true);
+    try {
+      if (typeof onSignIn === 'function')
+        await onSignIn();
+      await updateGoogleUI();
+      setStatus('サインインしました。', 'success');
+    } catch (err) {
+      console.error('signIn error:', err);
+      setStatus('サインインに失敗しました。', 'error');
+    } finally {
+      setButtonsDisabled(false);
+      await updateGoogleUI();
+    }
   });
 
   signOutBtn.addEventListener('click', async () => {
     if (signOutBtn.disabled)
       return;
-    if (typeof onSignOut === 'function')
-      await onSignOut();
-    await updateGoogleUI();
-    closeDropdown();
+    setStatus('サインアウト処理中...', 'progress');
+    setButtonsDisabled(true);
+    try {
+      if (typeof onSignOut === 'function')
+        await onSignOut();
+      await updateGoogleUI();
+      setStatus('サインアウトしました。', 'success');
+    } catch (err) {
+      console.error('signOut error:', err);
+      setStatus('サインアウトに失敗しました。', 'error');
+    } finally {
+      setButtonsDisabled(false);
+      await updateGoogleUI();
+    }
   });
 
   // ===== Title設定用関数 =====
@@ -205,6 +277,9 @@ expired...${status.expired}`);
     updateGoogleUI,
     driveCheck,
     closeDropdown,
+    // ステータス表示(外部からも進行状況を出したい場合に使える)
+    setStatus,
+    hideStatus,
     // transitionボタン
     setTransitionDisabled,
     // 内部要素(細かい制御が必要な場合用)
@@ -213,6 +288,7 @@ expired...${status.expired}`);
       userNameDiv,
       userPhotoImg,
       dropdownContainer,
+      statusP,
       driveCheckBtn,
       signInBtn,
       signOutBtn,
