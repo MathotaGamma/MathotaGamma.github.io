@@ -60,7 +60,7 @@ export class DriveManager {
       if (!res.ok)
         res = await this.drive.auth(false);
       */
-      res = await this.drive.auth(true);
+      res = await this.drive.auth(false);
 
       if (res.ok) {
         await this._syncEmailAddress();
