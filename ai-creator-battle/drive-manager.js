@@ -16,7 +16,7 @@
 //   });
 //   await driveManager.init();
 
-import DriveAPIManager from '/statics/drive-api/6-4/manager.js';
+import DriveAPIManager from '/statics/drive-api/6-5/manager.js';
 
 /**
  * Google Drive AppDataとの連携を管理するクラス。
