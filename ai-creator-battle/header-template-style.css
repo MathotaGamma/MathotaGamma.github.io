@@ -10,6 +10,7 @@
     justify-content: space-between;
     align-items: center; /* 子要素を上下中央に配置 */
     overflow: visible;
+    border-bottom: 1px solid black;
   }
   
   .app-header-left-container {
@@ -42,13 +43,10 @@
     align-items: center;
     white-space: nowrap;
     
-    /* マージンの競合を解消 */
     margin-left: auto;
     margin-right: 5px;
     
     padding: 3px 8px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
   }
   
   .app-header-user-name-div {
