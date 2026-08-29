@@ -1,0 +1,8 @@
+{
+  "cartpole": {
+    "ratio": 2.0
+  },
+  "breakout": {
+    "ratio": 1.0
+  }
+}
