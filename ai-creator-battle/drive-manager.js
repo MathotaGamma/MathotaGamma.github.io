@@ -55,9 +55,12 @@ export class DriveManager {
         space: this.space,
       });
 
+      /*
       let res = await this.drive.auth(true);
       if (!res.ok)
         res = await this.drive.auth(false);
+      */
+      res = await this.drive.auth(true);
 
       if (res.ok) {
         await this._syncEmailAddress();
