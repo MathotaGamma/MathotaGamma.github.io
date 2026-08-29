@@ -1,22 +1,27 @@
 // <div id="header-container"></div>で、header-template-script.jsと一緒に使う
 
+
 .app-header {
   width: 100%;
   height: auto;
   display: flex;
   flex-direction: row;
+  flex-wrap: nowrap;
   justify-content: space-between;
+  align-items: center;
   overflow: visible;
 }
 
 .app-header-left-container {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .app-header-left-mini-container {
   display: flex;
   flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 10px;
 }
@@ -25,20 +30,28 @@
   font-size: 1.4rem;
   font-weight: bold;
   margin: 4px 0;
+  white-space: nowrap;
 }
 
 .app-header-user-info-container {
   position: relative;
   display: flex;
   flex-direction: row;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
   align-items: center;
+  white-space: nowrap;
   margin: auto 5px auto auto;
+  padding: 3px 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
 }
 
 .app-header-user-name-div {
   border-bottom: 2px solid rgb(150, 150, 255);
   min-height: 0;
   margin: auto 10px auto 5px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -47,6 +60,7 @@
   background: rgb(150, 150, 150);
   width: 50px;
   height: 50px;
+  flex-shrink: 0;
   cursor: pointer;
 }
 
