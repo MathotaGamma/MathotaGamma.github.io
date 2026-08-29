@@ -1,140 +1,144 @@
-// <div id="header-container"></div>で、header-template-script.jsと一緒に使う
 
+  /* <div id="header-container"></div>で、header-template-script.jsと一緒に使う */
 
-.app-header {
-  width: 100%;
-  height: auto;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: space-between;
-  align-items: center;
-  overflow: visible;
-}
-
-.app-header-left-container {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.app-header-left-mini-container {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.app-header-title {
-  font-size: 1.4rem;
-  font-weight: bold;
-  margin: 4px 0;
-  white-space: nowrap;
-}
-
-.app-header-user-info-container {
-  position: relative;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-  align-items: center;
-  white-space: nowrap;
-  margin: auto 5px auto auto;
-  padding: 3px 8px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}
-
-.app-header-user-name-div {
-  border-bottom: 2px solid rgb(150, 150, 255);
-  min-height: 0;
-  margin: auto 10px auto 5px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.app-header-user-photo-img {
-  border-radius: 50%;
-  background: rgb(150, 150, 150);
-  width: 50px;
-  height: 50px;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.app-header-user-info-dropdown-container {
-  position: absolute;
-  right: 0px;
-  bottom: -2px;
-  transform: translate(0, 100%);
-  z-index: 500;
-  min-width: 150px;
-  min-height: 100px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.3);
-  display: none;
-  flex-direction: column;
-}
-
-.app-header-user-info-dropdown-container.show {
-  display: flex;
-}
-
-.app-header-sign-out-btn {
-  font-weight: bold;
-  color: rgb(200, 0, 0);
-}
-
-.app-header button {
-  cursor: pointer;
-  padding: 4px 8px;
-  background: white;
-  margin: 4px;
-  border: none;
-  box-shadow: 3px 3px 3px #000;
-}
-
-.app-header button:focus,
-.app-header button:active {
-  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-  transform: translate(1px, 1px);
-}
-
-.app-header button:disabled {
-  opacity: 0.5;
-  cursor: default;
-  box-shadow: none;
-}
-
-/* ===== ステータス表示 ===== */
-.app-header-drive-status {
-  margin: 4px 8px;
-  font-size: 0.8rem;
-  font-weight: bold;
-}
-
-.app-header-drive-status[data-kind="progress"] {
-  color: #555;
-}
-
-.app-header-drive-status[data-kind="progress"]::before {
-  content: "⏳ ";
-}
-
-.app-header-drive-status[data-kind="success"] {
-  color: rgb(0, 140, 0);
-}
-
-.app-header-drive-status[data-kind="success"]::before {
-  content: "✓ ";
-}
-
-.app-header-drive-status[data-kind="error"] {
-  color: rgb(200, 0, 0);
-}
-
-.app-header-drive-status[data-kind="error"]::before {
-  content: "✗ ";
-}
+  .app-header {
+    width: 100%;
+    height: auto;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center; /* 子要素を上下中央に配置 */
+    overflow: visible;
+  }
+  
+  .app-header-left-container {
+    display: inline-flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  
+  .app-header-left-mini-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .app-header-title {
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin: 4px 0;
+    white-space: nowrap;
+  }
+  
+  .app-header-user-info-container {
+    position: relative;
+    display: inline-flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    align-items: center;
+    white-space: nowrap;
+    
+    /* マージンの競合を解消 */
+    margin-left: auto;
+    margin-right: 5px;
+    
+    padding: 3px 8px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  
+  .app-header-user-name-div {
+    border-bottom: 2px solid rgb(150, 150, 255);
+    min-height: 0;
+    margin: auto 10px auto 5px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  
+  .app-header-user-photo-img {
+    border-radius: 50%;
+    background: rgb(150, 150, 150);
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  
+  .app-header-user-info-dropdown-container {
+    position: absolute;
+    right: 0px;
+    bottom: -2px;
+    transform: translate(0, 100%);
+    z-index: 500;
+    min-width: 150px;
+    min-height: 100px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.3);
+    display: none;
+    flex-direction: column;
+  }
+  
+  .app-header-user-info-dropdown-container.show {
+    display: flex;
+  }
+  
+  .app-header-sign-out-btn {
+    font-weight: bold;
+    color: rgb(200, 0, 0);
+  }
+  
+  .app-header button {
+    cursor: pointer;
+    padding: 4px 8px;
+    background: white;
+    margin: 4px;
+    border: none;
+    box-shadow: 3px 3px 3px #000;
+  }
+  
+  .app-header button:focus,
+  .app-header button:active {
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    transform: translate(1px, 1px);
+  }
+  
+  .app-header button:disabled {
+    opacity: 0.5;
+    cursor: default;
+    box-shadow: none;
+  }
+  
+  /* ===== ステータス表示 ===== */
+  .app-header-drive-status {
+    margin: 4px 8px;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+  
+  .app-header-drive-status[data-kind="progress"] {
+    color: #555;
+  }
+  
+  .app-header-drive-status[data-kind="progress"]::before {
+    content: "⏳ ";
+  }
+  
+  .app-header-drive-status[data-kind="success"] {
+    color: rgb(0, 140, 0);
+  }
+  
+  .app-header-drive-status[data-kind="success"]::before {
+    content: "✓ ";
+  }
+  
+  .app-header-drive-status[data-kind="error"] {
+    color: rgb(200, 0, 0);
+  }
+  
+  .app-header-drive-status[data-kind="error"]::before {
+    content: "✗ ";
+  }
