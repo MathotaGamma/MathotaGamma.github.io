@@ -76,6 +76,7 @@ class Cartpole {
     else if (action === 1) f = Cartpole.forceSize;
     
     const fixedDt = Cartpole.fixedDt;
+    const halfL = Cartpole.halfL;
     const g = Cartpole.g, m = Cartpole.m, M = Cartpole.M, halfL = Cartpole.halfL;
     const x = this.x, v = this.v, theta = this.theta, omega = this.omega;
 
