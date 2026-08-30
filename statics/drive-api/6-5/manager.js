@@ -570,8 +570,21 @@ class DriveAPIManager {
     return res.parents ?? [];
   }
 
-  async existCheck({ path }) {
-    return (await this.getFileId({ path })) != null;
+  async existCheck({ path, fileId }) {
+    const resolved = await this.integration({ path, fileId });
+    const targetId = resolved.fileId;
+    if (!targetId || targetId === this.rootId) return false;
+ 
+    try {
+      const res = await this.request('GET', `files/${targetId}`, {
+        params: { fields: 'id, trashed' }
+      });
+      return !!res && res.trashed !== true;
+    } catch (e) {
+      // 404(削除済み・権限なし等)を含む取得失敗は「存在しない」として扱う
+      this.progress('existCheck', 'エラー:' + e.message);
+      return false;
+    }
   }
 
   /* =====
