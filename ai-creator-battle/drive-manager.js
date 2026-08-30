@@ -158,18 +158,18 @@ export class DriveManager {
 
   // ===== AppDataへの保存・取得 =====
   // pathはappDataDirectoryからの相対パス(例: 'entirely-layers-info.json')
-  async saveFile({ path, data }) {
+  async saveFile({ path, data, mimeType="application/json" }) {
     if (this.isGuest || !this.hasDriveConnection || this.drive == null)
       return null;
     const fullPath = this.appDataDirectory + path;
-    return await this.drive.saveFile({ path: fullPath, data });
+    return await this.drive.saveFile({ path: fullPath, data, mimeType });
   }
 
-  async getFile({ path, type = 'json' }) {
+  async getFile({ path }) {
     if (this.isGuest || !this.hasDriveConnection || this.drive == null)
       return null;
     const fullPath = this.appDataDirectory + path;
-    return await this.drive.getFile({ path: fullPath, type });
+    return await this.drive.getFile({ path: fullPath  });
   }
 }
 
