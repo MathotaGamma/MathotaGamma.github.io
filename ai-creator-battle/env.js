@@ -87,7 +87,7 @@ class Cartpole {
 
   // { state, action, reward, nextState, done } を返す。
   step(action) {
-    if (action == null)
+    if (action == null || !Number.isFinite(action))
       throw new Error('actionが期待する形式と異なります(action: '+action+')。');
     const retData = {
       state: this.getCurrentState(),
