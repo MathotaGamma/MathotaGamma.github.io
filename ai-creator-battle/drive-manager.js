@@ -157,7 +157,10 @@ export class DriveManager {
   }
 
   async existCheck(path) {
-    return await this.drive.existCheck({path});
+    if (this.isGuest || !this.hasDriveConnection || this.drive == null)
+      return null;
+    const fullPath = this.appDataDirectory + path;
+    return await this.drive.existCheck({ path: fullPath });
   }
 
   // ===== AppDataへの保存・取得 =====
