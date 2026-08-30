@@ -976,7 +976,8 @@ expired...${status.expired}`);
           
           const checkCk = new CogniKeel({
             inputShape: currentGameInfo.input.shape,
-            onLog: () => {}
+            onLog: () => {},
+            modelType: "ddqn"
           });
         
           
