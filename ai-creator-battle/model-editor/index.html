@@ -982,7 +982,7 @@ expired...${status.expired}`);
           checkCk.configure({});
           checkCk.initialize();
           const MCLM = await checkCk.getMCLM({ weightsInclude: false });
-          const mclmPath = appDataDirectory + 'mclm/'+gameKind+'.json';
+          const mclmPath = appDataDirectory + 'mclm/'+gameKind+'.mclm';
           res = await drive.saveFile({ path: mclmPath, data: MCLM });
           console.log(mclmPath, 'ok:', res != null);
           
