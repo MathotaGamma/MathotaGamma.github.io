@@ -1,10 +1,10 @@
 {
   "cartpole": {
-    "span-max": 40,
-    "step": 5
+    "spanMax": 40,
+    "spanStep": 5
   },
   "breakout": {
-    "span-max": 30,
-    "step": 5
+    "spanMax": 30,
+    "spanStep": 5
   }
 }
