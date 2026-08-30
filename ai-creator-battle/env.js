@@ -20,9 +20,23 @@ class Cartpole {
   static M = 1;
   static halfL = 0.5;
 
+  static cartSize = {
+    w: 0.2,
+    h: 0.1
+  }
+
   // inputIdxは無い。
-  constructor(_) {
+  constructor({ canvas, fixedAspect='width' }) {
     this.inputIdx = null;
+    this.canvas = canvas;
+    const aspectRatio = Cartpole.aspectRatio;
+    if (fixedAspect === 'width')
+      this.canvas.height = this.canvas.width/aspectRatio;
+    else
+      this.canvas.width = this.canvas.height*aspectRatio;
+    
+    const ctx = this.canvas.getContext('2d');
+    this.ctx = ctx;
     // x, v, theta, omega
     this.reset();
   }
@@ -85,6 +99,52 @@ class Cartpole {
     return done;
   }
 
+  draw() {
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    const ctx = this.ctx;
+    const cartSize = Cartpole.cartSize;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, W, H);
+
+    // カート
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0.5 + this.x - cartSize.w / 2, H - 50 - cartSize.h, cartSize.w, cartSize.h);
+
+    // 振り子
+    const pivotX = 0.5 + this.x;
+    const pivotY = 0.7 - cartSize.h;
+    const poleLength = 2 * halfL;
+    const tipX = pivotX + poleLength * Math.sin(this.theta);
+    const tipY = pivotY - poleLength * Math.cos(this.theta);
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(pivotX, pivotY);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+
+    /*
+    // パネルテキスト更新
+    const infoPanel = document.getElementById('info-panel');
+    infoPanel.innerHTML = `
+          <strong>CogniKeel Pendulum Control</strong><br>
+          <hr>
+          Mode: <span style="color:${isEvaluation ? '#00ffcc' : '#aaa'}">${isEvaluation ? 'EVALUATION (探索OFF)' : 'TRAINING'}</span><br>
+          Episode: ${episodeCount}<br>
+          Epoch Step: ${epochCount} / ${epochCountLength}<br>
+          Epsilon: ${isEvaluation ? 0 : (ck.epsilon ? ck.epsilon.toFixed(4) : 'N/A')}<br>
+          Episode累積報酬: ${totalReward.toFixed(2)}<br>
+          <strong>Eval平均累積報酬: ${lastEvaluationResult}</strong><br>
+          <hr>
+          Action: ${currentAction} (${isUserInteracting ? 'Manual ' : ''}${moveDir || 'Stay'})<br>
+          Angle: ${(theta * 180 / Math.PI).toFixed(1)}°
+        `;
+      }
+      */
+  }
+  
   // { state, action, reward, nextState, done } を返す。
   step(action) {
     if (action == null || !Number.isFinite(action))
@@ -96,6 +156,7 @@ class Cartpole {
     };
     retData.done = this.calcEnv(action);
     retData.nextState = this.getCurrentState();
+    this.draw();
     return retData;
   }
 }
