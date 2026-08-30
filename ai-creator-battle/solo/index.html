@@ -102,11 +102,18 @@
             <select id="game-select"></select>
             <input type="button" onclick="trainStart();" value="学習開始" />
             <input type="button" onclick="workStart();" value="動作確認開始" />
+            <br>
             <span>
-              間隔...<label id="span-range-label">&nbsp;&nbsp;5</label>:<input type="range" id="span-range" min="5" max="5" step="5" />
+              動作確認間隔...<label id="span-range-label">&nbsp;&nbsp;5</label>:<input type="range" id="span-range" min="5" max="5" step="5" />
+            </span>
+            <span>
+              バッチサイズ...<label id="batch-size-range-label">&nbsp;16</label>:<input type="range" id="batch-size-range" min="1" max="16" step="1" />
             </span>
           </div>
-          <!-- training -->
+          <!-- working|train-working -->
+          <div class="items working train-working is-hidden">
+            <input type="button" onclick="evalStop();" value="動作確認終了" />
+          </div>
         </div>
       </div>
     </main>
@@ -126,6 +133,9 @@
       const spanRangeLabel = document.getElementById('span-range-label');
       const spanRange = document.getElementById('span-range');
       
+      const batchSizeRange = document.getElementById('batch-size-range');
+      const batchSizeRangeLabel = document.getElementById('batch-size-range-label');
+      
       const topAreaDiv = document.getElementById('top-area-div');
       const gameScreenCanvas = document.getElementById('game-screen-canvas');
 
@@ -143,6 +153,10 @@
       let status = "initializing";
       
       let currentGameKind;
+      let batchSize;
+      let evalSpan;
+      let isEval = false;
+      let isEvalStop = false;
       let Env;
       let env;
       const appDataDirectory = '/application-data/ai-creator-battle/';
@@ -206,10 +220,16 @@
       
       
       // ===== ボタンの押下処理 =====
+      window.evalStop = () => {
+        isEvalStop = true;
+      }
       window.trainStart = async () => {
         currentGameKind = gameSelect.value;
+        evalSpan = parseInt(spanRange.value);
+        batchSize = parseInt(batchSizeRange.value);
+        
         if (!(currentGameKind in MCLMs)) {
-          alert('mclmファイルが見つかりませんでした。');
+          alert('mclmファイルが見つかりませんでした。「モデルを編集」ページで保存を行ってください。');
           return;
         }
         const mclm = MCLMs[currentGameKind];
@@ -235,6 +255,9 @@
             weightsInclude: false
           });
           
+          ck.batchSize = batchSize;
+          console.log(mclm);
+          
           gameScreenResize();
           
           let lastDraw = 0;
@@ -242,35 +265,61 @@
           let epochCount = 0;
           const epochCountLength = 500;
           let episodeCount = 0;
-          const episodeCountLength = 300;
+          const episodeCountLength = 1000;
           let done = false;
           
           const drawInterval = 100;
-          
+          isEval = false;
+          isEvalStop = false;
           env.reset();
           let state = env.getCurrentState();
+          let episodeReward = 0;
           
           function loop() {
             try {
-              const end = performance.now() + (isFastMode ? 16 : 0);
+              const end = performance.now() + (!isEval ? 16 : 0);
               let retData;
+              let action;
               
               // 繰り返す処理
               do {
-                const action = 1 ?? ck.step(state).action;
-                if (epochCount >= epochCountLength)
+                if (isEval)
+                  action = ck.evaluationStep(state).action;
+                else
+                  action = ck.step(state).action;
+                
+                if ((!isEval && epochCount >= epochCountLength) || isEvalStop)
                   retData = env.step({ action, done: true });
                 else
                   retData = env.step({ action });
                 
+                if (!isEval) {
+                  ck.remember(retData);
+                  ck.learn();
+                }
+                
                 done = retData.done;
                 state = retData.nextState;
+                episodeReward += retData.reward;
                 
-                if (done) {
+                if (done || isEvalStop) {
+                  if (isEvalStop) {
+                    isEvalStop = false;
+                    isEval = false;
+                    break;
+                  }
                   epochCount = 0;
-                  episodeCount++;
+                  episodeReward = 0;
+                  if (!isEval)
+                    episodeCount++;
+                    
+                  if (episodeCount % evalSpan === 0) {
+                    isEval = true;
+                    break;
+                  }
                   if (episodeCount >= episodeCountLength) {
                     env.draw();
+                    alertDiv.innerHTML = "学習完了";
                     return;
                   }
                 }
@@ -281,6 +330,18 @@
               // 指定間隔経っていたら描画
               if (!isFastMode || performance.now() - lastDraw >= drawInterval) {
                 env.draw();
+                if (isEval) {
+                  alertDiv.innerHTML = `動作確認中...「動作確認終了」で終了する。<br>
+epo: ${epochCount}<br>
+epi: ${episodeCount}<br>
+reward: ${episodeReward.toFixed(3)}/episode<br>
+eps: ${ck.epsilon}`;
+                } else {
+                  alertDiv.innerHTML = `学習中...<br>
+epo: ${epochCount}<br>
+epi: ${episodeCount}<br>
+eps: ${ck.epsilon}`;
+                }
                 lastDraw = performance.now();
               }
             } catch(err) {
@@ -297,6 +358,13 @@
       
       window.workStart = () => {
         currentGameKind = gameSelect.value;
+        evalSpan = spanRange.value;
+        batchSize = batchSizeRange.value;
+        
+        if (!(currentGameKind in MCLMs)) {
+          alert('mclmファイルが見つかりませんでした。「モデルを編集」ページで保存を行ってください。');
+          return;
+        }
         
         switch (currentGameKind) {
           case 'cartpole':
@@ -327,6 +395,13 @@
           // console.log(JSON.stringify(entirelyLayersInfo, null, 2));
           // console.log(JSON.stringify(gameInfoJson, null, 2));
           
+          batchSizeRange.max = String(10*userUsableInfo.usableInfo.entirely.batchSizeMax);
+          batchSizeRange.value = String(batchSizeRange.max);
+          batchSizeRangeLabel.innerHTML = batchSizeRange.value.padStart(3, '\xa0');
+          
+          batchSizeRange.oninput = () => {
+            batchSizeRangeLabel.innerHTML = batchSizeRange.value.padStart(3, '\xa0');
+          }
           
           const gameKinds = Object.keys(userUsableInfo.userInfo.solo);
           gameSelect.innerHTML = '';
@@ -339,7 +414,7 @@
             gameSelect.appendChild(option);
           }
           
-          spanRange.max = String(gameInfoJson[firstGameKind].spanMax);
+          spanRange.max = String(10*gameInfoJson[firstGameKind].spanMax);
           spanRange.step = String(gameInfoJson[firstGameKind].spanStep);
           spanRange.value = spanRange.max;
           spanRangeLabel.innerHTML = spanRange.value.padStart(3, '\xa0');
