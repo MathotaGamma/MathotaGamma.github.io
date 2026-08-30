@@ -15,7 +15,7 @@ class Cartpole {
   static aspectRatio = 2.0;
   
   static fixedDt = 0.016;
-  static forceSize = 10;
+  static forceSize = 6;
   static g = 9.8;
   static m = 0.1;
   static M = 1;
@@ -25,8 +25,8 @@ class Cartpole {
   static inertia = 50;
   
   static cartSize = {
-    w: 0.4,
-    h: 0.2
+    w: 0.2,
+    h: 0.1
   }
 
   // inputIdxは無い。
