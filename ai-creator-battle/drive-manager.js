@@ -158,6 +158,12 @@ export class DriveManager {
 
   // ===== AppDataへの保存・取得 =====
   // pathはappDataDirectoryからの相対パス(例: 'entirely-layers-info.json')
+  // mimeTypeの種類
+  /*
+    TXT: 'text/plain;charset=utf-8'
+    JSON: 'application/json'
+    未定義: 'application/octet-stream'
+  */
   async saveFile({ path, data, mimeType="application/json" }) {
     if (this.isGuest || !this.hasDriveConnection || this.drive == null)
       return null;
