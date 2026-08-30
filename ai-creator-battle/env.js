@@ -69,13 +69,13 @@ class Cartpole {
                 / (halfL * (4 / 3 - m * cos * cos / (M + m)));
     const a = (f + m * halfL * (omega * omega * sin - w * cos)) / (M + m);
 
-    v += a * fixedDt;
-    v *= 0.995;
-    x += v * fixedDt;
-    omega += w * fixedDt;
-    omega *= 0.999;
-    theta += omega * dt;
-    theta = Math.atan2(Math.sin(theta), Math.cos(theta));
+    this.v += a * fixedDt;
+    this.v *= 0.995;
+    this.x += this.v * fixedDt;
+    this.omega += w * fixedDt;
+    this.omega *= 0.999;
+    this.theta += this.omega * fixedDt;
+    this.theta = Math.atan2(Math.sin(this.theta), Math.cos(this.theta));
 
     if (Math.abs(x) > 1) {
       done = true;
