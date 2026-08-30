@@ -454,10 +454,12 @@ configure ${configureArgs}`
   }
   
   // weightsInclude: true...重みを入れる(ない場合はエラー) false...重みを初期値にする null...MCLM内のweightsIncludeと同値
-  static async fromMCLM({ MCLM, onLog, weightsInclude=null }) {
+  // MCLM, mclmどちらでも同じ。
+  static async fromMCLM({ MCLM, mclm, onLog, weightsInclude=null }) {
+    mclm = mclm ?? MCLM;
     // MCLM解析
     // 改行文字で分割
-    const rows = MCLM.split(/\r\n|\r|\n/);
+    const rows = mclm.split(/\r\n|\r|\n/);
     
     let constructorArgs;
     let configArgs;
