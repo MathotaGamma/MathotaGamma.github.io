@@ -89,7 +89,7 @@ class Cartpole {
       action,
       reward: this.getReward(action)
     };
-    retData.done = calcEnv(action);
+    retData.done = this.calcEnv(action);
     retData.nextState = this.getCurrentState();
     return retData;
   }
