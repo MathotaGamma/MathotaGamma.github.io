@@ -3,6 +3,7 @@
   step(action)で、state,action,現在のstateでactionを取ったときの報酬(reward),次の状態(nextState),終了判定(done)を取得。
 */
 
+// 画面サイズは-1~1より、幅2、高さ2
 
 // ===== cartpole =====
 /*
@@ -12,7 +13,7 @@
 class Cartpole {
   static gameKind = "cartpole";
   static aspectRatio = 2.0;
-
+  
   static fixedDt = 0.016;
   static forceSize = 0.1;
   static g = 9.8;
@@ -20,9 +21,10 @@ class Cartpole {
   static M = 1;
   static halfL = 0.5;
 
+  
   static cartSize = {
-    w: 0.2,
-    h: 0.1
+    w: 0.4,
+    h: 0.2
   }
 
   // inputIdxは無い。
@@ -100,8 +102,9 @@ class Cartpole {
   }
 
   draw() {
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    // 中心の座標は(1, 1)
+    const halfW = this.canvas.width/2;
+    const halfH = this.canvas.height/2;
     const ctx = this.ctx;
     const cartSize = Cartpole.cartSize;
     ctx.clearRect(0, 0, W, H);
@@ -110,19 +113,19 @@ class Cartpole {
 
     // カート
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0.5 + this.x - cartSize.w / 2, H - 50 - cartSize.h, cartSize.w, cartSize.h);
+    ctx.fillRect(halfW*(1 + this.x - cartSize.w / 2), halfH*(1.7 - cartSize.h), halfW*cartSize.w, halfH*cartSize.h);
 
     // 振り子
-    const pivotX = 0.5 + this.x;
-    const pivotY = 0.7 - cartSize.h;
+    const pivotX = 1 + this.x;
+    const pivotY = 1.7 - cartSize.h;
     const poleLength = 2 * halfL;
     const tipX = pivotX + poleLength * Math.sin(this.theta);
     const tipY = pivotY - poleLength * Math.cos(this.theta);
 
     ctx.strokeStyle = "#ffffff";
     ctx.beginPath();
-    ctx.moveTo(pivotX, pivotY);
-    ctx.lineTo(tipX, tipY);
+    ctx.moveTo(halfW*pivotX, halfH*pivotY);
+    ctx.lineTo(halfW*tipX, halfH*tipY);
     ctx.stroke();
 
     /*
