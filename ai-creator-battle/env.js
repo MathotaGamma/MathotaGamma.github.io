@@ -12,7 +12,8 @@
 class Cartpole {
   static gameKind = "cartpole";
   static aspectRatio = 2.0;
-  
+
+  static fixedDt = 0.016;
   static forceSize = 0.1;
   static g = 9.8;
   static m = 0.1;
@@ -57,6 +58,8 @@ class Cartpole {
     let f = 0;
     if (action === 0) f = -Cartpole.forceSize;
     else if (action === 1) f = Cartpole.forceSize;
+    
+    const fixedDt = Cartpole.fixedDt;
     const g = Cartpole.g, m = Cartpole.m, M = Cartpole.M, halfL = Cartpole.halfL;
     const x = this.x, v = this.v, theta = this.theta, omega = this.omega;
 
@@ -100,6 +103,9 @@ class Cartpole {
 class Breakout {
   static gameKind = 'breakout';
   static aspectRatio = 1.0;
+
+  static fixedDt = 0.016;
+  
   constructor(inputIdx) {
     this.inputIdx = inputIdx;
   }
