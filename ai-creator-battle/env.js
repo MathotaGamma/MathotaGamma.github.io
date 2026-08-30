@@ -19,10 +19,10 @@ class Cartpole {
   static g = 9.8;
   static m = 0.1;
   static M = 1;
-  static halfL = 0.5;
+  static halfL = 0.1;
 
   // 速度の見た目の減衰率(幅が -1 ~ +1だから、fをそのまま使うとかなり動きが速く見える。)
-  static inertia = 10;
+  static inertia = 50;
   
   static cartSize = {
     w: 0.4,
