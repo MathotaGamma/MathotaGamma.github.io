@@ -156,6 +156,10 @@ export class DriveManager {
     return await this.drive.getAbout(fields);
   }
 
+  async existCheck(path) {
+    return await this.drive.existCheck({path});
+  }
+
   // ===== AppDataへの保存・取得 =====
   // pathはappDataDirectoryからの相対パス(例: 'entirely-layers-info.json')
   // mimeTypeの種類
