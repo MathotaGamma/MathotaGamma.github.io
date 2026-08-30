@@ -55,7 +55,7 @@ class Cartpole {
     state[0] = this.x;
     state[1] = this.v / 3.0;
     state[2] = this.theta / Math.PI;
-    state[3] = this.omega / 10.0;
+    state[3] = this.omega / 50.0;
     return state;
   }
 
@@ -103,8 +103,8 @@ class Cartpole {
     this.x += this.v * fixedDt;
     this.omega += w * fixedDt;
     this.omega *= 0.999;
-    if (Math.abs(this.omega) > 10)
-      this.omega = 10*Math.sign(this.omega);
+    if (Math.abs(this.omega) > 50)
+      this.omega = 50*Math.sign(this.omega);
     this.theta += this.omega * fixedDt;
     this.theta = Math.atan2(Math.sin(this.theta), Math.cos(this.theta));
 
