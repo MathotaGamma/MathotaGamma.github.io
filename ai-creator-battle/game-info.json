@@ -1,8 +1,10 @@
 {
   "cartpole": {
-    "ratio": 2.0
+    "span-max": 40,
+    "step": 5
   },
   "breakout": {
-    "ratio": 1.0
+    "span-max": 30,
+    "step": 5
   }
 }
