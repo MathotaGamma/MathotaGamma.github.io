@@ -69,7 +69,11 @@ class Cartpole {
     this.omega = 0;
   }
 
-  calcEnv(action) {
+  calcEnv({ action, done=false }) {
+    if (done) {
+      this.reset();
+      return true;
+    }
     let done = false;
     let f = 0;
     if (action === 0) f = -Cartpole.forceSize;
@@ -151,7 +155,7 @@ class Cartpole {
   }
   
   // { state, action, reward, nextState, done } を返す。
-  step(action) {
+  step({ action, done=false }) {
     if (action == null || !Number.isFinite(action))
       throw new Error('actionが期待する形式と異なります(action: '+action+')。');
     const retData = {
@@ -159,9 +163,9 @@ class Cartpole {
       action,
       reward: this.getReward(action)
     };
-    retData.done = this.calcEnv(action);
+    retData.done = this.calcEnv({ action, done });
     retData.nextState = this.getCurrentState();
-    this.draw();
+    
     return retData;
   }
 }
