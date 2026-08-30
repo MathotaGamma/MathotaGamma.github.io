@@ -438,7 +438,7 @@
         if (type === "json")
           mimeType = "application/json";
 
-        runApi(`saveFile('${path}')`, () => drive.saveFile({path, data}));
+        runApi(`saveFile('${path}')`, () => drive.saveFile({path, data, mimeType}));
       });
 
       document.getElementById('btnGetPath').addEventListener('click', () => {
