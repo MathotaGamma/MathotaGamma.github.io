@@ -4,6 +4,7 @@
 */
 
 
+// ===== cartpole =====
 /*
   cartpole
    - shape: [ 4 ] , -1 〜 +1 || 台車のX, Y座標 : 2 | 棒の角度(最下点...-1, 最高点...+1) : 1 | 棒の角速度 : 1
@@ -94,6 +95,8 @@ class Cartpole {
   }
 }
 
+// ===== breakout =====
+// 作り途中
 class Breakout {
   static gameKind = 'breakout';
   static aspectRatio = 1.0;
@@ -103,4 +106,4 @@ class Breakout {
 }
 
 
-export { Cartpole };
+export { Cartpole, Breakout };
