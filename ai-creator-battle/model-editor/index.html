@@ -915,7 +915,7 @@ expired...${status.expired}`);
         }, duration ? (duration + 500) : (50*loggerDiv.innerHTML.length + 2000));
       }
       
-      // typeの種類
+      // mimeTypeの種類
       /*
         TXT: 'text/plain;charset=utf-8'
         JSON: 'application/json'
@@ -983,7 +983,7 @@ expired...${status.expired}`);
           checkCk.initialize();
           const MCLM = await checkCk.getMCLM({ weightsInclude: false });
           const mclmPath = appDataDirectory + 'mclm/'+gameKind+'.mclm';
-          res = await drive.saveFile({ path: mclmPath, data: MCLM });
+          res = await drive.saveFile({ path: mclmPath, data: MCLM, mimeType: 'text/plain;charset=utf-8' });
           console.log(mclmPath, 'ok:', res != null);
           
           
