@@ -69,12 +69,12 @@ class Cartpole {
     this.omega = 0;
   }
 
-  calcEnv({ action, inputDone=false }) {
-    if (inputDone) {
+  calcEnv({ action, done }) {
+    if (done) {
       this.reset();
       return true;
     }
-    let done = false;
+    done = false;
     let f = 0;
     if (action === 0) f = -Cartpole.forceSize;
     else if (action === 1) f = Cartpole.forceSize;
