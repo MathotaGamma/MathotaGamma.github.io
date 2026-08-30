@@ -107,9 +107,9 @@ class Cartpole {
     const halfH = this.canvas.height/2;
     const ctx = this.ctx;
     const cartSize = Cartpole.cartSize;
-    ctx.clearRect(0, 0, W, H);
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // カート
     ctx.fillStyle = "#ffffff";
