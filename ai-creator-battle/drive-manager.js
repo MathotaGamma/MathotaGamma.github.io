@@ -15,6 +15,12 @@
 //     },
 //   });
 //   await driveManager.init();
+//
+// 更新:
+//   - getFileInfo(path, fields)を追加(ファイルのメタ情報を取得できるように)
+//   - getAbout / existCheck / getFileInfo / saveFile / getFile にエラーハンドリングを追加。
+//     Drive API呼び出しが例外を投げた場合、呼び出し元まで例外を伝播させず、
+//     onLogでエラー内容を通知した上でnullを返すようにした。
 
 import DriveAPIManager from '/statics/drive-api/6-5/manager.js';
 
@@ -104,6 +110,17 @@ export class DriveManager {
     this.drive = null;
   }
 
+  // Drive API呼び出しを共通のエラーハンドリングで包むヘルパー。
+  // 失敗時はonLogで通知した上でnullを返し、呼び出し元に例外を伝播させない。
+  async _safeCall(label, fn) {
+    try {
+      return await fn();
+    } catch (err) {
+      this.onLog(`${label}に失敗しました: ${err.message}`, 2500);
+      return null;
+    }
+  }
+
   // ===== 連携状態チェック =====
   // 引数にfalseを渡すと、Googleへの再ログインを試みず
   // hasDriveConnectionのみ更新する。
@@ -153,14 +170,25 @@ export class DriveManager {
   async getAbout(fields) {
     if (this.drive == null)
       return null;
-    return await this.drive.getAbout(fields);
+    return await this._safeCall('ユーザー情報の取得', () => this.drive.getAbout(fields));
   }
 
   async existCheck(path) {
     if (this.isGuest || !this.hasDriveConnection || this.drive == null)
       return null;
     const fullPath = this.appDataDirectory + path;
-    return await this.drive.existCheck({ path: fullPath });
+    return await this._safeCall('存在確認', () => this.drive.existCheck({ path: fullPath }));
+  }
+
+  // ファイルのメタ情報を取得する(id, name, mimeType等)。
+  // fields省略時はDriveAPIManager側の既定値('id, name, mimeType')が使われる。
+  async getFileInfo({ path, fields } = {}) {
+    if (this.isGuest || !this.hasDriveConnection || this.drive == null)
+      return null;
+    const fullPath = this.appDataDirectory + path;
+    return await this._safeCall('ファイル情報の取得', () =>
+      this.drive.getFileInfo({ path: fullPath, ...(fields ? { fields } : {}) })
+    );
   }
 
   // ===== AppDataへの保存・取得 =====
@@ -175,14 +203,18 @@ export class DriveManager {
     if (this.isGuest || !this.hasDriveConnection || this.drive == null)
       return null;
     const fullPath = this.appDataDirectory + path;
-    return await this.drive.saveFile({ path: fullPath, data, mimeType });
+    return await this._safeCall('ファイルの保存', () =>
+      this.drive.saveFile({ path: fullPath, data, mimeType })
+    );
   }
 
   async getFile({ path }) {
     if (this.isGuest || !this.hasDriveConnection || this.drive == null)
       return null;
     const fullPath = this.appDataDirectory + path;
-    return await this.drive.getFile({ path: fullPath  });
+    return await this._safeCall('ファイルの取得', () =>
+      this.drive.getFile({ path: fullPath })
+    );
   }
 }
 
