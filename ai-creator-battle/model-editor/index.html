@@ -323,8 +323,8 @@
       -----
     </div>
     <script type="module">
-      import DriveAPIManager from '/statics/drive-api/6-4/manager.js';
-      import { CogniKeel, Layer } from "https://mathotagamma.github.io/APIs/CogniKeel/1-02-03/CogniKeel.js";
+      import DriveAPIManager from '/statics/drive-api/6-5/manager.js';
+      import { CogniKeel, Layer } from "https://mathotagamma.github.io/APIs/CogniKeel/1-03-01/CogniKeel.js";
       
       const transitionToSolo = document.getElementById('transition-to-solo');
       const userNameDiv = document.getElementById('user-name-div');
@@ -971,6 +971,21 @@ expired...${status.expired}`);
           const userUsableInfoPath = appDataDirectory + 'user-usable-info.json';
           res = await drive.saveFile({ path: userUsableInfoPath, data: structuredClone(userUsableInfo) });
           console.log(userUsableInfoPath, 'ok:', res != null);
+          
+          const checkCk = new CogniKeel({
+            inputShape: currentGameInfo.input.shape,
+            onLog: () => {}
+          });
+        
+          
+          checkCk.addLayers(layers);
+          checkCk.configure({});
+          checkCk.initialize();
+          const MCLM = await checkCk.getMCLM({ weightsInclude: false });
+          const mclmPath = appDataDirectory + 'mclm/'+gameKind+'.json';
+          res = await drive.saveFile({ path: mclmPath, data: MCLM });
+          console.log(mclmPath, 'ok:', res != null);
+          
           
           console.log('driveに保存が完了しました');
           logger('Google Drive AppDataへの保存が完了しました。', 2000);
