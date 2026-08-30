@@ -19,6 +19,9 @@
       body {
         display: flex;
         flex-direction: column;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
       }
       main {
         width: 100%;
@@ -29,6 +32,7 @@
       .top-area {
         flex-grow: 1;
         position: relative;
+        max-width: 100%;
       }
       
       #alert-div {
@@ -41,6 +45,8 @@
         display: inline-block;
         padding: 2px;
         margin: 10px;
+        
+        background: rgba(255, 255, 255, 0.7);
       }
 
       #btn-container {
@@ -64,6 +70,15 @@
         font-family: monospace;
       }
       
+      #game-screen-canvas {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        border: 1px solid black;
+        
+      }
+      
       
       .is-hidden {
         display: none !important;
@@ -73,7 +88,8 @@
   <body>
     <div id="header-container"></div>
     <main>
-      <div class="top-area">
+      <div class="top-area" id="top-area-div">
+        <canvas id="game-screen-canvas"></canvas>
         <div id="alert-div">
           Google Driveに接続中です。しばらくお待ちください。
         </div>
@@ -96,6 +112,7 @@
     </main>
 
     <script type="module">
+      import { CogniKeel, Layer } from 'https://mathotagamma.github.io/APIs/CogniKeel/1-03-01/CogniKeel.js';
       import { createHeader } from 'https://mathotagamma.github.io/ai-creator-battle/header-template-script.js';
       import { DriveManager, mergeMissingKeys } from 'https://mathotagamma.github.io/ai-creator-battle/drive-manager.js';
       import { Cartpole, Breakout } from 'https://mathotagamma.github.io/ai-creator-battle/env.js';
@@ -108,6 +125,9 @@
       const gameSelect = document.getElementById('game-select');
       const spanRangeLabel = document.getElementById('span-range-label');
       const spanRange = document.getElementById('span-range');
+      
+      const topAreaDiv = document.getElementById('top-area-div');
+      const gameScreenCanvas = document.getElementById('game-screen-canvas');
 
       let hasDriveConnection = false;
       
@@ -127,6 +147,7 @@
       let env;
       const appDataDirectory = '/application-data/ai-creator-battle/';
       const MCLMs = {};
+      let ck;
 
       function logger(message, _) {
         console.log(message);
@@ -182,9 +203,16 @@
       });
       document.getElementById('header-container').appendChild(header.element);
       
+      
+      
       // ===== ボタンの押下処理 =====
-      window.trainStart = () => {
+      window.trainStart = async () => {
         currentGameKind = gameSelect.value;
+        if (!(currentGameKind in MCLMs)) {
+          alert('mclmファイルが見つかりませんでした。');
+          return;
+        }
+        const mclm = MCLMs[currentGameKind];
         switch (currentGameKind) {
           case 'cartpole':
             Env = Cartpole;
@@ -194,9 +222,77 @@
             break;
         }
         
-        env = new Env(userUsableInfo.userInfo.game[Env.gameKind]);
-        // console.log(JSON.stringify(env.step(0), null, 2));
-        console.log(JSON.stringify(mclms, null, 2));
+        env = new Env({ inputIdx: userUsableInfo.userInfo.game[Env.gameKind], canvas: gameScreenCanvas });
+        // console.log(JSON.stringify(env.step({ action: 0 }), null, 2));
+        
+        draw('working');
+        alertDiv.innerHTML = "学習中...";
+        console.log('start');
+        try {
+          ck = await CogniKeel.fromMCLM({
+            mclm,
+            onLog: console.log,
+            weightsInclude: false
+          });
+          
+          gameScreenResize();
+          
+          let lastDraw = 0;
+          let isFastMode = false;
+          let epochCount = 0;
+          const epochCountLength = 500;
+          let episodeCount = 0;
+          const episodeCountLength = 300;
+          let done = false;
+          
+          const drawInterval = 100;
+          
+          env.reset();
+          let state = env.getCurrentState();
+          
+          function loop() {
+            try {
+              const end = performance.now() + (isFastMode ? 16 : 0);
+              let retData;
+              
+              // 繰り返す処理
+              do {
+                const action = 1 ?? ck.step(state).action;
+                if (epochCount >= epochCountLength)
+                  retData = env.step({ action, done: true });
+                else
+                  retData = env.step({ action });
+                
+                done = retData.done;
+                state = retData.nextState;
+                
+                if (done) {
+                  epochCount = 0;
+                  episodeCount++;
+                  if (episodeCount >= episodeCountLength) {
+                    env.draw();
+                    return;
+                  }
+                }
+                
+                epochCount++;
+              } while (performance.now() < end);
+            
+              // 指定間隔経っていたら描画
+              if (!isFastMode || performance.now() - lastDraw >= drawInterval) {
+                env.draw();
+                lastDraw = performance.now();
+              }
+            } catch(err) {
+              throw err;
+            }
+            requestAnimationFrame(loop);
+          }
+          
+          loop();
+        } catch(err) {
+          console.log(err.message);
+        }
       }
       
       window.workStart = () => {
@@ -270,6 +366,28 @@
         }
       }
       
+      function gameScreenResize() {
+        if (Env == null || env == null)
+          return;
+        const aspectRatio = Env.aspectRatio;
+        const w = topAreaDiv.offsetWidth;
+        const h = topAreaDiv.offsetHeight;
+        gameScreenCanvas.height = h;
+        gameScreenCanvas.width = w;
+        
+        // 横長
+        if (w > h*aspectRatio) {
+          env.fixedAspect = 'height';
+        } else { // 縦長
+          env.fixedAspect = 'width';
+        }
+      }
+      
+      // topAreaDivのリサイズを取得
+      const observer = new ResizeObserver(gameScreenResize);
+      
+      observer.observe(topAreaDiv);
+      
       // ===== 初期化 =====
 
       async function init() {
@@ -295,6 +413,8 @@
         alertDiv.style.color = "black";
         
         draw('pre-start');
+        
+        alertDiv.innerHTML = '準備完了。「学習開始」「動作確認開始」を押して開始。';
       }
 
       async function driveConnect() {
@@ -334,11 +454,25 @@
         // MCLMを取得。
         const gameKinds = Object.keys(userUsableInfo.userInfo.solo);
         for (let gameKind of gameKinds) {
-          const mclm = await driveManager.getFile({
-            path: 'mclm/'+gameKind+'.mclm'
-          });
-          if (mclm != null)
-            mclms[gameKind] = mclm;
+          const path = 'mclm/'+gameKind+'.mclm';
+          if (!await driveManager.existCheck(path)) {
+            console.log(gameKind+'はMCLMファイルが見つかりませんでした。');
+            continue;
+          }
+          console.log(await driveManager.existCheck(path));
+          let mclm;
+          try {
+            mclm = await driveManager.getFile({
+              path
+            });
+          } catch(err) {
+            console.log(err.message);
+          }
+          
+          if (mclm != null) {
+            console.log(gameKind+'はMCLMファイルが見つかりました。');
+            MCLMs[gameKind] = mclm;
+          }
         }
         
         alertDiv.innerHTML = 'Google Driveに正常に接続できました。<br>AIを実行するゲームを選んでください。';
