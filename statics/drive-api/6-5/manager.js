@@ -214,7 +214,7 @@ class DriveAPIManager {
         data = { ok: true };
       } else if (contentType.includes('application/json')) {
         data = await res.text();
-        if (data !== '') data = JSON.parse(data);
+        // if (data !== '') data = JSON.parse(data);
         
       } else {
         data = await res.text();
