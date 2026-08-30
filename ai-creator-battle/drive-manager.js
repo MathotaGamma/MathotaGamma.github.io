@@ -22,7 +22,7 @@
 //     Drive API呼び出しが例外を投げた場合、呼び出し元まで例外を伝播させず、
 //     onLogでエラー内容を通知した上でnullを返すようにした。
 
-import DriveAPIManager from '/statics/drive-api/6-5/manager.js';
+import DriveAPIManager from '/statics/drive-api/6-6/manager.js';
 
 /**
  * Google Drive AppDataとの連携を管理するクラス。
