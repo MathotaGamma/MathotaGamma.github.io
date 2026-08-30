@@ -15,12 +15,14 @@ class Cartpole {
   static aspectRatio = 2.0;
   
   static fixedDt = 0.016;
-  static forceSize = 0.1;
+  static forceSize = 10;
   static g = 9.8;
   static m = 0.1;
   static M = 1;
   static halfL = 0.5;
 
+  // 速度の見た目の減衰率(幅が -1 ~ +1だから、fをそのまま使うとかなり動きが速く見える。)
+  static inertia = 10;
   
   static cartSize = {
     w: 0.4,
@@ -47,7 +49,7 @@ class Cartpole {
   getCurrentState() {
     const state = new Float32Array(4);
     state[0] = this.x;
-    state[1] = this.v / 10.0;
+    state[1] = this.v / 3.0;
     state[2] = this.theta / Math.PI;
     state[3] = this.omega / 10.0;
     return state;
@@ -75,6 +77,7 @@ class Cartpole {
       return true;
     }
     done = false;
+    const inertia = Cartpole.inertia;
     let f = 0;
     if (action === 0) f = -Cartpole.forceSize;
     else if (action === 1) f = Cartpole.forceSize;
@@ -89,11 +92,15 @@ class Cartpole {
                 / (halfL * (4 / 3 - m * cos * cos / (M + m)));
     const a = (f + m * halfL * (omega * omega * sin - w * cos)) / (M + m);
 
-    this.v += a * fixedDt;
+    this.v += a * fixedDt / inertia;
     this.v *= 0.995;
+    if (Math.abs(v) > 3)
+      this.v = 3*Math.sign(this.v);
     this.x += this.v * fixedDt;
     this.omega += w * fixedDt;
     this.omega *= 0.999;
+    if (Math.abs(this.omega) > 10)
+      this.omega = 10*Math.sign(this.omega);
     this.theta += this.omega * fixedDt;
     this.theta = Math.atan2(Math.sin(this.theta), Math.cos(this.theta));
 
