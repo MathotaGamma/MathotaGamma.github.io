@@ -10,6 +10,8 @@
 */
 class Cartpole {
   static gameKind = "cartpole";
+  static aspectRatio = 2.0;
+  
   static forceSize = 0.1;
   static g = 9.8;
   static m = 0.1;
