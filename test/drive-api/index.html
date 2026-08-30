@@ -266,7 +266,7 @@
       </div>
     </div>
     <script type="module">
-      import DriveAPIManager from '/statics/drive-api/manager.js';
+      import DriveAPIManager from '/statics/drive-api/6-5/manager.js';
 
       let drive = null;
 
@@ -452,7 +452,7 @@
         let mimeType = "text/plain;charset=utf-8";
         if (asType === "json")
           mimeType = "application/json";
-        runApi(`getFile('${path}', '${asType}')`, () => drive.getFile({ path, mimeType }));
+        runApi(`getFile('${path}', '${asType}')`, () => drive.getFile({ path }));
       });
 
       document.getElementById('btnGetStructure').addEventListener('click', () => {
