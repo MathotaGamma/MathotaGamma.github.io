@@ -402,7 +402,9 @@
           layerCountLength: 7,
           // 使える活性化関数
           // null(=linear), ReLU, tanh, sigmoid
-          activationList: ['null', 'ReLU']
+          activationList: ['null', 'ReLU'],
+          // batchSizeの最大
+          batchSizeMax: 16
         },
         game: [
           "cartpole",
@@ -619,7 +621,7 @@
           emainAddress: null,
           isGuest: true,
           level: 0,
-          // 初登録した時間
+          // 登録した時間
           registrationDate: Date.now(),
           // inputKindなどを指定
           game: {
