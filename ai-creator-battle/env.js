@@ -1,13 +1,14 @@
 /*
   reset()で状態を初期に戻す(done後など)。
-  step({ state, action })で、現在のstateでactionを取ったときの報酬(reward),次の状態(nextState),終了判定(done)を取得。
+  step(action)で、state,action,現在のstateでactionを取ったときの報酬(reward),次の状態(nextState),終了判定(done)を取得。
 */
+
 
 /*
   cartpole
    - shape: [ 4 ] , -1 〜 +1 || 台車のX, Y座標 : 2 | 棒の角度(最下点...-1, 最高点...+1) : 1 | 棒の角速度 : 1
 */
-export default class Cartpole {
+class Cartpole {
   static gameKind = "cartpole";
   static forceSize = 0.1;
   static g = 9.8;
@@ -90,3 +91,6 @@ export default class Cartpole {
     return retData;
   }
 }
+
+
+export { Cartpole };
