@@ -570,6 +570,14 @@ class DriveAPIManager {
     return res.parents ?? [];
   }
 
+  async existCheck({ path }) {
+    return (await this.getFileId({ path })) != null;
+  }
+
+  /* =====
+      File
+     ===== */
+
   async getFileInfo({path, fileId, fields='id, name, mimeType'}) {
     const resolved = await this.integration({path, fileId});
     const targetId = resolved.fileId;
@@ -657,10 +665,6 @@ class DriveAPIManager {
       results.push(res);
     }
     return results;
-  }
-
-  async existCheck({ path }) {
-    return (await this.getFileId({ path })) != null;
   }
 
   /* ==================================================
