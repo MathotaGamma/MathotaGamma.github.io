@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ja">
-
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -242,15 +241,16 @@
             gameSelect.appendChild(option);
           }
           
-          spanRange.value = spanRange.min;
           spanRange.max = String(gameInfoJson[firstGameKind].spanMax);
           spanRange.step = String(gameInfoJson[firstGameKind].spanStep);
+          spanRange.value = spanRange.max;
+          spanRangeLabel.innerHTML = spanRange.value.padStart(3, '\xa0');
           
           gameSelect.onchange = () => {
-            spanRange.value = spanRange.min;
-            spanRangeLabel.innerHTML = spanRange.value.padStart(3, '\xa0');
             spanRange.max = String(gameInfoJson[gameSelect.value].spanMax);
             spanRange.step = String(gameInfoJson[gameSelect.value].spanStep);
+            spanRange.value = spanRange.max;
+            spanRangeLabel.innerHTML = spanRange.value.padStart(3, '\xa0');
           }
            
           spanRange.oninput = () => {
@@ -338,5 +338,4 @@
       init();
     </script>
   </body>
-
 </html>
