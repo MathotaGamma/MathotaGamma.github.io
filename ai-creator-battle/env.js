@@ -33,16 +33,20 @@ class Cartpole {
   constructor({ canvas, fixedAspect='width' }) {
     this.inputIdx = null;
     this.canvas = canvas;
-    const aspectRatio = Cartpole.aspectRatio;
-    if (fixedAspect === 'width')
-      this.canvas.height = this.canvas.width/aspectRatio;
-    else
-      this.canvas.width = this.canvas.height*aspectRatio;
+    this.resize();
     
     const ctx = this.canvas.getContext('2d');
     this.ctx = ctx;
     // x, v, theta, omega
     this.reset();
+  }
+
+  resize() {
+    const aspectRatio = Cartpole.aspectRatio;
+    if (fixedAspect === 'width')
+      this.canvas.height = this.canvas.width/aspectRatio;
+    else
+      this.canvas.width = this.canvas.height*aspectRatio;
   }
 
   // inputIdxに分岐がある場合は、getCurrentState内で条件分岐させる。
@@ -114,6 +118,9 @@ class Cartpole {
 
   // アスペクト比による潰れの対策は、縦方向は0 ~ 1(wの半分)とする(halfWを使用する)
   draw() {
+    // canvasサイズ調整
+    this.resize();
+    
     // 横は 0 ~ 2, 縦は 0 ~ 1
     // 中心の座標は(1, 1)
     const ratio = this.canvas.width/2;
