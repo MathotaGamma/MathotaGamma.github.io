@@ -412,7 +412,13 @@
           runApi(`removeFile('${path}')`, () => drive.removeFile({ path }));
         }
       });
-      
+
+      // mimeTypeの種類
+      /*
+        TXT: 'text/plain;charset=utf-8'
+        JSON: 'application/json'
+        未定義: 'application/octet-stream'
+      */
       document.getElementById('btnSaveFile').addEventListener('click', () => {
         const path = document.getElementById('filePath').value;
         const type = document.getElementById('fileDataType').value;
@@ -427,6 +433,10 @@
             return;
           }
         }
+
+        let mimeType = "text/plain;charset=utf-8";
+        if (type === "json")
+          mimeType = "application/json";
 
         runApi(`saveFile('${path}')`, () => drive.saveFile({path, data}));
       });
