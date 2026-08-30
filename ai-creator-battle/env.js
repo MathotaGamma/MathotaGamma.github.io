@@ -94,5 +94,13 @@ class Cartpole {
   }
 }
 
+class Breakout {
+  static gameKind = 'breakout';
+  static aspectRatio = 1.0;
+  constructor(inputIdx) {
+    this.inputIdx = inputIdx;
+  }
+}
+
 
 export { Cartpole };
