@@ -76,7 +76,6 @@ class Cartpole {
     else if (action === 1) f = Cartpole.forceSize;
     
     const fixedDt = Cartpole.fixedDt;
-    const halfL = Cartpole.halfL;
     const g = Cartpole.g, m = Cartpole.m, M = Cartpole.M, halfL = Cartpole.halfL;
     const x = this.x, v = this.v, theta = this.theta, omega = this.omega;
 
@@ -107,6 +106,7 @@ class Cartpole {
     // 横は 0 ~ 2, 縦は 0 ~ 1
     // 中心の座標は(1, 1)
     const ratio = this.canvas.width/2;
+    const halfL = Cartpole.halfL;
     const ctx = this.ctx;
     const cartSize = Cartpole.cartSize;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
