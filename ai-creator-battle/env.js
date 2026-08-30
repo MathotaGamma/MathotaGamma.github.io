@@ -69,8 +69,8 @@ class Cartpole {
     this.omega = 0;
   }
 
-  calcEnv({ action, done=false }) {
-    if (done) {
+  calcEnv({ action, inputDone=false }) {
+    if (inputDone) {
       this.reset();
       return true;
     }
