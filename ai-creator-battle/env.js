@@ -101,10 +101,11 @@ class Cartpole {
     return done;
   }
 
+  // アスペクト比による潰れの対策は、縦方向は0 ~ 1(wの半分)とする(halfWを使用する)
   draw() {
+    // 横は 0 ~ 2, 縦は 0 ~ 1
     // 中心の座標は(1, 1)
-    const halfW = this.canvas.width/2;
-    const halfH = this.canvas.height/2;
+    const ratio = this.canvas.width/2;
     const ctx = this.ctx;
     const cartSize = Cartpole.cartSize;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -113,7 +114,7 @@ class Cartpole {
 
     // カート
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(halfW*(1 + this.x - cartSize.w / 2), halfH*(1.7 - cartSize.h), halfW*cartSize.w, halfH*cartSize.h);
+    ctx.fillRect(ratio*(1 + this.x - cartSize.w / 2), ratio*(0.7 - cartSize.h), ratio*cartSize.w, ratio*cartSize.h);
 
     // 振り子
     const pivotX = 1 + this.x;
@@ -124,8 +125,8 @@ class Cartpole {
 
     ctx.strokeStyle = "#ffffff";
     ctx.beginPath();
-    ctx.moveTo(halfW*pivotX, halfH*pivotY);
-    ctx.lineTo(halfW*tipX, halfH*tipY);
+    ctx.moveTo(ratio*pivotX, ratio*pivotY);
+    ctx.lineTo(ratio*tipX, ratio*tipY);
     ctx.stroke();
 
     /*
