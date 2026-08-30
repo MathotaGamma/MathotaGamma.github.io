@@ -118,7 +118,7 @@ class Cartpole {
 
     // 振り子
     const pivotX = 1 + this.x;
-    const pivotY = 1.7 - cartSize.h;
+    const pivotY = 0.7 - cartSize.h;
     const poleLength = 2 * halfL;
     const tipX = pivotX + poleLength * Math.sin(this.theta);
     const tipY = pivotY - poleLength * Math.cos(this.theta);
