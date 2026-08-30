@@ -449,7 +449,10 @@
       document.getElementById('btnGetFile').addEventListener('click', () => {
         const path = document.getElementById('filePath').value;
         const asType = document.getElementById('getAs').value;
-        runApi(`getFile('${path}', '${asType}')`, () => drive.getFile({path, asType}));
+        let mimeType = "text/plain;charset=utf-8";
+        if (asType === "json")
+          mimeType = "application/json";
+        runApi(`getFile('${path}', '${asType}')`, () => drive.getFile({ path, mimeType }));
       });
 
       document.getElementById('btnGetStructure').addEventListener('click', () => {
