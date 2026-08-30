@@ -126,6 +126,7 @@
       let Env;
       let env;
       const appDataDirectory = '/application-data/ai-creator-battle/';
+      const MCLMs = {};
 
       function logger(message, _) {
         console.log(message);
@@ -195,6 +196,7 @@
         
         env = new Env(userUsableInfo.userInfo.game[Env.gameKind]);
         // console.log(JSON.stringify(env.step(0), null, 2));
+        console.log(JSON.stringify(mclms, null, 2));
       }
       
       window.workStart = () => {
@@ -311,14 +313,12 @@
 
         alertDiv.innerHTML = 'Google Driveからアプリデータ内ファイルを取得中。しばらくお待ち下さい。';
         entirelyLayersInfo = await driveManager.getFile({
-          path: 'entirely-layers-info.json',
-          type: 'json'
+          path: 'entirely-layers-info.json'
         });
         ok = entirelyLayersInfo != null;
         if (ok) {
           userUsableInfo = await driveManager.getFile({
-            path: 'user-usable-info.json',
-            type: 'json'
+            path: 'user-usable-info.json'
           });
           ok = userUsableInfo != null;
         }
@@ -330,6 +330,17 @@
           status = "exit";
           return false;
         }
+        
+        // MCLMを取得。
+        const gameKinds = Object.keys(userUsableInfo.userInfo.solo);
+        for (let gameKind of gameKinds) {
+          const mclm = await driveManager.getFile({
+            path: 'mclm/'+gameKind+'.mclm'
+          });
+          if (mclm != null)
+            mclms[gameKind] = mclm;
+        }
+        
         alertDiv.innerHTML = 'Google Driveに正常に接続できました。<br>AIを実行するゲームを選んでください。';
         // OK
         return true;
