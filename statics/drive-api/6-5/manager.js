@@ -683,7 +683,13 @@ class DriveAPIManager {
   /* ==================================================
      CRUD
      ================================================== */
-
+  
+  // mimeTypeの種類
+  /*
+    TXT: 'text/plain;charset=utf-8'
+    JSON: 'application/json'
+    未定義: 'application/octet-stream'
+  */
   async saveFile({path, fileId, data, mimeType="application/json"}) {
     const cleanPath = this.filterPath({path});
     if (!cleanPath) return { ok: false };
