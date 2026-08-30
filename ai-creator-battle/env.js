@@ -43,7 +43,7 @@ class Cartpole {
 
   resize() {
     const aspectRatio = Cartpole.aspectRatio;
-    if (fixedAspect === 'width')
+    if (this.fixedAspect === 'width')
       this.canvas.height = this.canvas.width/aspectRatio;
     else
       this.canvas.width = this.canvas.height*aspectRatio;
