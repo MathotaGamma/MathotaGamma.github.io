@@ -659,6 +659,10 @@ class DriveAPIManager {
     return results;
   }
 
+  async existCheck({ path }) {
+    return (await this.getFileId({ path })) != null;
+  }
+
   /* ==================================================
      CRUD
      ================================================== */
