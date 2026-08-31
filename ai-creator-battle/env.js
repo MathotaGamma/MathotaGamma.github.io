@@ -179,6 +179,9 @@ class Cartpole {
       reward: this.getReward(action)
     };
     retData.done = this.calcEnv({ action, done });
+    // 画面の端
+    if (!done && retData.done)
+      retData.reward -= 5;
     retData.nextState = this.getCurrentState();
     
     return retData;
