@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
   <head>
     <meta charset="UTF-8" />
     <title>HTML実行エディタ | TOOLS</title>
@@ -66,13 +67,17 @@
         height: 150px;
         background: #111;
         color: #0f0;
+        overflow-x: hidden;
         overflow-y: auto;
         white-space: pre-wrap;
+        overflow-wrap: break-word;
+        word-break: break-word;
         padding: 8px;
         font-size: 13px;
         border-top: 1px solid #444;
         font-family: monospace;
         width: 100%;
+        box-sizing: border-box;
       }
       #controls {
         padding: 6px 8px;
@@ -98,6 +103,7 @@
       }
     </style>
   </head>
+
   <body>
     <div id="editor-container">
       <div id="controls">
@@ -111,7 +117,7 @@
         <button id="clear">コードクリア</button>
         <label>⬜︎ space:<input type="number" id="space-num" value="2"></label>
       </div>
-        <textarea id="editor"><!DOCTYPE html>
+      <textarea id="editor"><!DOCTYPE html>
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
@@ -124,8 +130,6 @@
     </script>
   </body>
 </html></textarea>
-     
-      
     </div>
     <div id="resize-bar"></div>
     <div id="preview-container">
@@ -402,4 +406,5 @@
       run(); // 初期実行
     </script>
   </body>
+
 </html>
