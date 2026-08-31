@@ -15,7 +15,7 @@ class Cartpole {
   static aspectRatio = 2.0;
   
   static fixedDt = 0.016;
-  static forceSize = 3;
+  static forceSize = 4;
   static g = 9.8;
   static m = 0.1;
   static M = 1;
