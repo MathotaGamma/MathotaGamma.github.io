@@ -111,6 +111,7 @@ class CogniKeel extends Common {
     this.modelType = modelType;
     this.indexes = indexes;
     this.inputShape = convertedInputShape;
+    this.totalInputLength = this.inputShape.reduce((acc, val) => acc * val, 1);
     //this.layers = [];
     this.status = this.constructor.STATUS.UNBUILT;
     this.onLog = onLog;
@@ -1320,8 +1321,8 @@ class ReplayBuffer extends Common {
     for (; count < batchSize; count++) {
       rand = this.Xorshift32();
       index = Math.floor(length*rand);
-      miniState = structuredClone(this.state[index]);
-      miniNextState = structuredClone(this.nextState[index]);
+      miniState = new Float32Array(this.state[index]);
+      miniNextState = new Float32Array(this.nextState[index]);
       state.set(miniState, stateOffset);
       action[count] = this.action[index];
       reward[count] = this.reward[index];
