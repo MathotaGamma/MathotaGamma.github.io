@@ -16,7 +16,7 @@ class Cartpole {
   
   static fixedDt = 0.016;
   static forceSize = 4;
-  static g = 9.8;
+  static g = 3;
   static m = 0.1;
   static M = 1;
   static halfL = 0.15;
@@ -53,9 +53,9 @@ class Cartpole {
   getCurrentState() {
     const state = new Float32Array(4);
     state[0] = this.x;
-    state[1] = this.v / 3.0;
+    state[1] = 2*this.v;
     state[2] = this.theta / Math.PI;
-    state[3] = this.omega / 50.0;
+    state[3] = this.omega / 20.0;
     return state;
   }
 
@@ -99,13 +99,13 @@ class Cartpole {
 
     this.v += a * fixedDt / inertia;
     this.v *= 0.995;
-    if (Math.abs(v) > 3)
-      this.v = 3*Math.sign(this.v);
+    if (Math.abs(v) > 0.5)
+      this.v = 0.5*Math.sign(this.v);
     this.x += this.v * fixedDt;
     this.omega += w * fixedDt;
     this.omega *= 0.999;
-    if (Math.abs(this.omega) > 50)
-      this.omega = 50*Math.sign(this.omega);
+    if (Math.abs(this.omega) > 20)
+      this.omega = 20*Math.sign(this.omega);
     this.theta += this.omega * fixedDt;
     this.theta = Math.atan2(Math.sin(this.theta), Math.cos(this.theta));
 
