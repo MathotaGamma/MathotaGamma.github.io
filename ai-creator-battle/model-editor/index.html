@@ -982,7 +982,12 @@ expired...${status.expired}`);
         
           
           checkCk.addLayers(layers);
-          checkCk.configure({});
+          checkCk.configure({
+            epsilonDecay: {
+              type: 'linear',
+              steps: 10000
+            }
+          });
           checkCk.initialize();
           const MCLM = await checkCk.getMCLM({ weightsInclude: false });
           const mclmPath = appDataDirectory + 'mclm/'+gameKind+'.mclm';
