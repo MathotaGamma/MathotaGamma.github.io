@@ -71,8 +71,8 @@ class Cartpole {
     // x: -1~-1
     this.x = 0;
     this.v = 0;
-    //this.theta = Math.PI;
-    this.theta = Math.PI*(2*Math.random()-1)/12;
+    this.theta = Math.PI;
+    //this.theta = Math.PI*(2*Math.random()-1)/12;
     this.omega = 0;
   }
 
