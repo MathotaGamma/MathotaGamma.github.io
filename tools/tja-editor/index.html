@@ -500,7 +500,7 @@ SCOREDIFF:120
         const lines = srcText.split('\n');
 
         for (let i = 0; i < lines.length; i++) {
-          const m = lines[i].match(/^OFFSET\s*:\s*([+-]?\d+(?:\.\d+)?)/i);
+          const m = lines[i].match(/^OFFSET\s*:?\s*([+-]?\d+(?:\.\d+)?)/i);
           if (m) {
             const val = parseFloat(m[1]);
             if (Number.isFinite(val)) {
@@ -511,7 +511,7 @@ SCOREDIFF:120
 
         // BPM:xxx を置換（複数行対応）
         for (let i = 0; i < lines.length; i++) {
-          const m = lines[i].match(/^BPM\s*:\s*([+-]?\d+(?:\.\d+)?)/i);
+          const m = lines[i].match(/^BPM\s*:?\s*([+-]?\d+(?:\.\d+)?)/i);
           if (m) {
             const val = parseFloat(m[1]);
             if (Number.isFinite(val)) {
@@ -522,7 +522,7 @@ SCOREDIFF:120
 
         // #BPMCHANGE xxx を置換（複数行対応）
         for (let i = 0; i < lines.length; i++) {
-          const m = lines[i].match(/^#BPMCHANGE\s+([+-]?\d+(?:\.\d+)?)/i);
+          const m = lines[i].match(/^#BPMCHANGE\s*([+-]?\d+(?:\.\d+)?)/i);
           if (m) {
             const val = parseFloat(m[1]);
             if (Number.isFinite(val)) {
