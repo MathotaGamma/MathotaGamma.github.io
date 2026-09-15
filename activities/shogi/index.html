@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>将棋NNUE 統合版</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        background: #f0e6d2;
+        margin: 0;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 4px 0;
+        text-align: center;
+      }
+      .tabButtons {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .tabButtons button {
+        padding: 8px 12px;
+        border: 1px solid #886;
+        background: #fff8e0;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .tabButtons button.active {
+        background: #ffd070;
+        font-weight: bold;
+      }
+      .tabSection {
+        display: none;
+        max-width: 420px;
+        margin: 0 auto;
+      }
+      .tabSection.active {
+        display: block;
+      }
+      #modelBar {
+        max-width: 420px;
+        margin: 0 auto 12px auto;
+        font-size: 13px;
+        background: #fffdf5;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        padding: 8px;
+        text-align: center;
+      }
+      #modelBar button {
+        margin: 4px 2px;
+        padding: 4px 8px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        margin: 6px 0 2px 0;
+      }
+      input[type="number"] {
+        width: 80px;
+      }
+      .actionButton {
+        margin-top: 8px;
+        padding: 8px 14px;
+        border: none;
+        background: #557;
+        color: #fff;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      pre.log {
+        max-height: 200px;
+        overflow-y: auto;
+        font-size: 12px;
+        background: #fffdf5;
+        border: 1px solid #ccc;
+        padding: 6px;
+        margin-top: 8px;
+        white-space: pre-wrap;
+      }
+      #status {
+        font-weight: bold;
+        min-height: 20px;
+        text-align: center;
+      }
+      .hand {
+        display: flex;
+        gap: 4px;
+        min-height: 40px;
+        margin: 4px auto;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .handPiece {
+        border: 1px solid #886;
+        background: #fff8e0;
+        padding: 4px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        user-select: none;
+      }
+      .handPiece.selected {
+        background: #ffd070;
+      }
+      #board {
+        display: grid;
+        grid-template-columns: repeat(9, 38px);
+        grid-template-rows: repeat(9, 38px);
+        border: 2px solid #553;
+        background: #e8c98a;
+        margin: 0 auto;
+      }
+      .cell {
+        border: 1px solid #995;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        cursor: pointer;
+        position: relative;
+        user-select: none;
+      }
+      .cell.selected {
+        background: #ffd070;
+      }
+      .cell.legal::after {
+        content: "";
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(0, 120, 0, 0.5);
+      }
+      .piece.white {
+        display: inline-block;
+        transform: rotate(180deg);
+        color: #a33;
+      }
+      .piece.black {
+        color: #222;
+      }
+      #promoteOverlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      #promoteOverlay .box {
+        background: #fff;
+        padding: 18px 24px;
+        border-radius: 8px;
+        text-align: center;
+      }
+      #promoteOverlay button {
+        margin: 8px 6px 0 6px;
+        padding: 8px 16px;
+        border-radius: 6px;
+        border: 1px solid #886;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>将棋NNUE 統合版(学習・対局・自己対戦学習)</h1>
+
+    <div id="modelBar">
+      モデル:
+      <input type="file" id="modelFileInput" accept=".json">
+      <button id="downloadModelBtn">モデルをダウンロード</button>
+      <div id="modelStatus">WASMモジュールを読み込み中...</div>
+    </div>
+
+    <div class="tabButtons">
+      <button data-tab="train" class="active">学習</button>
+      <button data-tab="play">対局</button>
+      <button data-tab="selfplay">自己対戦学習</button>
+    </div>
+
+    <section id="tab-train" class="tabSection active">
+      <label>教師データ(.bin, PackedSfenValue形式)を選択</label>
+      <input type="file" id="trainFileInput" accept=".bin">
+      <label>バッチサイズ(1回の学習で読み込む局面数)</label>
+      <input type="number" id="batchSizeInput" value="1000" min="10" step="10">
+      <label>学習率</label>
+      <input type="number" id="trainLrInput" value="0.002" step="0.001">
+      <p style="font-size: 12px; color: #555;">
+        「学習開始」を押すと停止するまで学習を続けます。放置しても構いません。
+      </p>
+      <button class="actionButton" id="startTrainBtn">学習開始</button>
+      <button class="actionButton" id="stopTrainBtn" style="background: #955;">停止</button>
+      <pre class="log" id="trainLog"></pre>
+
+      <hr>
+      <label>リモートURLから連続学習(放置用)</label>
+      <input type="text" id="remoteUrlInput" style="width: 100%;" value="https://huggingface.co/datasets/nodchip/shogi_hao_depth9/resolve/main/kifu.tag%3Dtrain.depth%3D9.num_positions%3D1000000000.start_time%3D1695340981.thread_index%3D000.bin">
+      <label>バッチサイズ</label>
+      <input type="number" id="remoteBatchSizeInput" value="1000" min="10" step="10">
+      <label>学習率</label>
+      <input type="number" id="remoteLrInput" value="0.002" step="0.001">
+      <p style="font-size: 12px; color: #555;">
+        URL末尾の thread_index の番号(000, 001, 002...)を自動で増やしながら
+        次のファイルを読み込み続け、ファイルが見つからなくなったら自動で
+        止まります。「停止」でいつでも止められます。
+      </p>
+      <button class="actionButton" id="startRemoteTrainBtn">連続学習を開始</button>
+      <button class="actionButton" id="stopRemoteTrainBtn" style="background: #955;">停止</button>
+      <pre class="log" id="remoteTrainLog"></pre>
+    </section>
+
+    <section id="tab-play" class="tabSection">
+      <div id="status">先手番です。駒をタップしてください。</div>
+      <div class="hand" id="handWhite"></div>
+      <div id="board"></div>
+      <div class="hand" id="handBlack"></div>
+      <button class="actionButton" id="declareBtn">入玉宣言</button>
+      <button class="actionButton" id="resetGameBtn">対局をリセット</button>
+      <pre class="log" id="playLog"></pre>
+    </section>
+
+    <section id="tab-selfplay" class="tabSection">
+      <label>自己対戦時の探索深さ(小さいほど速い)</label>
+      <input type="number" id="selfPlayDepthInput" value="1" min="1" step="1">
+      <label>学習率</label>
+      <input type="number" id="selfPlayLrInput" value="0.002" step="0.001">
+      <p style="font-size: 12px; color: #555;">
+        「開始」を押すと停止するまで対局と学習を繰り返します。1局あたり
+        数秒〜数十秒かかることがあります。
+      </p>
+      <button class="actionButton" id="startSelfPlayBtn">自己対戦学習を開始</button>
+      <button class="actionButton" id="stopSelfPlayBtn" style="background: #955;">停止</button>
+      <pre class="log" id="selfPlayLog"></pre>
+    </section>
+
+    <div id="promoteOverlay">
+      <div class="box">
+        <p>成りますか?</p>
+        <button id="promoteYesBtn">成る</button>
+        <button id="promoteNoBtn">成らない</button>
+      </div>
+    </div>
+
+    <script>
+      /*
+        shogi_nnue_all_v4.html
+        --- shogi_nnue_all_v3.html からの差分 ---
+        ・自己対戦が極端に遅くなる不具合を修正した。原因は、王手放置の
+          禁止や打ち歩詰めの判定のたびに合法手を"全部"列挙していたこと。
+          特に打ち歩詰め判定は、歩を打って王手になる手ごとに相手側の
+          合法手を丸ごと再列挙しており、持ち駒が増えて分岐数が膨らむ
+          自己対戦の中盤以降で組み合わせ的に遅くなっていた。
+          「合法手が1つでもあるか」だけを早期終了で判定する
+          hasLegalMove() を追加し、詰み判定・打ち歩詰め判定・探索の
+          リーフノード(negamaxのdepth=0)ではこちらを使うように変更した。
+          全合法手が必要な場面(実際に指せる手の列挙、UIでのハイライト)
+          は従来どおり generateLegalMoves() を使う。
+        ・ローカルファイルの学習を「一部だけ間引いてサンプリングし、
+          それを繰り返し学習する」方式から、「ファイルの先頭から
+          バッチサイズ分ずつ順番に最後まで学習し、最後まで到達したら
+          最初に戻ってまた続ける」方式に変更した。「サンプリングする
+          局面数」の入力欄を廃止し、「バッチサイズ」に置き換えた。
+        ・学習ログをより詳細にした。ローカル学習・リモート連続学習・
+          自己対戦学習のいずれも、誤差(正規化MSE)・平均絶対誤差に加えて
+          バッチ内の最大絶対誤差と、具体的な数例の「予測評価値 vs
+          教師値(または教師信号)」を表示するようにした。
+
+        既知の制限:
+        ・リモートURLからの連続学習は、このファイルを作成したサンドボックス
+          環境からは huggingface.co に到達できず動作確認ができていない
+          (host_not_allowedで拒否される)。ブラウザで開いて試す必要がある。
+        ・WASMモジュールはl1=128, l2=32, l3=32, 特徴量次元数19638に固定
+          コンパイルされているため、モデルの読み込みもこの構造と一致する
+          ものに限られる(v2以前でダウンロードしたモデルファイルは形式が
+          異なるため読み込めない)。
+      */
+
+      // ------------------------------------------------------------
+      // 1. 盤面表現・定数
+      // ------------------------------------------------------------
+
+      const SIDE_BLACK = 0;
+      const SIDE_WHITE = 1;
+
+      const PIECE_TYPES = [
+        "FU", "KY", "KE", "GI", "KI", "KA", "HI",
+        "TO", "NY", "NK", "NG", "UM", "RY"
+      ];
+      const NUM_PIECE_TYPES = PIECE_TYPES.length;
+      const HAND_PIECE_TYPES = ["FU", "KY", "KE", "GI", "KI", "KA", "HI"];
+      const MAX_HAND_COUNT = { FU: 18, KY: 4, KE: 4, GI: 4, KI: 4, KA: 2, HI: 2 };
+
+      const PROMOTE_MAP = { FU: "TO", KY: "NY", KE: "NK", GI: "NG", KA: "UM", HI: "RY" };
+      const PROMOTED_TO_BASE = { TO: "FU", NY: "KY", NK: "KE", NG: "GI", UM: "KA", RY: "HI" };
+      const PIECE_KANJI = {
+        FU: "歩", KY: "香", KE: "桂", GI: "銀", KI: "金", KA: "角", HI: "飛", OU: "玉",
+        TO: "と", NY: "成香", NK: "成桂", NG: "成銀", UM: "馬", RY: "龍"
+      };
+      const LETTER = { FU: "P", KY: "L", KE: "N", GI: "S", KI: "G", KA: "B", HI: "R" };
+      const RANKS = "abcdefghi";
+
+      function baseType(type) { return PROMOTED_TO_BASE[type] || type; }
+      function canPromote(type) {
+        return type === "FU" || type === "KY" || type === "KE" || type === "GI" || type === "KA" || type === "HI";
+      }
+      function isInPromotionZone(rank, side) { return side === SIDE_BLACK ? rank <= 2 : rank >= 6; }
+      function mustPromote(type, toRank, side) {
+        if (type === "FU" || type === "KY") return side === SIDE_BLACK ? toRank === 0 : toRank === 8;
+        if (type === "KE") return side === SIDE_BLACK ? toRank <= 1 : toRank >= 7;
+        return false;
+      }
+
+      function makeEmptyBoard() {
+        const squares = [];
+        for (let rank = 0; rank < 9; rank++) squares.push(new Array(9).fill(null));
+        return {
+          squares: squares,
+          hands: {
+            [SIDE_BLACK]: Object.fromEntries(HAND_PIECE_TYPES.map((t) => [t, 0])),
+            [SIDE_WHITE]: Object.fromEntries(HAND_PIECE_TYPES.map((t) => [t, 0]))
+          },
+          sideToMove: SIDE_BLACK
+        };
+      }
+
+      function makeHirateBoard() {
+        const board = makeEmptyBoard();
+        const set = (fileNumber, rankNumber, type, side) => {
+          board.squares[rankNumber - 1][fileNumber - 1] = { type: type, side: side };
+        };
+        const backRowWhite = ["KY", "KE", "GI", "KI", "OU", "KI", "GI", "KE", "KY"];
+        const backRowBlack = [...backRowWhite].reverse();
+        for (let file = 1; file <= 9; file++) {
+          set(file, 1, backRowWhite[file - 1], SIDE_WHITE);
+          set(file, 3, "FU", SIDE_WHITE);
+          set(file, 7, "FU", SIDE_BLACK);
+          set(file, 9, backRowBlack[9 - file], SIDE_BLACK);
+        }
+        set(2, 2, "KA", SIDE_WHITE);
+        set(8, 2, "HI", SIDE_WHITE);
+        set(8, 8, "KA", SIDE_BLACK);
+        set(2, 8, "HI", SIDE_BLACK);
+        return board;
+      }
+
+      function cloneBoard(board) {
+        return {
+          squares: board.squares.map((row) => row.map((cell) => (cell ? { type: cell.type, side: cell.side } : null))),
+          hands: {
+            [SIDE_BLACK]: Object.assign({}, board.hands[SIDE_BLACK]),
+            [SIDE_WHITE]: Object.assign({}, board.hands[SIDE_WHITE])
+          },
+          sideToMove: board.sideToMove
+        };
+      }
+
+      function findKingSquare(board, side) {
+        for (let rank = 0; rank < 9; rank++) {
+          for (let file = 0; file < 9; file++) {
+            const piece = board.squares[rank][file];
+            if (piece && piece.type === "OU" && piece.side === side) return { rank: rank, file: file };
+          }
+        }
+        return null;
+      }
+
+      // SFEN文字列 → 盤面(学習データの局面を読むために使用)
+      const SFEN_LETTER_TO_BASE_TYPE = { P: "FU", L: "KY", N: "KE", S: "GI", G: "KI", B: "KA", R: "HI", K: "OU" };
+      const SFEN_LETTER_TO_PROMOTED_TYPE = { P: "TO", L: "NY", N: "NK", S: "NG", B: "UM", R: "RY" };
+      function sfenToBoard(sfenString) {
+        const parts = sfenString.trim().split(/\s+/);
+        const boardPart = parts[0], tebanPart = parts[1], handPart = parts[2];
+        const board = makeEmptyBoard();
+        const rows = boardPart.split("/");
+        for (let rankIndex = 0; rankIndex < 9; rankIndex++) {
+          const row = rows[rankIndex];
+          let fileIndex = 8, i = 0;
+          while (i < row.length) {
+            const ch = row[i];
+            if (ch >= "0" && ch <= "9") { fileIndex -= Number(ch); i++; continue; }
+            let promoted = false, letter = ch;
+            if (letter === "+") { promoted = true; i++; letter = row[i]; }
+            const side = letter === letter.toUpperCase() ? SIDE_BLACK : SIDE_WHITE;
+            const baseLetter = letter.toUpperCase();
+            const type = promoted ? SFEN_LETTER_TO_PROMOTED_TYPE[baseLetter] : SFEN_LETTER_TO_BASE_TYPE[baseLetter];
+            board.squares[rankIndex][fileIndex] = { type: type, side: side };
+            fileIndex--; i++;
+          }
+        }
+        if (handPart && handPart !== "-") {
+          let i = 0;
+          while (i < handPart.length) {
+            let numString = "";
+            while (handPart[i] >= "0" && handPart[i] <= "9") { numString += handPart[i]; i++; }
+            const count = numString ? Number(numString) : 1;
+            const letter = handPart[i]; i++;
+            const side = letter === letter.toUpperCase() ? SIDE_BLACK : SIDE_WHITE;
+            const type = SFEN_LETTER_TO_BASE_TYPE[letter.toUpperCase()];
+            board.hands[side][type] = (board.hands[side][type] || 0) + count;
+          }
+        }
+        board.sideToMove = tebanPart === "b" ? SIDE_BLACK : SIDE_WHITE;
+        return board;
+      }
+
+      // ------------------------------------------------------------
+      // 2. 駒の動き・合法手生成
+      // ------------------------------------------------------------
+
+      function getPieceTargets(board, rank, file) {
+        const piece = board.squares[rank][file];
+        const side = piece.side;
+        const forward = side === SIDE_BLACK ? -1 : 1;
+        const targets = [];
+        function tryStep(dr, df) {
+          const r = rank + dr, f = file + df;
+          if (r < 0 || r > 8 || f < 0 || f > 8) return;
+          const occupant = board.squares[r][f];
+          if (!occupant || occupant.side !== side) targets.push({ rank: r, file: f });
+        }
+        function trySlide(dr, df) {
+          let r = rank + dr, f = file + df;
+          while (r >= 0 && r <= 8 && f >= 0 && f <= 8) {
+            const occupant = board.squares[r][f];
+            if (!occupant) { targets.push({ rank: r, file: f }); r += dr; f += df; continue; }
+            if (occupant.side !== side) targets.push({ rank: r, file: f });
+            break;
+          }
+        }
+        switch (piece.type) {
+          case "FU": tryStep(forward, 0); break;
+          case "KE": tryStep(forward * 2, -1); tryStep(forward * 2, 1); break;
+          case "GI": tryStep(forward, -1); tryStep(forward, 0); tryStep(forward, 1); tryStep(-forward, -1); tryStep(-forward, 1); break;
+          case "KI": case "TO": case "NY": case "NK": case "NG":
+            tryStep(forward, -1); tryStep(forward, 0); tryStep(forward, 1); tryStep(0, -1); tryStep(0, 1); tryStep(-forward, 0);
+            break;
+          case "OU":
+            for (const [dr, df] of [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]]) tryStep(dr, df);
+            break;
+          case "KY": trySlide(forward, 0); break;
+          case "KA": trySlide(-1, -1); trySlide(-1, 1); trySlide(1, -1); trySlide(1, 1); break;
+          case "HI": trySlide(-1, 0); trySlide(1, 0); trySlide(0, -1); trySlide(0, 1); break;
+          case "UM":
+            trySlide(-1, -1); trySlide(-1, 1); trySlide(1, -1); trySlide(1, 1);
+            tryStep(-1, 0); tryStep(1, 0); tryStep(0, -1); tryStep(0, 1);
+            break;
+          case "RY":
+            trySlide(-1, 0); trySlide(1, 0); trySlide(0, -1); trySlide(0, 1);
+            tryStep(-1, -1); tryStep(-1, 1); tryStep(1, -1); tryStep(1, 1);
+            break;
+        }
+        return targets;
+      }
+
+      function isSquareAttacked(board, rank, file, bySide) {
+        for (let r = 0; r < 9; r++) {
+          for (let f = 0; f < 9; f++) {
+            const piece = board.squares[r][f];
+            if (piece && piece.side === bySide) {
+              const targets = getPieceTargets(board, r, f);
+              if (targets.some((t) => t.rank === rank && t.file === file)) return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      function isInCheck(board, side) {
+        const king = findKingSquare(board, side);
+        if (!king) return false;
+        const opponent = side === SIDE_BLACK ? SIDE_WHITE : SIDE_BLACK;
+        return isSquareAttacked(board, king.rank, king.file, opponent);
+      }
+
+      function applyMove(board, move) {
+        const next = cloneBoard(board);
+        const side = next.sideToMove;
+        if (move.kind === "drop") {
+          next.squares[move.toRank][move.toFile] = { type: move.pieceType, side: side };
+          next.hands[side][move.pieceType] -= 1;
+        } else {
+          const piece = next.squares[move.fromRank][move.fromFile];
+          const captured = next.squares[move.toRank][move.toFile];
+          if (captured) {
+            const capturedBase = baseType(captured.type);
+            next.hands[side][capturedBase] = (next.hands[side][capturedBase] || 0) + 1;
+          }
+          next.squares[move.fromRank][move.fromFile] = null;
+          next.squares[move.toRank][move.toFile] = { type: move.promote ? PROMOTE_MAP[piece.type] : piece.type, side: side };
+        }
+        next.sideToMove = side === SIDE_BLACK ? SIDE_WHITE : SIDE_BLACK;
+        return next;
+      }
+
+      function generatePseudoBoardMoves(board) {
+        const side = board.sideToMove;
+        const moves = [];
+        for (let r = 0; r < 9; r++) {
+          for (let f = 0; f < 9; f++) {
+            const piece = board.squares[r][f];
+            if (!piece || piece.side !== side) continue;
+            const targets = getPieceTargets(board, r, f);
+            for (const t of targets) {
+              const promotable = canPromote(piece.type);
+              const forced = promotable && mustPromote(piece.type, t.rank, side);
+              const zoneEligible = promotable && (isInPromotionZone(r, side) || isInPromotionZone(t.rank, side));
+              if (forced) {
+                moves.push({ kind: "move", fromRank: r, fromFile: f, toRank: t.rank, toFile: t.file, promote: true });
+              } else {
+                moves.push({ kind: "move", fromRank: r, fromFile: f, toRank: t.rank, toFile: t.file, promote: false });
+                if (zoneEligible) moves.push({ kind: "move", fromRank: r, fromFile: f, toRank: t.rank, toFile: t.file, promote: true });
+              }
+            }
+          }
+        }
+        return moves;
+      }
+
+      function generateDropMoves(board) {
+        const side = board.sideToMove;
+        const moves = [];
+        for (const pieceType of HAND_PIECE_TYPES) {
+          const count = board.hands[side][pieceType] || 0;
+          if (count <= 0) continue;
+          for (let r = 0; r < 9; r++) {
+            for (let f = 0; f < 9; f++) {
+              if (board.squares[r][f]) continue;
+              if (pieceType === "FU") {
+                let hasPawnInFile = false;
+                for (let rr = 0; rr < 9; rr++) {
+                  const p = board.squares[rr][f];
+                  if (p && p.side === side && p.type === "FU") hasPawnInFile = true;
+                }
+                if (hasPawnInFile) continue;
+                if ((side === SIDE_BLACK && r === 0) || (side === SIDE_WHITE && r === 8)) continue;
+              }
+              if (pieceType === "KY") {
+                if ((side === SIDE_BLACK && r === 0) || (side === SIDE_WHITE && r === 8)) continue;
+              }
+              if (pieceType === "KE") {
+                if ((side === SIDE_BLACK && r <= 1) || (side === SIDE_WHITE && r >= 7)) continue;
+              }
+              moves.push({ kind: "drop", pieceType: pieceType, toRank: r, toFile: f });
+            }
+          }
+        }
+        return moves;
+      }
+
+      // 合法手が1つでも存在するかだけを早期終了で判定する(詰み判定・打ち歩詰め判定用)。
+      // 全合法手を列挙するgenerateLegalMovesよりずっと安く済む。
+      function hasLegalMove(board) {
+        const side = board.sideToMove;
+        for (const move of generatePseudoBoardMoves(board)) {
+          const next = applyMove(board, move);
+          if (!isInCheck(next, side)) return true;
+        }
+        for (const move of generateDropMoves(board)) {
+          const next = applyMove(board, move);
+          if (isInCheck(next, side)) continue;
+          if (move.pieceType === "FU" && isInCheck(next, next.sideToMove) && !hasLegalMove(next)) continue; // 打ち歩詰め
+          return true;
+        }
+        return false;
+      }
+
+      function generateLegalMoves(board) {
+        const side = board.sideToMove;
+        const candidates = generatePseudoBoardMoves(board).concat(generateDropMoves(board));
+        const legal = [];
+        for (const move of candidates) {
+          const next = applyMove(board, move);
+          if (isInCheck(next, side)) continue; // 自玉が王手のまま残る手は禁止
+          if (move.kind === "drop" && move.pieceType === "FU") {
+            // 打ち歩詰めの禁止: この歩打ちで相手が詰む(合法手が0になる)場合は禁止
+            if (isInCheck(next, next.sideToMove) && !hasLegalMove(next)) continue;
+          }
+          legal.push(move);
+        }
+        return legal;
+      }
+
+      // ------------------------------------------------------------
+      // 入玉宣言勝ち(トライルール)
+      // ------------------------------------------------------------
+
+      function countDeclarationPoints(board, side) {
+        let points = 0;
+        let pieceCountInZone = 0;
+        for (let rank = 0; rank < 9; rank++) {
+          if (!isInPromotionZone(rank, side)) continue;
+          for (let file = 0; file < 9; file++) {
+            const piece = board.squares[rank][file];
+            if (piece && piece.side === side && piece.type !== "OU") {
+              pieceCountInZone++;
+              points += piece.type === "KA" || piece.type === "HI" || piece.type === "UM" || piece.type === "RY" ? 5 : 1;
+            }
+          }
+        }
+        return { points: points, pieceCountInZone: pieceCountInZone };
+      }
+
+      function canDeclareEntryWin(board, side) {
+        const king = findKingSquare(board, side);
+        if (!king) return false;
+        if (!isInPromotionZone(king.rank, side)) return false; // 玉が敵陣三段目以内
+        if (isInCheck(board, side)) return false; // 王手がかかっていない
+        const result = countDeclarationPoints(board, side);
+        if (result.pieceCountInZone < 10) return false; // 玉を除き敵陣内に10枚以上
+        const required = side === SIDE_BLACK ? 28 : 27;
+        return result.points >= required;
+      }
+
+      function moveToNotation(move) {
+        const toSquare = (rank, file) => `${file + 1}${RANKS[rank]}`;
+        if (move.kind === "drop") return `${LETTER[move.pieceType]}*${toSquare(move.toRank, move.toFile)}`;
+        return `${toSquare(move.fromRank, move.fromFile)}${toSquare(move.toRank, move.toFile)}${move.promote ? "+" : ""}`;
+      }
+
+      // ------------------------------------------------------------
+      // 3. HalfKP特徴量 + NNUE(学習機能つきフル版)
+      // ------------------------------------------------------------
+
+      const NUM_SQUARES = 81;
+      const KING_ZONES = 9;
+      function kingFileToZone(file) { return file; }
+      const BOARD_FEATURE_SIZE = NUM_PIECE_TYPES * NUM_SQUARES * 2;
+      const HAND_OFFSETS = [];
+      let handOffsetAccumulator = 0;
+      for (const type of HAND_PIECE_TYPES) { HAND_OFFSETS.push(handOffsetAccumulator); handOffsetAccumulator += MAX_HAND_COUNT[type] * 2; }
+      const NUM_HAND_FEATURES = handOffsetAccumulator;
+      const FEATURES_PER_KING = BOARD_FEATURE_SIZE + NUM_HAND_FEATURES;
+      const NUM_FEATURES = KING_ZONES * FEATURES_PER_KING;
+
+      function computeActiveFeatures(board, perspective) {
+        const kingSquare = findKingSquare(board, perspective);
+        if (!kingSquare) return [];
+        const zoneBase = kingFileToZone(kingSquare.file) * FEATURES_PER_KING;
+        const features = [];
+        for (let rank = 0; rank < 9; rank++) {
+          for (let file = 0; file < 9; file++) {
+            const piece = board.squares[rank][file];
+            if (!piece || piece.type === "OU") continue;
+            const typeIndex = PIECE_TYPES.indexOf(piece.type);
+            const squareIndex = rank * 9 + file;
+            const isEnemy = piece.side === perspective ? 0 : 1;
+            features.push(zoneBase + typeIndex * NUM_SQUARES * 2 + squareIndex * 2 + isEnemy);
+          }
+        }
+        for (let side = 0; side < 2; side++) {
+          const isEnemy = side === perspective ? 0 : 1;
+          for (let h = 0; h < HAND_PIECE_TYPES.length; h++) {
+            const type = HAND_PIECE_TYPES[h];
+            const count = Math.min(board.hands[side][type] || 0, MAX_HAND_COUNT[type]);
+            for (let c = 1; c <= count; c++) features.push(zoneBase + BOARD_FEATURE_SIZE + HAND_OFFSETS[h] + (c - 1) * 2 + isEnemy);
+          }
+        }
+        return features;
+      }
+
+      function makeRng(seed) {
+        let state = seed >>> 0;
+        return function next() { state = (state * 1664525 + 1013904223) >>> 0; return state / 4294967296; };
+      }
+      function randomWeight(rng, scale) { return (rng() * 2 - 1) * scale; }
+      function clippedReluDerivative(x) { return x > 0 && x < 1 ? 1 : 0; }
+
+      // ------------------------------------------------------------
+      // WASM版NNUE
+      // 探索(negamax)で大量に呼ばれる評価計算(特徴量の集計 + 3層MLPの
+      // 順伝播)をWebAssemblyで実行し高速化する。重み・アキュムレータ・
+      // 中間層の値はすべてWASMの線形メモリ上の固定オフセットに置き、
+      // JS側はFloat32Array/Int32Arrayのビューとして直接読み書きする
+      // (コピーが発生しない)。
+      // 学習(逆伝播)はWASMが計算済みの中間値(hidden0/1/2)をそのまま
+      // JS側のビュー経由で読み、勾配計算と重み更新はJSで行う
+      // (学習は探索ほど高頻度に呼ばれないため、そこは高速化の優先度を
+      // 下げてJS実装のままにした)。
+      // ------------------------------------------------------------
+
+      // l1=128, l2=32, l3=32, NUM_FEATURES=19638 の構成でコンパイル済みのWASMバイナリ(base64)
+      const NNUE_WASM_BASE64 = "AGFzbQEAAAABHgVgAX0BfWACf38AYAd/f39/f39/AGABfwBgAX8BfQMHBgABAgMDBAUGAQGgAaABB0gEBm1lbW9yeQIAF3JlZnJlc2hBY2N1bXVsYXRvckJsYWNrAAMXcmVmcmVzaEFjY3VtdWxhdG9yV2hpdGUABAdmb3J3YXJkAAUK2gQGJgAgAEMAAAAAXQRAQwAAAAAPCyAAQwAAgD9eBEBDAACAPw8LIAALpwEBBH9BACECAkADQCACQYABTg0BIAAgAkEEbGpBgNjlBCACQQRsaioCADgCACACQQFqIQIMAAsLQQAhAwJAA0AgAyABTg0BQYSR6AQgA0EEbGooAgAhBCAEQYAEbCEFQQAhAgJAA0AgAkGAAU4NASAAIAJBBGxqIAAgAkEEbGoqAgAgBSACQQRsaioCAJI4AgAgAkEBaiECDAALCyADQQFqIQMMAAsLC4gBAgJ/An1BACEIAkADQCAIIAVODQEgAyAIQQRsaioCACEJQQAhBwJAA0AgByABTg0BIAAgB0EEbGoqAgAhCiAJIAogAiAHIAVsIAhqQQRsaioCAJSSIQkgB0EBaiEHDAALCyAGQQFGBEAgCRAAIQkLIAQgCEEEbGogCTgCACAIQQFqIQgMAAsLCwsAQYT/5wQgABABCwsAQYSD6AQgABABC+UBAgN/AX0gAEEARgRAQYT/5wQhAkGEg+gEIQMFQYSD6AQhAkGE/+cEIQMLQQAhAQJAA0AgAUGAAU4NASACIAFBBGxqKgIAEAAhBEGEh+gEIAFBBGxqIAQ4AgAgAyABQQRsaioCABAAIQRBhIfoBCABQYABakEEbGogBDgCACABQQFqIQEMAAsLQYSH6ARBgAJBgNzlBEGA3OcEQYSP6ARBIEEBEAJBhI/oBEEgQYDd5wRBgP3nBEGEkOgEQSBBARACQYSQ6ARBIEGA/ucEQYD/5wRBhJnoBEEBQQAQAkGEmegEKgIACw==";
+
+      const WASM_L1 = 128, WASM_L2 = 32, WASM_L3 = 32;
+      // 下記オフセットはWASM側(nnue.wat)のメモリレイアウトと1対1で対応させている。
+      // NUM_FEATURESが変わるとWASM側の再コンパイルが必要なため、想定外の値なら早期に気づけるよう検査する。
+      if (NUM_FEATURES !== 19638) console.error("NUM_FEATURESがWASMモジュールの前提(19638)と一致していません: " + NUM_FEATURES);
+      const OFF_FT_WEIGHTS = 0;
+      const OFF_FT_BIAS = NUM_FEATURES * WASM_L1 * 4;
+      const OFF_W2 = OFF_FT_BIAS + WASM_L1 * 4;
+      const OFF_B2 = OFF_W2 + WASM_L1 * 2 * WASM_L2 * 4;
+      const OFF_W3 = OFF_B2 + WASM_L2 * 4;
+      const OFF_B3 = OFF_W3 + WASM_L2 * WASM_L3 * 4;
+      const OFF_WOUT = OFF_B3 + WASM_L3 * 4;
+      const OFF_BOUT = OFF_WOUT + WASM_L3 * 4;
+      const OFF_ACC_BLACK = OFF_BOUT + 4;
+      const OFF_ACC_WHITE = OFF_ACC_BLACK + WASM_L1 * 4;
+      const OFF_HIDDEN0 = OFF_ACC_WHITE + WASM_L1 * 4;
+      const OFF_HIDDEN1 = OFF_HIDDEN0 + WASM_L1 * 2 * 4;
+      const OFF_HIDDEN2 = OFF_HIDDEN1 + WASM_L2 * 4;
+      const OFF_FEATURES = OFF_HIDDEN2 + WASM_L3 * 4;
+
+      class NNUE {
+        constructor(wasmInstance) {
+          this.wasm = wasmInstance;
+          const buffer = wasmInstance.exports.memory.buffer;
+          this.l1 = WASM_L1; this.l2 = WASM_L2; this.l3 = WASM_L3;
+          this.ftWeights = new Float32Array(buffer, OFF_FT_WEIGHTS, NUM_FEATURES * WASM_L1);
+          this.ftBias = new Float32Array(buffer, OFF_FT_BIAS, WASM_L1);
+          this.w2 = new Float32Array(buffer, OFF_W2, WASM_L1 * 2 * WASM_L2);
+          this.b2 = new Float32Array(buffer, OFF_B2, WASM_L2);
+          this.w3 = new Float32Array(buffer, OFF_W3, WASM_L2 * WASM_L3);
+          this.b3 = new Float32Array(buffer, OFF_B3, WASM_L3);
+          this.wOut = new Float32Array(buffer, OFF_WOUT, WASM_L3);
+          this.bOut = new Float32Array(buffer, OFF_BOUT, 1);
+          this.hidden0 = new Float32Array(buffer, OFF_HIDDEN0, WASM_L1 * 2);
+          this.hidden1 = new Float32Array(buffer, OFF_HIDDEN1, WASM_L2);
+          this.hidden2 = new Float32Array(buffer, OFF_HIDDEN2, WASM_L3);
+          this.featuresBuf = new Int32Array(buffer, OFF_FEATURES, 256);
+        }
+        randomizeWeights(seed) {
+          const rng = makeRng(seed);
+          for (let i = 0; i < this.ftWeights.length; i++) this.ftWeights[i] = randomWeight(rng, 0.05);
+          this.ftBias.fill(0);
+          for (let i = 0; i < this.w2.length; i++) this.w2[i] = randomWeight(rng, 0.2);
+          this.b2.fill(0);
+          for (let i = 0; i < this.w3.length; i++) this.w3[i] = randomWeight(rng, 0.3);
+          this.b3.fill(0);
+          for (let i = 0; i < this.wOut.length; i++) this.wOut[i] = randomWeight(rng, 0.3);
+          this.bOut[0] = 0;
+        }
+        _refreshAccumulator(board, perspective) {
+          const features = computeActiveFeatures(board, perspective);
+          this.featuresBuf.set(features);
+          if (perspective === SIDE_BLACK) this.wasm.exports.refreshAccumulatorBlack(features.length);
+          else this.wasm.exports.refreshAccumulatorWhite(features.length);
+          return features;
+        }
+        // 探索用の高速パス。WASMのforward()をそのまま呼ぶだけ。
+        evaluate(board) {
+          this._refreshAccumulator(board, SIDE_BLACK);
+          this._refreshAccumulator(board, SIDE_WHITE);
+          return this.wasm.exports.forward(board.sideToMove);
+        }
+        // 学習用。forward自体はWASMで計算し、逆伝播(勾配計算・重み更新)のみJSで行う。
+        // 誤差クリップとL2正則化(weight decay)を入れている: これがないと、
+        // 長時間・大量のデータで学習を続けたときに重みが際限なく増大して発散し、
+        // 逆に誤差が悪化していく不具合があったため(実データで検証して確認済み)。
+        trainStep(board, target, learningRate = 0.001) {
+          const blackFeatures = this._refreshAccumulator(board, SIDE_BLACK);
+          const whiteFeatures = this._refreshAccumulator(board, SIDE_WHITE);
+          const value = this.wasm.exports.forward(board.sideToMove);
+
+          const rawError = value - target;
+          const error = Math.max(-1, Math.min(1, rawError)); // 勾配爆発を防ぐため誤差自体をクリップする
+          const lossGradOutput = new Float32Array([error]);
+          const gradHidden2 = this._backwardDense(this.hidden2, this.wOut, this.bOut, lossGradOutput, learningRate, 1);
+          for (let i = 0; i < gradHidden2.length; i++) gradHidden2[i] *= clippedReluDerivative(this._preActivation(this.hidden1, this.w3, this.b3, i, this.l3));
+          const gradHidden1 = this._backwardDense(this.hidden1, this.w3, this.b3, gradHidden2, learningRate, this.l3);
+          for (let i = 0; i < gradHidden1.length; i++) gradHidden1[i] *= clippedReluDerivative(this._preActivation(this.hidden0, this.w2, this.b2, i, this.l2));
+          const gradHidden0 = this._backwardDense(this.hidden0, this.w2, this.b2, gradHidden1, learningRate, this.l2);
+
+          const gradFirst = gradHidden0.slice(0, this.l1);
+          const gradSecond = gradHidden0.slice(this.l1, this.l1 * 2);
+          const firstFeatures = board.sideToMove === SIDE_BLACK ? blackFeatures : whiteFeatures;
+          const secondFeatures = board.sideToMove === SIDE_BLACK ? whiteFeatures : blackFeatures;
+          this._updateFeatureTransformer(firstFeatures, gradFirst, this.hidden0.subarray(0, this.l1), learningRate);
+          this._updateFeatureTransformer(secondFeatures, gradSecond, this.hidden0.subarray(this.l1, this.l1 * 2), learningRate);
+          return rawError * rawError; // ログ表示用の損失は、クリップ前の実際の誤差で計算する
+        }
+        // weightMatrixFlat: 行数=input.length、列数=outLen の行優先フラット配列(WASMメモリのビュー)
+        _backwardDense(input, weightMatrixFlat, bias, gradOutput, learningRate, outLen) {
+          const weightDecay = 0.0003;
+          const gradInput = new Float32Array(input.length);
+          for (let r = 0; r < input.length; r++) {
+            let gradSum = 0;
+            for (let c = 0; c < outLen; c++) {
+              const w = weightMatrixFlat[r * outLen + c];
+              gradSum += w * gradOutput[c];
+              weightMatrixFlat[r * outLen + c] = w - learningRate * (gradOutput[c] * input[r] + weightDecay * w);
+            }
+            gradInput[r] = gradSum;
+          }
+          for (let c = 0; c < outLen; c++) bias[c] -= learningRate * gradOutput[c];
+          return gradInput;
+        }
+        _preActivation(input, weightMatrixFlat, bias, outIndex, outLen) {
+          let sum = bias[outIndex];
+          for (let r = 0; r < input.length; r++) sum += input[r] * weightMatrixFlat[r * outLen + outIndex];
+          return sum;
+        }
+        _updateFeatureTransformer(features, gradAcc, activatedAcc, learningRate) {
+          const weightDecay = 0.0003;
+          for (let i = 0; i < this.l1; i++) {
+            const grad = gradAcc[i] * clippedReluDerivative(activatedAcc[i]);
+            if (grad === 0) continue;
+            this.ftBias[i] -= learningRate * grad;
+            for (const featureIndex of features) {
+              const idx = featureIndex * this.l1 + i;
+              this.ftWeights[idx] -= learningRate * (grad + weightDecay * this.ftWeights[idx]);
+            }
+          }
+        }
+      }
+
+      const SCORE_SCALE = 600;
+      const SCORE_CLIP = 3000;
+      function normalizeScore(rawScore) { return Math.max(-SCORE_CLIP, Math.min(SCORE_CLIP, rawScore)) / SCORE_SCALE; }
+      function evaluateAsScore(targetNnue, board) { return targetNnue.evaluate(board) * SCORE_SCALE; }
+
+      let nnue = null;
+      let resolveNnueReady;
+      const nnueReady = new Promise((resolve) => { resolveNnueReady = resolve; });
+
+      function base64ToBytes(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      }
+
+      async function initNnue() {
+        const wasmBytes = base64ToBytes(NNUE_WASM_BASE64);
+        const { instance } = await WebAssembly.instantiate(wasmBytes);
+        nnue = new NNUE(instance);
+        nnue.randomizeWeights(Date.now() & 0xffffffff);
+        document.getElementById("modelStatus").textContent = "現在: ランダム初期化モデル(WASM読み込み完了)";
+        resolveNnueReady();
+      }
+      initNnue();
+
+      // ------------------------------------------------------------
+      // モデルのダウンロード(エクスポート)・復元(インポート)
+      // ------------------------------------------------------------
+
+      function typedArrayToBase64(view) {
+        const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+        let binary = "";
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        return btoa(binary);
+      }
+      function base64ToFloat32ArrayInto(base64, destView) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        destView.set(new Float32Array(bytes.buffer));
+      }
+      function serializeNNUE(targetNnue) {
+        return {
+          numFeatures: NUM_FEATURES,
+          l1: targetNnue.l1, l2: targetNnue.l2, l3: targetNnue.l3,
+          ftWeightsBase64: typedArrayToBase64(targetNnue.ftWeights),
+          ftBias: Array.from(targetNnue.ftBias),
+          w2: Array.from(targetNnue.w2),
+          b2: Array.from(targetNnue.b2),
+          w3: Array.from(targetNnue.w3),
+          b3: Array.from(targetNnue.b3),
+          wOut: Array.from(targetNnue.wOut),
+          bOut: Array.from(targetNnue.bOut)
+        };
+      }
+      function loadModelInto(targetNnue, json) {
+        base64ToFloat32ArrayInto(json.ftWeightsBase64, targetNnue.ftWeights);
+        targetNnue.ftBias.set(json.ftBias);
+        targetNnue.w2.set(json.w2);
+        targetNnue.b2.set(json.b2);
+        targetNnue.w3.set(json.w3);
+        targetNnue.b3.set(json.b3);
+        targetNnue.wOut.set(json.wOut);
+        targetNnue.bOut.set(json.bOut);
+      }
+      async function downloadModel() {
+        await nnueReady;
+        const data = JSON.stringify(serializeNNUE(nnue));
+        const blob = new Blob([data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "nnue_shogi_model.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      document.getElementById("downloadModelBtn").addEventListener("click", downloadModel);
+      document.getElementById("modelFileInput").addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        await nnueReady;
+        try {
+          const json = JSON.parse(await file.text());
+          if (json.numFeatures !== NUM_FEATURES || json.l1 !== WASM_L1 || json.l2 !== WASM_L2 || json.l3 !== WASM_L3) {
+            alert("モデルの構造(特徴量次元数や層のサイズ)がこのページと一致しないため読み込めません。");
+            return;
+          }
+          loadModelInto(nnue, json);
+          document.getElementById("modelStatus").textContent = "現在: 読み込んだモデル(" + file.name + ")";
+        } catch (error) {
+          alert("モデルの読み込みに失敗しました: " + error.message);
+        }
+      });
+
+      // ------------------------------------------------------------
+      // 4. タブ切り替え
+      // ------------------------------------------------------------
+
+      document.querySelectorAll(".tabButtons button").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll(".tabButtons button").forEach((b) => b.classList.remove("active"));
+          document.querySelectorAll(".tabSection").forEach((s) => s.classList.remove("active"));
+          button.classList.add("active");
+          document.getElementById("tab-" + button.dataset.tab).classList.add("active");
+        });
+      });
+
+      // ------------------------------------------------------------
+      // 5. 学習タブ(.binファイルからの教師あり学習)
+      // ------------------------------------------------------------
+
+      const RECORD_SIZE = 40;
+
+      class BitReader {
+        constructor(bytes) { this.bytes = bytes; this.pos = 0; }
+        readBit() { const byte = this.bytes[this.pos >> 3]; const bit = (byte >> (this.pos & 7)) & 1; this.pos++; return bit; }
+        readBits(n) { let v = 0; for (let i = 0; i < n; i++) v |= this.readBit() << i; return v; }
+      }
+      const BOARD_CODES = [
+        { code: 0b0, len: 1, name: "BLANK" }, { code: 0b1, len: 2, name: "FU" },
+        { code: 0b11, len: 4, name: "KYOU" }, { code: 0b1011, len: 4, name: "KEI" },
+        { code: 0b111, len: 4, name: "GIN" }, { code: 0b1111, len: 5, name: "KIN" },
+        { code: 0b11111, len: 6, name: "KAKU" }, { code: 0b111111, len: 6, name: "HISHA" }
+      ];
+      const HAND_CODES = [
+        { code: 0b0, len: 1, name: "FU" }, { code: 0b1, len: 3, name: "KYOU" },
+        { code: 0b101, len: 3, name: "KEI" }, { code: 0b11, len: 3, name: "GIN" },
+        { code: 0b111, len: 4, name: "KIN" }, { code: 0b1111, len: 5, name: "KAKU" },
+        { code: 0b11111, len: 5, name: "HISHA" }
+      ];
+      const BIN_LETTER = { FU: "P", KYOU: "L", KEI: "N", GIN: "S", KIN: "G", KAKU: "B", HISHA: "R" };
+      const HAND_ORDER = ["HISHA", "KAKU", "KIN", "GIN", "KEI", "KYOU", "FU"];
+
+      function decodeHuffman(br, table, maxLen) {
+        let value = 0, len = 0;
+        while (len < maxLen) {
+          value |= br.readBit() << len; len++;
+          const hit = table.find((t) => t.len === len && t.code === value);
+          if (hit) return hit;
+        }
+        throw new Error("huffman decode failed");
+      }
+
+      function decodeSfen(bytes32) {
+        const br = new BitReader(bytes32);
+        const teban = br.readBit() === 0 ? "b" : "w";
+        const board = new Array(81).fill(null);
+        board[br.readBits(7)] = "K";
+        board[br.readBits(7)] = "k";
+        for (let x = 0; x < 9; x++) {
+          for (let y = 0; y < 9; y++) {
+            const sq = x * 9 + y;
+            if (board[sq]) continue;
+            const hit = decodeHuffman(br, BOARD_CODES, 6);
+            if (hit.name === "BLANK") continue;
+            const promoted = hit.name !== "KIN" && br.readBit() === 1;
+            const isGote = br.readBit() === 1;
+            const letter = (promoted ? "+" : "") + BIN_LETTER[hit.name];
+            board[sq] = isGote ? letter.toLowerCase() : letter;
+          }
+        }
+        const hand = { S: {}, G: {} };
+        while (br.pos < 256) {
+          const hit = decodeHuffman(br, HAND_CODES, 5);
+          if (hit.name !== "KIN") br.readBit();
+          const side = br.readBit() === 0 ? "S" : "G";
+          hand[side][hit.name] = (hand[side][hit.name] || 0) + 1;
+        }
+        const rows = [];
+        for (let y = 0; y < 9; y++) {
+          let row = "", empty = 0;
+          for (let x = 8; x >= 0; x--) {
+            const piece = board[x * 9 + y];
+            if (!piece) { empty++; continue; }
+            if (empty) { row += empty; empty = 0; }
+            row += piece;
+          }
+          if (empty) row += empty;
+          rows.push(row);
+        }
+        let handStr = "";
+        for (const side of ["S", "G"]) {
+          for (const name of HAND_ORDER) {
+            const count = hand[side][name] || 0;
+            if (!count) continue;
+            const letter = side === "S" ? BIN_LETTER[name] : BIN_LETTER[name].toLowerCase();
+            handStr += (count > 1 ? count : "") + letter;
+          }
+        }
+        if (!handStr) handStr = "-";
+        return `${rows.join("/")} ${teban} ${handStr}`;
+      }
+
+      function parseRecord(view, offset) {
+        const sfenBytes = new Uint8Array(view.buffer, view.byteOffset + offset, 32);
+        return { sfen: decodeSfen(sfenBytes), score: view.getInt16(offset + 32, true) };
+      }
+
+      async function readLocalBin(file, a, maxCount) {
+        const start = a * RECORD_SIZE;
+        const end = Math.min(start + maxCount * RECORD_SIZE, file.size);
+        const arrayBuffer = await file.slice(start, end).arrayBuffer();
+        const view = new DataView(arrayBuffer);
+        const count = Math.floor((end - start) / RECORD_SIZE);
+        const records = [];
+        for (let i = 0; i < count; i++) records.push(parseRecord(view, i * RECORD_SIZE));
+        return records;
+      }
+
+      // ファイルの中の局面はゲームの対局順に並んでいることが多く、
+      // 先頭から順番にそのまま読むと近い局面ばかりが連続してしまい
+      // 学習が偏りやすい。読み込みの塊(チャンク)単位でシャッフルしてから
+      // バッチに切り出すことで、この偏りを緩和する。
+      const SHUFFLE_CHUNK_BATCHES = 20;
+      function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      function trainOnRecords(records, learningRate) {
+        let totalLoss = 0;
+        let totalAbsDiff = 0;
+        let maxAbsDiff = 0;
+        const samples = [];
+        for (let i = 0; i < records.length; i++) {
+          const record = records[i];
+          const board = sfenToBoard(record.sfen);
+          const loss = nnue.trainStep(board, normalizeScore(record.score), learningRate);
+          const predicted = evaluateAsScore(nnue, board);
+          const diff = Math.abs(predicted - record.score);
+          totalLoss += loss;
+          totalAbsDiff += diff;
+          if (diff > maxAbsDiff) maxAbsDiff = diff;
+          if (i < 3) samples.push(`    例${i + 1}: 予測評価値=${predicted.toFixed(1)} 教師値=${record.score} 差=${diff.toFixed(1)}`);
+        }
+        return { avgLoss: totalLoss / records.length, avgAbsDiff: totalAbsDiff / records.length, maxAbsDiff: maxAbsDiff, samples: samples };
+      }
+
+      function appendToLog(elementId, text) {
+        const el = document.getElementById(elementId);
+        el.textContent += text + "\n";
+        el.scrollTop = el.scrollHeight;
+      }
+
+      function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+      let localTrainRunning = false;
+
+      document.getElementById("startTrainBtn").addEventListener("click", async () => {
+        const file = document.getElementById("trainFileInput").files[0];
+        if (!file) { alert(".binファイルを選択してください。"); return; }
+        await nnueReady;
+        const batchSize = Number(document.getElementById("batchSizeInput").value);
+        const learningRate = Number(document.getElementById("trainLrInput").value);
+        const log = (text) => appendToLog("trainLog", text);
+
+        const totalRecords = Math.floor(file.size / RECORD_SIZE);
+        log(`ファイルサイズ: ${file.size} バイト / レコード数(全体): ${totalRecords} / バッチサイズ: ${batchSize}`);
+        log("ファイルの先頭から順番に学習します。最後まで到達したら最初に戻って続けます(停止ボタンを押すまで)。");
+
+        localTrainRunning = true;
+        let position = 0;
+        let passNumber = 1;
+        let batchNumber = 0;
+        const chunkSize = batchSize * SHUFFLE_CHUNK_BATCHES;
+        while (localTrainRunning) {
+          if (position >= totalRecords) {
+            log(`=== ファイルの最後まで学習しました(${passNumber}周目終了、バッチ数${batchNumber}件)。最初に戻ります。 ===`);
+            position = 0;
+            passNumber++;
+            batchNumber = 0;
+          }
+          const chunkCount = Math.min(chunkSize, totalRecords - position);
+          const chunk = shuffleArray(await readLocalBin(file, position, chunkCount));
+          position += chunkCount;
+          for (let i = 0; i < chunk.length && localTrainRunning; i += batchSize) {
+            const records = chunk.slice(i, i + batchSize);
+            const { avgLoss, avgAbsDiff, maxAbsDiff, samples } = trainOnRecords(records, learningRate);
+            batchNumber++;
+            const progressPct = ((position / totalRecords) * 100).toFixed(2);
+            log(`${passNumber}周目 batch${batchNumber} (ファイル内進捗 ${progressPct}%): 誤差(正規化MSE)=${avgLoss.toFixed(5)} 平均絶対誤差=${avgAbsDiff.toFixed(1)}点 最大絶対誤差=${maxAbsDiff.toFixed(1)}点`);
+            samples.forEach((s) => log(s));
+            document.getElementById("modelStatus").textContent = `現在: 学習済みモデル(.binで学習中, ${passNumber}周目 ${progressPct}%)`;
+            await sleep(0);
+          }
+        }
+        log("学習を停止しました。「対局」タブでこのモデルと対局できます。");
+      });
+
+      document.getElementById("stopTrainBtn").addEventListener("click", () => { localTrainRunning = false; });
+
+      // ------------------------------------------------------------
+      // リモートURLから連続学習(放置用): thread_index を自動で増やしながら
+      // ファイルが尽きる(または取得エラーになる)まで学習を続ける
+      // ------------------------------------------------------------
+
+      async function binProcessRemote(url, a, maxCount) {
+        const start = a * RECORD_SIZE;
+        const end = start + maxCount * RECORD_SIZE - 1;
+        const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` } });
+        if (res.status === 416) return []; // 要求範囲がファイルサイズを超えている = ファイルの終わりに到達
+        if (!res.ok && res.status !== 206) throw new Error("HTTPステータス " + res.status);
+        const arrayBuffer = await res.arrayBuffer();
+        const view = new DataView(arrayBuffer);
+        const count = Math.min(maxCount, Math.floor(arrayBuffer.byteLength / RECORD_SIZE));
+        const records = [];
+        for (let i = 0; i < count; i++) records.push(parseRecord(view, i * RECORD_SIZE));
+        return records;
+      }
+
+      function extractThreadIndex(url) {
+        const m = url.match(/thread_index%3D(\d+)/) || url.match(/thread_index=(\d+)/);
+        return m ? { value: parseInt(m[1], 10), digits: m[1].length } : null;
+      }
+      function replaceThreadIndex(url, index, digits) {
+        const padded = String(index).padStart(digits, "0");
+        return url.replace(/thread_index%3D\d+/, "thread_index%3D" + padded).replace(/thread_index=\d+/, "thread_index=" + padded);
+      }
+
+      let remoteTrainRunning = false;
+
+      document.getElementById("startRemoteTrainBtn").addEventListener("click", async () => {
+        await nnueReady;
+        const baseUrl = document.getElementById("remoteUrlInput").value.trim();
+        const batchSize = Number(document.getElementById("remoteBatchSizeInput").value);
+        const learningRate = Number(document.getElementById("remoteLrInput").value);
+        const log = (text) => appendToLog("remoteTrainLog", text);
+        const chunkSize = batchSize * SHUFFLE_CHUNK_BATCHES;
+
+        const threadInfo = extractThreadIndex(baseUrl);
+        let currentUrl = baseUrl;
+        let currentIndex = threadInfo ? threadInfo.value : null;
+
+        remoteTrainRunning = true;
+        log("連続学習を開始します(停止ボタンを押すまで続けます)。ファイルは最後まで(1件も飛ばさず)使います。");
+        outer: while (remoteTrainRunning) {
+          log(`=== ファイルを読み込み中: ${currentUrl} ===`);
+          let position = 0;
+          let fileBatchNumber = 0;
+          while (remoteTrainRunning) {
+            let rawChunk;
+            try {
+              rawChunk = await binProcessRemote(currentUrl, position, chunkSize);
+            } catch (error) {
+              log(`読み込みに失敗しました(ファイルが存在しないか、通信エラーです): ${error.message}`);
+              break outer;
+            }
+            if (rawChunk.length === 0) break; // このファイルの終わりに到達
+            const chunkStart = position;
+            position += rawChunk.length;
+            const chunk = shuffleArray(rawChunk);
+            for (let i = 0; i < chunk.length && remoteTrainRunning; i += batchSize) {
+              const records = chunk.slice(i, i + batchSize);
+              const { avgLoss, avgAbsDiff, maxAbsDiff, samples } = trainOnRecords(records, learningRate);
+              fileBatchNumber++;
+              log(`batch${fileBatchNumber} (このファイルの局面 ${chunkStart + i}〜${chunkStart + i + records.length}): 誤差(正規化MSE)=${avgLoss.toFixed(5)} 平均絶対誤差=${avgAbsDiff.toFixed(1)}点 最大絶対誤差=${maxAbsDiff.toFixed(1)}点`);
+              samples.forEach((s) => log(s));
+              document.getElementById("modelStatus").textContent = "現在: 学習済みモデル(リモート連続学習中, " + position + "局面目)";
+              await sleep(0);
+            }
+            if (rawChunk.length < chunkSize) break; // 読めた数がチャンクサイズ未満 = このファイルの終わり
+          }
+          if (!remoteTrainRunning) break;
+          log(`=== このファイルを最後まで学習しました(局面数 ${position})。次のファイルへ進みます。 ===`);
+          if (currentIndex === null) break; // thread_indexパターンが見つからない場合は1ファイルだけで終了
+          currentIndex++;
+          currentUrl = replaceThreadIndex(baseUrl, currentIndex, threadInfo.digits);
+        }
+        log("連続学習を停止しました。「対局」タブでこのモデルと対局できます。");
+      });
+
+      document.getElementById("stopRemoteTrainBtn").addEventListener("click", () => { remoteTrainRunning = false; });
+
+      // ------------------------------------------------------------
+      // 6. 対局タブ
+      // ------------------------------------------------------------
+
+      const AI_SEARCH_DEPTH = 2;
+      const LOSE_SCORE = -100000;
+
+      function orderMoves(board, moves) {
+        return moves.slice().sort((a, b) => {
+          const aCap = a.kind === "move" && board.squares[a.toRank][a.toFile] ? 1 : 0;
+          const bCap = b.kind === "move" && board.squares[b.toRank][b.toFile] ? 1 : 0;
+          return bCap - aCap;
+        });
+      }
+
+      function negamax(board, depth, alpha, beta) {
+        if (depth === 0) {
+          if (!hasLegalMove(board)) return LOSE_SCORE;
+          return nnue.evaluate(board);
+        }
+        const legalMoves = generateLegalMoves(board);
+        if (legalMoves.length === 0) return LOSE_SCORE;
+        let best = -Infinity;
+        for (const move of orderMoves(board, legalMoves)) {
+          const child = applyMove(board, move);
+          const score = -negamax(child, depth - 1, -beta, -alpha);
+          if (score > best) best = score;
+          if (best > alpha) alpha = best;
+          if (alpha >= beta) break;
+        }
+        return best;
+      }
+
+      function chooseAiMove(board, depth) {
+        const legalMoves = generateLegalMoves(board);
+        let bestMove = null, bestScore = -Infinity, alpha = -Infinity;
+        for (const move of orderMoves(board, legalMoves)) {
+          const child = applyMove(board, move);
+          const score = -negamax(child, depth - 1, -Infinity, -alpha);
+          if (score > bestScore) { bestScore = score; bestMove = move; }
+          if (bestScore > alpha) alpha = bestScore;
+        }
+        return { move: bestMove, score: bestScore };
+      }
+
+      const PLAYER_SIDE = SIDE_BLACK;
+      const AI_SIDE = SIDE_WHITE;
+
+      let playBoard = makeHirateBoard();
+      let selectedSource = null;
+      let currentLegalMoves = [];
+      let gameOver = false;
+
+      function setStatus(text) { document.getElementById("status").textContent = text; }
+
+      function askPromote() {
+        return new Promise((resolve) => {
+          const overlay = document.getElementById("promoteOverlay");
+          overlay.style.display = "flex";
+          const yesBtn = document.getElementById("promoteYesBtn");
+          const noBtn = document.getElementById("promoteNoBtn");
+          const finish = (value) => {
+            overlay.style.display = "none";
+            yesBtn.removeEventListener("click", onYes);
+            noBtn.removeEventListener("click", onNo);
+            resolve(value);
+          };
+          const onYes = () => finish(true);
+          const onNo = () => finish(false);
+          yesBtn.addEventListener("click", onYes);
+          noBtn.addEventListener("click", onNo);
+        });
+      }
+
+      function findMatchingMoves(source, toRank, toFile) {
+        if (source.kind === "square") {
+          return currentLegalMoves.filter((m) => m.kind === "move" && m.fromRank === source.rank && m.fromFile === source.file && m.toRank === toRank && m.toFile === toFile);
+        }
+        return currentLegalMoves.filter((m) => m.kind === "drop" && m.pieceType === source.pieceType && m.toRank === toRank && m.toFile === toFile);
+      }
+
+      function selectSource(source) { selectedSource = source; renderPlayUI(); }
+      function clearSelection() { selectedSource = null; renderPlayUI(); }
+
+      function performMove(move) {
+        playBoard = applyMove(playBoard, move);
+        appendToLog("playLog", (playBoard.sideToMove === AI_SIDE ? "あなた: " : "AI: ") + moveToNotation(move));
+        clearSelection();
+        checkGameEndOrContinue();
+      }
+
+      function checkGameEndOrContinue() {
+        currentLegalMoves = generateLegalMoves(playBoard);
+        if (currentLegalMoves.length === 0) {
+          gameOver = true;
+          const winner = playBoard.sideToMove === PLAYER_SIDE ? "AI" : "あなた";
+          setStatus(`詰みです。${winner}の勝ちです。`);
+          renderPlayUI();
+          return;
+        }
+        if (isInCheck(playBoard, playBoard.sideToMove)) {
+          setStatus((playBoard.sideToMove === PLAYER_SIDE ? "あなた" : "AI") + "に王手がかかっています。");
+        } else {
+          setStatus(playBoard.sideToMove === PLAYER_SIDE ? "先手番です。駒をタップしてください。" : "AIが考慮中...");
+        }
+        renderPlayUI();
+        if (!gameOver && playBoard.sideToMove === AI_SIDE) setTimeout(() => { nnueReady.then(runAiTurn); }, 50);
+      }
+
+      function runAiTurn() {
+        if (canDeclareEntryWin(playBoard, AI_SIDE)) {
+          gameOver = true;
+          appendToLog("playLog", "AI: 入玉宣言勝ち");
+          setStatus("AIが入玉宣言により勝利しました。");
+          renderPlayUI();
+          return;
+        }
+        const move = chooseAiMove(playBoard, AI_SEARCH_DEPTH).move;
+        if (!move) return;
+        performMove(move);
+      }
+
+      document.getElementById("declareBtn").addEventListener("click", () => {
+        if (gameOver || playBoard.sideToMove !== PLAYER_SIDE) return;
+        if (canDeclareEntryWin(playBoard, PLAYER_SIDE)) {
+          gameOver = true;
+          appendToLog("playLog", "あなた: 入玉宣言勝ち");
+          setStatus("あなたの入玉宣言勝ちです。");
+          renderPlayUI();
+        } else {
+          setStatus("宣言条件を満たしていません(玉が敵陣3段目以内・王手なし・敵陣内の駒10枚以上・点数28点(先手)/27点(後手)以上が必要です)。");
+        }
+      });
+
+      async function onCellClick(rank, file) {
+        if (gameOver || playBoard.sideToMove !== PLAYER_SIDE) return;
+        const piece = playBoard.squares[rank][file];
+        if (selectedSource) {
+          const matches = findMatchingMoves(selectedSource, rank, file);
+          if (matches.length > 0) {
+            let move = matches[0];
+            if (matches.length > 1) {
+              const promote = await askPromote();
+              move = matches.find((m) => m.promote === promote) || matches[0];
+            }
+            performMove(move);
+            return;
+          }
+          if (piece && piece.side === PLAYER_SIDE) { selectSource({ kind: "square", rank: rank, file: file }); return; }
+          clearSelection();
+          return;
+        }
+        if (piece && piece.side === PLAYER_SIDE) selectSource({ kind: "square", rank: rank, file: file });
+      }
+
+      function onHandClick(side, pieceType) {
+        if (gameOver || side !== PLAYER_SIDE || playBoard.sideToMove !== PLAYER_SIDE) return;
+        if ((playBoard.hands[side][pieceType] || 0) <= 0) return;
+        selectSource({ kind: "hand", pieceType: pieceType });
+      }
+
+      function legalDestinationsForSelection() {
+        if (!selectedSource) return [];
+        if (selectedSource.kind === "square") {
+          return currentLegalMoves.filter((m) => m.kind === "move" && m.fromRank === selectedSource.rank && m.fromFile === selectedSource.file);
+        }
+        return currentLegalMoves.filter((m) => m.kind === "drop" && m.pieceType === selectedSource.pieceType);
+      }
+
+      function renderPlayUI() {
+        const boardEl = document.getElementById("board");
+        boardEl.innerHTML = "";
+        const destinations = legalDestinationsForSelection();
+        for (let rank = 0; rank < 9; rank++) {
+          for (let fileDisplay = 8; fileDisplay >= 0; fileDisplay--) {
+            const file = fileDisplay;
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            const piece = playBoard.squares[rank][file];
+            if (piece) {
+              const span = document.createElement("span");
+              span.className = "piece " + (piece.side === SIDE_BLACK ? "black" : "white");
+              span.textContent = PIECE_KANJI[piece.type];
+              cell.appendChild(span);
+            }
+            if (selectedSource && selectedSource.kind === "square" && selectedSource.rank === rank && selectedSource.file === file) cell.classList.add("selected");
+            if (destinations.some((m) => m.toRank === rank && m.toFile === file)) cell.classList.add("legal");
+            cell.addEventListener("click", () => onCellClick(rank, file));
+            boardEl.appendChild(cell);
+          }
+        }
+        renderHand("handWhite", SIDE_WHITE);
+        renderHand("handBlack", SIDE_BLACK);
+      }
+
+      function renderHand(elementId, side) {
+        const container = document.getElementById(elementId);
+        container.innerHTML = "";
+        for (const type of HAND_PIECE_TYPES) {
+          const count = playBoard.hands[side][type] || 0;
+          if (count <= 0) continue;
+          const div = document.createElement("div");
+          div.className = "handPiece" + (selectedSource && selectedSource.kind === "hand" && selectedSource.pieceType === type && side === PLAYER_SIDE ? " selected" : "");
+          div.textContent = PIECE_KANJI[type] + (count > 1 ? "x" + count : "");
+          div.addEventListener("click", () => onHandClick(side, type));
+          container.appendChild(div);
+        }
+      }
+
+      document.getElementById("resetGameBtn").addEventListener("click", () => {
+        playBoard = makeHirateBoard();
+        selectedSource = null;
+        gameOver = false;
+        document.getElementById("playLog").textContent = "";
+        checkGameEndOrContinue();
+      });
+
+      currentLegalMoves = generateLegalMoves(playBoard);
+      renderPlayUI();
+
+      // ------------------------------------------------------------
+      // 7. 自己対戦学習タブ
+      // ------------------------------------------------------------
+
+      const MAX_SELF_PLAY_PLY = 256;
+      const WIN_VALUE = 3000;
+      const WIN_TARGET = WIN_VALUE / SCORE_SCALE;
+      const ELMO_LAMBDA = 0.5; // 勝敗と探索値を半々でブレンドする(elmo絞り風の考え方)
+
+      function clampSearchValue(rawScore) {
+        if (Math.abs(rawScore) >= 100000) return Math.sign(rawScore) * WIN_TARGET; // 詰みを検出した場合
+        return Math.max(-WIN_TARGET, Math.min(WIN_TARGET, rawScore));
+      }
+
+      async function playOneSelfPlayGame(searchDepth) {
+        let localBoard = makeHirateBoard();
+        const snapshots = [];
+        let ply = 0;
+        while (true) {
+          if (canDeclareEntryWin(localBoard, localBoard.sideToMove)) {
+            return { snapshots: snapshots, winnerSide: localBoard.sideToMove, plyCount: ply };
+          }
+          const legalExists = hasLegalMove(localBoard);
+          if (ply >= MAX_SELF_PLAY_PLY || !legalExists) {
+            const winnerSide = !legalExists ? (localBoard.sideToMove === SIDE_BLACK ? SIDE_WHITE : SIDE_BLACK) : null;
+            return { snapshots: snapshots, winnerSide: winnerSide, plyCount: ply };
+          }
+          const { move, score } = chooseAiMove(localBoard, searchDepth);
+          snapshots.push({ board: cloneBoard(localBoard), sideToMove: localBoard.sideToMove, searchValue: clampSearchValue(score) });
+          localBoard = applyMove(localBoard, move);
+          ply++;
+          if (ply % 4 === 0) await sleep(0); // UIをフリーズさせないため定期的に制御を返す
+        }
+      }
+
+      // 教師信号 = λ×最終的な勝敗 + (1-λ)×探索によるその局面の評価値(elmo絞り風のブレンド)。
+      // 勝敗だけの単純なラベルより、局面ごとの実際の優劣を反映しやすい。
+      function trainOnSelfPlayGame(gameResult, learningRate) {
+        let totalLoss = 0;
+        let totalAbsDiff = 0;
+        let maxAbsDiff = 0;
+        const samples = [];
+        for (let i = 0; i < gameResult.snapshots.length; i++) {
+          const snap = gameResult.snapshots[i];
+          const outcomeTarget = gameResult.winnerSide === null ? 0 : (snap.sideToMove === gameResult.winnerSide ? WIN_TARGET : -WIN_TARGET);
+          const blendedTarget = ELMO_LAMBDA * outcomeTarget + (1 - ELMO_LAMBDA) * snap.searchValue;
+          const loss = nnue.trainStep(snap.board, blendedTarget, learningRate);
+          const predicted = evaluateAsScore(nnue, snap.board);
+          const diff = Math.abs(predicted - blendedTarget * SCORE_SCALE);
+          totalLoss += loss;
+          totalAbsDiff += diff;
+          if (diff > maxAbsDiff) maxAbsDiff = diff;
+          if (i === 0 || i === Math.floor(gameResult.snapshots.length / 2) || i === gameResult.snapshots.length - 1) {
+            samples.push(`    手数${i + 1}: 予測評価値=${predicted.toFixed(1)} 教師信号=${(blendedTarget * SCORE_SCALE).toFixed(1)} 差=${diff.toFixed(1)}`);
+          }
+        }
+        return {
+          avgLoss: totalLoss / gameResult.snapshots.length,
+          avgAbsDiff: totalAbsDiff / gameResult.snapshots.length,
+          maxAbsDiff: maxAbsDiff,
+          samples: samples
+        };
+      }
+
+      function describeResult(winnerSide) {
+        if (winnerSide === null) return "引き分け(手数上限)";
+        return winnerSide === SIDE_BLACK ? "先手勝ち" : "後手勝ち";
+      }
+
+      let selfPlayRunning = false;
+
+      document.getElementById("startSelfPlayBtn").addEventListener("click", async () => {
+        await nnueReady;
+        const searchDepth = Number(document.getElementById("selfPlayDepthInput").value);
+        const learningRate = Number(document.getElementById("selfPlayLrInput").value);
+        const log = (text) => appendToLog("selfPlayLog", text);
+
+        selfPlayRunning = true;
+        log("自己対戦学習を開始します(停止ボタンを押すまで続けます)。");
+        let gameNumber = 0;
+        while (selfPlayRunning) {
+          gameNumber++;
+          const result = await playOneSelfPlayGame(searchDepth);
+          if (result.snapshots.length === 0) { log(`第${gameNumber}局: 記録局面が0件のためスキップします。`); continue; }
+          const { avgLoss, avgAbsDiff, maxAbsDiff, samples } = trainOnSelfPlayGame(result, learningRate);
+          log(`第${gameNumber}局: 手数=${result.plyCount} 結果=${describeResult(result.winnerSide)} 誤差(正規化MSE)=${avgLoss.toFixed(5)} 平均絶対誤差=${avgAbsDiff.toFixed(1)}点 最大絶対誤差=${maxAbsDiff.toFixed(1)}点`);
+          samples.forEach((s) => log(s));
+          document.getElementById("modelStatus").textContent = "現在: 学習済みモデル(自己対戦学習中, " + gameNumber + "局)";
+          await sleep(0);
+        }
+        log("自己対戦学習を停止しました。「対局」タブでこのモデルと対局できます。");
+      });
+
+      document.getElementById("stopSelfPlayBtn").addEventListener("click", () => { selfPlayRunning = false; });
+    </script>
+  </body>
+</html>
