@@ -152,7 +152,7 @@
     <div class="layout">
       <div class="panel">
         <label for="code">コード</label>
-        <textarea id="code" spellcheck="false">++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.</textarea>
+        <textarea id="code" spellcheck="false">++++++++[>++++++<-]>.</textarea>
         <div class="controls">
           <button id="runBtn">実行</button>
           <button id="stepBtn" class="secondary">1ステップ</button>
@@ -368,6 +368,13 @@
       clearConsoleBtn.addEventListener('click', () => {
         consoleEl.textContent = '';
       });
+      stdinEl.addEventListener('input', () => {
+        localStorage.setItem('/tools/brainfuck/_stdin', stdinEl.value);
+      });
+
+      const ls = localStorage.getItem('/tools/brainfuck/_stdin');
+      if (ls != null && ls != "" && confirm('以前のデータを復旧しますか？'))
+        stdinEl.value = ls;
     </script>
   </body>
 </html>
