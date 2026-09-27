@@ -381,6 +381,7 @@
       }
       stdinEl.addEventListener('input', debounce(() => {
         localStorage.setItem('/tools/brainfuck/_stdin', stdinEl.value);
+        alert(localStorage.getItem('/tools/brainfuck/_stdin'));
       }, 500));
 
       window.onload = () => {
