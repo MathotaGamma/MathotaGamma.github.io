@@ -1,0 +1,409 @@
+<html lang="ja">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Inverted Pendulum - CogniKeel RL (v5: best snapshot)</title>
+    <style>
+      body { margin: 0; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; user-select: none; }
+      canvas { display: block; }
+      #info-panel {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 15px;
+        border-radius: 6px;
+        font-size: 14px;
+        line-height: 1.6;
+        pointer-events: none;
+        min-width: 280px;
+        border: 1px solid #333;
+      }
+      #control-panel {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+      }
+      button {
+        background: #222;
+        color: #fff;
+        border: 2px solid #555;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s;
+      }
+      button:hover { background: #333; border-color: #888; }
+      button.active { background: #0077ff; border-color: #00bbff; font-weight: bold; }
+      button:disabled { opacity: 0.5; cursor: default; }
+    </style>
+  </head>
+
+  <body>
+    <div id="info-panel">Initializing AI...</div>
+    <div id="control-panel">
+      <button id="speed-btn">高速学習: OFF</button>
+    </div>
+    <canvas id="my-canvas"></canvas>
+
+    <script type="module">
+      // v5での変更点(v4からの差分):
+      //  ライブラリを CogniKeel_1-03-02.js に更新。
+      //  外部コード側(このファイル)に「最善重みスナップショット」機構を追加。
+      //  CogniKeel本体には手を加えていない。使っているのは既存の
+      //  getMCLM()/fromMCLM()と、今回追加された epsilonInclude フラグだけ。
+      //
+      //  仕組み:
+      //   - 一定間隔(evaluationInterval)で、探索なしの評価エピソードを
+      //     evaluationCountLength回まわし、その平均報酬をスコアとする。
+      //   - スコアが過去のベストを更新したら、その時点の重みを
+      //     ck.getMCLM({ weightsInclude: true, epsilonInclude: false })で
+      //     テキストとして保存しておく(epsilonInclude: falseなので
+      //     epsilon自体はこのスナップショットに含めない)。
+      //   - PATIENCE回連続でベストを更新できなかったら、保存しておいた
+      //     MCLMからCogniKeel.fromMCLM()で新しいインスタンスを作り直し、
+      //     重みをベスト時点へ巻き戻す。ただしepsilonは巻き戻さず、
+      //     巻き戻す直前の値をそのまま引き継ぐ(探索率の減衰を
+      //     中断させないため)。
+      //  これにより、学習をどれだけ続けても、記録された評価スコアが
+      //  ベストから大きく下がり続けることはなくなる。
+      import { CogniKeel, Layer } from "./CogniKeel_1-03-02.js";
+
+
+      const canvas = document.getElementById('my-canvas');
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      let ctx;
+
+      // 物理パラメータ・状態変数
+      let x = 0;
+      let v = 0;
+      let theta = Math.PI; // 0が真上、±PIが真下
+      let omega = 0;
+      const m = 0.1;
+      const M = 1;
+      const g = 9.8;
+      const halfL = 0.5;
+      const cartSize = { w: 100, h: 50 };
+      let dt = 0;
+
+      // 操作・フラグ管理
+      let moveDir = null;
+      let isUserInteracting = false; // マウス/タップでの入力中か判定
+
+      // 制御カウンター・設定
+      let stepCount = 0;
+      let epochCount = 0;
+      const epochCountLength = 500; // 1エピソードの最大ステップ数
+      let episodeCount = 0;
+      let totalReward = 0;
+      let currentAction = 0;
+
+      // soft(Polyak) target update用の追従率。毎stepこの割合だけ
+      // targetをonlineへ近づける。
+      const softTau = 0.002;
+
+      // ===== action repeat (sticky action) =====
+      const ACTION_REPEAT = 8;
+      let holdCounter = 0;
+
+      // ===== 評価モード設定 =====
+      const evaluationInterval = 20;
+      const evaluationCountLength = 5;
+      let evaluationScoreSum = 0;
+      let isEvaluation = false;
+      let lastEvaluationResult = "N/A";
+
+      // ===== 最善重みスナップショット =====
+      let bestMclm = null;
+      let bestScore = -Infinity;
+      let noImprovementCount = 0;
+      const PATIENCE = 10;
+      let isRestoring = false; // 巻き戻し処理中は学習・行動選択を止める
+
+      // 高速学習用設定
+      let isFastMode = false;
+      const fastTrainTimePerFrame = 12; // 1フレームあたり何ミリ秒間ループを回すか
+      const drawInterval = 100; // 高速モード時の描画間隔(ms)
+      let lastDrawTime = 0;
+
+      // 1. CogniKeel初期化
+      let ck = new CogniKeel({ inputShape: [4], modelType: "ddqn", onLog: console.log });
+      ck.addLayers([
+        Layer.Dense({ units: 64, activation: 'ReLU', weightsInitType: 'He', fanIn: 4, fanOut: 64 }),
+        Layer.Dense({ units: 64, activation: 'ReLU', weightsInitType: 'He', fanIn: 64, fanOut: 64 }),
+        Layer.Dense({ units: 2, weightsInitType: 'He', fanIn: 64, fanOut: 2 }) // 0:左, 1:右
+      ]);
+      ck.configure({
+        learningRate: 0.0001,
+        gradientClipNorm: 0.5,
+        loss: { type: 'huber', delta: 1.0 },
+        epsilonDecay: { type: 'linear', steps: 18750 }, // 8(ACTION_REPEAT)×18750=150000stepで0.01に到達
+        replayBufferSize: 200000,
+      });
+      ck.initialize();
+
+      // 状態の取得と正規化
+      function getCurrentState() {
+        const state = new Float32Array(4);
+        state[0] = x / (W / 2);
+        state[1] = v / 10.0;
+        state[2] = theta / Math.PI;
+        state[3] = omega / 10.0;
+        return state;
+      }
+
+      // 環境のリセット
+      function resetEnvironment() {
+        x = 0;
+        v = 0;
+        theta = Math.PI + (Math.random() - 0.5) * 0.2;
+        omega = 0;
+        epochCount = 0;
+        holdCounter = 0; // エピソードが変わったら保持中の行動もリセット
+      }
+
+      // 報酬関数
+      function getReward() {
+        const angleReward = Math.cos(theta);
+        const positionPenalty = Math.abs(x) / (W / 2)
+        if (Number.isNaN(angleReward) || Number.isNaN(positionPenalty))
+          throw new Error(`angleReward: ${angleReward}, positionPenalty: ${positionPenalty}`);
+        return angleReward - positionPenalty * 0.5;
+      }
+
+      // 評価スコアの報告 -> ベスト更新 or 巻き戻し判定
+      async function onEvaluationDone(score) {
+        if (score > bestScore) {
+          bestScore = score;
+          bestMclm = ck.getMCLM({ weightsInclude: true, epsilonInclude: false, precision: 'high' });
+          noImprovementCount = 0;
+          console.log(`[ベスト更新] score=${score.toFixed(3)}`);
+        } else {
+          noImprovementCount++;
+          if (noImprovementCount >= PATIENCE && bestMclm != null) {
+            isRestoring = true;
+            const currentEpsilon = ck.epsilon; // epsilonの減衰は中断させない
+            try {
+              ck = await CogniKeel.fromMCLM({ mclm: bestMclm, weightsInclude: true, epsilonInclude: false });
+              ck.epsilon = currentEpsilon;
+              console.log(`[巻き戻し] ${PATIENCE}回連続未更新のため bestScore=${bestScore.toFixed(3)} へ復元`);
+            } finally {
+              noImprovementCount = 0;
+              isRestoring = false;
+            }
+          }
+        }
+      }
+
+      // ポインターイベントによる手動介入の確実な管理
+      document.addEventListener('pointerdown', (e) => {
+        isUserInteracting = true;
+        if (e.clientX < W / 2) moveDir = "left";
+        else moveDir = "right";
+      });
+      document.addEventListener('pointerup', () => {
+        isUserInteracting = false;
+        moveDir = null; // 指を離したら即座にnullに戻す
+      });
+
+      // 高速学習切り替えボタン
+      const speedBtn = document.getElementById('speed-btn');
+      speedBtn.addEventListener('click', () => {
+        isFastMode = !isFastMode;
+        speedBtn.innerText = `高速学習: ${isFastMode ? 'ON' : 'OFF'}`;
+        speedBtn.className = isFastMode ? 'active' : '';
+      });
+
+      function init() {
+        canvas.width = W;
+        canvas.height = H;
+        ctx = canvas.getContext('2d');
+        ctx.lineWidth = 2;
+        resetEnvironment();
+        requestAnimationFrame(loop);
+      }
+
+      // 1ステップ分の物理移動と学習ロジック
+      function trainOneStep(fixedDt) {
+        try {
+        stepCount++;
+        epochCount++;
+
+        // target networkをsoft updateで毎step少しずつ追従させる
+        ck.updateTargetNetwork(softTau);
+
+        // 手動操作が入っていない時のみAIが判断
+        if (!isUserInteracting) {
+          // action repeat: holdCounterが尽きた時だけ新しく行動を選び直す
+          if (holdCounter <= 0) {
+            const state = getCurrentState();
+            if (isEvaluation) {
+              // 評価モード時は評価用のステップ（探索なし）
+              currentAction = ck.evaluationStep(state).action;
+            } else {
+              // 通常学習モード
+              currentAction = ck.step(state).action;
+            }
+            holdCounter = ACTION_REPEAT;
+          }
+          holdCounter--;
+
+          // アクションを移動方向に変換
+          if (currentAction === 0) moveDir = "left";
+          else if (currentAction === 1) moveDir = "right";
+
+        } else {
+          // 手動操作時は現在の操作をアクションにマッピング
+          currentAction = moveDir === "left" ? 0 : 1;
+          holdCounter = 0; // 手動操作が終わったら次はすぐ選び直す
+        }
+
+        // remember/learnは毎フレーム、保持中の行動をそのまま使って記録する
+        const state = getCurrentState();
+
+        // 物理演算への力の適用
+        let f = 0;
+        if (moveDir === "left") f = -10;
+        else if (moveDir === "right") f = 10;
+
+        const sin = Math.sin(theta);
+        const cos = Math.cos(theta);
+        const w = (g * sin + cos * (-f - m * halfL * omega * omega * sin) / (M + m))
+                / (halfL * (4 / 3 - m * cos * cos / (M + m)));
+        const a = (f + m * halfL * (omega * omega * sin - w * cos)) / (M + m);
+
+        v += a * fixedDt;
+        v *= 0.995;
+        x += 20*v * fixedDt;
+        omega += w * fixedDt;
+        omega *= 0.999;
+        theta += omega * dt;
+        theta = Math.atan2(Math.sin(theta), Math.cos(theta));
+
+        const nextState = getCurrentState();
+        const reward = getReward();
+        totalReward += reward;
+
+        // 終了条件: 画面外に出る、または制限ステップ数（時間を耐えきった）に達する
+        const isOutOfBounds = Math.abs(x) > (W / 2) - 50;
+        let done = isOutOfBounds || (epochCount >= epochCountLength);
+
+        if (isEvaluation) {
+          // 評価モード時は記憶も学習もしない
+          if (done) {
+            evaluationScoreSum += totalReward;
+          }
+        } else {
+          // 通常モード時は経験を記憶して学習
+          ck.remember({ state, action: currentAction, reward, nextState, done });
+          ck.learn();
+        }
+
+        // エピソード終了処理
+        if (done) {
+          episodeCount++;
+
+          // 評価サイクルの管理
+          if (isEvaluation && (episodeCount % evaluationInterval === evaluationCountLength)) {
+            lastEvaluationResult = evaluationScoreSum / evaluationCountLength;
+            evaluationScoreSum = 0;
+            // 巻き戻し判定は非同期なので、ここでは待たずに投げておく。
+            // (isRestoringフラグが立っている間はtrainOneStep自体が呼ばれなくなる)
+            onEvaluationDone(lastEvaluationResult);
+          }
+          // 次のエピソードが評価モードかどうかのフラグ更新
+          isEvaluation = (episodeCount % evaluationInterval) < evaluationCountLength;
+
+          totalReward = 0;
+          resetEnvironment();
+        }
+        } catch(err) {
+          console.error(err.message);
+          throw err;
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, W, H);
+
+        // カート
+        ctx.fillStyle = isEvaluation ? "#00ffcc" : "#ffffff"; // 評価モード時はカートの色を変える
+        ctx.fillRect(W / 2 + x - cartSize.w / 2, H - 50 - cartSize.h, cartSize.w, cartSize.h);
+
+        // 振り子
+        const pivotX = W / 2 + x;
+        const pivotY = H - 50 - cartSize.h;
+        const poleLength = 100 * 2 * halfL;
+        const tipX = pivotX + poleLength * Math.sin(theta);
+        const tipY = pivotY - poleLength * Math.cos(theta);
+
+        ctx.strokeStyle = isEvaluation ? "#00ffcc" : "#ffffff";
+        ctx.beginPath();
+        ctx.moveTo(pivotX, pivotY);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+
+        // パネルテキスト更新
+        const infoPanel = document.getElementById('info-panel');
+        infoPanel.innerHTML = `
+          <strong>CogniKeel Pendulum Control (v5: best snapshot)</strong><br>
+          <hr>
+          Mode: <span style="color:${isRestoring ? '#ff6666' : (isEvaluation ? '#00ffcc' : '#aaa')}">${isRestoring ? 'RESTORING...' : (isEvaluation ? 'EVALUATION (探索OFF)' : 'TRAINING')}</span><br>
+          Episode: ${episodeCount}<br>
+          Epoch Step: ${epochCount} / ${epochCountLength}<br>
+          Epsilon: ${isEvaluation ? 0 : (ck.epsilon ? ck.epsilon.toFixed(4) : 'N/A')}<br>
+          Episode累積報酬: ${totalReward.toFixed(2)}<br>
+          直近の評価スコア: ${typeof lastEvaluationResult === 'number' ? lastEvaluationResult.toFixed(2) : lastEvaluationResult}<br>
+          <strong>ベストスコア: ${bestScore === -Infinity ? 'N/A' : bestScore.toFixed(2)}</strong><br>
+          未更新カウント: ${noImprovementCount} / ${PATIENCE}<br>
+          <hr>
+          Action: ${currentAction} (${isUserInteracting ? 'Manual ' : ''}${moveDir || 'Stay'})<br>
+          Angle: ${(theta * 180 / Math.PI).toFixed(1)}°
+        `;
+      }
+
+      // メインループ
+      function loop() {
+        // 物理演算用の微小時間は、描画速度に左右されないよう約60fps相当（0.016s）で固定
+        dt = 0.016;
+
+        if (!isRestoring) {
+          if (isFastMode) {
+            ck.setIsCheck(true);
+            // 高速学習モード: 1フレームの描画の裏で指定ミリ秒間ひたすら物理・学習ステップを進める
+            const endTime = performance.now() + fastTrainTimePerFrame;
+            while (performance.now() < endTime && !isRestoring) {
+              trainOneStep(dt);
+            }
+
+            // 設定したインターバル（100ms）ごとに画面を描画して負荷を下げる
+            const now = performance.now();
+            if (now - lastDrawTime >= drawInterval) {
+              draw();
+              lastDrawTime = now;
+            }
+          } else {
+            ck.setIsCheck(true);
+            // 通常モード: 1フレームにつき1ステップ進めて即座に描画
+            trainOneStep(dt);
+            draw();
+          }
+        } else {
+          // 巻き戻し処理中は物理・学習を進めず、状態表示だけ更新する
+          draw();
+        }
+
+        requestAnimationFrame(loop);
+      }
+      init();
+    </script>
+  </body>
+
+</html>
