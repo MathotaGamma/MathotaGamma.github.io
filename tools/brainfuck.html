@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Brainfuck インタプリタ</title>
+    <style>
+      :root {
+        --bg: #1e1e1e;
+        --panel: #252526;
+        --border: #3c3c3c;
+        --text: #d4d4d4;
+        --accent: #4ec9b0;
+        --accent2: #569cd6;
+        --error: #f48771;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html, body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Consolas", "Menlo", monospace;
+        padding: 16px;
+        padding-top: calc(16px + env(safe-area-inset-top, 0px));
+        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 12px 0;
+        color: var(--accent2);
+      }
+      .layout {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px;
+        flex: 1 1 400px;
+        min-width: 280px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        color: var(--accent);
+        margin-bottom: 6px;
+      }
+      textarea, input[type="text"] {
+        width: 100%;
+        background: #111;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 8px;
+        font-family: inherit;
+        font-size: 14px;
+        resize: vertical;
+      }
+      #code {
+        height: 180px;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 10px 0;
+      }
+      button {
+        background: var(--accent2);
+        color: #111;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 14px;
+        font-weight: bold;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      button:hover {
+        opacity: 0.85;
+      }
+      button.secondary {
+        background: #555;
+        color: var(--text);
+      }
+      #console {
+        background: #000;
+        color: #0f0;
+        min-height: 140px;
+        max-height: 260px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 8px;
+        font-size: 14px;
+      }
+      #status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--accent);
+        min-height: 16px;
+      }
+      #status.error {
+        color: var(--error);
+      }
+      .tape {
+        display: flex;
+        overflow-x: auto;
+        gap: 2px;
+        padding: 8px 0;
+      }
+      .cell {
+        flex: 0 0 auto;
+        width: 36px;
+        text-align: center;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        padding: 4px 2px;
+        font-size: 11px;
+        background: #111;
+      }
+      .cell.current {
+        border-color: var(--accent2);
+        background: #1b2a33;
+        color: var(--accent2);
+        font-weight: bold;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .row input {
+        flex: 1;
+      }
+      small {
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Brainfuck インタプリタ</h1>
+    <div class="layout">
+      <div class="panel">
+        <label for="code">コード</label>
+        <textarea id="code" spellcheck="false">++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.</textarea>
+        <div class="controls">
+          <button id="runBtn">実行</button>
+          <button id="stepBtn" class="secondary">1ステップ</button>
+          <button id="resetBtn" class="secondary">リセット</button>
+          <button id="clearConsoleBtn" class="secondary">コンソールクリア</button>
+        </div>
+        <div class="row">
+          <label for="stdin" style="margin:0;">入力(,命令用)</label>
+        </div>
+        <input type="text" id="stdin" placeholder="入力文字列(先頭から1文字ずつ消費されます)">
+        <div id="status"></div>
+      </div>
+      <div class="panel">
+        <label>コンソール出力</label>
+        <div id="console"></div>
+        <label style="margin-top:10px;">メモリテープ(現在位置周辺)</label>
+        <div class="tape" id="tape"></div>
+        <small id="info"></small>
+      </div>
+    </div>
+
+    <script>
+      const codeEl = document.getElementById('code');
+      const runBtn = document.getElementById('runBtn');
+      const stepBtn = document.getElementById('stepBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const clearConsoleBtn = document.getElementById('clearConsoleBtn');
+      const consoleEl = document.getElementById('console');
+      const statusEl = document.getElementById('status');
+      const tapeEl = document.getElementById('tape');
+      const infoEl = document.getElementById('info');
+      const stdinEl = document.getElementById('stdin');
+
+      const TAPE_SIZE = 30000;
+      const MAX_STEPS = 5000000;
+
+      let state = null;
+
+      function newState() {
+        return {
+          tape: new Uint8Array(TAPE_SIZE),
+          ptr: 0,
+          pc: 0,
+          code: '',
+          jumpMap: {},
+          inputPos: 0,
+          steps: 0,
+          finished: false,
+        };
+      }
+
+      function buildJumpMap(code) {
+        const map = {};
+        const stack = [];
+        for (let i = 0; i < code.length; i++) {
+          if (code[i] === '[') {
+            stack.push(i);
+          } else if (code[i] === ']') {
+            if (stack.length === 0) {
+              throw new Error('対応する "[" がありません(位置 ' + i + ')');
+            }
+            const open = stack.pop();
+            map[open] = i;
+            map[i] = open;
+          }
+        }
+        if (stack.length > 0) {
+          throw new Error('対応する "]" がありません(位置 ' + stack[stack.length - 1] + ')');
+        }
+        return map;
+      }
+
+      function setStatus(msg, isError) {
+        statusEl.textContent = msg;
+        statusEl.className = isError ? 'error' : '';
+      }
+
+      function appendOutput(text) {
+        consoleEl.textContent += text;
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+      }
+
+      function renderTape() {
+        tapeEl.innerHTML = '';
+        if (!state) return;
+        const radius = 8;
+        const start = Math.max(0, state.ptr - radius);
+        const end = Math.min(TAPE_SIZE - 1, state.ptr + radius);
+        for (let i = start; i <= end; i++) {
+          const div = document.createElement('div');
+          div.className = 'cell' + (i === state.ptr ? ' current' : '');
+          div.textContent = state.tape[i];
+          tapeEl.appendChild(div);
+        }
+        infoEl.textContent = 'ptr=' + state.ptr + ' / steps=' + state.steps + (state.finished ? ' / 終了' : '');
+      }
+
+      function initRun() {
+        state = newState();
+        state.code = codeEl.value;
+        try {
+          state.jumpMap = buildJumpMap(state.code);
+        } catch (e) {
+          setStatus('構文エラー: ' + e.message, true);
+          state = null;
+          return false;
+        }
+        return true;
+      }
+
+      function execStep() {
+        if (!state || state.finished) return false;
+        if (state.pc >= state.code.length) {
+          state.finished = true;
+          return false;
+        }
+        const cmd = state.code[state.pc];
+        switch (cmd) {
+          case '>':
+            state.ptr = (state.ptr + 1) % TAPE_SIZE;
+            break;
+          case '<':
+            state.ptr = (state.ptr - 1 + TAPE_SIZE) % TAPE_SIZE;
+            break;
+          case '+':
+            state.tape[state.ptr] = (state.tape[state.ptr] + 1) & 0xff;
+            break;
+          case '-':
+            state.tape[state.ptr] = (state.tape[state.ptr] - 1 + 256) & 0xff;
+            break;
+          case '.':
+            appendOutput(String.fromCharCode(state.tape[state.ptr]));
+            break;
+          case ',': {
+            const input = stdinEl.value;
+            if (state.inputPos < input.length) {
+              state.tape[state.ptr] = input.charCodeAt(state.inputPos) & 0xff;
+              state.inputPos++;
+            } else {
+              state.tape[state.ptr] = 0;
+            }
+            break;
+          }
+          case '[':
+            if (state.tape[state.ptr] === 0) {
+              state.pc = state.jumpMap[state.pc];
+            }
+            break;
+          case ']':
+            if (state.tape[state.ptr] !== 0) {
+              state.pc = state.jumpMap[state.pc];
+            }
+            break;
+          default:
+            break;
+        }
+        state.pc++;
+        state.steps++;
+        if (state.pc >= state.code.length) {
+          state.finished = true;
+        }
+        return true;
+      }
+
+      function runAll() {
+        consoleEl.textContent = '';
+        setStatus('');
+        if (!initRun()) return;
+        try {
+          while (!state.finished) {
+            if (state.steps > MAX_STEPS) {
+              throw new Error('最大ステップ数(' + MAX_STEPS + ')を超えました。無限ループの可能性があります。');
+            }
+            execStep();
+          }
+          setStatus('実行完了(' + state.steps + ' ステップ)');
+        } catch (e) {
+          setStatus('実行時エラー: ' + e.message, true);
+        }
+        renderTape();
+      }
+
+      function runOneStep() {
+        if (!state) {
+          consoleEl.textContent = '';
+          setStatus('');
+          if (!initRun()) return;
+        }
+        if (state.finished) {
+          setStatus('既に終了しています。リセットしてください。');
+          return;
+        }
+        try {
+          execStep();
+          setStatus('ステップ実行中(' + state.steps + ' ステップ)');
+        } catch (e) {
+          setStatus('実行時エラー: ' + e.message, true);
+        }
+        renderTape();
+      }
+
+      function reset() {
+        state = null;
+        consoleEl.textContent = '';
+        setStatus('');
+        tapeEl.innerHTML = '';
+        infoEl.textContent = '';
+      }
+
+      runBtn.addEventListener('click', runAll);
+      stepBtn.addEventListener('click', runOneStep);
+      resetBtn.addEventListener('click', reset);
+      clearConsoleBtn.addEventListener('click', () => {
+        consoleEl.textContent = '';
+      });
+    </script>
+  </body>
+</html>
