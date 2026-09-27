@@ -368,13 +368,22 @@
       clearConsoleBtn.addEventListener('click', () => {
         consoleEl.textContent = '';
       });
-      stdinEl.addEventListener('input', () => {
+      function debounce(func, delay) {
+        let timeoutId;
+        return (...args) => {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => func(...args), delay);
+        };
+      }
+      stdinEl.addEventListener('input', debounce(() => {
         localStorage.setItem('/tools/brainfuck/_stdin', stdinEl.value);
-      });
+      }, 500));
 
-      const ls = localStorage.getItem('/tools/brainfuck/_stdin');
-      if (ls != null && ls != "" && confirm('以前のデータを復旧しますか？'))
-        stdinEl.value = ls;
+      window.onload = () => {
+        const ls = localStorage.getItem('/tools/brainfuck/_stdin');
+        if (ls && confirm('以前のデータを復旧しますか？'))
+          stdinEl.value = ls;
+      }
     </script>
   </body>
 </html>
