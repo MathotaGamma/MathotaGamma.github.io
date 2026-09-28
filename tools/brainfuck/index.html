@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <!--
-  v2での変更点(元ファイルからの差分):
-  - タッチ操作を禁止する記述(-webkit-user-select:none / touch-action:none / overflow:hidden)を削除し、
-    通常のスクロール・テキスト選択ができるように戻した
-  - alert/confirmを使った仮のlocalStorage実装を削除し、コード欄・入力欄を自動保存し、
-    読み込み時に無言で復元するクリーンな実装に変更
-  - 再生ボタン(0.1〜0.5秒の間隔を選択可)と停止ボタンを追加
-  - 1ステップ実行・再生中は、現在実行中の命令をハイライト表示するコードビューを追加
+  v3での変更点(v2からの差分):
+  - 構文エラー・実行時エラー・最大ステップ数超過のエラーをコンソールに赤字で表示するようにした
+    (従来はステータス欄のみ。ステータス欄にも引き続き表示)
+  - 再生中はハイライト位置へ自動スクロールしないようにした
+    (1ステップ実行時のみ、ページ全体ではなくコードビュー内だけをスクロール)
+  - 空白・改行・その他の命令以外の文字をステップとして数えず、実行位置・ハイライトの対象からも除外した
+    (1ステップ = 命令文字 + - < > [ ] . , の1文字)
 -->
 <html lang="ja">
   <head>
@@ -81,6 +81,7 @@
       }
       .code-view {
         display: none;
+        position: relative;
         height: 180px;
         overflow-y: auto;
         background: #111;
@@ -153,6 +154,9 @@
         border-radius: 4px;
         padding: 8px;
         font-size: 14px;
+      }
+      #console .console-error {
+        color: var(--error);
       }
       #status {
         margin-top: 8px;
@@ -254,6 +258,7 @@
 
       const TAPE_SIZE = 30000;
       const MAX_STEPS = 5000000;
+      const COMMANDS = '+-<>[],.';
       const LS_CODE_KEY = 'bf_interpreter_code';
       const LS_STDIN_KEY = 'bf_interpreter_stdin';
 
@@ -300,8 +305,31 @@
       }
 
       function appendOutput(text) {
-        consoleEl.textContent += text;
+        const last = consoleEl.lastChild;
+        if (last && last.nodeType === Node.TEXT_NODE) {
+          last.data += text;
+        } else {
+          consoleEl.appendChild(document.createTextNode(text));
+        }
         consoleEl.scrollTop = consoleEl.scrollHeight;
+      }
+
+      function appendError(msg) {
+        const span = document.createElement('span');
+        span.className = 'console-error';
+        span.textContent = (consoleEl.textContent ? '\n' : '') + '[エラー] ' + msg + '\n';
+        consoleEl.appendChild(span);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+      }
+
+      function reportError(prefix, e) {
+        const msg = prefix + ': ' + e.message;
+        appendError(msg);
+        setStatus(msg, true);
+      }
+
+      function clearConsole() {
+        consoleEl.textContent = '';
       }
 
       function renderTape() {
@@ -319,22 +347,30 @@
         infoEl.textContent = 'ptr=' + state.ptr + ' / steps=' + state.steps + (state.finished ? ' / 終了' : '');
       }
 
-      function renderCodeView() {
+      function renderCodeView(autoScroll) {
         codeViewEl.innerHTML = '';
         if (!state) return;
         const frag = document.createDocumentFragment();
         for (let i = 0; i < state.code.length; i++) {
           const span = document.createElement('span');
           span.textContent = state.code[i];
-          if (i === state.pc) {
+          if (i === state.pc && !state.finished) {
             span.className = 'hl';
           }
           frag.appendChild(span);
         }
         codeViewEl.appendChild(frag);
-        const hl = codeViewEl.querySelector('.hl');
-        if (hl) {
-          hl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        if (autoScroll) {
+          const hl = codeViewEl.querySelector('.hl');
+          if (hl) {
+            const top = hl.offsetTop;
+            const bottom = top + hl.offsetHeight;
+            const viewTop = codeViewEl.scrollTop;
+            const viewBottom = viewTop + codeViewEl.clientHeight;
+            if (top < viewTop || bottom > viewBottom) {
+              codeViewEl.scrollTop = Math.max(0, top - codeViewEl.clientHeight / 2);
+            }
+          }
         }
       }
 
@@ -348,25 +384,34 @@
         }
       }
 
+      function skipNonCommands() {
+        while (state.pc < state.code.length && COMMANDS.indexOf(state.code[state.pc]) === -1) {
+          state.pc++;
+        }
+        if (state.pc >= state.code.length) {
+          state.finished = true;
+        }
+      }
+
       function initRun() {
         state = newState();
         state.code = codeEl.value;
         try {
           state.jumpMap = buildJumpMap(state.code);
         } catch (e) {
-          setStatus('構文エラー: ' + e.message, true);
+          reportError('構文エラー', e);
           state = null;
           return false;
         }
         showCodeView(true);
+        skipNonCommands();
         return true;
       }
 
       function execStep() {
         if (!state || state.finished) return false;
-        if (state.pc >= state.code.length) {
-          state.finished = true;
-          return false;
+        if (state.steps >= MAX_STEPS) {
+          throw new Error('最大ステップ数(' + MAX_STEPS + ')を超えました。無限ループの可能性があります。');
         }
         const cmd = state.code[state.pc];
         switch (cmd) {
@@ -410,35 +455,30 @@
         }
         state.pc++;
         state.steps++;
-        if (state.pc >= state.code.length) {
-          state.finished = true;
-        }
+        skipNonCommands();
         return true;
       }
 
       function runAll() {
         stopPlay();
-        consoleEl.textContent = '';
+        clearConsole();
         setStatus('');
         if (!initRun()) return;
         try {
           while (!state.finished) {
-            if (state.steps > MAX_STEPS) {
-              throw new Error('最大ステップ数(' + MAX_STEPS + ')を超えました。無限ループの可能性があります。');
-            }
             execStep();
           }
           setStatus('実行完了(' + state.steps + ' ステップ)');
         } catch (e) {
-          setStatus('実行時エラー: ' + e.message, true);
+          reportError('実行時エラー', e);
         }
         renderTape();
-        renderCodeView();
+        renderCodeView(false);
       }
 
       function runOneStep() {
         if (!state) {
-          consoleEl.textContent = '';
+          clearConsole();
           setStatus('');
           if (!initRun()) return;
         }
@@ -448,12 +488,14 @@
         }
         try {
           execStep();
-          setStatus('ステップ実行中(' + state.steps + ' ステップ)');
+          setStatus(state.finished
+            ? '実行完了(' + state.steps + ' ステップ)'
+            : 'ステップ実行中(' + state.steps + ' ステップ)');
         } catch (e) {
-          setStatus('実行時エラー: ' + e.message, true);
+          reportError('実行時エラー', e);
         }
         renderTape();
-        renderCodeView();
+        renderCodeView(true);
       }
 
       function setPlayingUi(isPlaying) {
@@ -466,9 +508,11 @@
 
       function startPlay() {
         if (!state) {
-          consoleEl.textContent = '';
+          clearConsole();
           setStatus('');
           if (!initRun()) return;
+          renderTape();
+          renderCodeView(false);
         }
         if (state.finished) {
           setStatus('既に終了しています。リセットしてください。');
@@ -478,18 +522,15 @@
         const interval = parseFloat(speedSelect.value) * 1000;
         playTimer = setInterval(() => {
           try {
-            if (state.steps > MAX_STEPS) {
-              throw new Error('最大ステップ数(' + MAX_STEPS + ')を超えました。無限ループの可能性があります。');
-            }
             execStep();
             renderTape();
-            renderCodeView();
+            renderCodeView(false);
             if (state.finished) {
               stopPlay();
               setStatus('実行完了(' + state.steps + ' ステップ)');
             }
           } catch (e) {
-            setStatus('実行時エラー: ' + e.message, true);
+            reportError('実行時エラー', e);
             stopPlay();
           }
         }, interval);
@@ -506,7 +547,7 @@
       function reset() {
         stopPlay();
         state = null;
-        consoleEl.textContent = '';
+        clearConsole();
         setStatus('');
         tapeEl.innerHTML = '';
         infoEl.textContent = '';
@@ -550,9 +591,7 @@
       playBtn.addEventListener('click', startPlay);
       stopBtn.addEventListener('click', stopPlay);
       resetBtn.addEventListener('click', reset);
-      clearConsoleBtn.addEventListener('click', () => {
-        consoleEl.textContent = '';
-      });
+      clearConsoleBtn.addEventListener('click', clearConsole);
 
       const debouncedSave = debounce(saveToStorage, 400);
       codeEl.addEventListener('input', debouncedSave);
