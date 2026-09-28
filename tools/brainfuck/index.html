@@ -1,4 +1,13 @@
 <!DOCTYPE html>
+<!--
+  v2での変更点(元ファイルからの差分):
+  - タッチ操作を禁止する記述(-webkit-user-select:none / touch-action:none / overflow:hidden)を削除し、
+    通常のスクロール・テキスト選択ができるように戻した
+  - alert/confirmを使った仮のlocalStorage実装を削除し、コード欄・入力欄を自動保存し、
+    読み込み時に無言で復元するクリーンな実装に変更
+  - 再生ボタン(0.1〜0.5秒の間隔を選択可)と停止ボタンを追加
+  - 1ステップ実行・再生中は、現在実行中の命令をハイライト表示するコードビューを追加
+-->
 <html lang="ja">
   <head>
     <meta charset="UTF-8">
@@ -19,10 +28,6 @@
       }
       html, body {
         height: 100%;
-        -webkit-touch-callout:none;
-        -webkit-user-select:none;
-        overflow:hidden;
-        touch-action: none;
       }
       body {
         margin: 0;
@@ -71,10 +76,34 @@
       #code {
         height: 180px;
       }
+      #code.hidden {
+        display: none;
+      }
+      .code-view {
+        display: none;
+        height: 180px;
+        overflow-y: auto;
+        background: #111;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 8px;
+        font-size: 14px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .code-view.active {
+        display: block;
+      }
+      .code-view span.hl {
+        background: var(--accent2);
+        color: #111;
+        border-radius: 2px;
+      }
       .controls {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+        align-items: center;
         margin: 10px 0;
       }
       button {
@@ -90,9 +119,27 @@
       button:hover {
         opacity: 0.85;
       }
+      button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
       button.secondary {
         background: #555;
         color: var(--text);
+      }
+      select {
+        background: #111;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 6px 8px;
+        font-family: inherit;
+        font-size: 13px;
+      }
+      .speed-label {
+        font-size: 12px;
+        color: var(--accent);
+        margin: 0 0 0 6px;
       }
       #console {
         background: #000;
@@ -156,10 +203,21 @@
     <div class="layout">
       <div class="panel">
         <label for="code">コード</label>
-        <textarea id="code" spellcheck="false">++++++++[>++++++<-]>.</textarea>
+        <textarea id="code" spellcheck="false">++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.</textarea>
+        <div id="codeView" class="code-view"></div>
         <div class="controls">
           <button id="runBtn">実行</button>
           <button id="stepBtn" class="secondary">1ステップ</button>
+          <button id="playBtn" class="secondary">再生</button>
+          <button id="stopBtn" class="secondary" disabled>停止</button>
+          <span class="speed-label">間隔</span>
+          <select id="speedSelect">
+            <option value="0.5">0.5秒</option>
+            <option value="0.4">0.4秒</option>
+            <option value="0.3" selected>0.3秒</option>
+            <option value="0.2">0.2秒</option>
+            <option value="0.1">0.1秒</option>
+          </select>
           <button id="resetBtn" class="secondary">リセット</button>
           <button id="clearConsoleBtn" class="secondary">コンソールクリア</button>
         </div>
@@ -180,8 +238,12 @@
 
     <script>
       const codeEl = document.getElementById('code');
+      const codeViewEl = document.getElementById('codeView');
       const runBtn = document.getElementById('runBtn');
       const stepBtn = document.getElementById('stepBtn');
+      const playBtn = document.getElementById('playBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const speedSelect = document.getElementById('speedSelect');
       const resetBtn = document.getElementById('resetBtn');
       const clearConsoleBtn = document.getElementById('clearConsoleBtn');
       const consoleEl = document.getElementById('console');
@@ -192,8 +254,11 @@
 
       const TAPE_SIZE = 30000;
       const MAX_STEPS = 5000000;
+      const LS_CODE_KEY = 'bf_interpreter_code';
+      const LS_STDIN_KEY = 'bf_interpreter_stdin';
 
       let state = null;
+      let playTimer = null;
 
       function newState() {
         return {
@@ -254,6 +319,35 @@
         infoEl.textContent = 'ptr=' + state.ptr + ' / steps=' + state.steps + (state.finished ? ' / 終了' : '');
       }
 
+      function renderCodeView() {
+        codeViewEl.innerHTML = '';
+        if (!state) return;
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < state.code.length; i++) {
+          const span = document.createElement('span');
+          span.textContent = state.code[i];
+          if (i === state.pc) {
+            span.className = 'hl';
+          }
+          frag.appendChild(span);
+        }
+        codeViewEl.appendChild(frag);
+        const hl = codeViewEl.querySelector('.hl');
+        if (hl) {
+          hl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+      }
+
+      function showCodeView(show) {
+        if (show) {
+          codeEl.classList.add('hidden');
+          codeViewEl.classList.add('active');
+        } else {
+          codeEl.classList.remove('hidden');
+          codeViewEl.classList.remove('active');
+        }
+      }
+
       function initRun() {
         state = newState();
         state.code = codeEl.value;
@@ -264,6 +358,7 @@
           state = null;
           return false;
         }
+        showCodeView(true);
         return true;
       }
 
@@ -322,6 +417,7 @@
       }
 
       function runAll() {
+        stopPlay();
         consoleEl.textContent = '';
         setStatus('');
         if (!initRun()) return;
@@ -337,6 +433,7 @@
           setStatus('実行時エラー: ' + e.message, true);
         }
         renderTape();
+        renderCodeView();
       }
 
       function runOneStep() {
@@ -356,22 +453,66 @@
           setStatus('実行時エラー: ' + e.message, true);
         }
         renderTape();
+        renderCodeView();
+      }
+
+      function setPlayingUi(isPlaying) {
+        playBtn.disabled = isPlaying;
+        stopBtn.disabled = !isPlaying;
+        speedSelect.disabled = isPlaying;
+        runBtn.disabled = isPlaying;
+        stepBtn.disabled = isPlaying;
+      }
+
+      function startPlay() {
+        if (!state) {
+          consoleEl.textContent = '';
+          setStatus('');
+          if (!initRun()) return;
+        }
+        if (state.finished) {
+          setStatus('既に終了しています。リセットしてください。');
+          return;
+        }
+        setPlayingUi(true);
+        const interval = parseFloat(speedSelect.value) * 1000;
+        playTimer = setInterval(() => {
+          try {
+            if (state.steps > MAX_STEPS) {
+              throw new Error('最大ステップ数(' + MAX_STEPS + ')を超えました。無限ループの可能性があります。');
+            }
+            execStep();
+            renderTape();
+            renderCodeView();
+            if (state.finished) {
+              stopPlay();
+              setStatus('実行完了(' + state.steps + ' ステップ)');
+            }
+          } catch (e) {
+            setStatus('実行時エラー: ' + e.message, true);
+            stopPlay();
+          }
+        }, interval);
+      }
+
+      function stopPlay() {
+        if (playTimer) {
+          clearInterval(playTimer);
+          playTimer = null;
+        }
+        setPlayingUi(false);
       }
 
       function reset() {
+        stopPlay();
         state = null;
         consoleEl.textContent = '';
         setStatus('');
         tapeEl.innerHTML = '';
         infoEl.textContent = '';
+        showCodeView(false);
       }
 
-      runBtn.addEventListener('click', runAll);
-      stepBtn.addEventListener('click', runOneStep);
-      resetBtn.addEventListener('click', reset);
-      clearConsoleBtn.addEventListener('click', () => {
-        consoleEl.textContent = '';
-      });
       function debounce(func, delay) {
         let timeoutId;
         return (...args) => {
@@ -379,16 +520,45 @@
           timeoutId = setTimeout(() => func(...args), delay);
         };
       }
-      stdinEl.addEventListener('input', debounce(() => {
-        localStorage.setItem('/tools/brainfuck/_stdin', stdinEl.value);
-        alert(localStorage.getItem('/tools/brainfuck/_stdin'));
-      }, 500));
 
-      window.onload = () => {
-        const ls = localStorage.getItem('/tools/brainfuck/_stdin');
-        if (ls && confirm('以前のデータを復旧しますか？'))
-          stdinEl.value = ls;
+      function saveToStorage() {
+        try {
+          localStorage.setItem(LS_CODE_KEY, codeEl.value);
+          localStorage.setItem(LS_STDIN_KEY, stdinEl.value);
+        } catch (e) {
+          /* ストレージが使用できない場合は無視 */
+        }
       }
+
+      function loadFromStorage() {
+        try {
+          const savedCode = localStorage.getItem(LS_CODE_KEY);
+          const savedStdin = localStorage.getItem(LS_STDIN_KEY);
+          if (savedCode !== null) {
+            codeEl.value = savedCode;
+          }
+          if (savedStdin !== null) {
+            stdinEl.value = savedStdin;
+          }
+        } catch (e) {
+          /* ストレージが使用できない場合は無視 */
+        }
+      }
+
+      runBtn.addEventListener('click', runAll);
+      stepBtn.addEventListener('click', runOneStep);
+      playBtn.addEventListener('click', startPlay);
+      stopBtn.addEventListener('click', stopPlay);
+      resetBtn.addEventListener('click', reset);
+      clearConsoleBtn.addEventListener('click', () => {
+        consoleEl.textContent = '';
+      });
+
+      const debouncedSave = debounce(saveToStorage, 400);
+      codeEl.addEventListener('input', debouncedSave);
+      stdinEl.addEventListener('input', debouncedSave);
+
+      loadFromStorage();
     </script>
   </body>
 </html>
