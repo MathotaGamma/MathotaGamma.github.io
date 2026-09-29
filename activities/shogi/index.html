@@ -3,29 +3,35 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>やねうら王NNUE対局 v1</title>
+    <title>やneうら王NNUE対局 v1 (局面編集機能付き)</title>
     <style>
       body { font-family: sans-serif; margin: 8px; max-width: 920px; background: #fafafa; color: #222; }
       fieldset { margin: 6px 0; padding: 6px 10px; }
       label { display: inline-block; margin: 2px 8px 2px 0; font-size: 13px; }
       input[type=number] { width: 70px; }
-      button { padding: 6px 12px; margin: 2px; font-size: 14px; }
+      button { padding: 6px 12px; margin: 2px; font-size: 14px; cursor: pointer; }
       #board { display: grid; grid-template-columns: repeat(9, 34px); grid-template-rows: repeat(9, 36px); border: 2px solid #630; background: #e8c27a; width: 306px; }
       .c { border: 1px solid #a80; display: flex; align-items: center; justify-content: center; font-size: 21px; box-sizing: border-box; cursor: pointer; user-select: none; }
       .c.w { transform: rotate(180deg); }
       .c.pr { color: #c00; }
       .c.sel { background: #ff8; }
-      .c.tgt { background: #8f8; }
+      .c.edit-sel { background: #fca; border: 2px solid #f60; }
       #row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
       #hand { display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0; }
-      .hp { border: 1px solid #999; padding: 2px 6px; border-radius: 4px; background: #fff; cursor: pointer; font-size: 15px; }
+      .hp { border: 1px solid #999; padding: 2px 6px; border-radius: 4px; background: #fff; cursor: pointer; font-size: 15px; display: inline-block; margin: 2px; }
       .hp.sel { background: #ff8; }
+      .hp.edit-sel { background: #fca; border: 2px solid #f60; }
       #cand table { border-collapse: collapse; font-size: 12px; }
       #cand td, #cand th { border: 1px solid #ccc; padding: 2px 6px; text-align: right; }
       #cand tr.worst { background: #fee; }
       #cand tr.best { background: #efe; }
       pre { background: #111; color: #9f9; padding: 6px; font-size: 11px; height: 120px; overflow: auto; margin: 4px 0; }
       #note { font-size: 11px; color: #555; }
+      /* 編集モード専用スタイル */
+      .edit-mode-active { background-color: #fff8e7; border: 2px solid #e67e22; }
+      .edit-only { display: none; }
+      .editing .edit-only { display: inline-block; }
+      .editing .play-only { display: none; }
     </style>
   </head>
   <body>
@@ -42,25 +48,41 @@
       </label>
       <div id="loadstat" style="font-weight:bold"></div>
       <div id="note">
-        ※nn.binはやねうら王配布物または自前で用意したものをご利用ください(このページはファイルを配布・取得しません)。ファイルはLEB128圧縮・非圧縮のどちらも自動判定します。<br>
-        ※重みの並び(SIMD向けスクランブルの有無)はファイルを作ったツールのビルド構成に依存し断定できないため選択式にしています。読込後の初期局面評価値(絶対値150cp程度が目安)が明らかにおかしい場合は設定を切り替えてください。
+        ※nn.binはやねうら王配布物または自前で用意したものをご利用ください。
       </div>
     </fieldset>
-    <fieldset>
-      <legend>対局設定</legend>
-      <label>探索深さ<input type="number" id="depth" value="4"></label>
-      <label>1手思考ms<input type="number" id="movems" value="800"></label>
-      <label>プレイヤー<select id="humanSide"><option value="0">先手</option><option value="1">後手</option><option value="2">見学(AI同士)</option></select></label>
-      <button id="btnNew">対局開始</button>
-      <button id="btnAI">AIに指させる</button>
-      <button id="btnUndo">待った</button>
+
+    <fieldset id="controlsFieldset">
+      <legend>対局・局面操作</legend>
+      <label class="play-only">探索深さ<input type="number" id="depth" value="4"></label>
+      <label class="play-only">1手思考ms<input type="number" id="movems" value="800"></label>
+      <label class="play-only">プレイヤー<select id="humanSide"><option value="0">先手</option><option value="1">後手</option><option value="2">見学(AI同士)</option></select></label>
+      
+      <!-- 通常ボタン -->
+      <button id="btnNew" class="play-only">対局開始</button>
+      <button id="btnAI" class="play-only">AIに指させる</button>
+      <button id="btnUndo" class="play-only">待った</button>
+      <button id="btnEditStart" class="play-only" style="background:#e67e22; color:#fff;">局面編集</button>
+
+      <!-- 編集モード専用ボタン -->
+      <label class="edit-only">手番:
+        <select id="editSide">
+          <option value="0">先手番</option>
+          <option value="1">後手番</option>
+        </select>
+      </label>
+      <button id="btnEditApply" class="edit-only" style="background:#27ae60; color:#fff; font-weight:bold;">決定</button>
+      <button id="btnEditCancel" class="edit-only">破棄</button>
+      <button id="btnEditReset" class="edit-only">平手初期化</button>
     </fieldset>
+
     <div id="status" style="font-weight:bold;margin:6px 0">nn.binを読み込んでください</div>
+    
     <div id="row">
       <div>
-        <div id="hw" style="font-size:13px;height:20px"></div>
+        <div id="hw" style="font-size:13px;height:24px"></div>
         <div id="board"></div>
-        <div id="hb" style="font-size:13px;height:20px"></div>
+        <div id="hb" style="font-size:13px;height:24px"></div>
         <div id="handArea"></div>
       </div>
       <div style="min-width:260px">
@@ -69,12 +91,14 @@
         <div id="cand"></div>
       </div>
     </div>
+    
     <div><b>棋譜</b></div>
     <div id="moves" style="font-size:12px;max-width:900px;word-break:break-all"></div>
     <pre id="log"></pre>
+
     <script>
       'use strict';
-      // ===================== 盤・合法手生成(YaneuraOu形式とは独立の内部表現) =====================
+      // ===================== 盤・合法手生成 =====================
       const ORTH = [[0, -1], [-1, 0], [1, 0], [0, 1]], DIAG = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
       const GS = [[0, -1], [-1, -1], [1, -1], [-1, 0], [1, 0], [0, 1]];
       const D8 = ORTH.concat(DIAG);
@@ -100,6 +124,16 @@
         }
         return p;
       }
+
+      function clonePos(p) {
+        return {
+          b: p.b.slice(),
+          h: [p.h[0].slice(), p.h[1].slice()],
+          side: p.side,
+          ks: p.ks.slice()
+        };
+      }
+
       function attacked(p, sq, by) {
         const b = p.b, f = (sq / 9) | 0, r = sq % 9, sg = by ? -1 : 1;
         for (let t = 1; t <= 14; t++) {
@@ -123,6 +157,7 @@
         }
         return false;
       }
+
       function pseudo(p, out, capOnly) {
         const c = p.side, b = p.b, sg = c ? -1 : 1;
         const add = (s, q, t, r0, r1) => {
@@ -176,6 +211,7 @@
           }
         }
       }
+
       function make(p, m) {
         const to = m & 127, from = (m >> 7) & 127, pro = (m >> 14) & 1, dr = m >> 15, c = p.side;
         const u = { m, cap: p.b[to], pc: 0, k0: p.ks[0], k1: p.ks[1] };
@@ -189,6 +225,7 @@
         p.side = 1 - c;
         return u;
       }
+
       function undo(p, u) {
         const m = u.m, to = m & 127, from = (m >> 7) & 127, dr = m >> 15;
         p.side = 1 - p.side;
@@ -197,6 +234,7 @@
         if (dr) p.h[c][dr]++; else p.b[from] = u.pc;
         p.b[to] = u.cap; p.ks[0] = u.k0; p.ks[1] = u.k1;
       }
+
       function hasLegal(p) {
         const c = p.side, list = [];
         pseudo(p, list, false);
@@ -208,6 +246,7 @@
         }
         return false;
       }
+
       function legal(p, capOnly) {
         const c = p.side, list = [], res = [];
         pseudo(p, list, capOnly);
@@ -220,6 +259,7 @@
         }
         return res;
       }
+
       const PL = '.PLNSBRG';
       const sqs = s => ((s / 9) | 0) + 1 + 'abcdefghi'[s % 9];
       function mstr(m) {
@@ -227,7 +267,7 @@
         return dr ? PL[dr] + '*' + sqs(to) : sqs(from) + sqs(to) + (((m >> 14) & 1) ? '+' : '');
       }
 
-      // ===================== YaneuraOu NNUE(HalfKP 256x2-32-32)ローダ =====================
+      // ===================== NNUE Evaluation =====================
       const FE_END = 1548, HD = 256, L1 = 32, L2 = 32;
       const F_BASE = [90, 252, 414, 576, 738, 900, 1062, 1224, 1386];
       const E_BASE = F_BASE.map(x => x + 81);
@@ -242,7 +282,6 @@
       function decodeLeb128(b, pos, count, bits, out) {
         pos += 17;
         let bytesLeft = readU32(b, pos) >>> 0; pos += 4;
-        const signBit = 1 << (bits - 1);
         for (let i = 0; i < count; i++) {
           let result = 0, shift = 0, byte;
           for (;;) {
@@ -380,6 +419,7 @@
         return cp > 2900 ? 2900 : cp < -2900 ? -2900 : cp;
       }
 
+      // ===================== 探索アルゴリズム =====================
       let sNodes = 0, sDead = 0, sAbort = false;
       function orderMoves(p, ms) {
         const keys = ms.map(m => { const x = p.b[m & 127]; return (x ? VAL[x > 0 ? x : -x] * 10 : 0) + (((m >> 14) & 1) ? 300 : 0); });
@@ -457,46 +497,243 @@
         return { move: bestMove, score: bestScore };
       }
 
-      // ===================== UI =====================
+      // ===================== UI & 局面編集ロジック =====================
       const $ = id => document.getElementById(id);
       let NNBUF = null;
       const CH = ['', '歩', '香', '桂', '銀', '角', '飛', '金', '玉', 'と', '杏', '圭', '全', '馬', '龍'];
+      
+      // トグル変換用(成ることのできる駒の成駒ID)
+      const PROMOTED_MAP = { 1: 9, 2: 10, 3: 11, 4: 12, 5: 13, 6: 14 };
+      const UNPROMOTED_MAP = { 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 6 };
+
       const cells = [];
-      for (let i = 0; i < 81; i++) { const d = document.createElement('div'); d.className = 'c'; $('board').appendChild(d); cells.push(d); }
-      let POS = startPos(), SEL = null, HIST = [], MVSTR = [];
+      for (let i = 0; i < 81; i++) {
+        const d = document.createElement('div');
+        d.className = 'c';
+        $('board').appendChild(d);
+        cells.push(d);
+      }
+
+      let POS = startPos();
+      let EDIT_POS = null; // 編集中の局面
+      let isEditing = false;
+      let SEL = null; // 選択状態
+      let HIST = [], MVSTR = [];
+
       function log(s) { $('log').textContent += s + '\n'; $('log').scrollTop = 1e9; }
+
       function draw() {
-        const p = POS;
+        const p = isEditing ? EDIT_POS : POS;
+        
         for (let r = 0; r < 9; r++) {
           for (let c = 0; c < 9; c++) {
-            // 盤面表示用インデックス計算の修正（グリッド上の位置 (r, c) から内部配列のマス番号を正しく逆算）
             const sq = (8 - c) * 9 + r;
             const x = p.b[sq], e = cells[r * 9 + c], a = Math.abs(x);
             e.textContent = x ? CH[a] : '';
-            e.className = 'c' + (x < 0 ? ' w' : '') + (a > 8 ? ' pr' : '') + (SEL && SEL.type === 'sq' && SEL.sq === sq ? ' sel' : '');
+            
+            let cls = 'c' + (x < 0 ? ' w' : '') + (a > 8 ? ' pr' : '');
+            if (SEL) {
+              if (SEL.type === 'sq' && SEL.sq === sq) {
+                cls += isEditing ? ' edit-sel' : ' sel';
+              }
+            }
+            e.className = cls;
             e.dataset.sq = sq;
           }
         }
-        const ht = c => { let s = ''; for (let t = 7; t >= 1; t--) if (p.h[c][t]) s += CH[t] + (p.h[c][t] > 1 ? p.h[c][t] : '') + ' '; return s; };
+
+        const ht = c => {
+          let s = '';
+          for (let t = 7; t >= 1; t--) {
+            if (p.h[c][t]) s += CH[t] + (p.h[c][t] > 1 ? p.h[c][t] : '') + ' ';
+          }
+          return s;
+        };
         $('hw').textContent = '後手持駒: ' + ht(1);
         $('hb').textContent = '先手持駒: ' + ht(0);
+
         const ha = $('handArea'); ha.innerHTML = '';
-        const side = p.side;
-        for (let t = 7; t >= 1; t--) {
-          if (!p.h[side][t]) continue;
-          const d = document.createElement('span');
-          d.className = 'hp' + (SEL && SEL.type === 'hand' && SEL.t === t ? ' sel' : '');
-          d.textContent = CH[t] + (p.h[side][t] > 1 ? p.h[side][t] : '');
-          d.onclick = () => { SEL = SEL && SEL.type === 'hand' && SEL.t === t ? null : { type: 'hand', t }; draw(); };
-          ha.appendChild(d);
+        
+        if (isEditing) {
+          // 編集モード時は両方の持駒を表示・選択可能に
+          const renderEditHand = (side) => {
+            const label = side === 0 ? '先手' : '後手';
+            for (let t = 7; t >= 1; t--) {
+              if (!p.h[side][t]) continue;
+              const d = document.createElement('span');
+              const isSel = SEL && SEL.type === 'hand' && SEL.side === side && SEL.t === t;
+              d.className = 'hp' + (isSel ? ' edit-sel' : '');
+              d.textContent = `${label}${CH[t]}${p.h[side][t] > 1 ? p.h[side][t] : ''}`;
+              d.onclick = () => handleHandClick(side, t);
+              ha.appendChild(d);
+            }
+          };
+          renderEditHand(0);
+          renderEditHand(1);
+        } else {
+          // 対局モード時は現在の手番の持駒を表示
+          const side = p.side;
+          for (let t = 7; t >= 1; t--) {
+            if (!p.h[side][t]) continue;
+            const d = document.createElement('span');
+            d.className = 'hp' + (SEL && SEL.type === 'hand' && SEL.t === t ? ' sel' : '');
+            d.textContent = CH[t] + (p.h[side][t] > 1 ? p.h[side][t] : '');
+            d.onclick = () => { SEL = SEL && SEL.type === 'hand' && SEL.t === t ? null : { type: 'hand', t }; draw(); };
+            ha.appendChild(d);
+          }
         }
+
         $('moves').textContent = MVSTR.map((s, i) => (i + 1) + '.' + s).join(' ');
       }
+
+      // ===================== 編集モード用操作ロジック =====================
+      function handleHandClick(side, t) {
+        if (!isEditing) return;
+        
+        if (SEL) {
+          if (SEL.type === 'hand' && SEL.side === side && SEL.t === t) {
+            // 同じ手駒を再タップ → 手駒の所有権を切り替え (先手⇔後手)
+            EDIT_POS.h[side][t]--;
+            EDIT_POS.h[1 - side][t]++;
+            SEL = { type: 'hand', side: 1 - side, t };
+          } else {
+            SEL = { type: 'hand', side, t };
+          }
+        } else {
+          SEL = { type: 'hand', side, t };
+        }
+        draw();
+      }
+
+      function cellClick(sq) {
+        if (isEditing) {
+          handleEditCellClick(sq);
+          return;
+        }
+
+        // 対局モード時
+        if (!NET) { $('status').textContent = 'まずnn.binを読み込んでください'; return; }
+        const p = POS, side = p.side, list = legal(p, false);
+        if (SEL) {
+          let cand;
+          if (SEL.type === 'sq') cand = list.filter(m => !(m >> 15) && ((m >> 7) & 127) === SEL.sq && (m & 127) === sq);
+          else cand = list.filter(m => (m >> 15) === SEL.t && (m & 127) === sq);
+          if (cand.length) {
+            let mv = cand[0];
+            if (cand.length > 1) {
+              if (!confirm('成りますか?')) mv = cand.find(m => !((m >> 14) & 1)) || cand[0];
+              else mv = cand.find(m => (m >> 14) & 1) || cand[0];
+            }
+            beforeMoveEval(mv); return;
+          }
+        }
+        const pc = p.b[sq];
+        if (pc && (pc > 0) === (side === 0)) { SEL = { type: 'sq', sq }; draw(); }
+        else { SEL = null; draw(); }
+      }
+
+      function handleEditCellClick(sq) {
+        const p = EDIT_POS;
+        const pc = p.b[sq];
+
+        if (SEL) {
+          if (SEL.type === 'sq') {
+            if (SEL.sq === sq) {
+              // 選択中の同じ駒をタップ：トグル切り替え（1.通常 → 2.成 → 3.相手通常 → 4.相手成 → 最初へ）
+              p.b[sq] = togglePiece(pc);
+              // 玉の位置追跡を修正
+              updateKingPositions(p);
+            } else {
+              // 別のマスをタップ：選択した駒を移動（消滅・増殖なし）
+              const targetPc = p.b[sq];
+              p.b[sq] = p.b[SEL.sq];
+              p.b[SEL.sq] = 0;
+              
+              // 移動先に駒があった場合は手駒に移動
+              if (targetPc !== 0) {
+                let rawT = Math.abs(targetPc);
+                if (rawT > 8) rawT -= 8; // 成り解除
+                if (rawT !== 8) { // 玉以外を手駒に追加
+                  const capSide = p.b[sq] > 0 ? 0 : 1;
+                  p.h[capSide][rawT]++;
+                }
+              }
+
+              updateKingPositions(p);
+              SEL = { type: 'sq', sq };
+            }
+          } else if (SEL.type === 'hand') {
+            // 手駒を選択した状態でマスをタップ：手駒から盤上へ移動
+            const handSide = SEL.side;
+            const t = SEL.t;
+
+            if (p.b[sq] !== 0) {
+              // 移動先にすでに駒がある場合は移動先駒を手駒へ回収
+              let targetPc = p.b[sq];
+              let rawT = Math.abs(targetPc);
+              if (rawT > 8) rawT -= 8;
+              if (rawT !== 8) p.h[handSide][rawT]++;
+            }
+
+            p.b[sq] = handSide === 0 ? t : -t;
+            p.h[handSide][t]--;
+
+            if (p.h[handSide][t] <= 0) SEL = null;
+            updateKingPositions(p);
+          }
+        } else {
+          if (pc !== 0) {
+            SEL = { type: 'sq', sq };
+          }
+        }
+        draw();
+      }
+
+      // 駒の状態をトグル切り替え (通常 → 成 → 相手通常 → 相手成 → 通常)
+      function togglePiece(val) {
+        if (val === 0) return 0;
+        const side = val > 0 ? 0 : 1;
+        const absVal = Math.abs(val);
+
+        // 玉は所有権（先手/後手）の反転のみ
+        if (absVal === 8) return val > 0 ? -8 : 8;
+        // 金は成らないため所有権の反転のみ
+        if (absVal === 7) return val > 0 ? -7 : 7;
+
+        const isPromoted = absVal > 8;
+        if (!isPromoted) {
+          // 1. 通常 -> 2. 成
+          const prom = PROMOTED_MAP[absVal];
+          return side === 0 ? prom : -prom;
+        } else {
+          const unprom = UNPROMOTED_MAP[absVal];
+          if (side === 0) {
+            // 2. 成 -> 3. 相手の通常
+            return -unprom;
+          } else {
+            // 4. 相手の成 -> 1. 自分の通常
+            return unprom;
+          }
+        }
+      }
+
+      function updateKingPositions(p) {
+        p.ks = [0, 0];
+        for (let i = 0; i < 81; i++) {
+          if (p.b[i] === 8) p.ks[0] = i;
+          if (p.b[i] === -8) p.ks[1] = i;
+        }
+      }
+
+      // ===================== UIイベントバインド =====================
+      cells.forEach(c => c.onclick = () => cellClick(+c.dataset.sq));
+
       function showEval() {
-        const list = legal(POS, false);
+        const p = isEditing ? EDIT_POS : POS;
+        const list = legal(p, false);
         if (!list.length) { $('evalval').textContent = '(詰み/手なし)'; $('cand').innerHTML = ''; return []; }
-        const ranked = rankMoves(POS);
-        $('evalval').textContent = ranked.length ? ranked[0].score.toFixed(0) : evalYane(POS).toFixed(0);
+        const ranked = rankMoves(p);
+        $('evalval').textContent = ranked.length ? ranked[0].score.toFixed(0) : evalYane(p).toFixed(0);
         let html = '<table><tr><th>順位</th><th>指し手</th><th>評価値</th></tr>';
         const top = ranked.slice(0, 5);
         top.forEach((r, i) => { html += `<tr class="${i === 0 ? 'best' : ''}"><td>${i + 1}</td><td>${mstr(r.move)}</td><td>${r.score.toFixed(0)}</td></tr>`; });
@@ -508,6 +745,7 @@
         $('cand').innerHTML = html;
         return ranked;
       }
+
       function checkBadMove(ranked, playedMove) {
         if (!ranked || !ranked.length) { $('badmove').textContent = ''; return; }
         const worst = ranked[ranked.length - 1];
@@ -521,9 +759,10 @@
         }
         $('badmove').textContent = s;
       }
+
       function doMove(m) {
         MVSTR.push(mstr(m));
-        HIST.push({ b: POS.b.slice(), h: [POS.h[0].slice(), POS.h[1].slice()], side: POS.side, ks: POS.ks.slice() });
+        HIST.push(clonePos(POS));
         make(POS, m);
         SEL = null;
         draw();
@@ -532,36 +771,21 @@
         const ranked = showEval();
         maybeAI(ranked);
       }
-      function cellClick(sq) {
-        if (!NET) { $('status').textContent = 'まずnn.binを読み込んでください'; return; }
-        const p = POS, side = p.side, list = legal(p, false);
-        if (SEL) {
-          let cand;
-          if (SEL.type === 'sq') cand = list.filter(m => !(m >> 15) && ((m >> 7) & 127) === SEL.sq && (m & 127) === sq);
-          else cand = list.filter(m => (m >> 15) === SEL.t && (m & 127) === sq);
-          if (cand.length) {
-            let mv = cand[0];
-            if (cand.length > 1) { if (!confirm('成りますか?')) mv = cand.find(m => !((m >> 14) & 1)) || cand[0]; else mv = cand.find(m => (m >> 14) & 1) || cand[0]; }
-            beforeMoveEval(mv); return;
-          }
-        }
-        const pc = p.b[sq];
-        if (pc && (pc > 0) === (side === 0)) { SEL = { type: 'sq', sq }; draw(); }
-        else { SEL = null; draw(); }
-      }
-      cells.forEach(c => c.onclick = () => cellClick(+c.dataset.sq));
+
       function beforeMoveEval(mv) {
         const ranked = showEval();
         doMove(mv);
         checkBadMove(ranked, mv);
       }
+
       function maybeAI(ranked) {
         const hs = +$('humanSide').value;
         const p = POS;
         if (hs === 2 || p.side !== hs) setTimeout(() => aiMove(ranked), 30);
       }
+
       function aiMove(ranked) {
-        if (!NET) return;
+        if (!NET || isEditing) return;
         const list = legal(POS, false);
         if (!list.length) return;
         const r = ranked && ranked.length ? ranked : showEval();
@@ -575,6 +799,66 @@
           checkBadMove(r, best.move);
         }, 10);
       }
+
+      // --- 局面編集モード切り替えボタン ---
+      $('btnEditStart').onclick = () => {
+        isEditing = true;
+        EDIT_POS = clonePos(POS);
+        SEL = null;
+        $('editSide').value = EDIT_POS.side;
+        document.body.classList.add('editing');
+        $('board').classList.add('edit-mode-active');$('status').textContent = '【局面編集モード】駒をタップして移動・変更してください';
+        draw();
+        showEval();
+      };
+
+      $('btnEditApply').onclick = () => {
+        // 玉の有無確認
+        updateKingPositions(EDIT_POS);
+        if (EDIT_POS.ks[0] === 0 && EDIT_POS.b[0] !== 8) {
+          let hasK1 = false;
+          for(let i=0; i<81; i++) if(EDIT_POS.b[i] === 8) hasK1 = true;
+          if(!hasK1) { alert('先手の玉が存在しません。'); return; }
+        }
+        if (EDIT_POS.ks[1] === 0 && EDIT_POS.b[0] !== -8) {
+          let hasK2 = false;
+          for(let i=0; i<81; i++) if(EDIT_POS.b[i] === -8) hasK2 = true;
+          if(!hasK2) { alert('後手の玉が存在しません。'); return; }
+        }
+
+        EDIT_POS.side = +$('editSide').value;
+        POS = clonePos(EDIT_POS);
+        isEditing = false;
+        SEL = null;
+        HIST = [];
+        MVSTR = [];
+        document.body.classList.remove('editing');
+        $('board').classList.remove('edit-mode-active');$('status').textContent = '編集結果を反映しました。';
+        draw();
+        const ranked = showEval();
+        maybeAI(ranked);
+      };
+
+      $('btnEditCancel').onclick = () => {
+        isEditing = false;
+        EDIT_POS = null;
+        SEL = null;
+        document.body.classList.remove('editing');
+        $('board').classList.remove('edit-mode-active');$('status').textContent = '編集を破棄しました。';
+        draw();
+        showEval();
+      };
+
+      $('btnEditReset').onclick = () => {
+        if (confirm('平手の初期局面に戻しますか？')) {
+          EDIT_POS = startPos();
+          $('editSide').value = 0;
+          SEL = null;
+          draw();
+          showEval();
+        }
+      };
+
       $('btnNew').onclick = () => {
         POS = startPos(); SEL = null; HIST = []; MVSTR = [];
         draw();
@@ -582,11 +866,15 @@
         const ranked = showEval();
         maybeAI(ranked);
       };
-      $('btnAI').onclick = () => { const r = showEval(); aiMove(r); };$('btnUndo').onclick = () => {
-        if (!HIST.length) return;
+
+      $('btnAI').onclick = () => { const r = showEval(); aiMove(r); };
+
+      $('btnUndo').onclick = () => {
+        if (!HIST.length || isEditing) return;
         const h = HIST.pop(); POS.b = h.b; POS.h = h.h; POS.side = h.side; POS.ks = h.ks;
         MVSTR.pop(); SEL = null; draw(); showEval();
       };
+
       $('nnfile').onchange = async e => {
         const f = e.target.files[0]; if (!f) return;
         NNBUF = f;
@@ -596,15 +884,17 @@
           const simdMode = $('simd').value;
           NET = loadNNUE(buf, simdMode);
           const e0 = evalYane(startPos());
-          $('loadstat').textContent = '読込完了(' + (NET.isLeb ? 'LEB128圧縮形式' : '非圧縮形式') + ')。初期局面評価値=' + e0.toFixed(0) + 'cp (通常は絶対値150以内程度のはず)';
+          $('loadstat').textContent = '読込完了(' + (NET.isLeb ? 'LEB128圧縮形式' : '非圧縮形式') + ')。初期局面評価値=' + e0.toFixed(0) + 'cp';
           log('NNUE読込完了 形式=' + (NET.isLeb ? 'LEB128' : '生') + ' simdMode=' + simdMode + ' 初期局面eval=' + e0.toFixed(0));
-          $('status').textContent = '「対局開始」を押してください';
+          $('status').textContent = '「対局開始」または「局面編集」を押してください';
         } catch (err) {
           $('loadstat').textContent = 'エラー: ' + err.message;
           log('ERROR ' + err.message);
         }
       };
+
       $('simd').onchange = () => { if (NNBUF)$('nnfile').onchange({ target: { files: [NNBUF] } }); };
+
       draw();
     </script>
   </body>
