@@ -115,7 +115,7 @@
       </div>
       
       <div style="min-width:320px; flex: 1;">
-        <div><b>現在の局面</b>: <span id="gamePhase" style="font-weight:bold; color:#2c3e50;">序盤 (0%)</span></div>
+        <div><b>現在の局面</b>: <span id="gamePhase" style="font-weight:bold; color:#2c3e50;">序盤 (確率: 序100% / 中0% / 終0%)</span></div>
         <div><b>局面評価値 (<span id="sideLabel">手番</span>視点)</b>: <span id="evalval" style="font-size:16px; font-weight:bold; color:#d35400;">-</span> cp</div>
         
         <div id="skillScoreCard">
@@ -169,7 +169,7 @@
       'use strict';
       const $ = id => document.getElementById(id);
 
-      // ===================== 盤・合法手生成エンジン (スライド修正版) =====================
+      // ===================== 盤・合法手生成エンジン =====================
       const ORTH = [[0, -1], [-1, 0], [1, 0], [0, 1]], DIAG = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
       const GS = [[0, -1], [-1, -1], [1, -1], [-1, 0], [1, 0], [0, 1]];
       const D8 = ORTH.concat(DIAG);
@@ -261,7 +261,7 @@
               if (x && (x > 0) === (c === 0)) break;
               add(s, q, t, r, nr);
               if (x) break;
-              nf += sl[i][0]; nr += sl[i][1] * sg; // 修正: スライド方向に正しく進むよう修正
+              nf += sl[i][0]; nr += sl[i][1] * sg;
             }
           }
         }
@@ -489,28 +489,86 @@
         return cp > 2900 ? 2900 : cp < -2900 ? -2900 : cp;
       }
 
-      // ===================== 先後別 局面評定機能 =====================
+      // ===================== 局面判定・評定機能 (滑らかな段階推移 & 初期局面100%修正) =====================
       let MOVE_RECORDS = [];
+      let lastPhaseProbs = { op: 100, mid: 0, end: 0 }; // 前回の確率値を保持
+
+      function resetPhaseProbs() {
+        lastPhaseProbs = { op: 100, mid: 0, end: 0 };
+      }
 
       function getGamePhase(p) {
         let handCount = 0;
         for (let c = 0; c < 2; c++) {
           for (let t = 1; t < 8; t++) handCount += p.h[c][t];
         }
-        let promCount = 0;
+        
+        let promOrMajorCount = 0;
         for (let i = 0; i < 81; i++) {
-          if (Math.abs(p.b[i]) > 8) promCount++;
+          const pc = Math.abs(p.b[i]);
+          if (pc > 8 || pc === 5 || pc === 6) promOrMajorCount++; // 成り駒、角、飛車
         }
-        const ply = MVSTR.length;
-        let progress = (ply * 0.4) + (handCount * 2.5) + (promCount * 3.5);
-        progress = Math.min(100, Math.max(0, Math.round(progress)));
+
+        const isCheckSente = attacked(p, p.ks[0], 1);
+        const isCheckGote = attacked(p, p.ks[1], 0);
+        const inCheck = isCheckSente || isCheckGote;
+
+        // 緊迫度スコア（初期局面では完全0）
+        let tensionScore = (handCount * 3) + (promOrMajorCount * 2);
+        if (inCheck) tensionScore += 35; 
+
+        let rawOp = 0, rawMid = 0, rawEnd = 0;
+
+        // スコア閾値を極低域で序盤100%になるよう修正
+        if (tensionScore <= 4) {
+          rawOp = 100; rawMid = 0; rawEnd = 0;
+        } else if (tensionScore < 20) {
+          rawOp = Math.max(0, 100 - (tensionScore - 4) * 6.25);
+          rawMid = Math.min(100, (tensionScore - 4) * 6.25);
+          rawEnd = 0;
+        } else if (tensionScore < 45) {
+          rawOp = 0;
+          rawMid = Math.max(0, 100 - (tensionScore - 20) * 4);
+          rawEnd = Math.min(100, (tensionScore - 20) * 4);
+        } else {
+          rawOp = 0; rawMid = 0; rawEnd = 100;
+        }
+
+        const legalList = legal(p, false);
+        if (legalList.length === 0 || (inCheck && legalList.length < 3)) {
+          rawOp = 0; rawMid = 0; rawEnd = 100;
+        }
+
+        // 前回の確率を引き継ぎ、なめらかに補間 (指数平滑化: 前回の影響70% + 今回30%)
+        const smoothAlpha = 0.3; 
+        let smoothOp = lastPhaseProbs.op * (1 - smoothAlpha) + rawOp * smoothAlpha;
+        let smoothMid = lastPhaseProbs.mid * (1 - smoothAlpha) + rawMid * smoothAlpha;
+        let smoothEnd = lastPhaseProbs.end * (1 - smoothAlpha) + rawEnd * smoothAlpha;
+
+        // 初期局面、または極端な場合のリセット対応
+        if (tensionScore <= 4) {
+          smoothOp = rawOp; smoothMid = rawMid; smoothEnd = rawEnd;
+        }
+
+        const sum = smoothOp + smoothMid + smoothEnd;
+        const opPct = Math.round((smoothOp / sum) * 100);
+        const midPct = Math.round((smoothMid / sum) * 100);
+        const endPct = 100 - opPct - midPct;
+
+        // 次回への保存
+        lastPhaseProbs = { op: opPct, mid: midPct, end: endPct };
 
         let phaseIdx = 0;
         let phaseName = "序盤";
-        if (progress >= 35 && progress < 70) { phaseIdx = 1; phaseName = "中盤"; }
-        else if (progress >= 70) { phaseIdx = 2; phaseName = "終盤"; }
+        let maxProb = opPct;
 
-        return { phaseIdx, phaseText: `${phaseName} (${progress}%)` };
+        if (midPct > maxProb) { phaseIdx = 1; phaseName = "中盤"; maxProb = midPct; }
+        if (endPct > maxProb) { phaseIdx = 2; phaseName = "終盤"; maxProb = endPct; }
+
+        return { 
+          phaseIdx, 
+          phaseText: `${phaseName} (確率: 序${opPct}% / 中${midPct}% / 終${endPct}%)` 
+        };
       }
 
       function updatePlayerSkillScores() {
@@ -891,7 +949,7 @@
       async function showEval() {
         const p = isEditing ? EDIT_POS : POS;
         if (!NET) {
-          $('evalval').textContent = '-';$('gamePhase').textContent = '序盤 (0%)';
+          $('evalval').textContent = '-';$('gamePhase').textContent = '序盤 (確率: 序100% / 中0% / 終0%)';
           $('cand').innerHTML = '<div style="font-size:12px;color:#666">nn.bin 読み込み後に評価値が表示されます</div>';
           return [];
         }
@@ -900,6 +958,8 @@
         if (!list.length) {
           $('evalval').textContent = '(詰み/合法手なし)';
           $('cand').innerHTML = '';
+          const phaseInfo = getGamePhase(p);
+          $('gamePhase').textContent = phaseInfo.phaseText;
           return [];
         }
 
@@ -947,28 +1007,27 @@
         const total = ranked.length;
 
         if (index !== -1) {
-          const rank = index + 1;
           const playedScore = ranked[index].score;
           const diff = Math.max(0, bestScore - playedScore);
 
           let rankText = "";
-          const isWorst = (rank === total && total > 1);
+          const isWorst = (index === total - 1 && total > 1);
 
-          if (rank === 1) {
-            rankText = `<span class="rank-best">1番手 (最善手！ 差: 0cp)</span>`;
+          if (diff < 20 || index === 0) {
+            rankText = `<span class="rank-best">最善手 (評価差: ${diff.toFixed(0)}cp)</span>`;
+            MOVE_RECORDS.push({
+              side: POS.side,
+              phase: getGamePhase(POS).phaseIdx,
+              diff: 0
+            });
           } else if (isWorst) {
-            rankText = `<span class="rank-worst">最悪手 (${rank}番手)</span> (最高手との差: <b style="color:#c00;">-${diff.toFixed(0)}cp</b>)`;
+            rankText = `<span class="rank-worst">最悪手 (${index + 1}番手)</span> (最高手との差: <b style="color:#c00;">-${diff.toFixed(0)}cp</b>)`;
+            MOVE_RECORDS.push({ side: POS.side, phase: getGamePhase(POS).phaseIdx, diff: diff });
           } else {
-            rankText = `<span class="rank-bad">${rank}番手</span> (最高手との差: <b style="color:#c00;">-${diff.toFixed(0)}cp</b>)`;
+            rankText = `<span class="rank-bad">${index + 1}番手</span> (最高手との差: <b style="color:#c00;">-${diff.toFixed(0)}cp</b>)`;
+            MOVE_RECORDS.push({ side: POS.side, phase: getGamePhase(POS).phaseIdx, diff: diff });
           }
           $('lastMoveRank').innerHTML = rankText;
-
-          const currentPhase = getGamePhase(POS).phaseIdx;
-          MOVE_RECORDS.push({
-            side: POS.side,
-            phase: currentPhase,
-            diff: diff
-          });
           updatePlayerSkillScores();
 
         } else {
@@ -987,6 +1046,8 @@
           const winner = (1 - POS.side) === 0 ? '先手' : '後手';
           $('status').textContent = winner + 'の勝利 (詰み/手なし)';
           $('cand').innerHTML = '';
+          const phaseInfo = getGamePhase(POS);
+          $('gamePhase').textContent = phaseInfo.phaseText;
           return;
         }
         const ranked = await showEval();
@@ -1124,6 +1185,7 @@
         MVSTR = [];
         EVAL_HIST = [];
         MOVE_RECORDS = [];
+        resetPhaseProbs();
         document.body.classList.remove('editing');
         $('board').classList.remove('edit-board');$('status').textContent = '編集後の局面を反映しました';
         draw();
@@ -1145,6 +1207,7 @@
           EDIT_POS = startPos();
           $('editSide').value = 0;
           SEL = null;
+          resetPhaseProbs();
           draw();
           showEval();
         }
@@ -1152,6 +1215,7 @@
 
       $('btnNew').onclick = () => {
         POS = startPos(); SEL = null; HIST = []; MVSTR = []; EVAL_HIST = []; MOVE_RECORDS = [];
+        resetPhaseProbs();
         $('lastMoveStr').textContent = '-';$('lastMoveRank').textContent = '-';
         draw();
         $('status').textContent = '初期局面をセットしました';
