@@ -22,12 +22,12 @@
       .hp { border: 1px solid #999; padding: 2px 6px; border-radius: 4px; background: #fff; cursor: pointer; font-size: 15px; display: inline-block; margin: 2px; }
       .hp.sel { background: #ff8; }
       .hp.edit-sel { background: #fca; border: 2px solid #f60; }
-      
+
       #moveAnalysis { border: 1px solid #4a90e2; background: #eef6ff; padding: 6px 10px; border-radius: 4px; margin: 6px 0; font-size: 13px; }
       #moveAnalysis .rank-best { color: #27ae60; font-weight: bold; }
       #moveAnalysis .rank-bad { color: #e74c3c; font-weight: bold; }
       #moveAnalysis .rank-worst { color: #8e44ad; font-weight: bold; background: #f3e5f5; padding: 1px 4px; border-radius: 3px; }
-      
+
       #skillScoreCard { border: 1px solid #27ae60; background: #f0fff4; padding: 8px 10px; border-radius: 4px; margin: 6px 0; font-size: 13px; }
       .skill-table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 12px; }
       .skill-table th, .skill-table td { border: 1px solid #b7e4c7; padding: 3px 6px; text-align: center; }
@@ -40,7 +40,7 @@
       #cand tr.best { background: #efe; }
       pre { background: #111; color: #9f9; padding: 6px; font-size: 11px; height: 100px; overflow: auto; margin: 4px 0; }
       #note { font-size: 11px; color: #555; }
-      
+
       #graphContainer { margin-top: 10px; border: 1px solid #ccc; background: #fff; padding: 8px; border-radius: 4px; }
       #evalGraph { width: 100%; height: 120px; display: block; }
 
@@ -55,7 +55,7 @@
   </head>
   <body>
     <h3>やねうら王NNUE将棋 <span id="modeBadge">研究/ローカル対戦</span></h3>
-    
+
     <fieldset>
       <legend>評価関数ファイル</legend>
       <label>nn.bin: <input type="file" id="nnfile" accept=".bin"></label>
@@ -72,7 +72,7 @@
 
     <fieldset id="controlsFieldset">
       <legend>モード・思考設定・操作</legend>
-      
+
       <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed #ccc;">
         <label>探索深さ<input type="number" id="depth" value="4" min="1" max="20"></label>
         <label>1手思考ms<input type="number" id="movems" value="800" min="50" step="50"></label>
@@ -84,9 +84,9 @@
           <option value="vs_ai">VS AI対局 (対コンピュータ)</option>
         </select>
       </label>
-      
+
       <label class="non-edit ai-only">人間手番<select id="humanSide"><option value="0">先手</option><option value="1">後手</option><option value="2">見学(AI同士)</option></select></label>
-      
+
       <br class="non-edit">
       <button id="btnNew" class="non-edit">平手で開始</button>
       <button id="btnAI" class="non-edit">AIに指させる</button>
@@ -104,8 +104,32 @@
       <button id="btnEditReset" class="edit-only">平手初期化</button>
     </fieldset>
 
+    <fieldset id="josekiFieldset">
+      <legend>戦法定跡・囲い誘導</legend>
+      <div style="font-size:11px;margin-bottom:4px">
+        「戦法」はやねうら王/水匠と同じ本物のSFEN定跡形式(sfen行+指し手行)です。先手視点で書いておけば後手番で選んでも自動で鏡写しにして使います。
+        「囲い」は完成形の駒配置を目標として与える方式です(手順は無数にあるため定跡化せず、評価値を大きく損なわない範囲で目標形に近づく手をAIが選びます。同名で複数の型を併記できます)。
+      </div>
+      <textarea id="josekiText" style="width:100%;height:140px;font-size:11px;box-sizing:border-box;font-family:monospace"></textarea>
+      <div style="margin-top:4px">
+        <label>ファイルから読込: <input type="file" id="josekiFile" accept=".txt"></label>
+        <button id="btnJosekiApply">反映</button>
+        <span id="josekiStatus" style="font-size:12px"></span>
+      </div>
+      <div style="margin-top:4px">
+        <label>戦法・囲い<select id="targetFormation"><option value="none">なし</option></select></label>
+        <label>対象<select id="targetSide">
+          <option value="none">使わない</option>
+          <option value="0">先手</option>
+          <option value="1">後手</option>
+          <option value="both">両方</option>
+        </select></label>
+        <span id="guidanceStatus" style="font-size:12px;color:#2c3e50"></span>
+      </div>
+    </fieldset>
+
     <div id="status" style="font-weight:bold;margin:6px 0">nn.binを読み込んでください</div>
-    
+
     <div id="row">
       <div>
         <div id="hw" style="font-size:13px;height:24px"></div>
@@ -113,11 +137,11 @@
         <div id="hb" style="font-size:13px;height:24px"></div>
         <div id="handArea"></div>
       </div>
-      
+
       <div style="min-width:320px; flex: 1;">
         <div><b>現在の局面</b>: <span id="gamePhase" style="font-weight:bold; color:#2c3e50;">序盤 (確率: 序100% / 中0% / 終0%)</span></div>
         <div><b>局面評価値 (<span id="sideLabel">手番</span>視点)</b>: <span id="evalval" style="font-size:16px; font-weight:bold; color:#d35400;">-</span> cp</div>
-        
+
         <div id="skillScoreCard">
           <div style="font-weight:bold; margin-bottom:2px;">対局者別・局面段階評定 (100点満点)</div>
           <table class="skill-table">
@@ -160,14 +184,13 @@
       <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">評価値推移 (先手有利: + / 後手有利: -)</div>
       <canvas id="evalGraph" width="880" height="120"></canvas>
     </div>
-    
+
     <div style="margin-top:8px;"><b>棋譜</b></div>
     <div id="moves" style="font-size:12px;max-width:900px;word-break:break-all"></div>
     <pre id="log"></pre>
 
     <script>
       'use strict';
-      const $ = id => document.getElementById(id);
 
       // ===================== 盤・合法手生成エンジン =====================
       const ORTH = [[0, -1], [-1, 0], [1, 0], [0, 1]], DIAG = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
@@ -337,6 +360,356 @@
         const to = m & 127, from = (m >> 7) & 127, dr = m >> 15;
         return dr ? PL[dr] + '*' + sqs(to) : sqs(from) + sqs(to) + (((m >> 14) & 1) ? '+' : '');
       }
+      // マス表記("7h"等)→マス番号。sqs()の逆変換。
+      function sqFromStr(s) {
+        const f = (+s[0]) - 1, r = 'abcdefghi'.indexOf(s[1]);
+        if (f < 0 || f > 8 || r < 0) return -1;
+        return f * 9 + r;
+      }
+
+      // ===================== SFEN入出力・局面の鏡写し =====================
+      // やねうら王/水匠と同じ本物のSFEN形式で局面を表現できるようにする(定跡ファイルの互換性のため)。
+      const SFEN_CH = ['', 'P', 'L', 'N', 'S', 'B', 'R', 'G', 'K'];
+      const SFEN_HAND_ORDER = [6, 5, 7, 4, 3, 2, 1]; // 飛角金銀桂香歩(SFEN慣例の並び)
+      function toSfen(p) {
+        const rows = [];
+        for (let r = 0; r < 9; r++) {
+          let row = '', empty = 0;
+          for (let f = 8; f >= 0; f--) {
+            const v = p.b[f * 9 + r];
+            if (!v) { empty++; continue; }
+            if (empty) { row += empty; empty = 0; }
+            const t = v > 0 ? v : -v;
+            let ch = t > 8 ? '+' + SFEN_CH[t - 8] : SFEN_CH[t];
+            row += v < 0 ? ch.toLowerCase() : ch;
+          }
+          if (empty) row += empty;
+          rows.push(row);
+        }
+        let hand = '';
+        for (let c = 0; c < 2; c++) {
+          for (const t of SFEN_HAND_ORDER) {
+            const n = p.h[c][t];
+            if (n > 0) hand += (n > 1 ? n : '') + (c === 0 ? SFEN_CH[t] : SFEN_CH[t].toLowerCase());
+          }
+        }
+        if (!hand) hand = '-';
+        return rows.join('/') + ' ' + (p.side === 0 ? 'b' : 'w') + ' ' + hand;
+      }
+      // 定跡の位置検索キー: 手数(手数が違っても同じ局面なら一致させたいので)を含めない盤面+手番+持駒のみ
+      function sfenKeyOf(p) { return toSfen(p); }
+      // mstr()形式の指し手文字列を、盤面を鏡写しにした場合の対応する指し手文字列に変換する
+      function mirrorMoveStr(str) {
+        const md = str.match(/^([A-Z])\*([1-9][a-i])$/);
+        if (md) { const sq = sqFromStr(md[2]); return md[1] + '*' + sqs(80 - sq); }
+        const mm = str.match(/^([1-9][a-i])([1-9][a-i])(\+?)$/);
+        if (!mm) return str;
+        const f = sqFromStr(mm[1]), t = sqFromStr(mm[2]);
+        return sqs(80 - f) + sqs(80 - t) + mm[3];
+      }
+
+      // ===================== 定跡(戦法)・囲い 定義ファイル =====================
+      // 「戦法」: やねうら王/水匠と同じ本物のSFEN形式の定跡(局面→次の一手)。
+      //   [名前]の下に type: 戦法 を書き、続けて本家と同じ書式で
+      //     sfen <盤面> <手番:b/w> <持駒>
+      //     <指し手> <参考手> <評価値> <深さ> <出現数>
+      //   を繰り返す。1つのsfenに複数の指し手行があれば、出現数(最後の数字)に応じた重み付き抽選で選ぶ
+      //   (本家のランダム定跡選択と同じ考え方)。先手番の局面として書けば後手番でも自動で鏡写しにして使う。
+      // 「囲い」: 囲いは相手の指し方や着手順で手順が無数にあり、1本の手順では書ききれないため、
+      //   定跡(局面→一手)ではなく「完成形の駒の配置(目標)」で表す。
+      //   [名前]の下に type: 囲い を書き、shape: の下に「マス 駒」を並べる(先手から見た表記で統一)。
+      //   同じ名前で shape: を複数書けば、似た別の完成形(型)も候補として扱われる。
+      //   AIの手番では、評価値が最善手からわずかしか変わらない候補の中から、
+      //   最も完成形に近づく手を選ぶ(どの手順で・いつ組み始めても構わない)。
+      function parseJosekiBook(text) {
+        const entries = [];
+        let cur = null, curSfenKey = null, curShape = null, justCreatedKey = false;
+        for (const raw of text.split('\n')) {
+          const line = raw.trim();
+          if (!line || line.startsWith('#')) continue;
+          const mHead = line.match(/^\[(.+)\]$/);
+          if (mHead) {
+            cur = { name: mHead[1], type: '戦法', book: new Map(), bookWhite: new Map(), shapes: [], sequence: [] };
+            entries.push(cur);
+            curSfenKey = null; curShape = null; justCreatedKey = false;
+            continue;
+          }
+          if (!cur) continue;
+          const mType = line.match(/^type\s*:\s*(.+)$/);
+          if (mType) { cur.type = mType[1].trim(); continue; }
+
+          if (cur.type === '囲い') {
+            if (line === 'shape:') { curShape = []; cur.shapes.push(curShape); continue; }
+            const mSq = line.match(/^([1-9][a-i])\s+(\S)$/);
+            if (mSq && curShape) {
+              const sq = sqFromStr(mSq[1]);
+              const piece = PIECE_NAME_TO_TYPE[mSq[2]];
+              if (sq >= 0 && piece) curShape.push({ sq, piece });
+            }
+            continue;
+          }
+
+          // type: 戦法 (本物のSFEN定跡形式: sfen行+指し手行)
+          const mSfen = line.match(/^sfen\s+(.+)$/);
+          if (mSfen) {
+            const parts = mSfen[1].trim().split(/\s+/);
+            curSfenKey = parts.slice(0, 3).join(' '); // 盤面+手番+持駒のみをキーにする(手数は無視)
+            justCreatedKey = !cur.book.has(curSfenKey);
+            if (justCreatedKey) cur.book.set(curSfenKey, []);
+            continue;
+          }
+          if (curSfenKey) {
+            const parts = line.split(/\s+/);
+            const mv = parts[0];
+            const cnt = parts.length >= 5 ? (+parts[4] || 1) : 1;
+            cur.book.get(curSfenKey).push({ move: mv, count: cnt });
+            if (justCreatedKey) { cur.sequence.push(mv); justCreatedKey = false; }
+          }
+        }
+        // 先手視点で書かれた「戦法」の手順から、後手がこの戦法を実行する場合の専用テーブルを機械的に生成する。
+        // 先手の構築手と後手の(想定)応手の順序を入れ替えた上で鏡写しし、初期局面から実際にリプレイして
+        // 本物のsfenキーを作り直す(局面を単純に鏡写しするだけでは手番の偶奇が合わず機能しないため)。
+        for (const e of entries) {
+          if (e.type !== '戦法' || !e.sequence.length) continue;
+          const seq = e.sequence, swapped = [];
+          for (let i = 0; i < seq.length; i += 2) {
+            if (i + 1 < seq.length) { swapped.push(seq[i + 1]); swapped.push(seq[i]); }
+            else swapped.push(seq[i]);
+          }
+          const mirroredSeq = swapped.map(mirrorMoveStr);
+          let p = startPos();
+          for (const mv of mirroredSeq) {
+            const key = sfenKeyOf(p);
+            const list = legal(p, false);
+            const found = list.find(m => mstr(m) === mv);
+            if (!found) break;
+            if (!e.bookWhite.has(key)) e.bookWhite.set(key, []);
+            e.bookWhite.get(key).push({ move: mv, count: 1 });
+            make(p, found);
+          }
+        }
+        return entries;
+      }
+      const PIECE_NAME_TO_TYPE = {};
+      function buildPieceNameMap() {
+        for (let t = 1; t < CH.length; t++) if (CH[t]) PIECE_NAME_TO_TYPE[CH[t]] = t;
+      }
+
+      const DEFAULT_JOSEKI_TEXT =
+        '# 戦法・囲い 定跡/誘導ファイル(人間が書き足せるテキスト形式)\n' +
+        '# ------------------------------------------------------------\n' +
+        '# ■ 戦法(type: 戦法) … やねうら王/水匠と同じ本物のSFEN形式の定跡です。\n' +
+        '#   [名前] の下に type: 戦法 、続けて\n' +
+        '#     sfen <盤面> <手番 b/w> <持駒>\n' +
+        '#     <指し手> <参考手(未使用ならnoneでよい)> <評価値> <深さ> <出現数>\n' +
+        '#   を繰り返します(本家の定跡ファイルと同じ書式)。1つのsfenに複数の指し手行を\n' +
+        '#   書けば、出現数に応じた重み付き抽選でどれかを指します。\n' +
+        '#   先手番の進行として書いておけば、後手番でこの戦法を選んでも自動で鏡写しにして使います。\n' +
+        '#\n' +
+        '# ■ 囲い(type: 囲い) … 完成形の駒の配置を目標として指定します(手順は書きません)。\n' +
+        '#   途中の手順や組み始めるタイミングは問わず、AIが「今の局面から見て一番近い完成形」に\n' +
+        '#   評価値を大きく損なわない範囲で近づく手を選びます。\n' +
+        '#   [名前] の下に type: 囲い 、続けて shape: の下に「マス 駒」を先手から見た表記で\n' +
+        '#   並べます(例 8h 玉)。shape: を複数書けば、同じ名前でも異なる完成形(型)を\n' +
+        '#   まとめて候補にできます。\n' +
+        '# #で始まる行・空行は無視されます。\n' +
+        '# ------------------------------------------------------------\n' +
+        '\n' +
+        '[矢倉]\n' +
+        'type: 囲い\n' +
+        'shape:\n' +
+        '8h 玉\n' +
+        '7h 金\n' +
+        '7g 銀\n' +
+        '\n' +
+        '[相掛かり]\n' +
+        'type: 戦法\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '2g2f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w -\n' +
+        '8c8d none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/p1ppppppp/1p7/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL b -\n' +
+        '2f2e none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/p1ppppppp/1p7/7P1/9/PPPPPPP1P/1B5R1/LNSGKGSNL w -\n' +
+        '8d8e none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/p1ppppppp/9/1p5P1/9/PPPPPPP1P/1B5R1/LNSGKGSNL b -\n' +
+        '7g7f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/p1ppppppp/9/1p5P1/2P6/PP1PPPP1P/1B5R1/LNSGKGSNL w -\n' +
+        '3c3d none 0 1 1\n' +
+        '\n' +
+        '[四間飛車]\n' +
+        'type: 戦法\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '7g7f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL w -\n' +
+        '3c3d none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/pppppp1pp/6p2/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '6g6f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/pppppp1pp/6p2/9/2PP5/PP2PPPPP/1B5R1/LNSGKGSNL w -\n' +
+        '4a3b none 0 1 1\n' +
+        'sfen lnsgk1snl/1r4gb1/pppppp1pp/6p2/9/2PP5/PP2PPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '2h4h none 0 1 1\n' +
+        'sfen lnsgk1snl/1r4gb1/pppppp1pp/6p2/9/2PP5/PP2PPPPP/1B3R3/LNSGKGSNL w -\n' +
+        '6c6d none 0 1 1\n' +
+        '\n' +
+        '[三間飛車]\n' +
+        'type: 戦法\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '7g7f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL w -\n' +
+        '3c3d none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/pppppp1pp/6p2/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '6g6f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/pppppp1pp/6p2/9/2PP5/PP2PPPPP/1B5R1/LNSGKGSNL w -\n' +
+        '8c8d none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/p1pppp1pp/1p4p2/9/2PP5/PP2PPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '2h3h none 0 1 1\n' +
+        '\n' +
+        '[中飛車]\n' +
+        'type: 戦法\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '5g5f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/4P4/PPPP1PPPP/1B5R1/LNSGKGSNL w -\n' +
+        '3c3d none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/pppppp1pp/6p2/9/4P4/PPPP1PPPP/1B5R1/LNSGKGSNL b -\n' +
+        '2h5h none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/pppppp1pp/6p2/9/4P4/PPPP1PPPP/1B2R4/LNSGKGSNL w -\n' +
+        '8c8d none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/p1pppp1pp/1p4p2/9/4P4/PPPP1PPPP/1B2R4/LNSGKGSNL b -\n' +
+        '5i6h none 0 1 1\n' +
+        '\n' +
+        '[向かい飛車]\n' +
+        'type: 戦法\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '7g7f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL w -\n' +
+        '3c3d none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/pppppp1pp/6p2/9/2P6/PP1PPPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '8h2b+ none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5+B1/pppppp1pp/6p2/9/2P6/PP1PPPPPP/7R1/LNSGKGSNL w B\n' +
+        '3a2b none 0 1 1\n' +
+        'sfen lnsgkg1nl/1r5s1/pppppp1pp/6p2/9/2P6/PP1PPPPPP/7R1/LNSGKGSNL b Bb\n' +
+        '2h8h none 0 1 1\n' +
+        '\n' +
+        '[角換わり]\n' +
+        'type: 戦法\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -\n' +
+        '2g2f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w -\n' +
+        '8c8d none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/p1ppppppp/1p7/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL b -\n' +
+        '7g7f none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/p1ppppppp/1p7/9/2P4P1/PP1PPPP1P/1B5R1/LNSGKGSNL w -\n' +
+        '3c3d none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5b1/p1pppp1pp/1p4p2/9/2P4P1/PP1PPPP1P/1B5R1/LNSGKGSNL b -\n' +
+        '8h2b+ none 0 1 1\n' +
+        'sfen lnsgkgsnl/1r5+B1/p1pppp1pp/1p4p2/9/2P4P1/PP1PPPP1P/7R1/LNSGKGSNL w B\n' +
+        '3a2b none 0 1 1\n' +
+        '\n' +
+        '# ↓ここから下に、美濃・銀冠・穴熊などを同じ書式で書き足せます。\n' +
+        '# 囲いは type: 囲い + shape: の完成形指定、戦法は type: 戦法 + sfen形式の定跡が向いています。\n';
+
+      let JOSEKI_ENTRIES = [];
+
+      function getSelectedEntry() {
+        const nameSel = document.getElementById('targetFormation');
+        if (!nameSel || nameSel.value === 'none') return null;
+        return JOSEKI_ENTRIES.find(e => e.name === nameSel.value) || null;
+      }
+      function isGuidanceActiveFor(side) {
+        const sideSel = document.getElementById('targetSide');
+        if (!sideSel || sideSel.value === 'none') return false;
+        return sideSel.value === 'both' || +sideSel.value === side;
+      }
+      // 「戦法」定跡: 現局面のSFEN(手番側から見て常に先手であるかのように正規化)で表引きする。
+      // 見つかった指し手は複数候補があれば出現数による重み付き抽選で選ぶ。定跡になければnull。
+      function getBookMove(side) {
+        if (!isGuidanceActiveFor(side)) return null;
+        const entry = getSelectedEntry();
+        if (!entry || entry.type !== '戦法') return null;
+        const table = side === 0 ? entry.book : entry.bookWhite;
+        const cands = table.get(sfenKeyOf(POS));
+        if (!cands || !cands.length) return null;
+        const total = cands.reduce((a, c) => a + c.count, 0);
+        let r = Math.random() * total, moveStr = cands[cands.length - 1].move;
+        for (const c of cands) { r -= c.count; if (r <= 0) { moveStr = c.move; break; } }
+        const list = legal(POS, false);
+        return list.find(m => mstr(m) === moveStr) || null;
+      }
+      // 「囲い」目標形とのマス一致数(表示用、side視点に鏡写しして判定)
+      function formationMatchCount(p, side, shape) {
+        let cnt = 0;
+        for (const t of shape) {
+          const sq = side === 0 ? t.sq : 80 - t.sq;
+          const want = side === 0 ? t.piece : -t.piece;
+          if (p.b[sq] === want) cnt++;
+        }
+        return cnt;
+      }
+      // 「囲い」誘導用の連続スコア(目標マスに同じ駒種がどれだけ近いかを距離で加点、複数手かけて近づく動きも評価できる)
+      function formationScore(p, side, shape) {
+        let score = 0;
+        for (const t of shape) {
+          const wantSq = side === 0 ? t.sq : 80 - t.sq;
+          const wantPiece = side === 0 ? t.piece : -t.piece;
+          let bestDist = 16;
+          for (let s = 0; s < 81; s++) {
+            if (p.b[s] === wantPiece) {
+              const f1 = (s / 9) | 0, r1 = s % 9, f2 = (wantSq / 9) | 0, r2 = wantSq % 9;
+              const d = Math.abs(f1 - f2) + Math.abs(r1 - r2);
+              if (d < bestDist) bestDist = d;
+            }
+          }
+          score += Math.max(0, 8 - bestDist);
+        }
+        return score;
+      }
+      // 複数の完成形(型)のうち、現局面に最も近い(スコアが高い)ものを選ぶ
+      function bestShapeFor(p, side, shapes) {
+        let best = null, bestScore = -1;
+        for (const shape of shapes) {
+          const s = formationScore(p, side, shape);
+          if (s > bestScore) { bestScore = s; best = shape; }
+        }
+        return best;
+      }
+      // 「囲い」誘導: rankedList(評価値順の候補手)の中から、最善手とtolerance(cp)以内で
+      // 目標形に最も近づく手を選ぶ。評価値を犠牲にし過ぎない範囲でのみ誘導する。
+      function pickCastleGuidedMove(side, entry, rankedList) {
+        if (!entry.shapes.length || !rankedList.length) return null;
+        const shape = bestShapeFor(POS, side, entry.shapes);
+        const bestScore = rankedList[0].score, tolerance = 60;
+        let bestGain = -1, bestMove = null;
+        for (const r of rankedList) {
+          if (bestScore - r.score > tolerance) continue;
+          const u = make(POS, r.move);
+          const g = formationScore(POS, side, shape);
+          undo(POS, u);
+          if (g > bestGain) { bestGain = g; bestMove = r.move; }
+        }
+        if (bestMove === null) return null;
+        const u = make(POS, bestMove);
+        const exact = formationMatchCount(POS, side, shape);
+        undo(POS, u);
+        return { move: bestMove, exact, total: shape.length };
+      }
+
+      function refreshJosekiUI() {
+        JOSEKI_ENTRIES = parseJosekiBook(document.getElementById('josekiText').value);
+        const sel = document.getElementById('targetFormation');
+        const cur = sel.value;
+        sel.innerHTML = '<option value="none">なし</option>';
+        for (const e of JOSEKI_ENTRIES) {
+          const o = document.createElement('option');
+          o.value = e.name;
+          const detail = e.type === '囲い' ? `型${e.shapes.length}種` : `局面${e.book.size}件`;
+          o.textContent = `${e.name}(${e.type}・${detail})`;
+          sel.appendChild(o);
+        }
+        if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+        document.getElementById('josekiStatus').textContent = `${JOSEKI_ENTRIES.length}件のエントリを読み込みました`;
+      }
+
 
       // ===================== NNUE 評価計算部 =====================
       const FE_END = 1548, HD = 256, L1 = 32, L2 = 32;
@@ -491,71 +864,74 @@
 
       // ===================== 局面判定・評定機能 (滑らかな段階推移 & 初期局面100%修正) =====================
       let MOVE_RECORDS = [];
-      let lastPhaseProbs = { op: 100, mid: 0, end: 0 }; // 前回の確率値を保持
+      let lastPhaseProbs = { op: 100, mid: 0, end: 0 };
 
       function resetPhaseProbs() {
         lastPhaseProbs = { op: 100, mid: 0, end: 0 };
       }
 
       function getGamePhase(p) {
+        const ply = HIST.length; // 手数(概算)
+
         let handCount = 0;
         for (let c = 0; c < 2; c++) {
           for (let t = 1; t < 8; t++) handCount += p.h[c][t];
         }
-        
-        let promOrMajorCount = 0;
+
+        let promoCount = 0, bigCount = 0;
         for (let i = 0; i < 81; i++) {
-          const pc = Math.abs(p.b[i]);
-          if (pc > 8 || pc === 5 || pc === 6) promOrMajorCount++; // 成り駒、角、飛車
+          const av = Math.abs(p.b[i]);
+          if (av > 8) promoCount++;        // 成り駒(終盤の強い指標)
+          else if (av === 5 || av === 6) bigCount++; // 盤上に残る角・飛車
         }
+
+        // 玉が自陣(初期位置)からどれだけ離れたか(囲いを崩して前進/入玉しているか)
+        const kingDist = (s, home) => {
+          const f1 = (s / 9) | 0, r1 = s % 9, f2 = (home / 9) | 0, r2 = home % 9;
+          return Math.abs(f1 - f2) + Math.abs(r1 - r2);
+        };
+        const kingMove = kingDist(p.ks[0], 44) + kingDist(p.ks[1], 36); // 44=5i(先手玉初期), 36=5a(後手玉初期)
 
         const isCheckSente = attacked(p, p.ks[0], 1);
         const isCheckGote = attacked(p, p.ks[1], 0);
         const inCheck = isCheckSente || isCheckGote;
-
-        // 緊迫度スコア（初期局面では完全0）
-        let tensionScore = (handCount * 3) + (promOrMajorCount * 2);
-        if (inCheck) tensionScore += 35; 
-
-        let rawOp = 0, rawMid = 0, rawEnd = 0;
-
-        // スコア閾値を極低域で序盤100%になるよう修正
-        if (tensionScore <= 4) {
-          rawOp = 100; rawMid = 0; rawEnd = 0;
-        } else if (tensionScore < 20) {
-          rawOp = Math.max(0, 100 - (tensionScore - 4) * 6.25);
-          rawMid = Math.min(100, (tensionScore - 4) * 6.25);
-          rawEnd = 0;
-        } else if (tensionScore < 45) {
-          rawOp = 0;
-          rawMid = Math.max(0, 100 - (tensionScore - 20) * 4);
-          rawEnd = Math.min(100, (tensionScore - 20) * 4);
-        } else {
-          rawOp = 0; rawMid = 0; rawEnd = 100;
-        }
-
         const legalList = legal(p, false);
-        if (legalList.length === 0 || (inCheck && legalList.length < 3)) {
-          rawOp = 0; rawMid = 0; rawEnd = 100;
-        }
 
-        // 前回の確率を引き継ぎ、なめらかに補間 (指数平滑化: 前回の影響70% + 今回30%)
-        const smoothAlpha = 0.3; 
-        let smoothOp = lastPhaseProbs.op * (1 - smoothAlpha) + rawOp * smoothAlpha;
-        let smoothMid = lastPhaseProbs.mid * (1 - smoothAlpha) + rawMid * smoothAlpha;
-        let smoothEnd = lastPhaseProbs.end * (1 - smoothAlpha) + rawEnd * smoothAlpha;
+        // 複数の指標を重み付けして合成した連続的な「進行度」スコア(0=完全に序盤寄り、値が増えるほど終盤寄り)
+        let progress = 0;
+        progress += Math.min(35, ply * 1.1);      // 手数: 約32手前後で頭打ち
+        progress += Math.min(25, handCount * 2.2); // 持ち駒(捕獲の進み具合)
+        progress += Math.min(15, promoCount * 5);  // 成り駒の数
+        progress += Math.min(10, bigCount * 2.5);  // 大駒(角・飛)の盤上での活動
+        progress += Math.min(15, kingMove * 1.8);  // 玉が自陣から動いた距離
+        if (inCheck) progress += 15;
+        if (legalList.length === 0) progress = 100;
 
-        // 初期局面、または極端な場合のリセット対応
-        if (tensionScore <= 4) {
+        // シグモイド関数で「序盤→中盤」「中盤→終盤」の境界をなめらかに遷移させる
+        const sig = (x, c, w) => 1 / (1 + Math.exp(-(x - c) / w));
+        const pastOpening = sig(progress, 32, 7);
+        const pastMiddle = sig(progress, 62, 9);
+
+        const rawOp = (1 - pastOpening) * 100;
+        const rawEnd = pastMiddle * 100;
+        const rawMid = Math.max(0, 100 - rawOp - rawEnd);
+
+        // 手番の切り替わりごとの表示のちらつきを抑えるための指数平滑化
+        const smoothAlpha = 0.35;
+        let smoothOp, smoothMid, smoothEnd;
+        if (ply === 0) {
           smoothOp = rawOp; smoothMid = rawMid; smoothEnd = rawEnd;
+        } else {
+          smoothOp = lastPhaseProbs.op * (1 - smoothAlpha) + rawOp * smoothAlpha;
+          smoothMid = lastPhaseProbs.mid * (1 - smoothAlpha) + rawMid * smoothAlpha;
+          smoothEnd = lastPhaseProbs.end * (1 - smoothAlpha) + rawEnd * smoothAlpha;
         }
 
-        const sum = smoothOp + smoothMid + smoothEnd;
+        const sum = (smoothOp + smoothMid + smoothEnd) || 1;
         const opPct = Math.round((smoothOp / sum) * 100);
         const midPct = Math.round((smoothMid / sum) * 100);
         const endPct = 100 - opPct - midPct;
 
-        // 次回への保存
         lastPhaseProbs = { op: opPct, mid: midPct, end: endPct };
 
         let phaseIdx = 0;
@@ -565,9 +941,9 @@
         if (midPct > maxProb) { phaseIdx = 1; phaseName = "中盤"; maxProb = midPct; }
         if (endPct > maxProb) { phaseIdx = 2; phaseName = "終盤"; maxProb = endPct; }
 
-        return { 
-          phaseIdx, 
-          phaseText: `${phaseName} (確率: 序${opPct}% / 中${midPct}% / 終${endPct}%)` 
+        return {
+          phaseIdx,
+          phaseText: `${phaseName} (確率: 序${opPct}% / 中${midPct}% / 終${endPct}%)`
         };
       }
 
@@ -586,23 +962,24 @@
           return `${score.toFixed(1)}点`;
         };
 
-        $('senteOpening').textContent = calcScore(stats[0][0]);
-        $('senteMiddle').textContent = calcScore(stats[0][1]);
-        $('senteEnding').textContent = calcScore(stats[0][2]);
+        document.getElementById('senteOpening').textContent = calcScore(stats[0][0]);
+        document.getElementById('senteMiddle').textContent = calcScore(stats[0][1]);
+        document.getElementById('senteEnding').textContent = calcScore(stats[0][2]);
 
-        $('goteOpening').textContent = calcScore(stats[1][0]);
-        $('goteMiddle').textContent = calcScore(stats[1][1]);
-        $('goteEnding').textContent = calcScore(stats[1][2]);
+        document.getElementById('goteOpening').textContent = calcScore(stats[1][0]);
+        document.getElementById('goteMiddle').textContent = calcScore(stats[1][1]);
+        document.getElementById('goteEnding').textContent = calcScore(stats[1][2]);
       }
 
       // ===================== 探索アルゴリズム =====================
       let sNodes = 0, sDead = 0, sAbort = false;
+      let isThinking = false, thinkAbort = false; // 思考中フラグ・中断要求フラグ(盤操作から参照)
       function orderMoves(p, ms) {
         const keys = ms.map(m => { const x = p.b[m & 127]; return (x ? VAL[x > 0 ? x : -x] * 10 : 0) + (((m >> 14) & 1) ? 300 : 0); });
         return ms.map((_, i) => i).sort((a, b) => keys[b] - keys[a]).map(i => ms[i]);
       }
       function qs(p, alpha, beta, qd) {
-        if (((++sNodes) & 127) === 0 && performance.now() > sDead) sAbort = true;
+        if (((++sNodes) & 127) === 0 && (performance.now() > sDead || thinkAbort)) sAbort = true;
         if (sAbort) return evalYane(p);
         const stand = evalYane(p);
         if (qd <= 0 || stand >= beta) return stand;
@@ -620,7 +997,7 @@
       }
       function ab(p, d, alpha, beta, ply) {
         if (d <= 0) return qs(p, alpha, beta, 4);
-        if (((++sNodes) & 127) === 0 && performance.now() > sDead) sAbort = true;
+        if (((++sNodes) & 127) === 0 && (performance.now() > sDead || thinkAbort)) sAbort = true;
         if (sAbort) return evalYane(p);
         const ms = orderMoves(p, legal(p, false));
         if (!ms.length) return -30000 + ply;
@@ -639,7 +1016,7 @@
 
       function renderCandidateTable(rankedList) {
         if (!rankedList || !rankedList.length) {
-          $('cand').innerHTML = '';
+          document.getElementById('cand').innerHTML = '';
           return;
         }
         let html = '<table><tr><th>順位</th><th>指し手</th><th>評価値</th></tr>';
@@ -650,54 +1027,77 @@
           html += `<tr class="worst"><td>最悪手</td><td>${mstr(w.move)}</td><td>${w.score.toFixed(0)}</td></tr>`;
         }
         html += '</table>';
-        $('cand').innerHTML = html;
+        document.getElementById('cand').innerHTML = html;
       }
 
-      async function searchBestAsync(p, maxDepth, msLimit, onProgress) {
-        sNodes = 0; sAbort = false; sDead = performance.now() + msLimit;
+      // 反復深化+時間制限つきalpha-beta探索。中断要求(thinkAbort)やページの応答性を保つため、
+      // ルート手を数手評価するごとに画面更新とイベントループへの制御返し(await)を行う。
+      // 打ち切られた場合も、それまでに分かっている最新のスコアを使って結果を返す(0で潰れることはない)。
+      // 反復深化+時間制限つきalpha-beta探索。
+      // 重要: 最終的に返す rankedList / move は、必ず「最後まで完全に計算し終えた1つの深さ」の
+      // ランキングだけを使う(異なる深さの評価値を混ぜて並べ替えると、実際に指した手が
+      // 表示上の1位と食い違う不整合が起きるため)。探索中の画面更新はあくまで途中経過のプレビューであり、
+      // 戻り値には影響しない。
+      async function searchBestAsync(p, maxDepth, msLimit) {
+        sNodes = 0; sAbort = false; thinkAbort = false; sDead = performance.now() + msLimit;
         let root = orderMoves(p, legal(p, false));
         if (!root.length) return null;
 
-        let rankedList = root.map(m => ({ move: m, score: -31000 }));
-        let bestMove = root[0], bestScore = -31000;
+        let lastCompleted = root.map(m => ({ move: m, score: -31000 }));
+        let lastRender = 0;
 
+        depthLoop:
         for (let d = 1; d <= maxDepth; d++) {
-          let alpha = -31000, ok = true;
-          let currentRanked = [];
+          if (sAbort || thinkAbort || performance.now() > sDead) break;
+          let alpha = -31000;
+          const currentRanked = [];
 
-          for (const m of root) {
+          for (let i = 0; i < root.length; i++) {
+            const m = root[i];
             const u = make(p, m);
             const s = -ab(p, d - 1, -31000, -alpha, 1);
             undo(p, u);
-            if (sAbort) { ok = false; break; }
+            if (sAbort || thinkAbort) break depthLoop; // この深さは未完了として丸ごと捨てる
             currentRanked.push({ move: m, score: s });
             if (s > alpha) alpha = s;
+
+            const now = performance.now();
+            if (now - lastRender > 60) {
+              lastRender = now;
+              // 進行中のプレビュー表示専用: 今の深さで評価済みの手 + 未評価の手は前の深さのスコアで補完。
+              // あくまで画面表示だけに使い、最終結果(lastCompleted)には混ぜない。
+              const doneSet = new Set(currentRanked.map(r => r.move));
+              const preview = currentRanked.concat(lastCompleted.filter(r => !doneSet.has(r.move)));
+              preview.sort((a, b) => b.score - a.score);
+              document.getElementById('evalval').textContent = preview[0].score.toFixed(0);
+              renderCandidateTable(preview);
+              await new Promise(r => setTimeout(r, 0));
+              if (thinkAbort || performance.now() > sDead) break depthLoop;
+            }
           }
 
-          if (ok && currentRanked.length) {
-            currentRanked.sort((a, b) => b.score - a.score);
-            rankedList = currentRanked;
-            bestMove = rankedList[0].move;
-            bestScore = rankedList[0].score;
-            root = rankedList.map(r => r.move);
+          currentRanked.sort((a, b) => b.score - a.score);
+          lastCompleted = currentRanked;
+          root = currentRanked.map(r => r.move);
 
-            $('evalval').textContent = `${bestScore.toFixed(0)}`;
-            renderCandidateTable(rankedList);
+          document.getElementById('evalval').textContent = currentRanked[0].score.toFixed(0);
+          renderCandidateTable(currentRanked);
+          const phaseInfo = getGamePhase(p);
+          document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
 
-            const phaseInfo = getGamePhase(p);
-            $('gamePhase').textContent = phaseInfo.phaseText;
-
-            if (onProgress) onProgress(d, bestMove, bestScore, rankedList);
-          } else break;
-
-          if (performance.now() > sDead || Math.abs(bestScore) > 29000) break;
+          if (Math.abs(currentRanked[0].score) > 29000) break;
           await new Promise(r => setTimeout(r, 0));
         }
-        return { move: bestMove, score: bestScore, rankedList: rankedList };
+
+        // 中断等でループを抜けた直後の画面が途中経過のプレビューのままだと、
+        // 返す結果(lastCompleted)と表示が食い違うため、必ずここで最終結果に合わせて再描画する。
+        document.getElementById('evalval').textContent = lastCompleted[0].score.toFixed(0);
+        renderCandidateTable(lastCompleted);
+        return { move: lastCompleted[0].move, score: lastCompleted[0].score, rankedList: lastCompleted };
       }
 
       function rankMovesQuick(p) {
-        sNodes = 0; sAbort = false; sDead = performance.now() + 60000;
+        sNodes = 0; sAbort = false; thinkAbort = false; sDead = performance.now() + 60000;
         const root = orderMoves(p, legal(p, false));
         const res = [];
         for (const m of root) {
@@ -717,7 +1117,7 @@
       const UNPROMOTED_MAP = { 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 6 };
 
       const cells = [];
-      const boardEl = $('board');
+      const boardEl = document.getElementById('board');
       for (let i = 0; i < 81; i++) {
         const d = document.createElement('div');
         d.className = 'c';
@@ -731,11 +1131,11 @@
       let SEL = null;
       let HIST = [], MVSTR = [], EVAL_HIST = [];
 
-      function log(s) { $('log').textContent += s + '\n'; $('log').scrollTop = 1e9; }
+      function log(s) { document.getElementById('log').textContent += s + '\n'; document.getElementById('log').scrollTop = 1e9; }
 
       function draw() {
         const p = isEditing ? EDIT_POS : POS;
-        
+
         let legals = [];
         if (!isEditing) {
           legals = legal(p, false);
@@ -746,9 +1146,9 @@
             const sq = (8 - c) * 9 + r;
             const x = p.b[sq], e = cells[r * 9 + c], a = Math.abs(x);
             e.textContent = x ? CH[a] : '';
-            
+
             let cls = 'c' + (x < 0 ? ' w' : '') + (a > 8 ? ' pr' : '');
-            
+
             if (SEL) {
               if (SEL.type === 'sq' && SEL.sq === sq) {
                 cls += isEditing ? ' edit-sel' : ' sel';
@@ -773,11 +1173,11 @@
           }
           return s;
         };
-        $('hw').textContent = '後手持駒: ' + ht(1);
-        $('hb').textContent = '先手持駒: ' + ht(0);
+        document.getElementById('hw').textContent = '後手持駒: ' + ht(1);
+        document.getElementById('hb').textContent = '先手持駒: ' + ht(0);
 
-        const ha = $('handArea'); ha.innerHTML = '';
-        
+        const ha = document.getElementById('handArea'); ha.innerHTML = '';
+
         if (isEditing) {
           const renderEditHand = (side) => {
             const label = side === 0 ? '先手' : '後手';
@@ -814,13 +1214,14 @@
           }
         }
 
-        $('moves').textContent = MVSTR.map((s, i) => (i + 1) + '.' + s).join(' ');$('sideLabel').textContent = p.side === 0 ? '先手' : '後手';
+        document.getElementById('moves').textContent = MVSTR.map((s, i) => (i + 1) + '.' + s).join(' ');document.getElementById('sideLabel').textContent = p.side === 0 ? '先手' : '後手';
         drawGraph();
         updatePlayerSkillScores();
       }
 
       function handleHandClick(side, t) {
         if (!isEditing) return;
+        if (isThinking) { thinkAbort = true; document.getElementById('status').textContent = '思考を中断しています…'; return; }
         if (SEL && SEL.type === 'hand' && SEL.side === side && SEL.t === t) {
           EDIT_POS.h[side][t]--;
           EDIT_POS.h[1 - side][t]++;
@@ -838,8 +1239,14 @@
           return;
         }
 
-        if (!NET) { $('status').textContent = 'まずnn.binを読み込んでください'; return; }
-        
+        if (!NET) { document.getElementById('status').textContent = 'まずnn.binを読み込んでください'; return; }
+
+        if (isThinking) {
+          thinkAbort = true;
+          document.getElementById('status').textContent = '思考を中断しています…';
+          return;
+        }
+
         const p = POS, side = p.side;
         const list = legal(p, false);
 
@@ -862,12 +1269,12 @@
             beforeMoveEval(mv); return;
           }
         }
-        
+
         const pc = p.b[sq];
-        if (pc && (pc > 0) === (side === 0)) { 
-          SEL = { type: 'sq', sq }; 
-        } else { 
-          SEL = null; 
+        if (pc && (pc > 0) === (side === 0)) {
+          SEL = { type: 'sq', sq };
+        } else {
+          SEL = null;
         }
         draw();
       }
@@ -885,7 +1292,7 @@
               const targetPc = p.b[sq];
               p.b[sq] = p.b[SEL.sq];
               p.b[SEL.sq] = 0;
-              
+
               if (targetPc !== 0) {
                 let rawT = Math.abs(targetPc);
                 if (rawT > 8) rawT -= 8;
@@ -949,26 +1356,26 @@
       async function showEval() {
         const p = isEditing ? EDIT_POS : POS;
         if (!NET) {
-          $('evalval').textContent = '-';$('gamePhase').textContent = '序盤 (確率: 序100% / 中0% / 終0%)';
-          $('cand').innerHTML = '<div style="font-size:12px;color:#666">nn.bin 読み込み後に評価値が表示されます</div>';
+          document.getElementById('evalval').textContent = '-';document.getElementById('gamePhase').textContent = '序盤 (確率: 序100% / 中0% / 終0%)';
+          document.getElementById('cand').innerHTML = '<div style="font-size:12px;color:#666">nn.bin 読み込み後に評価値が表示されます</div>';
           return [];
         }
 
         const list = legal(p, false);
         if (!list.length) {
-          $('evalval').textContent = '(詰み/合法手なし)';
-          $('cand').innerHTML = '';
+          document.getElementById('evalval').textContent = '(詰み/合法手なし)';
+          document.getElementById('cand').innerHTML = '';
           const phaseInfo = getGamePhase(p);
-          $('gamePhase').textContent = phaseInfo.phaseText;
+          document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
           return [];
         }
 
         const quickRanked = rankMovesQuick(p);
         const topScore = quickRanked.length ? quickRanked[0].score : evalYane(p);
-        $('evalval').textContent = topScore.toFixed(0);
-        
+        document.getElementById('evalval').textContent = topScore.toFixed(0);
+
         const phaseInfo = getGamePhase(p);
-        $('gamePhase').textContent = phaseInfo.phaseText;
+        document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
 
         renderCandidateTable(quickRanked);
 
@@ -978,9 +1385,11 @@
           drawGraph();
         }
 
-        const depth = Math.max(1, +$('depth').value);
-        const ms = Math.max(100, +$('movems').value);
+        const depth = Math.max(1, +document.getElementById('depth').value);
+        const ms = Math.max(100, +document.getElementById('movems').value);
+        isThinking = true;
         const result = await searchBestAsync(p, depth, ms);
+        isThinking = false;
 
         if (result && result.rankedList && !isEditing) {
           const finalScore = result.score;
@@ -995,12 +1404,12 @@
 
       function checkBadMove(ranked, playedMove) {
         if (!ranked || !ranked.length) {
-          $('lastMoveStr').textContent = '-';$('lastMoveRank').textContent = '-';
+          document.getElementById('lastMoveStr').textContent = '-';document.getElementById('lastMoveRank').textContent = '-';
           return;
         }
 
         const playedStr = mstr(playedMove);
-        $('lastMoveStr').textContent = playedStr;
+        document.getElementById('lastMoveStr').textContent = playedStr;
 
         const bestScore = ranked[0].score;
         const index = ranked.findIndex(r => r.move === playedMove);
@@ -1027,11 +1436,11 @@
             rankText = `<span class="rank-bad">${index + 1}番手</span> (最高手との差: <b style="color:#c00;">-${diff.toFixed(0)}cp</b>)`;
             MOVE_RECORDS.push({ side: POS.side, phase: getGamePhase(POS).phaseIdx, diff: diff });
           }
-          $('lastMoveRank').innerHTML = rankText;
+          document.getElementById('lastMoveRank').innerHTML = rankText;
           updatePlayerSkillScores();
 
         } else {
-          $('lastMoveRank').textContent = '評価外の指し手';
+          document.getElementById('lastMoveRank').textContent = '評価外の指し手';
         }
       }
 
@@ -1044,10 +1453,10 @@
         const list = legal(POS, false);
         if (!list.length) {
           const winner = (1 - POS.side) === 0 ? '先手' : '後手';
-          $('status').textContent = winner + 'の勝利 (詰み/手なし)';
-          $('cand').innerHTML = '';
+          document.getElementById('status').textContent = winner + 'の勝利 (詰み/手なし)';
+          document.getElementById('cand').innerHTML = '';
           const phaseInfo = getGamePhase(POS);
-          $('gamePhase').textContent = phaseInfo.phaseText;
+          document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
           return;
         }
         const ranked = await showEval();
@@ -1061,10 +1470,10 @@
       }
 
       function maybeAI(ranked) {
-        const mode = $('gameMode').value;
+        const mode = document.getElementById('gameMode').value;
         if (mode !== 'vs_ai') return;
 
-        const hs = +$('humanSide').value;
+        const hs = +document.getElementById('humanSide').value;
         const p = POS;
         if (hs === 2 || p.side !== hs) setTimeout(() => aiMove(), 30);
       }
@@ -1073,22 +1482,48 @@
         if (!NET || isEditing) return;
         const list = legal(POS, false);
         if (!list.length) return;
-        
-        $('status').textContent = 'AI思考中…';
-        const depth = Math.max(1, +$('depth').value), ms = Math.max(100, +$('movems').value);
-        
-        const best = await searchBestAsync(POS, depth, ms);
 
-        $('status').textContent = '対局中';
-        if (best && best.move) {
-          checkBadMove(best.rankedList, best.move);
-          doMove(best.move);
+        const bookMove = getBookMove(POS.side);
+        if (bookMove !== null) {
+          document.getElementById('status').textContent = '対局中(定跡)';
+          const sideLabel = POS.side === 0 ? '先手' : '後手';
+          document.getElementById('guidanceStatus').textContent = `${sideLabel}: 定跡手 ${mstr(bookMove)} を指しました`;
+          document.getElementById('lastMoveStr').textContent = mstr(bookMove);
+          document.getElementById('lastMoveRank').innerHTML = '<span class="rank-best">定跡手(悪手判定の対象外)</span>';
+          doMove(bookMove);
+          return;
         }
+
+        document.getElementById('status').textContent = 'AI思考中…';
+        const depth = Math.max(1, +document.getElementById('depth').value), ms = Math.max(100, +document.getElementById('movems').value);
+
+        isThinking = true;
+        const best = await searchBestAsync(POS, depth, ms);
+        isThinking = false;
+
+        document.getElementById('status').textContent = '対局中';
+        if (!best || !best.move) return;
+
+        let chosen = best.move;
+        const entry = getSelectedEntry();
+        if (entry && entry.type === '囲い' && isGuidanceActiveFor(POS.side)) {
+          const guided = pickCastleGuidedMove(POS.side, entry, best.rankedList);
+          if (guided) {
+            chosen = guided.move;
+            const sideLabel = POS.side === 0 ? '先手' : '後手';
+            document.getElementById('guidanceStatus').textContent = `${sideLabel}: ${entry.name}へ誘導中(一致${guided.exact}/${guided.total}駒)`;
+          }
+        } else {
+          document.getElementById('guidanceStatus').textContent = '';
+        }
+
+        checkBadMove(best.rankedList, chosen);
+        doMove(chosen);
       }
 
       // ===================== 評価値グラフ描画 =====================
       function drawGraph() {
-        const canvas = $('evalGraph');
+        const canvas = document.getElementById('evalGraph');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         const w = canvas.width, h = canvas.height;
@@ -1129,43 +1564,43 @@
         ctx.fill();
       }
 
-      $('gameMode').onchange = () => {
-        const mode = $('gameMode').value;
+      document.getElementById('gameMode').onchange = () => {
+        const mode = document.getElementById('gameMode').value;
         if (mode === 'vs_ai') {
           document.body.classList.remove('mode-study');
-          $('modeBadge').textContent = 'VS AI対局';
-          $('status').textContent = 'VS AI対局モード';
+          document.getElementById('modeBadge').textContent = 'VS AI対局';
+          document.getElementById('status').textContent = 'VS AI対局モード';
           showEval().then(ranked => maybeAI(ranked));
         } else {
           document.body.classList.add('mode-study');
-          $('modeBadge').textContent = '研究 / ローカル対戦';
-          $('status').textContent = '研究 / ローカル対戦モード (手番を交互に動かせます)';
+          document.getElementById('modeBadge').textContent = '研究 / ローカル対戦';
+          document.getElementById('status').textContent = '研究 / ローカル対戦モード (手番を交互に動かせます)';
           showEval();
         }
       };
 
-      $('editSide').onchange = () => {
+      document.getElementById('editSide').onchange = () => {
         if (isEditing && EDIT_POS) {
-          EDIT_POS.side = +$('editSide').value;
+          EDIT_POS.side = +document.getElementById('editSide').value;
           draw();
           showEval();
         }
       };
 
-      $('depth').onchange = () => { if (NET) showEval(); };$('movems').onchange = () => { if (NET) showEval(); };
+      document.getElementById('depth').onchange = () => { if (NET) showEval(); };document.getElementById('movems').onchange = () => { if (NET) showEval(); };
 
-      $('btnEditStart').onclick = () => {
+      document.getElementById('btnEditStart').onclick = () => {
         isEditing = true;
         EDIT_POS = clonePos(POS);
         SEL = null;
-        $('editSide').value = EDIT_POS.side;
+        document.getElementById('editSide').value = EDIT_POS.side;
         document.body.classList.add('editing');
-        $('board').classList.add('edit-board');$('status').textContent = '【局面編集モード】盤上をタップして変更・追加できます';
+        document.getElementById('board').classList.add('edit-board');document.getElementById('status').textContent = '【局面編集モード】盤上をタップして変更・追加できます';
         draw();
         showEval();
       };
 
-      $('btnEditApply').onclick = () => {
+      document.getElementById('btnEditApply').onclick = () => {
         updateKingPositions(EDIT_POS);
         let hasK1 = false, hasK2 = false;
         for (let i = 0; i < 81; i++) {
@@ -1177,7 +1612,7 @@
           return;
         }
 
-        EDIT_POS.side = +$('editSide').value;
+        EDIT_POS.side = +document.getElementById('editSide').value;
         POS = clonePos(EDIT_POS);
         isEditing = false;
         SEL = null;
@@ -1187,25 +1622,25 @@
         MOVE_RECORDS = [];
         resetPhaseProbs();
         document.body.classList.remove('editing');
-        $('board').classList.remove('edit-board');$('status').textContent = '編集後の局面を反映しました';
+        document.getElementById('board').classList.remove('edit-board');document.getElementById('status').textContent = '編集後の局面を反映しました';
         draw();
         showEval().then(ranked => maybeAI(ranked));
       };
 
-      $('btnEditCancel').onclick = () => {
+      document.getElementById('btnEditCancel').onclick = () => {
         isEditing = false;
         EDIT_POS = null;
         SEL = null;
         document.body.classList.remove('editing');
-        $('board').classList.remove('edit-board');$('status').textContent = '編集をキャンセルしました';
+        document.getElementById('board').classList.remove('edit-board');document.getElementById('status').textContent = '編集をキャンセルしました';
         draw();
         showEval();
       };
 
-      $('btnEditReset').onclick = () => {
+      document.getElementById('btnEditReset').onclick = () => {
         if (confirm('平手の初期局面に戻しますか？')) {
           EDIT_POS = startPos();
-          $('editSide').value = 0;
+          document.getElementById('editSide').value = 0;
           SEL = null;
           resetPhaseProbs();
           draw();
@@ -1213,18 +1648,18 @@
         }
       };
 
-      $('btnNew').onclick = () => {
+      document.getElementById('btnNew').onclick = () => {
         POS = startPos(); SEL = null; HIST = []; MVSTR = []; EVAL_HIST = []; MOVE_RECORDS = [];
         resetPhaseProbs();
-        $('lastMoveStr').textContent = '-';$('lastMoveRank').textContent = '-';
+        document.getElementById('lastMoveStr').textContent = '-';document.getElementById('lastMoveRank').textContent = '-';
         draw();
-        $('status').textContent = '初期局面をセットしました';
+        document.getElementById('status').textContent = '初期局面をセットしました';
         showEval().then(ranked => maybeAI(ranked));
       };
 
-      $('btnAI').onclick = () => { aiMove(); };
+      document.getElementById('btnAI').onclick = () => { aiMove(); };
 
-      $('btnUndo').onclick = () => {
+      document.getElementById('btnUndo').onclick = () => {
         if (!HIST.length || isEditing) return;
         const h = HIST.pop(); POS.b = h.b; POS.h = h.h; POS.side = h.side; POS.ks = h.ks;
         MVSTR.pop();
@@ -1233,28 +1668,37 @@
         SEL = null; draw(); showEval();
       };
 
-      $('nnfile').onchange = async e => {
+      document.getElementById('nnfile').onchange = async e => {
         const f = e.target.files[0]; if (!f) return;
         NNBUF = f;
-        $('loadstat').textContent = '読込中…';
+        document.getElementById('loadstat').textContent = '読込中…';
         try {
           const buf = await f.arrayBuffer();
-          const simdMode = $('simd').value;
+          const simdMode = document.getElementById('simd').value;
           NET = loadNNUE(buf, simdMode);
           const e0 = evalYane(startPos());
-          $('loadstat').textContent = '読込完了(' + (NET.isLeb ? 'LEB128' : '標準') + ') 初期評価値=' + e0.toFixed(0) + 'cp';
+          document.getElementById('loadstat').textContent = '読込完了(' + (NET.isLeb ? 'LEB128' : '標準') + ') 初期評価値=' + e0.toFixed(0) + 'cp';
           log('NNUE loaded: e0=' + e0.toFixed(0));
-          $('status').textContent = '準備完了';
+          document.getElementById('status').textContent = '準備完了';
           showEval();
         } catch (err) {
-          $('loadstat').textContent = 'エラー: ' + err.message;
+          document.getElementById('loadstat').textContent = 'エラー: ' + err.message;
           log('ERROR ' + err.message);
         }
       };
 
-      $('simd').onchange = () => { if (NNBUF)$('nnfile').onchange({ target: { files: [NNBUF] } }); };
+      document.getElementById('simd').onchange = () => { if (NNBUF)document.getElementById('nnfile').onchange({ target: { files: [NNBUF] } }); };
 
-      $('gameMode').onchange();
+      document.getElementById('gameMode').onchange();
+      buildPieceNameMap();
+      document.getElementById('josekiText').value = DEFAULT_JOSEKI_TEXT;
+      refreshJosekiUI();
+      document.getElementById('btnJosekiApply').onclick = refreshJosekiUI;
+      document.getElementById('josekiFile').onchange = async e => {
+        const f = e.target.files[0]; if (!f) return;
+        document.getElementById('josekiText').value = await f.text();
+        refreshJosekiUI();
+      };
       draw();
     </script>
   </body>
