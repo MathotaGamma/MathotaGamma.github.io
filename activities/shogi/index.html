@@ -1055,7 +1055,7 @@
           for (let i = 0; i < root.length; i++) {
             const m = root[i];
             const u = make(p, m);
-            const s = -ab(p, d - 1, -31000, -alpha, 1);
+            const s = -ab(p, d - 1, -31000, 31000, 1);
             undo(p, u);
             if (sAbort || thinkAbort) break depthLoop; // この深さは未完了として丸ごと捨てる
             currentRanked.push({ move: m, score: s });
