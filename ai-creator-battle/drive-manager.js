@@ -216,7 +216,7 @@ export class DriveManager {
     const cont = await this._safeCall('ファイルの取得', () =>
       this.drive.getFile({ path: fullPath })
     );
-    if (path.endswith('.json'))
+    if (path.endsWith('.json'))
       return JSON.parse(cont);
     return cont;
   }
