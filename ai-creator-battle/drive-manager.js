@@ -208,13 +208,17 @@ export class DriveManager {
     );
   }
 
+  // ※ 拡張子.jsonのfileはobjで返す。。
   async getFile({ path }) {
     if (this.isGuest || !this.hasDriveConnection || this.drive == null)
       return null;
     const fullPath = this.appDataDirectory + path;
-    return await this._safeCall('ファイルの取得', () =>
+    const cont = await this._safeCall('ファイルの取得', () =>
       this.drive.getFile({ path: fullPath })
     );
+    if (path.endswith('.json'))
+      return JSON.parse(cont);
+    return cont;
   }
 }
 
