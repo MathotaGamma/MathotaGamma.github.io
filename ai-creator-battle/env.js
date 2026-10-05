@@ -71,8 +71,10 @@ class Cartpole {
     // x: -1~-1
     this.x = 0;
     this.v = 0;
-    this.theta = Math.PI;
-    //this.theta = Math.PI*(2*Math.random()-1)/12;
+    // 毎回全く同じthetaから始めると、eval時の軌道が完全に決定論的になり
+    // 評価値が毎回ビット単位で同じになってしまう(=評価が代わり映えしなくなる)ため、
+    // 真下(PI)を中心に微小にランダム化しておく。
+    this.theta = Math.PI + (Math.random() - 0.5) * 0.2;
     this.omega = 0;
   }
 
@@ -148,25 +150,6 @@ class Cartpole {
     ctx.moveTo(ratio*pivotX, ratio*pivotY);
     ctx.lineTo(ratio*tipX, ratio*tipY);
     ctx.stroke();
-
-    /*
-    // パネルテキスト更新
-    const infoPanel = document.getElementById('info-panel');
-    infoPanel.innerHTML = `
-          <strong>CogniKeel Pendulum Control</strong><br>
-          <hr>
-          Mode: <span style="color:${isEvaluation ? '#00ffcc' : '#aaa'}">${isEvaluation ? 'EVALUATION (探索OFF)' : 'TRAINING'}</span><br>
-          Episode: ${episodeCount}<br>
-          Epoch Step: ${epochCount} / ${epochCountLength}<br>
-          Epsilon: ${isEvaluation ? 0 : (ck.epsilon ? ck.epsilon.toFixed(4) : 'N/A')}<br>
-          Episode累積報酬: ${totalReward.toFixed(2)}<br>
-          <strong>Eval平均累積報酬: ${lastEvaluationResult}</strong><br>
-          <hr>
-          Action: ${currentAction} (${isUserInteracting ? 'Manual ' : ''}${moveDir || 'Stay'})<br>
-          Angle: ${(theta * 180 / Math.PI).toFixed(1)}°
-        `;
-      }
-      */
   }
   
   // { state, action, reward, nextState, done } を返す。
