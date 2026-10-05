@@ -79,6 +79,12 @@
         width: 100%;
         box-sizing: border-box;
       }
+      #console .warn {
+        color: #fd0;
+      }
+      #console .error {
+        color: #f66;
+      }
       #controls {
         padding: 6px 8px;
         background: #f7f7f7;
@@ -155,6 +161,7 @@
       const spaceInp = document.getElementById("space-num");
 
       const STORAGE_KEY = "HTMLEditor_code";
+      const CONSOLE_HEADER = "▼ ログとエラー出力";
 
       const undoList = [];
       const redoList = [];
@@ -302,50 +309,146 @@
         editor.selectionStart = editor.selectionEnd = pos;
       });
 
+      // iframe内に注入するデバッグ用フック
+      // 注意: 1行に畳んで注入するため、// コメントと改行依存の構文(ASI)は使わないこと
+      const debugHook = function () {
+        var send = function (data) {
+          parent.postMessage(data, "*");
+        };
+        var fmt = function (v) {
+          if (v instanceof Error) return v.stack || (v.name + ": " + v.message);
+          if (typeof v === "string") return v;
+          if (typeof v === "undefined") return "undefined";
+          if (typeof v === "function") return v.toString();
+          try {
+            var seen = [];
+            return JSON.stringify(v, function (k, val) {
+              if (typeof val === "object" && val !== null) {
+                if (seen.indexOf(val) !== -1) return "[循環参照]";
+                seen.push(val);
+              }
+              if (typeof val === "function") return "[Function]";
+              if (typeof val === "undefined") return "undefined";
+              return val;
+            }, 2);
+          } catch (err) {
+            return String(v);
+          }
+        };
+
+        window.addEventListener("error", function (e) {
+          if (e.target && e.target !== window) {
+            var t = e.target;
+            send({
+              type: "error",
+              message: "リソース読み込みエラー: <" + String(t.tagName).toLowerCase() + "> " + (t.src || t.href || "")
+            });
+            return;
+          }
+          var msg = e.message;
+          var hint = "";
+          if (e.error) {
+            msg = (e.error.name || "Error") + ": " + (e.error.message || e.message);
+          } else if (msg === "Script error.") {
+            hint = "クロスオリジンのスクリプト内で発生したため詳細が取得できません。scriptタグにcrossorigin=\"anonymous\"を付けても出ない場合、配信元がCORSヘッダーを返していない可能性があります。";
+          }
+          send({
+            type: "error",
+            message: msg,
+            file: e.filename,
+            line: e.lineno,
+            col: e.colno,
+            stack: e.error && e.error.stack,
+            hint: hint
+          });
+        }, true);
+
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e.reason;
+          send({
+            type: "error",
+            message: "Unhandled Promise Rejection: " + fmt(r),
+            stack: r && r.stack ? r.stack : ""
+          });
+        });
+
+        window.addEventListener("securitypolicyviolation", function (e) {
+          send({
+            type: "error",
+            message: "CSP違反: " + e.violatedDirective + " (" + e.blockedURI + ")"
+          });
+        });
+
+        ["log", "info", "warn", "error", "debug"].forEach(function (level) {
+          var orig = console[level];
+          console[level] = function () {
+            var text = Array.prototype.map.call(arguments, fmt).join(" ");
+            send({ type: "log", level: level, message: text });
+            if (orig) orig.apply(console, arguments);
+          };
+        });
+      };
+
+      // 改行を除去して1行化(行番号をユーザーコードとずらさないため)
+      const DEBUG_SCRIPT = "<script>(" + debugHook.toString().replace(/\s*\n\s*/g, " ") + ")();<" + "/script>";
+
       function run() {
-        consoleDiv.textContent = "▼ ログとエラー出力";
-        const userHTML = editor.value;
+        consoleDiv.textContent = CONSOLE_HEADER;
+        let output = editor.value;
 
-        const debugScript = `
-<script>
-  (function(){
-    window.onerror = function(msg, src, line, col, err) {
-      parent.postMessage({ type: "error", message: msg, line, col, stack: err && err.stack }, "*");
-    };
-    const origLog = console.log;
-    console.log = function(...args) {
-      parent.postMessage({ type: "log", message: args.join(" ") }, "*");
-      origLog(...args);
-    };
-  })();
-<\/script>`.trim();
+        // 外部scriptにcrossorigin属性を付与し、"Script error."を詳細表示できるようにする
+        output = output.replace(/<script\b([^>]*\bsrc\s*=[^>]*)>/gi, (m, attrs) => {
+          if (/\bcrossorigin\b/i.test(attrs)) return m;
+          return "<script" + attrs + " crossorigin=\"anonymous\">";
+        });
 
-        let output = userHTML;
-        if (output.match(/<head[^>]*>/i)) {
-          output = output.replace(/<head[^>]*>/i, match => match + debugScript);
+        // 改行を挟まず注入して、エラーの行番号をずらさない
+        const headRe = /<head(\s[^>]*)?>/i;
+        if (headRe.test(output)) {
+          output = output.replace(headRe, match => match + DEBUG_SCRIPT);
         } else {
-          output = debugScript + output;
+          output = DEBUG_SCRIPT + output;
         }
 
         preview.srcdoc = output;
       }
 
+      function appendConsole(text, cls) {
+        const line = document.createElement("div");
+        if (cls) line.className = cls;
+        line.textContent = text;
+        consoleDiv.appendChild(line);
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+      }
+
       runBtn.addEventListener("click", run);
       clearConsoleBtn.addEventListener("click", () => {
-        consoleDiv.textContent = "▼ ログとエラー出力";
+        consoleDiv.textContent = CONSOLE_HEADER;
       });
 
       window.addEventListener("message", e => {
         if (!e.data) return;
-        if (e.data.type === "log") {
-          consoleDiv.textContent += `\n[LOG] ${e.data.message}`;
-        } else if (e.data.type === "error") {
-          consoleDiv.textContent += `\n[ERROR] ${e.data.message}`;
-          if (e.data.line !== undefined) {
-            consoleDiv.textContent += ` (line ${e.data.line}, col ${e.data.col})`;
+        const d = e.data;
+        if (d.type === "log") {
+          const level = d.level || "log";
+          const cls = level === "error" ? "error" : level === "warn" ? "warn" : "";
+          appendConsole(`[${level.toUpperCase()}] ${d.message}`, cls);
+        } else if (d.type === "error") {
+          let text = `[ERROR] ${d.message}`;
+          if (d.line !== undefined && d.line !== null) {
+            text += ` (line ${d.line}, col ${d.col})`;
           }
+          if (d.file && d.file !== "about:srcdoc") {
+            text += `\n  at ${d.file}`;
+          }
+          if (d.stack && !String(d.message).includes(d.stack)) {
+            text += `\n${d.stack}`;
+          }
+          if (d.hint) {
+            text += `\n  ※ ${d.hint}`;
+          }
+          appendConsole(text, "error");
         }
-        consoleDiv.scrollTop = consoleDiv.scrollHeight;
       });
 
       let isResizing = false;
@@ -397,7 +500,7 @@
         editorContainer.style.width = newWidth + "px";
       });
 
-      textarea.addEventListener('blur', () => {
+      editor.addEventListener('blur', () => {
         requestAnimationFrame(() => {
           window.scrollTo(0, 0);
         });
