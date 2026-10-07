@@ -127,7 +127,7 @@ window.CompVis = class {
     this.type = "CompVis";
   }
 
-  static version = "1.02.02";
+  static version = "1.02.03";
   
   static _idSet = new Set();     // 全ID一意管理
   static _idType = new Map();    // id -> type
