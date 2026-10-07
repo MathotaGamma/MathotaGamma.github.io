@@ -5,6 +5,7 @@
  - e,pi,iに関する暗黙の積が組み込まれていなかったため修正。
  - #parseExpressionの第3引数にvalidEnds=[]を設置。validEnds内に入れたtypeの名前(parEndやabsEndなど)は、下記の、次に期待するtokenの種類としてoperatorと、それは妥当とみなされる。
  - #parseExpression内で、次に期待するtokenの種類が期待と異なった場合エラーを出す(主にoperatorではなかった場合)。
+ - static evalFromAstメソッドを追加。
 */
 
 //注意点
@@ -702,6 +703,10 @@ CompVis.Eval = class {
   
   static getAst(Text) {
     return this.parser(Text);
+  }
+
+  static evalFromAst(ast, vars={}) {
+    return this.#evaluate(ast, vars);
   }
 }
 
