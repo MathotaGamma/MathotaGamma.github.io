@@ -1,4 +1,11 @@
-//変更点:ViewとViewThreeのaddGraphの引数の構造を変更し、それぞれのgraphの管理をidにした。また、ViewにaddArrowメソッドを追加し、CompVisにgetIdをstaticで,deleteIdをメソッドで追加。また、View,ViewThreeにはdeleteGraph(id)を追加し、ViewThreeにgetState(id=undefined)を追加。
+/*
+変更点:CompVis.Evalを変更した。
+ - tokenRules内でtype指定できるようにして、e,pi,iをtype:'const'にした。
+ - 暗黙の 積や括弧の省略の際、ASTでimplicit:trueをつけるようにした。
+ - e,pi,iに関する暗黙の積が組み込まれていなかったため修正。
+ - #parseExpressionの第3引数にvalidEnds=[]を設置。validEnds内に入れたtypeの名前(parEndやabsEndなど)は、下記の、次に期待するtokenの種類としてoperatorと、それは妥当とみなされる。
+ - #parseExpression内で、次に期待するtokenの種類が期待と異なった場合エラーを出す(主にoperatorではなかった場合)。
+*/
 //注意点
 /*
 例:
@@ -312,6 +319,7 @@ CompVis.Eval = class {
   
   static numReg = "(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)" // 0.~, 非0
   
+  // par...自動で括弧補完(bp:80から)
   static tokenRules = {
     space: {re: /^\s+/},
     comma: {re: /^,/},
@@ -345,9 +353,17 @@ CompVis.Eval = class {
     arg:   {re: /^arg/, func: true, par: true},
     max:   {re: /^max/, func: true},
     min:   {re: /^min/, func: true},
-    e:     {re: /^e(?!_)/},
-    i:     {re: /^i(?!_)/},
-    pi:    {re: /^pi|π/},
+    e:     {re: /^e(?!_)/, type: 'const'},
+    i:     {re: /^i(?!_)/, type: 'const'},
+    pi:    {re: /^pi|π/, type: 'const'},
+    theta: {re: /^theta|θ/, type: 'value'},
+    alpha: {re: /^alpha|α/, type: 'value'},
+    beta:  {re: /^beta|β/,  type: 'value'},
+    gamma: {re: /^gamma|γ/, type: 'value'},
+    delta: {re: /^delta|δ/, type: 'value'},
+    Delta: {re: /^Delta|Δ/, type: 'value'},
+    epsilon:  {re: /^epsilon|ε/, type: 'value'},
+    
     num:   {re: new RegExp(`^${this.numReg}`)},
     value: {re: new RegExp(`^(?:${this.character}(?:(?:0|[1-9][0-9]*)(?!${this.character})|_(?:${this.character}|${this.numReg})*)?)`)},
   }
@@ -383,14 +399,16 @@ CompVis.Eval = class {
       if(text[0] === "|") throw new Error("Use [x] instead of |x| in the Abs function!")
       for(const name of Object.keys(tokenRules)) {
         const re = tokenRules[name].re;
+        const type = tokenRules[name].type ?? name;
         const m = text.match(re);
         if(m) {
           match = true;
           const method = m[0];
           const token = {
-            type: name,
+            type,
             value: method,
           }
+          if (type === "const") token.name = name;
           if (tokenRules[name].func) token.func = tokenRules[name].func;
           if (tokenRules[name].par)  token.par  = tokenRules[name].par;
           tokens.push(structuredClone(token));
@@ -417,6 +435,11 @@ CompVis.Eval = class {
   }
   
   static #applyImplicitRules(originTokens) {
+    const implicitProToken = {
+      type: "pro",
+      value: "*",
+      implicit: true
+    }
     const origin = structuredClone(originTokens);
     const tokens = [];
     if(origin.length == 0) return tokens;
@@ -438,13 +461,10 @@ CompVis.Eval = class {
       if (b.type === "space") {
         const c = origin[k+2];
         if (c && this.#isOmitMul(a, c)) {
-          tokens.push({ type:"pro", value:"*" });
+          tokens.push(implicitProToken);
         }
       } else if(this.#isOmitMul(a, b)) {
-        tokens.push({
-          type: "pro",
-          value: "*"
-        });
+        tokens.push(implicitProToken);
       }
     }
     tokens.push(structuredClone(origin[origin.length-1]));
@@ -462,13 +482,21 @@ CompVis.Eval = class {
     }
     return (
       (a.type === "num" && b.type === "value") ||       // 2x
+      (a.type === "num" && b.type === "const") ||       // 2e
       (a.type === "value" && b.type === "value") ||     // xy
+      (a.type === "const" && b.type === "const") ||     // eπ
+      (a.type === "value" && b.type === "const") ||     // xe
+      (a.type === "const" && b.type === "value") ||     // ex
       (a.type === "parEnd" && b.type === "value") ||    // )x
+      (a.type === "parEnd" && b.type === "const") ||    // )e
       (a.type === "value" && b.type === "parStart") ||  // x(
+      (a.type === "const" && b.type === "parStart") ||  // e(
       (a.type === "num" && b.type === "parStart") ||    // 2(
       (a.type === "parEnd" && b.type === "parStart") || // )(
       (a.type === "absEnd" && b.type === "value") ||    // ]x
+      (a.type === "absEnd" && b.type === "const") ||    // ]e
       (a.type === "value" && b.type === "absStart") ||  // x[
+      (a.type === "const" && b.type === "absStart") ||  // e[
       (a.type === "num" && b.type === "absStart") ||    // 2[
       (a.type === "absEnd" && b.type === "absStart") || // ][
       (a.type === "absEnd" && b.type === "parStart") || // ](
@@ -484,15 +512,19 @@ CompVis.Eval = class {
     );
   }
   
-  static #parseExpression(tokens, minBp = 0) {
+  static #parseExpression(tokens, minBp = 0, validEnds = []) {
     let left = this.#parsePrimary(tokens); // 数値や括弧などを取得
-
+    
     while (tokens.length > 0) {
       const opToken = tokens[0];
       const opInfo = this.bpList[opToken.type];
       
+      // ( !parEndValid&&')' 又は演算子)以外が来てしまっている場合
+      if (!validEnds.includes(opToken.type) && !opInfo)
+        throw new Error(`[Compiler Internal Error] Unexpected token '${opToken.value}' at AST node construction (expected operator${validEnds.length > 0 ? "or [ "+validEnds.join('/ ')+" ]" : ''}). Please check if there are any extra closing brackets like ')' or ']', and contact the dev team if none are found.`);
+      
       if (!opInfo || opInfo.bp < minBp) break; // 次の演算子の方が弱ければ終了
-
+      
       tokens.shift(); // 演算子を消費
       const nextBp = (opToken.type === "pow") ? opInfo.bp : opInfo.bp + 1;
       const right = this.#parseExpression(tokens, nextBp);
@@ -504,6 +536,9 @@ CompVis.Eval = class {
         left: left,
         right: right
       };
+      
+      if (opToken.implicit)
+        left.implicit = true;
     }
     return left;
   }
@@ -514,8 +549,8 @@ CompVis.Eval = class {
     if (!token) throw new Error("式が途中で終わっています");
 
     // 1. 数値や定数、変数
-    if (token.type === "num" || token.type === "value" || token.type === "pi" || token.type === "e" || token.type === "i") {
-      return { type: "Leaf", value: token.value, kind: token.type };
+    if (token.type === "num" || token.type === "value" || token.type === "const") {
+      return { type: "Leaf", value: token.value, kind: token.name ?? token.type };
     }
 
     // 2. 単項演算子 (プラス・マイナス)
@@ -528,7 +563,7 @@ CompVis.Eval = class {
     // 3. 括弧 (通常の計算順序の制御)
     // ここにカンマ処理は入れない（(1, 2) という式は定義しないため）
     if (token.type === "parStart") {
-      const expr = this.#parseExpression(tokens, 0); // 括弧内を解析
+      const expr = this.#parseExpression(tokens, 0, ["parStart"]); // 括弧内を解析
       const next = tokens.shift();
       if (!next || next.type !== "parEnd") throw new Error("閉じ括弧がありません");
       return expr;
@@ -536,6 +571,8 @@ CompVis.Eval = class {
 
     // 4. 関数 (sin, max など)
     if (token.func) {
+      let isImplicitPar = false;
+      
       const next = tokens[0];
       let args = [];
 
@@ -547,7 +584,8 @@ CompVis.Eval = class {
         if (tokens[0] && tokens[0].type !== "parEnd") {
           while (true) {
             // 式を解析してリストに追加
-            args.push(this.#parseExpression(tokens, 0));
+            
+            args.push(this.#parseExpression(tokens, 0, ["parEnd", "comma"]));
 
             // カンマがあれば消費して次へ、なければループ終了
             if (tokens[0] && tokens[0].type === "comma") {
@@ -559,19 +597,24 @@ CompVis.Eval = class {
         }
 
         const end = tokens.shift(); // ')' を消費
+        
         if (!end || end.type !== "parEnd") throw new Error(`関数 ${token.value} の閉じ括弧がありません`);
       
       } else {
         // 括弧がない場合 (sin x など) - 優先度80で1つの引数を取る
+        isImplicitPar = true;
         args.push(this.#parseExpression(tokens, 80)); 
       }
       
-      return { type: "FunctionCall", name: token.type, arguments: args };
+      const retData = { type: "FunctionCall", name: token.type, arguments: args };
+      if (isImplicitPar)
+        retData.implicit = true;
+      return retData;
     }
 
     // 5. 絶対値 [x]
     if (token.type === "absStart") {
-      const expr = this.#parseExpression(tokens, 0);
+      const expr = this.#parseExpression(tokens, 0, ["absEnd"]);
       const next = tokens.shift();
       
       // トークンタイプは absEnd で判定
