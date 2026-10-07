@@ -453,13 +453,13 @@ CompVis.Eval = class {
   
   static #isOmitMul(a, b) {
     if (["add", "sub", "pro", "div", "pow", "parEnd", "absEnd", "comma"].includes(b.type)) {
-    return false;
-  }
+      return false;
+    }
   
-  // aが「開き記号」や「演算子」の場合は、その直後に掛け算を入れない
-  if (["parStart", "absStart", "add", "sub", "pro", "div", "pow", "comma", "plus", "minus"].includes(a.type)) {
-    return false;
-  }
+    // aが「開き記号」や「演算子」の場合は、その直後に掛け算を入れない
+    if (["parStart", "absStart", "add", "sub", "pro", "div", "pow", "comma", "plus", "minus"].includes(a.type)) {
+      return false;
+    }
     return (
       (a.type === "num" && b.type === "value") ||       // 2x
       (a.type === "value" && b.type === "value") ||     // xy
