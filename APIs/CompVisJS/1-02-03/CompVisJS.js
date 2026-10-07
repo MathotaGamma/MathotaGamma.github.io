@@ -6,6 +6,7 @@
  - #parseExpressionの第3引数にvalidEnds=[]を設置。validEnds内に入れたtypeの名前(parEndやabsEndなど)は、下記の、次に期待するtokenの種類としてoperatorと、それは妥当とみなされる。
  - #parseExpression内で、次に期待するtokenの種類が期待と異なった場合エラーを出す(主にoperatorではなかった場合)。
 */
+
 //注意点
 /*
 例:
