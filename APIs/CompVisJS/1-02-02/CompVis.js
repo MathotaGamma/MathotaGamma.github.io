@@ -1,6 +1,5 @@
 //変更点:ViewとViewThreeのaddGraphの引数の構造を変更し、それぞれのgraphの管理をidにした。また、ViewにaddArrowメソッドを追加し、CompVisにgetIdをstaticで,deleteIdをメソッドで追加。また、View,ViewThreeにはdeleteGraph(id)を追加し、ViewThreeにgetState(id=undefined)を追加。
-//注意点
-/*
+/*注意点
 例:
 viewer.addGraph(
   (t) => 
