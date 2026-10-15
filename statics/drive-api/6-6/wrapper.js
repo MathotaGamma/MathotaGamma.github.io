@@ -3,18 +3,27 @@
 // 各HTMLファイルはこれをimportして、認証・保存・取得の共通処理を使い回せる。
 //
 // 使用例:
-//   import { DriveManager, updateDriveUserInfoUI, mergeMissingKeys } from '/statics/drive-api/6-6/wrapper.js';
-//
-//   const driveManager = new DriveManager({
-//     clientId: '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com',
-//     redirectUri: 'https://mathotagamma.github.io/statics/drive-api/oauth2callback',
-//     appDataDirectory: '/application-data/xxx/',
-//     onLog: (message, duration) => logger(message, duration),
-//     onLoginWithAnotherEmail: (prevEmail, newEmail) => {
-//       alert(`以前とは異なるアカウントでログインしました(前回:${prevEmail})。`);
-//     },
-//   });
-//   await driveManager.init();
+/*
+import { DriveManager, updateDriveUserInfoUI, mergeMissingKeys } from 'https://mathotagamma.github.io/statics/drive-api/6-6/wrapper.js';
+      
+async function initDrive() {
+  const driveManager = new DriveManager({
+    clientId: '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com',
+    redirectUri: 'https://mathotagamma.github.io/statics/drive-api/oauth2callback',
+    appDataDirectory: '/application-data/kobun/',
+    onLog: (message) => {
+      console.log(message);
+    },
+    onLoginWithAnotherEmail: (prevEmail, newEmail) => {
+      alert(`以前とは異なるアカウントでログインしました(前回:${prevEmail})。`);
+    },
+  });
+        
+  await driveManager.init();
+  }
+      
+initDrive();
+*/
 //
 // 更新:
 //   - getFileInfo(path, fields)を追加(ファイルのメタ情報を取得できるように)
@@ -53,7 +62,7 @@ export class DriveManager {
   // 埋め込み(silent)ログインを試み、失敗したらpopupログインを試みる。
   // 戻り値: 連携に成功したかどうか(boolean)
   async init() {
-    this.onLog('Google Driveに接続中', 1000);
+    this.onLog('Google Driveに接続中');
     try {
       this.drive = new DriveAPIManager({
         clientId: this.clientId,
@@ -77,7 +86,7 @@ export class DriveManager {
         alert('popupがブロックされました。');
       }
     } catch (err) {
-      this.onLog(`Drive連携の初期化に失敗しました: ${err.message}`, 2500);
+      this.onLog(`Drive連携の初期化に失敗しました: ${err.message}`);
     }
 
     this.onLog(
@@ -116,7 +125,7 @@ export class DriveManager {
     try {
       return await fn();
     } catch (err) {
-      this.onLog(`${label}に失敗しました: ${err.message}`, 2500);
+      this.onLog(`${label}に失敗しました: ${err.message}`);
       return null;
     }
   }
