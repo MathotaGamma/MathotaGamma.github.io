@@ -62,25 +62,26 @@ export class DriveManager {
   // 埋め込み(silent)ログインを試み、失敗したらpopupログインを試みる。
   // 戻り値: 連携に成功したかどうか(boolean)
   async init() {
-    this.onLog('Google Driveに接続中');
+    this.onLog('Google(Drive)に接続中');
     try {
       this.drive = new DriveAPIManager({
         clientId: this.clientId,
         redirectUri: this.redirectUri,
         space: this.space,
       });
-      this.onLog('DriveAPIManagerインスタンスを作成しました。');
+      
       /*
       let res = await this.drive.auth(true);
       if (!res.ok)
         res = await this.drive.auth(false);
       */
       let res = await this.drive.auth(false);
-      this.onLog('Driveの認証が完了しました。');
+      
       if (res.ok) {
         await this._syncEmailAddress();
         this.isGuest = false;
         this.hasDriveConnection = true;
+        this.onLog('Googleアカウントと連携しました。');
         return true;
       } else if (res.error === 'popup_blocked') {
         alert('popupがブロックされました。');
