@@ -69,14 +69,14 @@ export class DriveManager {
         redirectUri: this.redirectUri,
         space: this.space,
       });
-
+      this.onLog('DriveAPIManagerインスタンスを作成しました。');
       /*
       let res = await this.drive.auth(true);
       if (!res.ok)
         res = await this.drive.auth(false);
       */
       let res = await this.drive.auth(false);
-
+      this.onLog('Driveの認証が完了しました。');
       if (res.ok) {
         await this._syncEmailAddress();
         this.isGuest = false;
