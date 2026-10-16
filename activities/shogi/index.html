@@ -5,47 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>将棋場</title>
     <style>
-      :root { --cs: clamp(30px, min(7.2vw, 9.2vh), 50px); --hw: calc(var(--cs) * 1.5); }
+      :root { --cs: 40px; --hw: calc(var(--cs) * 1.25); }
       * { box-sizing: border-box; }
       body { font-family: sans-serif; margin: 0; background: #f6f3ee; color: #222; }
       button { cursor: pointer; font-family: inherit; }
-      #app { max-width: 1120px; margin: 0 auto; padding: 6px 10px 24px; }
+      #app { max-width: 1400px; margin: 0 auto; padding: 6px 10px 24px; }
       #hdr { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-      #title { font-size: 30px; margin: 0; font-weight: 500; letter-spacing: 2px; }
+      #title { font-size: 22px; margin: 0; font-weight: 500; letter-spacing: 2px; }
       #modeBadge { font-size: 11px; background: #ddd; border-radius: 4px; padding: 2px 6px; margin-left: 6px; vertical-align: middle; }
       #topBtns { flex: 1; display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
-      #topBtns button { font-size: 16px; padding: 7px 14px; border: 1px solid #777; border-radius: 6px; background: #fff; }
+      #topBtns button { font-size: 14px; padding: 6px 10px; border: 1px solid #777; border-radius: 6px; background: #fff; }
       #topBtns button:active { background: #e8e8e8; }
-      #settingsWrap { position: relative; margin-left: auto; }
+      #settingsWrap { position: relative; }
       #btnMenu { width: min(240px, 42vw); text-align: left; font-size: 16px; padding: 8px 12px; border: 2px solid #222; background: #fff; border-radius: 4px; }
-      #menuPanel { display: none; position: absolute; top: calc(100% + 4px); right: 0; width: min(360px, 92vw); max-height: 78vh; overflow: auto; background: #fff; border: 1px solid #bbb; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); padding: 6px 12px 10px; z-index: 900; }
+      #menuPanel { display: none; position: absolute; top: calc(100% + 4px); left: 0; width: min(360px, 92vw); max-height: 78vh; overflow: auto; background: #fff; border: 1px solid #bbb; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); padding: 6px 12px 10px; z-index: 900; }
       #menuPanel section { border-top: 1px solid #eee; padding: 6px 0; }
       #menuPanel h4 { margin: 2px 0 6px; font-size: 13px; color: #444; }
       .menu-head { display: flex; justify-content: space-between; align-items: center; }
       .menu-row { display: block; margin: 5px 0; font-size: 14px; }
       input[type=number] { width: 80px; }
-      #status { font-size: 14px; font-weight: bold; margin: 6px 2px; min-height: 20px; }
-      #editBar { margin: 4px 0; }
+      #status { font-size: 14px; font-weight: bold; margin: 2px 2px; min-height: 18px; }
+      #editBar { margin: 0; }
       #main { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; margin-top: 4px; }
-      #leftInfo { width: 120px; align-self: center; }
-      #turnText { font-size: 22px; }
-      #plyText { font-size: 15px; margin: 6px 0 0 14px; }
+      #leftInfo { width: 100%; display: flex; gap: 14px; align-items: baseline; }
+      #turnText { font-size: 18px; }
+      #plyText { font-size: 15px; margin: 0; }
       #boardZone { display: grid; grid-template-columns: var(--hw) calc(var(--cs) * 9 + 4px) var(--hw);
         grid-template-areas: "tc tn ." "ht bd hb" ". bn bc"; column-gap: 8px; row-gap: 6px; }
-      .clock { border: 2px solid #222; background: #fff; text-align: center; font-size: 15px; padding: 2px 4px; font-variant-numeric: tabular-nums; }
+      .clock { border: 2px solid #222; background: #fff; text-align: center; font-size: 17px; padding: 3px 4px; font-variant-numeric: tabular-nums; }
       .clock.active { background: #fff3c4; border-color: #d08a00; }
-      .pname { font-size: 18px; align-self: center; }
+      .pname { font-size: 20px; align-self: center; }
       #clockTop { grid-area: tc; } #nameTop { grid-area: tn; }
       #nameBottom { grid-area: bn; } #clockBottom { grid-area: bc; align-self: start; }
-      .handbox { border: 2px solid #222; background: #fff; height: calc(var(--cs) * 5.2); overflow: auto; padding: 3px; display: flex; flex-direction: column; gap: 2px; }
+      .handbox { border: 2px solid #222; background: #fff; height: calc(var(--cs) * 5.6); overflow: auto; padding: 3px; display: flex; flex-direction: column; gap: 2px; }
       #handBoxTop { grid-area: ht; align-self: start; } #handBoxBottom { grid-area: hb; align-self: end; }
       .hand-cap { font-size: 10px; color: #999; text-align: center; }
-      .hp { border: 1px solid #999; padding: 2px 4px; border-radius: 4px; background: #fbf6e8; cursor: pointer; font-size: calc(var(--cs) * 0.46); text-align: center; user-select: none; }
+      .hp { border: 1px solid #999; padding: 1px 2px; border-radius: 4px; background: #fbf6e8; cursor: pointer; font-size: calc(var(--cs) * 0.42); text-align: center; user-select: none; }
       .hp.sel { background: #ff8; border-color: #c90; }
       .hp.edit-sel { background: #fca; border: 2px solid #f60; }
       .hp.dim { opacity: .55; cursor: default; }
       #board { grid-area: bd; position: relative; display: grid; grid-template-columns: repeat(9, var(--cs)); grid-template-rows: repeat(9, var(--cs)); border: 2px solid #222; background: #e8c27a; }
-      .c { border: 1px solid #222; display: flex; align-items: center; justify-content: center; font-size: calc(var(--cs) * 0.6); cursor: pointer; user-select: none; }
+      .c { border: 1px solid #222; display: flex; align-items: center; justify-content: center; font-size: calc(var(--cs) * 0.66); line-height: 1; cursor: pointer; user-select: none; }
       .c.w { transform: rotate(180deg); }
       .c.pr { color: #c00; }
       .c.sel { background: #ff8; }
@@ -54,21 +54,46 @@
       .edit-board { background-color: #fff0cf !important; border-color: #e67e22 !important; }
       #hintSvg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
       #rightPanel { flex: 1; min-width: 240px; max-width: 340px; }
-      #evalBlock { margin-bottom: 14px; }
+      #evalBlock { margin-bottom: 6px; }
       .eval-title { display: flex; justify-content: space-between; align-items: baseline; }
       .eval-title b { font-size: 24px; font-weight: 500; }
       #evalBar { display: flex; height: 24px; border: 2px solid #222; background: #ff7a1a; }
       #evalSente { background: #0bc0df; width: 50%; transition: width .25s; }
       #evalText { text-align: center; font-size: 18px; margin-top: 6px; }
       #bookBadge { display: none; font-weight: bold; color: #fff; background: #2e7d32; padding: 2px 8px; border-radius: 4px; margin: 0 0 6px; }
-      #candBox { border: 2px solid #222; background: #fff; min-height: 190px; padding: 6px 8px; }
+      #candBox { border: 2px solid #222; background: #fff; min-height: 110px; padding: 6px 8px; }
       .hidden-note { font-size: 13px; color: #666; line-height: 1.6; }
       #cand table { border-collapse: collapse; font-size: 13px; width: 100%; }
       #cand td, #cand th { border-bottom: 1px solid #ddd; padding: 3px 4px; text-align: left; }
       #cand td:last-child, #cand th:last-child { text-align: right; }
       #cand tr.best td { font-weight: bold; color: #b71c1c; }
       #cand tr.worst td { color: #6a1b9a; }
-      #analysis { margin-top: 14px; border-top: 1px solid #ccc; padding-top: 6px; }
+      html, body { height: 100%; overflow: hidden; }
+      #app { height: 100vh; height: 100dvh; max-width: none; margin: 0; padding: 4px 8px 6px; display: flex; flex-direction: column; overflow: hidden; }
+      #hdr { gap: 8px; }
+      #subBar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+      #subBar #status { flex: 1 1 220px; min-width: 0; }
+      @media (max-width: 600px) {
+        #title { display: none; }
+        #topBtns { justify-content: flex-start; }
+        #topBtns button { font-size: 12px; padding: 5px 7px; }
+        #btnMenu { width: auto; font-size: 14px; padding: 6px 8px; }
+      }
+      #main { flex: 1 1 0; min-height: 0; margin: 0; display: flex; flex-wrap: nowrap; gap: 14px; align-items: center; justify-content: center; overflow: hidden; }
+      #main.stack { flex-direction: column; gap: 8px; }
+      #boardZone { flex: none; }
+      #rightPanel { flex: none; width: 240px; min-width: 0; max-width: none; max-height: 100%; overflow-x: hidden; overflow-y: auto; }
+      #main.stack #rightPanel { width: min(100%, 780px); display: flex; gap: 10px; align-items: stretch; overflow: hidden; }
+      #main.stack #rightPanel > * { flex: 1 1 0; min-width: 0; margin: 0; }
+      #main.stack #leftInfo { flex: 0 0 92px; flex-direction: column; gap: 2px; }
+      #main.stack #candBox { min-height: 0; overflow: auto; }
+      #main.stack #evalBlock { margin-bottom: 0; }
+      .mode-learn #main.side #rightPanel { width: 400px; }
+      .mode-learn #main.stack #rightPanel { display: block; overflow-y: auto; }
+      #analysis { display: none; position: fixed; inset: 0; z-index: 800; background: #f6f3ee; overflow: auto; padding: 10px 14px; }
+      #analysis.open { display: block; }
+      .an-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 16px; }
+      .an-head button { font-size: 14px; padding: 6px 12px; }
       #analysis summary { cursor: pointer; font-weight: bold; padding: 4px 0; }
       #moveAnalysis { border: 1px solid #4a90e2; background: #eef6ff; padding: 6px 10px; border-radius: 4px; margin: 6px 0; font-size: 13px; }
       #moveAnalysis .rank-best { color: #27ae60; font-weight: bold; }
@@ -86,10 +111,57 @@
       .editing .non-edit { display: none !important; }
       .ai-only { display: block; }
       .mode-study .ai-only { display: none; }
-      @media (max-width: 860px) {
-        #leftInfo { width: 100%; display: flex; gap: 14px; align-items: baseline; }
-        #plyText { margin: 0; }
-        #rightPanel { max-width: none; width: 100%; }
+      #modeBar { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin: 2px 0; font-size: 14px; }
+      #modeBar label { display: flex; align-items: center; gap: 6px; }
+      #modeBar select { font-size: 15px; padding: 4px 8px; border: 2px solid #222; border-radius: 6px; background: #fff; }
+      .mode-study .side-label, .mode-learn .side-label { display: none !important; }
+      button:disabled { opacity: .45; cursor: not-allowed; }
+      #nnBanner { margin: 3px 0; padding: 6px 12px; border: 2px solid #1e6fe0; border-radius: 8px; background: #eef5ff; }
+      #nnBanner.ok { border-color: #2e7d32; background: #eefaf0; }
+      #nnBanner.err { border-color: #c62828; background: #fdeeee; }
+      #nnBanner .nn-msg { font-size: 14px; font-weight: bold; }
+      #nnBanner .nn-sub { font-size: 12px; color: #555; margin-top: 2px; }
+      #nnBar { height: 8px; margin-top: 5px; background: #cfdcf2; border-radius: 6px; overflow: hidden; }
+      #nnBarFill { height: 100%; width: 0; background: #1e6fe0; transition: width .2s; }
+      #nnBarFill.indet { width: 35%; animation: nnslide 1.1s ease-in-out infinite alternate; }
+      @keyframes nnslide { from { margin-left: 0; } to { margin-left: 65%; } }
+      @media (prefers-reduced-motion: reduce) { #nnBarFill.indet { animation: none; } }
+      #nnVeil { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; font-size: calc(var(--cs) * 0.5); font-weight: bold; color: #1b3a6b; background: rgba(255, 255, 255, .62); }
+      body.nn-ready #nnVeil { display: none; }
+      .learn-only { display: none; }
+      .mode-learn .learn-only { display: block; }
+      .mode-learn .learn-hide, .mode-learn #candBox, .mode-learn #bookBadge, .mode-learn #analysis { display: none !important; }
+      .mode-learn .clock { visibility: hidden; }
+      #learnPanel { border: 2px solid #222; background: #fff; padding: 8px 10px; margin-bottom: 14px; font-size: 13px; }
+      #learnPanel h3 { margin: 0 0 4px; font-size: 16px; }
+      .lp-btns { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+      .lp-btns button { font-size: 14px; padding: 7px 12px; border: 1px solid #777; border-radius: 6px; background: #fff; }
+      .lp-btns button.primary { background: #2e7d32; color: #fff; border-color: #2e7d32; font-weight: bold; }
+      .lp-btns button.stop { background: #c62828; color: #fff; border-color: #c62828; font-weight: bold; }
+      .lp-grid { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; align-items: baseline; }
+      #lpStrength { font-size: 26px; font-weight: bold; line-height: 1.2; }
+      #lpStrengthSub { font-size: 12px; color: #555; }
+      #lpChart { width: 100%; height: 150px; display: block; border: 1px solid #ddd; margin-top: 8px; }
+      #lpHist table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 6px; }
+      #lpHist td, #lpHist th { border-bottom: 1px solid #e3e3e3; padding: 2px 4px; text-align: left; }
+      #learnPanel details { margin-top: 6px; }
+      #learnPanel summary { cursor: pointer; font-weight: bold; }
+      #learnPanel .lp-set { display: block; margin: 5px 0; }
+      #app { padding: 2px 4px 4px; }
+      #hdr { gap: 6px; flex-wrap: nowrap; }
+      #topBtns { flex: 0 0 auto; justify-content: flex-start; flex-wrap: nowrap; }
+      #topBtns button { font-size: 15px; padding: 6px 12px; }
+      #btnMenu { width: auto; font-size: 15px; padding: 6px 12px; border: 1px solid #777; border-radius: 6px; }
+      #hdr #status { flex: 1 1 0; min-width: 0; margin: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .menu-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+      .menu-btns button { font-size: 14px; padding: 7px 10px; border: 1px solid #777; border-radius: 6px; background: #fff; }
+      #menuPanel select { max-width: 100%; font-size: 14px; padding: 3px 6px; }
+      .pname { font-size: 16px; }
+      .clock { font-size: 14px; padding: 1px 4px; }
+      @media (max-width: 600px) {
+        #hdr { flex-wrap: wrap; }
+        #topBtns button { font-size: 13px; padding: 5px 9px; }
+        #hdr #status { flex: 1 1 100%; }
       }
     </style>
   </head>
@@ -104,18 +176,34 @@
 
     <div id="app">
       <div id="hdr">
-        <h1 id="title">将棋場<span id="modeBadge">研究/ローカル対戦</span></h1>
-        <div id="topBtns">
-          <button id="btnNew" class="non-edit">開始</button>
-          <button id="btnAI" class="non-edit">AIに指させる</button>
-          <button id="btnUndo" class="non-edit" title="自分の直前の手まで戻します">待った</button>
-          <button id="btnResign" class="non-edit">投了</button>
-          <button id="btnHint" class="non-edit">ヒント</button>
-        </div>
         <div id="settingsWrap">
-          <button type="button" id="btnMenu">▼ 設定</button>
+          <button type="button" id="btnMenu">☰ 設定</button>
           <div id="menuPanel">
             <div class="menu-head"><b>設定</b><button type="button" id="btnMenuClose">✕</button></div>
+            <section>
+              <h4>対局 <span id="modeBadge" style="font-weight:normal">VS AI対局</span></h4>
+              <label class="menu-row">モード:
+                <select id="gameMode">
+                  <option value="vs_ai" selected>VS AI対局 (対コンピュータ)</option>
+                  <option value="learn">AI学習 (自己対局で強くする)</option>
+                  <option value="study">研究 / ローカル対戦 (1台で交代で指す)</option>
+                </select>
+              </label>
+              <label class="menu-row side-label">あなたの手番:
+                <select id="humanSide">
+                  <option value="0">先手</option>
+                  <option value="1">後手</option>
+                  <option value="3">ランダム</option>
+                  <option value="2">見学(AI同士)</option>
+                </select>
+              </label>
+              <div class="menu-btns">
+                <button type="button" id="btnAI" class="non-edit learn-hide">AIに指させる</button>
+                <button type="button" id="btnResign" class="non-edit learn-hide">投了</button>
+                <button type="button" id="btnAnalysis" class="non-edit learn-hide">分析・棋譜</button>
+                <button type="button" id="btnKif" class="non-edit learn-hide">棋譜保存(.kif)</button>
+              </div>
+            </section>
             <section>
               <h4>表示</h4>
               <label class="menu-row"><input type="checkbox" id="showCands" checked> AIの最善手・次善手(候補手)を表示</label>
@@ -129,18 +217,6 @@
                 </select>
               </label>
               <label class="menu-row">持ち時間(分・0=無制限/経過時間を表示): <input type="number" id="timeLimit" value="0" min="0" max="180"></label>
-            </section>
-            <section>
-              <h4>対局モード</h4>
-              <label class="menu-row">動作モード:
-                <select id="gameMode">
-                  <option value="study">研究 / ローカル対戦 (1台で交代で指す)</option>
-                  <option value="vs_ai" selected>VS AI対局 (対コンピュータ)</option>
-                </select>
-              </label>
-              <label class="menu-row ai-only">人間手番:
-                <select id="humanSide"><option value="0">先手</option><option value="1">後手</option><option value="2">見学(AI同士)</option></select>
-              </label>
             </section>
             <section>
               <h4>思考設定</h4>
@@ -160,6 +236,8 @@
               </label>
               <div id="loadstat" style="font-weight:bold"></div>
               <div id="note"></div>
+              <label class="menu-row"><input type="checkbox" id="useLearned" checked> AI学習の成果を対局AIに使う</label>
+              <div id="learnedStat" style="font-size:12px;color:#555">学習済み補正: なし</div>
             </section>
             <section>
               <h4>定跡</h4>
@@ -169,13 +247,24 @@
             </section>
             <section>
               <h4>その他</h4>
-              <button type="button" id="btnEditStart" class="non-edit" style="background:#e67e22; color:#fff; padding:6px 12px;">局面編集モードへ</button>
+              <button type="button" id="btnEditStart" class="non-edit learn-hide" style="background:#e67e22; color:#fff; padding:6px 12px;">局面編集モードへ</button>
             </section>
           </div>
         </div>
+        <div id="topBtns">
+          <button id="btnNew" class="non-edit learn-hide">開始</button>
+          <button id="btnUndo" class="non-edit learn-hide" title="自分の直前の手まで戻します">待った</button>
+          <button id="btnHint" class="non-edit learn-hide">ヒント</button>
+        </div>
+        <div id="status">nn.binを読み込み中…</div>
       </div>
 
-      <div id="status">nn.binを読み込み中…</div>
+      <div id="nnBanner" class="busy">
+        <div class="nn-msg" id="nnMsg">nn.bin を読み込み中…</div>
+        <div class="nn-sub" id="nnSub">評価関数ファイルを確認しています。完了するまで対局・学習はできません。</div>
+        <div id="nnBar"><div id="nnBarFill" class="indet"></div></div>
+        <button type="button" id="nnRetry" style="display:none; margin-top:8px; padding:6px 14px;">再試行</button>
+      </div>
 
       <div id="editBar">
         <label class="edit-only">編集中の手番:
@@ -187,22 +276,52 @@
       </div>
 
       <div id="main">
-        <div id="leftInfo">
-          <div id="turnText">先手番です</div>
-          <div id="plyText">1手目</div>
-        </div>
-
         <div id="boardZone">
           <div id="clockTop" class="clock">0:00</div>
           <div id="nameTop" class="pname">後手: -</div>
           <div id="handBoxTop" class="handbox"></div>
-          <div id="board"><svg id="hintSvg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+          <div id="board"><svg id="hintSvg" xmlns="http://www.w3.org/2000/svg"></svg><div id="nnVeil">nn.bin 読み込み中… お待ちください</div></div>
           <div id="handBoxBottom" class="handbox"></div>
           <div id="nameBottom" class="pname">先手: -</div>
           <div id="clockBottom" class="clock">0:00</div>
         </div>
 
         <div id="rightPanel">
+          <div id="leftInfo">
+            <div id="turnText">先手番です</div>
+            <div id="plyText">1手目</div>
+          </div>
+          <div id="learnPanel" class="learn-only">
+            <h3>AI学習(自己対局)</h3>
+            <div class="hidden-note">NNUEの重みはそのままに、隠れ層の出力へ足す小さな「補正」を自己対局で学習します。強さは「元のNNUEだけのAI」との対局(先後入れ替え)で測ります。</div>
+            <div class="lp-btns">
+              <button type="button" id="btnLearnStart" class="primary">学習開始</button>
+              <button type="button" id="btnLearnStop" class="stop" disabled>停止</button>
+              <button type="button" id="btnLearnTest">強さ測定のみ</button>
+              <button type="button" id="btnLearnReset">学習をリセット</button>
+            </div>
+            <div class="lp-grid">
+              <span>状態</span><b id="lpState">待機中</b>
+              <span>進行</span><span id="lpProg">-</span>
+              <span>自己対局数</span><span id="lpTotal">0局</span>
+              <span>学習サイクル</span><span id="lpCycles">0回</span>
+            </div>
+            <div style="margin-top:8px">元のNNUEに対する強さ(最新の測定)</div>
+            <div id="lpStrength">未測定</div>
+            <div id="lpStrengthSub"></div>
+            <div id="lpBest" style="font-size:12px; margin-top:4px"></div>
+            <canvas id="lpChart" width="640" height="150"></canvas>
+            <div style="font-size:11px; color:#666">縦軸: 元のNNUEとのElo差 / 横軸: 測定回 / 縦線: 95%の誤差範囲(緑=採用、青=継続、赤=巻き戻し)</div>
+            <div id="lpHist"></div>
+            <details>
+              <summary>学習設定</summary>
+              <label class="lp-set">1サイクルの自己対局数 <input type="number" id="lpGames" value="8" min="1" max="100"></label>
+              <label class="lp-set">強さ測定の組数(1組=先後2局) <input type="number" id="lpPairs" value="8" min="1" max="100"></label>
+              <label class="lp-set">1手の探索ノード数 <input type="number" id="lpNodes" value="2500" min="300" step="500"></label>
+              <label class="lp-set">学習率 <input type="number" id="lpLr" value="0.3" min="0.01" max="5" step="0.05"></label>
+              <label class="lp-set"><input type="checkbox" id="lpShow" checked> 対局を盤に表示する(切ると少し速くなります)</label>
+            </details>
+          </div>
           <div id="evalBlock">
             <div class="eval-title"><span>先手</span><b>形勢</b><span>後手</span></div>
             <div id="evalBar"><div id="evalSente"></div></div>
@@ -213,8 +332,8 @@
         </div>
       </div>
 
-      <details id="analysis">
-        <summary>▼ 分析・棋譜</summary>
+      <div id="analysis">
+        <div class="an-head"><b>分析・棋譜</b><button type="button" id="btnAnClose">✕ 閉じる</button></div>
         <div><b>現在の局面</b>: <span id="gamePhase" style="font-weight:bold; color:#2c3e50;">序盤 (確率: 序100% / 中0% / 終0%)</span></div>
         <div id="skillScoreCard">
           <div style="font-weight:bold; margin-bottom:2px;">対局者別・局面段階評定 (100点満点)</div>
@@ -236,8 +355,11 @@
         </div>
         <div style="margin-top:8px;"><b>棋譜</b></div>
         <div id="moves" style="font-size:12px;word-break:break-all"></div>
+        <div style="margin-top:10px"><b>KIF形式</b></div>
+        <div class="lp-btns"><button type="button" id="btnKifSave">.kifを保存</button><button type="button" id="btnKifCopy">コピー</button></div>
+        <textarea id="kifText" readonly rows="10" style="width:100%; font-size:12px"></textarea>
         <pre id="log"></pre>
-      </details>
+      </div>
     </div>
 
     <script>
@@ -633,8 +755,23 @@
       const idxBuf0 = new Int32Array(64), idxBuf1 = new Int32Array(64);
       const accB = new Int32Array(HD), accW = new Int32Array(HD), inp = new Uint8Array(512);
       const z1 = new Uint8Array(64), z2 = new Uint8Array(64), in2 = new Uint8Array(64), nzIdx = new Int32Array(512);
+      // 学習した補正(AI学習モードの成果)。nullなら元のNNUEのまま。
+      //   補正 = bias + Σ w[k]・z1[k]/127 + Σ w[32+k]・z2[k]/127  (z1, z2はNNUEの隠れ層出力 0..127)
+      let ADJ_W = null;
+      const ADJ_N = 2 * L1 + 1;
       function evalYane(p) {
         if (!NET) return 0;
+        let cp = evalCore(p);
+        if (ADJ_W) {
+          const w = ADJ_W;
+          let a = 0;
+          for (let k = 0; k < L1; k++) a += w[k] * z1[k] + w[L1 + k] * z2[k];
+          cp += w[2 * L1] + a / 127;
+        }
+        return cp > 2900 ? 2900 : cp < -2900 ? -2900 : cp;
+      }
+      // 元のNNUEの評価値(補正なし・手番側視点)。計算後、z1/z2に隠れ層の出力が残る。
+      function evalCore(p) {
         const n0 = halfkpIndices(p.b, p.h, p.ks, 0, idxBuf0);
         const n1 = halfkpIndices(p.b, p.h, p.ks, 1, idxBuf1);
         accB.set(NET.ftBias); accW.set(NET.ftBias);
@@ -663,8 +800,7 @@
         const a3 = NET.a3;
         let z3 = a3.bias[0] | 0;
         for (let k = 0; k < 32; k++) z3 += a3.w[k] * z2[k];
-        const cp = z3 / 16;
-        return cp > 2900 ? 2900 : cp < -2900 ? -2900 : cp;
+        return z3 / 16;
       }
 
       // ===================== 局面判定・評定機能 (滑らかな段階推移 & 初期局面100%修正) =====================
@@ -777,7 +913,7 @@
       }
 
       // ===================== 探索アルゴリズム =====================
-      let sNodes = 0, sDead = 0, sAbort = false;
+      let sNodes = 0, sDead = 0, sAbort = false, sMaxNodes = Infinity;
       let isThinking = false, thinkAbort = false; // 思考中フラグ・中断要求フラグ(盤操作から参照)
       let epoch = 0; // 新規開始/待った/編集などで局面が差し替わるたびに増やす。古い思考結果で指してしまうのを防ぐ。
       async function stopThinking() {
@@ -822,7 +958,7 @@
         return ms.map((_, i) => i).sort((a, b) => keys[b] - keys[a]).map(i => ms[i]);
       }
       function qs(p, alpha, beta, qd) {
-        if (((++sNodes) & 127) === 0 && (performance.now() > sDead || thinkAbort)) sAbort = true;
+        if (((++sNodes) & 127) === 0 && (performance.now() > sDead || thinkAbort || sNodes > sMaxNodes)) sAbort = true;
         if (sAbort) return evalYane(p);
         const stand = evalYane(p);
         if (qd <= 0 || stand >= beta) return stand;
@@ -843,7 +979,7 @@
       // alpha-beta探索。合法性は指す直前に確かめる(カットオフした手以降の合法手生成を省く)。
       // 王手がかかっている局面は深さを1延長し、王手の応酬の先にある詰みを見逃さないようにする。
       function ab(p, d, alpha, beta, ply) {
-        if (((++sNodes) & 127) === 0 && (performance.now() > sDead || thinkAbort)) sAbort = true;
+        if (((++sNodes) & 127) === 0 && (performance.now() > sDead || thinkAbort || sNodes > sMaxNodes)) sAbort = true;
         if (sAbort) return evalYane(p);
         const c = p.side;
         if (ply < sMaxPly && attacked(p, p.ks[c], 1 - c)) d++;
@@ -873,6 +1009,46 @@
         }
         if (legalCnt === 0) return -30000 + ply; // 動かせる手が無い=詰み
         return best;
+      }
+
+      // ===================== 自己対局用の軽量探索(画面更新なし・ノード数制限つき) =====================
+      // 反復深化PVS。深さ1は必ず全手を完了し、その後はmaxNodes個のノードを使い切ったら打ち切る。
+      // 返り値: { move, score, d1 }  (d1は深さ1での全合法手の値。探索の多様化に使う)
+      function searchFast(p, maxDepth, maxNodes) {
+        const root0 = legal(p, false);
+        if (!root0.length) return null;
+        let root = orderMoves(p, root0);
+        if (root.length === 1) return { move: root[0], score: evalYane(p), d1: [{ move: root[0], score: 0 }] };
+        sNodes = 0; sAbort = false; thinkAbort = false; sDead = performance.now() + 5000;
+        sMaxNodes = Infinity; sMaxPly = maxDepth + 6; resetSearchTables();
+        let bestMove = root[0], bestScore = -31000, d1 = [];
+        try {
+          for (let d = 1; d <= maxDepth; d++) {
+            if (d >= 2) sMaxNodes = maxNodes;
+            let alpha = -31000, curBest = null, curScore = -31000, done = true;
+            const scs = [];
+            for (let i = 0; i < root.length; i++) {
+              const m = root[i], u = make(p, m);
+              let sc;
+              if (d === 1 || i === 0) sc = -ab(p, d - 1, -31000, 31000, 1);
+              else {
+                sc = -ab(p, d - 1, -alpha - 1, -alpha, 1);
+                if (!sAbort && sc > alpha) sc = -ab(p, d - 1, -31000, -alpha, 1);
+              }
+              undo(p, u);
+              if (sAbort) { done = false; break; }
+              if (d === 1) scs.push({ move: m, score: sc });
+              if (sc > curScore) { curScore = sc; curBest = m; }
+              if (sc > alpha) alpha = sc;
+            }
+            if (d === 1) { d1 = scs; }
+            if (curBest !== null) { bestMove = curBest; bestScore = curScore; }
+            if (!done) break;
+            root = [curBest].concat(root.filter(x => x !== curBest));
+            if (Math.abs(bestScore) > 29000) break;
+          }
+        } finally { sMaxNodes = Infinity; }
+        return { move: bestMove, score: bestScore, d1 };
       }
 
       function renderCandidateTable(rankedList, p) {
@@ -1010,6 +1186,19 @@
       }
 
       let POS = startPos();
+      // 「ランダム」を選んだときの人間側の手番(新規開始のたびに抽選し直す)
+      let RAND_SIDE = Math.random() < 0.5 ? 0 : 1;
+      function humanSideNow() {
+        const v = +document.getElementById('humanSide').value;
+        return v === 3 ? RAND_SIDE : v;
+      }
+      function rerollSide() { if (document.getElementById('humanSide').value === '3') RAND_SIDE = Math.random() < 0.5 ? 0 : 1; }
+      function sideNote() {
+        if (document.getElementById('gameMode').value !== 'vs_ai') return '';
+        const v = document.getElementById('humanSide').value;
+        if (v === '2') return '(見学: AI同士)';
+        return '(' + (v === '3' ? 'ランダム: ' : '') + 'あなたは' + (humanSideNow() === 0 ? '先手' : '後手') + 'です)';
+      }
       let EDIT_POS = null;
       let isEditing = false;
       let SEL = null;
@@ -1021,7 +1210,7 @@
         const v = document.getElementById('viewSel').value;
         if (v === 'sente') return false;
         if (v === 'gote') return true;
-        return document.getElementById('gameMode').value === 'vs_ai' && document.getElementById('humanSide').value === '1';
+        return document.getElementById('gameMode').value === 'vs_ai' && humanSideNow() === 1;
       }
 
       function draw() {
@@ -1087,6 +1276,7 @@
       function askPromote() { return askDialog('成りますか?', '成る', '成らない'); }
 
       function cellClick(sq) {
+        if (isLearnMode()) return;
         if (isEditing) {
           handleEditCellClick(sq);
           return;
@@ -1339,7 +1529,7 @@
         const list = legal(POS, false);
         if (!list.length) {
           const winner = (1 - POS.side) === 0 ? '先手' : '後手';
-          document.getElementById('status').textContent = winner + 'の勝利 (詰み/手なし)'; gameOver = true;
+          document.getElementById('status').textContent = winner + 'の勝利 (詰み/手なし)'; gameOver = true; KIF_END = '詰み';
           document.getElementById('cand').innerHTML = '';
           document.getElementById('bookBadge').style.display = 'none';
           const phaseInfo = getGamePhase(POS);
@@ -1360,7 +1550,7 @@
 
       function isAITurn() {
         if (document.getElementById('gameMode').value !== 'vs_ai') return false;
-        const hs = +document.getElementById('humanSide').value;
+        const hs = humanSideNow();
         return hs === 2 || POS.side !== hs;
       }
       function maybeAI() {
@@ -1452,20 +1642,479 @@
         ctx.fill();
       }
 
-      document.getElementById('gameMode').onchange = () => {
+      document.getElementById('gameMode').onchange = async () => {
         const mode = document.getElementById('gameMode').value;
+        if (LEARN.running) { LEARN.stop = true; try { await LEARN.promise; } catch (e) { /* 無視 */ } }
+        if (isEditing) document.getElementById('btnEditCancel').onclick();
+        const wasLearn = document.body.classList.contains('mode-learn');
+        document.body.classList.toggle('mode-study', mode === 'study');
+        document.body.classList.toggle('mode-learn', mode === 'learn');
+        fitLayout();
+        clearHint();
+        if (mode === 'learn') {
+          await stopThinking();
+          SEL = null; gameOver = false;
+          POS = startPos(); HIST = []; MVSTR = []; MVSTR_DISP = []; EVAL_HIST = []; MOVE_RECORDS = [];
+          LEARN_VIEW.label = '学習待機中'; LEARN_VIEW.ply = 0;
+          document.getElementById('modeBadge').textContent = 'AI学習';
+          document.getElementById('status').textContent = NET ? 'AI学習モード: 「学習開始」で自己対局を始めます' : 'nn.bin の読み込みが終わると学習を始められます';
+          updateEvalDisplay(null);
+          draw(); renderLearnUI(); setLearnUI(false);
+          return;
+        }
         if (mode === 'vs_ai') {
-          document.body.classList.remove('mode-study');
           document.getElementById('modeBadge').textContent = 'VS AI対局';
-          document.getElementById('status').textContent = 'VS AI対局モード';
-          showEval().then(ranked => maybeAI(ranked));
+          document.getElementById('status').textContent = 'VS AI対局モード' + sideNote();
         } else {
-          document.body.classList.add('mode-study');
           document.getElementById('modeBadge').textContent = '研究 / ローカル対戦';
           document.getElementById('status').textContent = '研究 / ローカル対戦モード (手番を交互に動かせます)';
-          showEval();
         }
+        if (wasLearn) { applyPlayAdj(); await document.getElementById('btnNew').onclick(); return; }
+        draw();
+        showEval().then(ranked => { if (mode === 'vs_ai') maybeAI(ranked); });
       };
+
+      // ===================== AI学習: 自己対局で評価関数の「補正」を学習する =====================
+      // 元のNNUE(nn.bin)の重みは変えず、隠れ層の出力(z1, z2)に小さな線形補正を足す:
+      //   評価値 = NNUE評価値 + bias + Σ w[k]・z[k]/127
+      // この w を自己対局から学習する(目標値 = 対局結果と探索値の混合、Adamで更新)。
+      // 強さは「元のNNUEだけのAI」との対局(同じ序盤から先後入れ替え)で測り、良くなった補正だけ採用する。
+      const EVAL_SCALE = 600, LEARN_LAMBDA = 0.5, LEARN_KEY = 'shogiLearn_v1';
+      const LEARN_VIEW = { names: ['先手AI', '後手AI'], label: '', ply: 0 };
+      const LEARN = { running: false, stop: false, promise: null, best: null, cand: null, adam: null, buf: [], hist: [], total: 0, cycles: 0, bestScore: 0.5, avgSec: 0 };
+      const sleep0 = () => new Promise(r => setTimeout(r, 0));
+      const sigmoid = x => 1 / (1 + Math.exp(-x));
+      const randInt = n => Math.floor(Math.random() * n);
+      const eloOfP = q => 400 * Math.log10(q / (1 - q));
+      const signed = v => (v >= 0 ? '+' : '') + Math.round(v);
+
+      function isLearnMode() { return document.getElementById('gameMode').value === 'learn'; }
+
+      function eloOf(w, d, l) {
+        const n = w + d + l;
+        if (!n) return { p: 0.5, elo: 0, lo: 0, hi: 0 };
+        const p = (w + 0.5 * d) / n, pc = Math.min(0.99, Math.max(0.01, p));
+        const se = Math.sqrt(Math.max(pc * (1 - pc), 0.05) / n);
+        return { p, elo: eloOfP(pc), lo: eloOfP(Math.max(0.01, pc - 1.96 * se)), hi: eloOfP(Math.min(0.99, pc + 1.96 * se)) };
+      }
+
+      function saveLearn() {
+        try {
+          localStorage.setItem(LEARN_KEY, JSON.stringify({
+            best: LEARN.best ? Array.from(LEARN.best, v => +v.toFixed(4)) : null,
+            hist: LEARN.hist.slice(-200), total: LEARN.total, cycles: LEARN.cycles, bestScore: LEARN.bestScore
+          }));
+        } catch (e) { /* 保存できなくても動作する */ }
+      }
+      function loadLearn() {
+        try {
+          const o = JSON.parse(localStorage.getItem(LEARN_KEY) || 'null');
+          if (!o) return;
+          if (o.best && o.best.length === ADJ_N) LEARN.best = Float64Array.from(o.best);
+          LEARN.hist = o.hist || []; LEARN.total = o.total || 0; LEARN.cycles = o.cycles || 0;
+          LEARN.bestScore = typeof o.bestScore === 'number' ? o.bestScore : 0.5;
+        } catch (e) { /* 無視 */ }
+      }
+      // 対局AI(VS AI・研究)が使う補正を反映する
+      function applyPlayAdj() {
+        const on = document.getElementById('useLearned').checked;
+        ADJ_W = on && LEARN.best ? LEARN.best : null;
+        document.getElementById('learnedStat').textContent = LEARN.best
+          ? '学習済み補正: あり(自己対局' + LEARN.total + '局・元のNNUE比 Elo ' + signed(eloOfP(LEARN.bestScore)) + ')' + (on ? '' : ' ※使用しない設定')
+          : '学習済み補正: なし(「AI学習」モードで学習できます)';
+      }
+
+      function setState(t) { document.getElementById('lpState').textContent = t; }
+      function setProg(t) { document.getElementById('lpProg').textContent = t; }
+      function setLearnUI(running) {
+        document.getElementById('btnLearnStart').disabled = running || !NET;
+        document.getElementById('btnLearnTest').disabled = running || !NET;
+        document.getElementById('btnLearnReset').disabled = running;
+        document.getElementById('btnLearnStop').disabled = !running;
+      }
+
+      function drawLearnChart() {
+        const cv = document.getElementById('lpChart');
+        const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+        ctx.clearRect(0, 0, W, H);
+        const hs = LEARN.hist.slice(-40);
+        ctx.font = '12px sans-serif'; ctx.textBaseline = 'middle';
+        if (!hs.length) { ctx.fillStyle = '#888'; ctx.textAlign = 'center'; ctx.fillText('まだ強さの測定結果がありません', W / 2, H / 2); return; }
+        const padL = 46, padR = 12, padT = 10, padB = 10;
+        let mx = 100;
+        hs.forEach(h => { const e = eloOf(h.w, h.d, h.l); mx = Math.max(mx, Math.abs(e.lo), Math.abs(e.hi)); });
+        mx = Math.ceil(mx / 100) * 100;
+        const yOf = v => padT + (H - padT - padB) * (1 - (v + mx) / (2 * mx));
+        const xOf = i => padL + (hs.length === 1 ? (W - padL - padR) / 2 : (W - padL - padR) * i / (hs.length - 1));
+        ctx.lineWidth = 1; ctx.textAlign = 'right';
+        [-mx, 0, mx].forEach(v => {
+          ctx.strokeStyle = v === 0 ? '#555' : '#ddd'; ctx.fillStyle = '#666';
+          ctx.beginPath(); ctx.moveTo(padL, yOf(v)); ctx.lineTo(W - padR, yOf(v)); ctx.stroke();
+          ctx.fillText(signed(v), padL - 5, yOf(v));
+        });
+        const colors = { '採用': '#2e7d32', '継続': '#1e6fe0', '巻き戻し': '#c62828', '測定のみ': '#888' };
+        ctx.strokeStyle = '#9ab'; ctx.lineWidth = 1.5; ctx.beginPath();
+        hs.forEach((h, i) => { const y = yOf(eloOf(h.w, h.d, h.l).elo); if (i) ctx.lineTo(xOf(i), y); else ctx.moveTo(xOf(i), y); });
+        ctx.stroke();
+        hs.forEach((h, i) => {
+          const e = eloOf(h.w, h.d, h.l), c = colors[h.verdict] || '#1e6fe0';
+          ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.globalAlpha = .45;
+          ctx.beginPath(); ctx.moveTo(xOf(i), yOf(e.lo)); ctx.lineTo(xOf(i), yOf(e.hi)); ctx.stroke();
+          ctx.globalAlpha = 1; ctx.fillStyle = c;
+          ctx.beginPath(); ctx.arc(xOf(i), yOf(e.elo), 4, 0, Math.PI * 2); ctx.fill();
+        });
+      }
+
+      function renderLearnUI() {
+        document.getElementById('lpTotal').textContent = LEARN.total + '局';
+        document.getElementById('lpCycles').textContent = LEARN.cycles + '回';
+        const last = LEARN.hist[LEARN.hist.length - 1];
+        if (last) {
+          const e = eloOf(last.w, last.d, last.l);
+          document.getElementById('lpStrength').textContent = 'Elo ' + signed(e.elo);
+          document.getElementById('lpStrengthSub').textContent = last.w + '勝 ' + last.d + '分 ' + last.l + '敗(勝率 ' + Math.round(e.p * 100) + '%) / 95%範囲 ' + signed(e.lo) + ' 〜 ' + signed(e.hi) + ' / 元のNNUEとの対局';
+        } else {
+          document.getElementById('lpStrength').textContent = '未測定';
+          document.getElementById('lpStrengthSub').textContent = '「学習開始」または「強さ測定のみ」で測れます(0 = 元のNNUEと同じ強さ)';
+        }
+        document.getElementById('lpBest').textContent = LEARN.best
+          ? '採用済みの補正: 測定時 Elo ' + signed(eloOfP(LEARN.bestScore)) + '(勝率 ' + Math.round(LEARN.bestScore * 100) + '%)。VS AI対局でも使われます。'
+          : '採用済みの補正はまだありません(元のNNUEのまま)';
+        let html = '<table><tr><th>回</th><th>自己対局</th><th>対元NNUE</th><th>Elo</th><th>判定</th></tr>';
+        LEARN.hist.slice(-6).reverse().forEach(h => {
+          html += '<tr><td>' + h.cycle + '</td><td>' + h.games + '局</td><td>' + h.w + '-' + h.d + '-' + h.l + '</td><td>' + signed(eloOf(h.w, h.d, h.l).elo) + '</td><td>' + h.verdict + '</td></tr>';
+        });
+        document.getElementById('lpHist').innerHTML = LEARN.hist.length ? html + '</table>' : '';
+        drawLearnChart();
+        applyPlayAdj();
+      }
+
+      // ---- 自己対局 ----
+      // ランダムな序盤(評価値が互角に近い局面になるまで試す)。手の列を返す。
+      function randomOpening(nPlies) {
+        const saved = ADJ_W; ADJ_W = null;
+        try {
+          for (let tr = 0; tr < 40; tr++) {
+            const p = startPos(), mv = [];
+            let ok = true;
+            for (let i = 0; i < nPlies; i++) {
+              const ls = legal(p, false);
+              if (!ls.length) { ok = false; break; }
+              const m = ls[randInt(ls.length)];
+              mv.push(m); make(p, m);
+            }
+            if (!ok || !hasLegal(p)) continue;
+            if (Math.abs(evalYane(p)) <= 250) return mv;
+          }
+          return [];
+        } finally { ADJ_W = saved; }
+      }
+      function captureFeatures(p) {
+        const base = evalCore(p), x = new Float32Array(2 * L1);
+        for (let k = 0; k < L1; k++) { x[k] = z1[k] / 127; x[L1 + k] = z2[k] / 127; }
+        return { x, base };
+      }
+      // 1局。o = { opening, adj:[先手の補正, 後手の補正], depth, nodes, maxPly, collect, explore, onMove }
+      async function playGame(o) {
+        const p = startPos(), seen = new Map(), samples = [], disp = [];
+        let ply = 0, result = null, endReason = '', streak = { side: -1, n: 0 }, lastSente = 0;
+        for (const m of o.opening) { disp.push(humanMoveStr(p, m)); make(p, m); ply++; }
+        while (result === null) {
+          if (LEARN.stop) return null;
+          if (ply >= o.maxPly) { result = lastSente > 500 ? 1 : lastSente < -500 ? -1 : 0; endReason = '手数上限'; break; }
+          const side = p.side, key = toSfen(p), c = (seen.get(key) || 0) + 1;
+          seen.set(key, c);
+          if (c >= 4) { result = 0; endReason = '千日手'; break; }
+          if (!hasLegal(p)) { result = side === 0 ? -1 : 1; endReason = '詰み'; break; }
+          ADJ_W = o.adj[side];
+          const res = searchFast(p, 8, o.nodes);
+          let mv = res.move;
+          const score = res.score;
+          lastSente = side === 0 ? score : -score;
+          if (o.explore && ply < 40 && Math.random() < 0.12) {
+            const best1 = Math.max.apply(null, res.d1.map(r => r.score));
+            const pool = res.d1.filter(r => r.move !== res.move && r.score >= best1 - 90);
+            if (pool.length) mv = pool[randInt(pool.length)].move;
+          }
+          if (o.collect && ply >= o.opening.length && Math.abs(score) < 1500) {
+            const quiet = !p.b[mv & 127] && !((mv >> 14) & 1) && !attacked(p, p.ks[side], 1 - side);
+            if (quiet) { const f = captureFeatures(p); samples.push({ x: f.x, base: f.base, side, score }); }
+          }
+          if (Math.abs(score) >= 1800) {
+            const win = score > 0 ? side : 1 - side;
+            if (streak.side === win) streak.n++; else streak = { side: win, n: 1 };
+            if (streak.n >= 4) { result = win === 0 ? 1 : -1; endReason = '大差'; break; }
+          } else streak = { side: -1, n: 0 };
+          disp.push(humanMoveStr(p, mv));
+          make(p, mv); ply++;
+          if (o.onMove) await o.onMove(p, disp, ply, score, side);
+          else await sleep0();
+        }
+        return { result, ply, endReason, samples };
+      }
+
+      // 盤面への表示・進行表示(1手ごと)
+      function makeRenderer(names, label, progText) {
+        return async (p, disp, ply, score, side) => {
+          LEARN_VIEW.names = names; LEARN_VIEW.label = label; LEARN_VIEW.ply = ply;
+          setProg(progText() + ' ・' + ply + '手目');
+          updateEvalDisplay(score, side);
+          if (document.getElementById('lpShow').checked) {
+            POS = clonePos(p); SEL = null; HIST = []; MVSTR_DISP = disp.slice();
+            draw();
+          }
+          await sleep0();
+        };
+      }
+
+      // ---- 学習 ----
+      function ensureCand() {
+        if (!LEARN.cand) {
+          LEARN.cand = LEARN.best ? Float64Array.from(LEARN.best) : new Float64Array(ADJ_N);
+          LEARN.adam = { m: new Float64Array(ADJ_N), v: new Float64Array(ADJ_N), t: 0 };
+        }
+      }
+      function finalizeSamples(g) {
+        for (const s of g.samples) {
+          const rs = g.result * (s.side === 0 ? 1 : -1); // 手番側から見た結果(+1勝/0分/-1負)
+          s.t = LEARN_LAMBDA * ((rs + 1) / 2) + (1 - LEARN_LAMBDA) * sigmoid(s.score / EVAL_SCALE);
+        }
+      }
+      function trainSteps(nBatch, bs, lr) {
+        const buf = LEARN.buf;
+        if (buf.length < 32) return 0;
+        const w = LEARN.cand, A = LEARN.adam, g = new Float64Array(ADJ_N), nf = 2 * L1;
+        let loss = 0;
+        for (let it = 0; it < nBatch; it++) {
+          g.fill(0);
+          for (let b = 0; b < bs; b++) {
+            const s = buf[randInt(buf.length)];
+            let a = w[nf];
+            for (let k = 0; k < nf; k++) a += w[k] * s.x[k];
+            const pr = sigmoid((s.base + a) / EVAL_SCALE), d = pr - s.t;
+            loss -= s.t * Math.log(pr + 1e-9) + (1 - s.t) * Math.log(1 - pr + 1e-9);
+            for (let k = 0; k < nf; k++) g[k] += d * s.x[k];
+            g[nf] += d;
+          }
+          A.t++;
+          const c1 = 1 - Math.pow(0.9, A.t), c2 = 1 - Math.pow(0.999, A.t);
+          for (let k = 0; k < ADJ_N; k++) {
+            const gk = g[k] / bs;
+            A.m[k] = 0.9 * A.m[k] + 0.1 * gk;
+            A.v[k] = 0.999 * A.v[k] + 0.001 * gk * gk;
+            w[k] -= lr * (A.m[k] / c1) / (Math.sqrt(A.v[k] / c2) + 1e-8);
+            w[k] *= 1 - 1e-4;
+            const lim = k === nf ? 150 : 400;
+            if (w[k] > lim) w[k] = lim; else if (w[k] < -lim) w[k] = -lim;
+          }
+        }
+        return loss / (nBatch * bs);
+      }
+
+      // ---- 強さ測定: 補正AI vs 元のNNUEのみのAI(同じ序盤で先後入れ替え) ----
+      async function runMatch(candW, cfg, onProgress) {
+        let w = 0, d = 0, l = 0, done = 0;
+        const total = cfg.pairs * 2;
+        for (let i = 0; i < cfg.pairs; i++) {
+          const opening = randomOpening(6);
+          for (let candSide = 0; candSide < 2; candSide++) {
+            const names = candSide === 0 ? ['補正AI', '基準AI(NNUEのみ)'] : ['基準AI(NNUEのみ)', '補正AI'];
+            const t0 = performance.now();
+            const g = await playGame({
+              opening, adj: candSide === 0 ? [candW, null] : [null, candW], nodes: cfg.nodes, maxPly: 200,
+              collect: false, explore: false,
+              onMove: makeRenderer(names, '強さ測定', () => '元のNNUEと対局 ' + (done + 1) + '/' + total + '局目(現在 ' + w + '勝' + d + '分' + l + '敗)')
+            });
+            if (!g) return null;
+            const r = g.result * (candSide === 0 ? 1 : -1);
+            if (r > 0) w++; else if (r < 0) l++; else d++;
+            done++;
+            LEARN.avgSec = LEARN.avgSec ? LEARN.avgSec * 0.8 + (performance.now() - t0) / 1000 * 0.2 : (performance.now() - t0) / 1000;
+            if (onProgress) onProgress(w, d, l, done, total);
+          }
+        }
+        return { w, d, l };
+      }
+
+      function readLearnCfg() {
+        const num = (id, def, lo, hi) => { const v = +document.getElementById(id).value; return Number.isFinite(v) && v > 0 ? Math.min(hi, Math.max(lo, v)) : def; };
+        return { games: Math.round(num('lpGames', 8, 1, 100)), pairs: Math.round(num('lpPairs', 8, 1, 100)), nodes: Math.round(num('lpNodes', 2500, 300, 200000)), lr: num('lpLr', 0.3, 0.01, 5) };
+      }
+
+      async function learnLoop(mode) {
+        if (LEARN.running || !NET) return;
+        LEARN.running = true; LEARN.stop = false;
+        setLearnUI(true);
+        const cfg = readLearnCfg();
+        try {
+          if (mode === 'test') {
+            if (!LEARN.best) { setState('学習済みの補正がまだありません。先に「学習開始」で学習してください。'); return; }
+            setState('強さ測定中(採用済みの補正 vs 元のNNUE)');
+            const r = await runMatch(LEARN.best, cfg);
+            if (!r) { setState('停止しました'); return; }
+            LEARN.hist.push({ cycle: '測', games: LEARN.total, w: r.w, d: r.d, l: r.l, verdict: '測定のみ' });
+            saveLearn(); renderLearnUI();
+            setState('測定が終わりました'); setProg('-');
+            return;
+          }
+          ensureCand();
+          while (!LEARN.stop) {
+            const eta = LEARN.avgSec ? '(目安 約' + Math.max(1, Math.round(LEARN.avgSec * (cfg.games + cfg.pairs * 2) / 60)) + '分)' : '';
+            setState('サイクル' + (LEARN.cycles + 1) + ': 自己対局' + cfg.games + '局 → 強さ測定' + cfg.pairs * 2 + '局 ' + eta);
+            let gi = 0, lastLoss = 0;
+            for (; gi < cfg.games && !LEARN.stop; gi++) {
+              const t0 = performance.now(), cur = gi;
+              const g = await playGame({
+                opening: randomOpening(4 + 2 * randInt(3)), adj: [LEARN.cand, LEARN.cand], nodes: cfg.nodes, maxPly: 220,
+                collect: true, explore: true,
+                onMove: makeRenderer(['学習AI', '学習AI'], '自己対局(学習)', () => '自己対局 ' + (cur + 1) + '/' + cfg.games + '局目')
+              });
+              if (!g) break;
+              finalizeSamples(g);
+              LEARN.buf.push.apply(LEARN.buf, g.samples);
+              if (LEARN.buf.length > 8000) LEARN.buf.splice(0, LEARN.buf.length - 8000);
+              LEARN.total++;
+              lastLoss = trainSteps(40, 64, cfg.lr);
+              LEARN.avgSec = LEARN.avgSec ? LEARN.avgSec * 0.8 + (performance.now() - t0) / 1000 * 0.2 : (performance.now() - t0) / 1000;
+              renderLearnUI();
+              setProg('自己対局 ' + (gi + 1) + '/' + cfg.games + '局が終了(' + g.endReason + '・' + g.ply + '手)・損失 ' + lastLoss.toFixed(3));
+              await sleep0();
+            }
+            if (LEARN.stop) break;
+            setState('サイクル' + (LEARN.cycles + 1) + ': 元のNNUEと対局して強さを測定中');
+            const r = await runMatch(LEARN.cand, cfg);
+            if (!r) break;
+            const e = eloOf(r.w, r.d, r.l);
+            LEARN.cycles++;
+            let verdict = '継続';
+            if (e.p > LEARN.bestScore) { LEARN.best = Float64Array.from(LEARN.cand); LEARN.bestScore = e.p; verdict = '採用'; }
+            else if (e.p < LEARN.bestScore - 0.15) {
+              LEARN.cand = LEARN.best ? Float64Array.from(LEARN.best) : new Float64Array(ADJ_N);
+              LEARN.adam = { m: new Float64Array(ADJ_N), v: new Float64Array(ADJ_N), t: 0 };
+              verdict = '巻き戻し';
+            }
+            LEARN.hist.push({ cycle: LEARN.cycles, games: LEARN.total, w: r.w, d: r.d, l: r.l, verdict });
+            saveLearn(); renderLearnUI();
+            setProg('サイクル' + LEARN.cycles + ' 完了: ' + r.w + '勝' + r.d + '分' + r.l + '敗 → ' + verdict);
+          }
+          setState('停止しました');
+        } catch (err) {
+          log('ERROR(AI学習) ' + err.message);
+          setState('エラー: ' + err.message);
+        } finally {
+          LEARN.running = false; LEARN.stop = false;
+          saveLearn(); renderLearnUI();
+          setLearnUI(false);
+        }
+      }
+
+      document.getElementById('btnLearnStart').onclick = () => { LEARN.promise = learnLoop('train'); };
+      document.getElementById('btnLearnTest').onclick = () => { LEARN.promise = learnLoop('test'); };
+      document.getElementById('btnLearnStop').onclick = () => { LEARN.stop = true; setState('停止中…(いま読んでいる1手が終わるまでお待ちください)'); };
+      document.getElementById('btnLearnReset').onclick = async () => {
+        if (LEARN.running) return;
+        if (!(await askDialog('学習した補正と記録をすべて消して、元のNNUEに戻しますか?', '消す', 'キャンセル'))) return;
+        Object.assign(LEARN, { best: null, cand: null, adam: null, buf: [], hist: [], total: 0, cycles: 0, bestScore: 0.5, avgSec: 0 });
+        try { localStorage.removeItem(LEARN_KEY); } catch (e) { /* 無視 */ }
+        renderLearnUI(); setState('リセットしました'); setProg('-');
+      };
+      document.getElementById('useLearned').addEventListener('change', () => { applyPlayAdj(); if (NET && !isLearnMode()) showEval(true); });
+
+      // ===================== 棋譜(.kif)出力 =====================
+      const KIF_PIECE = ['', '歩', '香', '桂', '銀', '角', '飛', '金', '玉', 'と', '成香', '成桂', '成銀', '馬', '龍'];
+      const KIF_BOD = ['', '歩', '香', '桂', '銀', '角', '飛', '金', '玉', 'と', '杏', '圭', '全', '馬', '龍'];
+      const ZEN = '０１２３４５６７８９', KAN = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+      let KIF_END = ''; // 終局の理由(詰み/投了/切れ負け)。gameOverのときだけ使う
+      const kanNum = n => n < 10 ? KAN[n] : '十' + (n > 10 ? KAN[n - 10] : '');
+      const kifSq = s => ZEN[((s / 9) | 0) + 1] + KAN[(s % 9) + 1];
+      function kifHand(p, side) {
+        const parts = [];
+        for (const t of SFEN_HAND_ORDER) { const n = p.h[side][t]; if (n > 0) parts.push(KIF_BOD[t] + (n > 1 ? kanNum(n) : '')); }
+        return parts.length ? parts.join('　') : 'なし';
+      }
+      function kifBoard(p) {
+        const lines = ['後手の持駒：' + kifHand(p, 1), '  ９ ８ ７ ６ ５ ４ ３ ２ １', '+---------------------------+'];
+        for (let r = 0; r < 9; r++) {
+          let row = '|';
+          for (let f = 8; f >= 0; f--) {
+            const v = p.b[f * 9 + r];
+            row += !v ? ' ・' : (v < 0 ? 'v' : ' ') + KIF_BOD[Math.abs(v)];
+          }
+          lines.push(row + '|' + KAN[r + 1]);
+        }
+        lines.push('+---------------------------+', '先手の持駒：' + kifHand(p, 0));
+        return lines;
+      }
+      function buildKif() {
+        const start = HIST.length ? HIST[0] : POS;
+        const d = new Date(), two = n => (n < 10 ? '0' : '') + n;
+        const out = ['# KIF version=2.0 encoding=UTF-8',
+          '開始日時：' + d.getFullYear() + '/' + two(d.getMonth() + 1) + '/' + two(d.getDate()) + ' ' + two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds())];
+        if (toSfen(start) === toSfen(startPos())) out.push('手合割：平手');
+        else { out.push('手合割：その他'); kifBoard(start).forEach(l => out.push(l)); if (start.side === 1) out.push('後手番'); }
+        out.push('先手：' + playerName(0), '後手：' + playerName(1), '手数----指手---------消費時間--');
+        const p = clonePos(start);
+        let prevTo = -1, n = 0;
+        for (const s of MVSTR) {
+          const m = legal(p, false).find(x => mstr(x) === s);
+          if (m === undefined) break;
+          n++;
+          const to = m & 127, from = (m >> 7) & 127, dr = m >> 15, pro = (m >> 14) & 1;
+          let txt = to === prevTo ? '同　' : kifSq(to);
+          if (dr) txt += KIF_PIECE[dr] + '打';
+          else txt += KIF_PIECE[Math.abs(p.b[from])] + (pro ? '成' : '') + '(' + jpSq(from) + ')';
+          out.push(String(n).padStart(4) + ' ' + txt);
+          prevTo = to; make(p, m);
+        }
+        if (gameOver && KIF_END) out.push(String(n + 1).padStart(4) + ' ' + KIF_END);
+        return out.join('\n') + '\n';
+      }
+      function refreshKif() { document.getElementById('kifText').value = MVSTR.length ? buildKif() : ''; }
+      function saveKif() {
+        if (!MVSTR.length) { document.getElementById('status').textContent = '棋譜がまだありません(1手以上指してください)'; return; }
+        const d = new Date(), two = n => (n < 10 ? '0' : '') + n;
+        const name = 'shogi_' + d.getFullYear() + two(d.getMonth() + 1) + two(d.getDate()) + '_' + two(d.getHours()) + two(d.getMinutes()) + two(d.getSeconds()) + '.kif';
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([buildKif()], { type: 'text/plain;charset=utf-8' }));
+        a.download = name;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        document.getElementById('status').textContent = '棋譜を保存しました: ' + name;
+      }
+      async function copyKif() {
+        if (!MVSTR.length) return;
+        const text = buildKif(), ta = document.getElementById('kifText');
+        refreshKif();
+        try { await navigator.clipboard.writeText(text); }
+        catch (e) { ta.focus(); ta.select(); try { document.execCommand('copy'); } catch (e2) { /* 手動コピー */ } }
+        document.getElementById('status').textContent = '棋譜(KIF)をコピーしました';
+      }
+      document.getElementById('btnKif').onclick = saveKif;
+      document.getElementById('btnKifSave').onclick = saveKif;
+      document.getElementById('btnKifCopy').onclick = copyKif;
+      document.getElementById('btnAnalysis').onclick = () => { refreshKif(); document.getElementById('analysis').classList.add('open'); };
+      document.getElementById('btnAnClose').onclick = () => { document.getElementById('analysis').classList.remove('open'); };
+
+      // ===================== 一画面に収める(盤の大きさを自動調整) =====================
+      // 画面の幅・高さから盤のマスの大きさ(--cs)を計算する。右パネルは「盤の横」か「盤の下」のうち盤を大きくできる方に置く。
+      function fitLayout() {
+        const main = document.getElementById('main');
+        const W = main.clientWidth, H = main.clientHeight;
+        if (!W || !H) return;
+        const learn = isLearnMode(), rows = 2 * 28 + 12, gap = 14;
+        const panelW = learn ? 400 : 240, panelH = learn ? Math.round(H * 0.38) : (W < 600 ? 120 : 190);
+        const csSide = Math.min((W - panelW - gap - 20) / 11.5, (H - rows) / 9);
+        const csStack = Math.min((W - 20) / 11.5, (H - panelH - 8 - rows) / 9);
+        const side = csSide >= csStack;
+        const cs = Math.floor(Math.max(16, Math.min(120, side ? csSide : csStack)));
+        main.classList.toggle('side', side); main.classList.toggle('stack', !side);
+        document.getElementById('rightPanel').style.height = side ? '' : panelH + 'px';
+        document.documentElement.style.setProperty('--cs', cs + 'px');
+        drawHintArrows();
+      }
+      window.addEventListener('resize', fitLayout);
+      window.addEventListener('orientationchange', () => setTimeout(fitLayout, 200));
+      if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fitLayout).observe(document.getElementById('main'));
 
       document.getElementById('editSide').onchange = () => {
         if (isEditing && EDIT_POS) {
@@ -1542,12 +2191,13 @@
 
       document.getElementById('btnNew').onclick = async () => {
         await stopThinking();
+        rerollSide();
         gameOver = false; clearHint(); resetClocks();
         POS = startPos(); SEL = null; HIST = []; MVSTR = []; MVSTR_DISP = []; EVAL_HIST = []; MOVE_RECORDS = [];
         resetPhaseProbs();
         document.getElementById('lastMoveStr').textContent = '-';document.getElementById('lastMoveRank').textContent = '-';
         draw();
-        document.getElementById('status').textContent = '初期局面をセットしました';
+        document.getElementById('status').textContent = '初期局面をセットしました' + sideNote();
         showEval(isAITurn()).then(() => maybeAI());
       };
 
@@ -1561,7 +2211,7 @@
         if (!HIST.length || isEditing) return;
         let n = 2;
         if (document.getElementById('gameMode').value === 'vs_ai') {
-          const hs = +document.getElementById('humanSide').value;
+          const hs = humanSideNow();
           if (hs !== 2) n = (POS.side === hs) ? 2 : 1;
         }
         n = Math.min(n, HIST.length);
@@ -1644,6 +2294,7 @@
         });
       }
       function handClickPlay(side, t) {
+        if (isLearnMode()) return;
         if (isThinking) {
           thinkAbort = true;
           document.getElementById('status').textContent = '思考を中断しています…';
@@ -1658,7 +2309,8 @@
 
       // 名前・手番・手数・時計の表示
       function playerName(side) {
-        const mode = document.getElementById('gameMode').value, hs = +document.getElementById('humanSide').value;
+        if (isLearnMode()) return LEARN_VIEW.names[side];
+        const mode = document.getElementById('gameMode').value, hs = humanSideNow();
         if (mode !== 'vs_ai') return 'プレイヤー';
         if (hs === 2) return 'AI';
         return side === hs ? 'あなた' : 'AI';
@@ -1669,6 +2321,10 @@
         document.getElementById('nameBottom').textContent = (bottomSide === 0 ? '先手' : '後手') + ': ' + playerName(bottomSide);
         document.getElementById('turnText').textContent = isEditing ? '局面編集中' : gameOver ? '終局' : (p.side === 0 ? '先手' : '後手') + '番です';
         document.getElementById('plyText').textContent = isEditing ? '' : (HIST.length + 1) + '手目';
+        if (isLearnMode()) {
+          document.getElementById('turnText').textContent = LEARN_VIEW.label || '学習モード';
+          document.getElementById('plyText').textContent = LEARN_VIEW.ply ? LEARN_VIEW.ply + '手目' : '';
+        }
         updateClockDisplay();
       }
       function fmtClock(ms) {
@@ -1682,7 +2338,7 @@
         const show = side => fmtClock(lim ? lim - CLOCK[side] : CLOCK[side]);
         const top = document.getElementById('clockTop'), bot = document.getElementById('clockBottom');
         top.textContent = show(topSide); bot.textContent = show(bottomSide);
-        const running = !!NET && !isEditing && !gameOver;
+        const running = !!NET && !isEditing && !gameOver && !isLearnMode();
         top.classList.toggle('active', running && POS.side === topSide);
         bot.classList.toggle('active', running && POS.side === bottomSide);
       }
@@ -1690,11 +2346,11 @@
       setInterval(() => {
         const now = performance.now(), dt = Math.min(now - lastTick, 1000);
         lastTick = now;
-        if (NET && !isEditing && !gameOver) {
+        if (NET && !isEditing && !gameOver && !isLearnMode()) {
           CLOCK[POS.side] += dt;
           const lim = timeLimitMs();
           if (lim && CLOCK[POS.side] >= lim) {
-            gameOver = true; clearHint(); stopThinking();
+            gameOver = true; KIF_END = '切れ負け'; clearHint(); stopThinking();
             document.getElementById('status').textContent = (POS.side === 0 ? '先手' : '後手') + 'の時間切れ: ' + (POS.side === 0 ? '後手' : '先手') + 'の勝ち';
             draw();
           }
@@ -1761,13 +2417,13 @@
       }
       async function doResign() {
         if (isEditing || gameOver) return;
-        const mode = document.getElementById('gameMode').value, hs = +document.getElementById('humanSide').value;
+        const mode = document.getElementById('gameMode').value, hs = humanSideNow();
         if (mode === 'vs_ai' && hs === 2) { document.getElementById('status').textContent = '見学中は投了できません'; return; }
         const loser = mode === 'vs_ai' ? hs : POS.side;
         const name = loser === 0 ? '先手' : '後手';
         if (!(await askDialog(name + 'が投了しますか?', '投了する', 'キャンセル'))) return;
         await stopThinking();
-        gameOver = true; clearHint();
+        gameOver = true; KIF_END = '投了'; clearHint();
         document.getElementById('status').textContent = name + 'の投了により' + (loser === 0 ? '後手' : '先手') + 'の勝ち';
         draw();
       }
@@ -1783,13 +2439,35 @@
       const NN_CACHE = 'shogi-nn-v1';
       let NN_RAW = null;
 
+      // ===================== nn.bin 読込状況の表示 =====================
+      function setNNBanner(kind, msg, sub, pct) {
+        const el = document.getElementById('nnBanner'), fill = document.getElementById('nnBarFill');
+        el.className = kind;
+        el.style.display = '';
+        document.getElementById('nnMsg').textContent = msg;
+        document.getElementById('nnSub').textContent = sub || '';
+        document.getElementById('nnBar').style.display = kind === 'busy' ? '' : 'none';
+        if (pct === null || pct === undefined) { fill.classList.add('indet'); fill.style.width = ''; }
+        else { fill.classList.remove('indet'); fill.style.width = pct + '%'; }
+        document.getElementById('nnRetry').style.display = kind === 'err' ? '' : 'none';
+        document.getElementById('nnVeil').textContent = kind === 'err' ? 'nn.bin が未読込です' : 'nn.bin 読み込み中… お待ちください';
+      }
+      function setNNReady(ready) {
+        document.body.classList.toggle('nn-ready', ready);
+        ['btnNew', 'btnAI', 'btnHint'].forEach(id => { document.getElementById(id).disabled = !ready; });
+        setLearnUI(LEARN.running);
+      }
+
       function applyNN(buf, label) {
         NET = loadNNUE(buf, document.getElementById('simd').value);
         NN_RAW = buf;
         const e0 = evalYane(startPos());
         document.getElementById('loadstat').textContent = label + ' 読込完了(' + (NET.isLeb ? 'LEB128' : '標準') + ') 初期評価値=' + e0.toFixed(0) + 'cp';
         log('NNUE loaded (' + label + '): e0=' + e0.toFixed(0));
-        document.getElementById('status').textContent = '準備完了 ― 「開始」を押してください';
+        setNNReady(true);
+        setNNBanner('ok', 'nn.bin の読み込みが完了しました ✓', label + ' / 初期局面の評価値 ' + e0.toFixed(0) + 'cp', 100);
+        setTimeout(() => { const bn = document.getElementById('nnBanner'); if (bn.className === 'ok') bn.style.display = 'none'; }, 5000);
+        document.getElementById('status').textContent = isLearnMode() ? 'AI学習モード: 「学習開始」で自己対局を始めます' : '準備完了 ― 「開始」を押してください' + sideNote();
         resetClocks();
         showEval();
       }
@@ -1811,6 +2489,9 @@
       }
       async function autoLoadNN() {
         const st = document.getElementById('loadstat'), status = document.getElementById('status');
+        setNNReady(false);
+        setNNBanner('busy', 'nn.bin を読み込み中…', '評価関数ファイルを確認しています。完了するまで対局・学習はできません。', null);
+        status.textContent = 'nn.bin を読み込み中です。完了までお待ちください…';
         try {
           let buf = null, fromCache = false;
           try {
@@ -1823,9 +2504,12 @@
             let lastErr = null;
             for (const u of NN_URLS) {
               try {
+                setNNBanner('busy', 'nn.bin をダウンロード中…', '接続しています(初回のみ。次回からは端末に保存したファイルを使います)', null);
                 buf = await fetchWithProgress(u, (g, t) => {
-                  const msg = 'nn.bin 取得中 ' + Math.floor(g * 100 / t) + '% (' + (g / 1048576).toFixed(1) + '/' + (t / 1048576).toFixed(1) + 'MB)';
-                  st.textContent = msg; status.textContent = msg;
+                  const pct = Math.floor(g * 100 / t), mb = (g / 1048576).toFixed(1) + ' / ' + (t / 1048576).toFixed(1) + ' MB';
+                  setNNBanner('busy', 'nn.bin をダウンロード中 ' + pct + '%', mb + '(初回のみ。次回からは端末に保存したファイルを使います)', pct);
+                  st.textContent = 'ダウンロード中 ' + pct + '%';
+                  status.textContent = 'nn.bin をダウンロード中 ' + pct + '% … 完了までお待ちください';
                 });
                 break;
               } catch (e) { lastErr = e; }
@@ -1833,27 +2517,33 @@
             if (!buf) throw lastErr || new Error('取得失敗');
             try { if (window.caches) { const c = await caches.open(NN_CACHE); await c.put('nn.bin', new Response(buf)); } } catch (e) { /* 保存できなくても動作する */ }
           }
-          st.textContent = '解析中…';
-          await new Promise(r => setTimeout(r, 30));
+          setNNBanner('busy', 'nn.bin を解析中…', '数秒かかります。この間は画面が止まって見えることがあります。', null);
+          st.textContent = '解析中…'; status.textContent = 'nn.bin を解析中です…';
+          await new Promise(r => setTimeout(r, 50));
           applyNN(buf, fromCache ? '保存済みnn.bin' : 'MathotaGamma/statics');
         } catch (err) {
           st.textContent = 'nn.binの自動取得に失敗: ' + err.message + '(設定から手動で読み込めます)';
           status.textContent = 'nn.binを読み込んでください(設定 → 評価関数)';
+          setNNBanner('err', 'nn.bin の読み込みに失敗しました', err.message + ' ― 「再試行」を押すか、設定 → 評価関数 から手動で読み込んでください。', null);
           log('ERROR(nn.bin取得) ' + err.message);
         }
       }
+      document.getElementById('nnRetry').onclick = () => autoLoadNN();
       document.getElementById('nnfile').onchange = async e => {
         const f = e.target.files[0]; if (!f) return;
         document.getElementById('loadstat').textContent = '読込中…';
-        try { applyNN(await f.arrayBuffer(), f.name); }
-        catch (err) { document.getElementById('loadstat').textContent = 'エラー: ' + err.message; log('ERROR ' + err.message); }
+        setNNBanner('busy', f.name + ' を読み込み中…', '解析に数秒かかります。', null);
+        try { const ab = await f.arrayBuffer(); await new Promise(r => setTimeout(r, 50)); applyNN(ab, f.name); }
+        catch (err) { document.getElementById('loadstat').textContent = 'エラー: ' + err.message; setNNBanner('err', 'ファイルを解析できませんでした', err.message, null); log('ERROR ' + err.message); }
       };
       document.getElementById('simd').onchange = () => {
-        if (NN_RAW) { try { applyNN(NN_RAW, '再解析'); } catch (err) { document.getElementById('loadstat').textContent = 'エラー: ' + err.message; } }
+        if (!NN_RAW) return;
+        setNNBanner('busy', 'nn.bin を再解析中…', '', null);
+        setTimeout(() => { try { applyNN(NN_RAW, '再解析'); } catch (err) { document.getElementById('loadstat').textContent = 'エラー: ' + err.message; setNNBanner('err', '再解析に失敗しました', err.message, null); } }, 50);
       };
 
       // ===================== 設定の保存/復元 =====================
-      const PERSIST_IDS = ['depth', 'movems', 'gameMode', 'humanSide', 'showCands', 'showBar', 'viewSel', 'timeLimit', 'bookEnabled'];
+      const PERSIST_IDS = ['depth', 'movems', 'humanSide', 'showCands', 'showBar', 'viewSel', 'timeLimit', 'bookEnabled', 'useLearned', 'lpGames', 'lpPairs', 'lpNodes', 'lpLr', 'lpShow']; // gameModeは保存せず、起動時は常にVS AI
       function saveSettings() {
         try {
           const o = {};
@@ -1875,10 +2565,13 @@
       PERSIST_IDS.forEach(id => document.getElementById(id).addEventListener('change', () => {
         saveSettings();
         if (id === 'showCands' || id === 'showBar') { applyDisplaySettings(); showEval(true); }
-        if (id === 'viewSel' || id === 'humanSide' || id === 'gameMode' || id === 'timeLimit') { clearHint(); draw(); }
+        if (id === 'humanSide') rerollSide();
+        if (id === 'viewSel' || id === 'humanSide' || id === 'timeLimit') { clearHint(); draw(); }
+        if (id === 'humanSide') maybeAI();
       }));
       applyDisplaySettings();
 
+      loadLearn(); renderLearnUI();
       document.getElementById('gameMode').onchange();
       document.getElementById('josekiFile').onchange = async e => {
         const f = e.target.files[0]; if (!f) return;
@@ -1892,11 +2585,14 @@
         menuPanel.style.display = menuPanel.style.display === 'block' ? 'none' : 'block';
       };
       document.getElementById('btnMenuClose').onclick = () => { menuPanel.style.display = 'none'; };
+      // メニュー内のボタン(AIに指させる・投了など)を押したらメニューを閉じる
+      menuPanel.addEventListener('click', e => { if (e.target.closest('button') && e.target.id !== 'btnMenuClose') menuPanel.style.display = 'none'; });
       document.addEventListener('click', e => {
         if (menuPanel.style.display === 'block' && !menuPanel.contains(e.target) && e.target.id !== 'btnMenu') {
           menuPanel.style.display = 'none';
         }
       });
+      fitLayout();
       draw();
       autoLoadNN();
     </script>
