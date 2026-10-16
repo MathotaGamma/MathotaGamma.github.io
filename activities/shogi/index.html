@@ -3,200 +3,242 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>やねうら王NNUE将棋 (研究/ローカル対戦 & 局面編集対応)</title>
+    <title>将棋場</title>
     <style>
-      body { font-family: sans-serif; margin: 8px; max-width: 920px; background: #fafafa; color: #222; }
-      fieldset { margin: 6px 0; padding: 6px 10px; }
-      label { display: inline-block; margin: 2px 8px 2px 0; font-size: 13px; }
-      input[type=number] { width: 70px; }
-      button { padding: 6px 12px; margin: 2px; font-size: 14px; cursor: pointer; }
-      #board { display: grid; grid-template-columns: repeat(9, 34px); grid-template-rows: repeat(9, 36px); border: 2px solid #630; background: #e8c27a; width: 306px; }
-      .c { border: 1px solid #a80; display: flex; align-items: center; justify-content: center; font-size: 21px; box-sizing: border-box; cursor: pointer; user-select: none; }
+      :root { --cs: clamp(30px, min(7.2vw, 9.2vh), 50px); --hw: calc(var(--cs) * 1.5); }
+      * { box-sizing: border-box; }
+      body { font-family: sans-serif; margin: 0; background: #f6f3ee; color: #222; }
+      button { cursor: pointer; font-family: inherit; }
+      #app { max-width: 1120px; margin: 0 auto; padding: 6px 10px 24px; }
+      #hdr { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      #title { font-size: 30px; margin: 0; font-weight: 500; letter-spacing: 2px; }
+      #modeBadge { font-size: 11px; background: #ddd; border-radius: 4px; padding: 2px 6px; margin-left: 6px; vertical-align: middle; }
+      #topBtns { flex: 1; display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+      #topBtns button { font-size: 16px; padding: 7px 14px; border: 1px solid #777; border-radius: 6px; background: #fff; }
+      #topBtns button:active { background: #e8e8e8; }
+      #settingsWrap { position: relative; margin-left: auto; }
+      #btnMenu { width: min(240px, 42vw); text-align: left; font-size: 16px; padding: 8px 12px; border: 2px solid #222; background: #fff; border-radius: 4px; }
+      #menuPanel { display: none; position: absolute; top: calc(100% + 4px); right: 0; width: min(360px, 92vw); max-height: 78vh; overflow: auto; background: #fff; border: 1px solid #bbb; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); padding: 6px 12px 10px; z-index: 900; }
+      #menuPanel section { border-top: 1px solid #eee; padding: 6px 0; }
+      #menuPanel h4 { margin: 2px 0 6px; font-size: 13px; color: #444; }
+      .menu-head { display: flex; justify-content: space-between; align-items: center; }
+      .menu-row { display: block; margin: 5px 0; font-size: 14px; }
+      input[type=number] { width: 80px; }
+      #status { font-size: 14px; font-weight: bold; margin: 6px 2px; min-height: 20px; }
+      #editBar { margin: 4px 0; }
+      #main { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; margin-top: 4px; }
+      #leftInfo { width: 120px; align-self: center; }
+      #turnText { font-size: 22px; }
+      #plyText { font-size: 15px; margin: 6px 0 0 14px; }
+      #boardZone { display: grid; grid-template-columns: var(--hw) calc(var(--cs) * 9 + 4px) var(--hw);
+        grid-template-areas: "tc tn ." "ht bd hb" ". bn bc"; column-gap: 8px; row-gap: 6px; }
+      .clock { border: 2px solid #222; background: #fff; text-align: center; font-size: 15px; padding: 2px 4px; font-variant-numeric: tabular-nums; }
+      .clock.active { background: #fff3c4; border-color: #d08a00; }
+      .pname { font-size: 18px; align-self: center; }
+      #clockTop { grid-area: tc; } #nameTop { grid-area: tn; }
+      #nameBottom { grid-area: bn; } #clockBottom { grid-area: bc; align-self: start; }
+      .handbox { border: 2px solid #222; background: #fff; height: calc(var(--cs) * 5.2); overflow: auto; padding: 3px; display: flex; flex-direction: column; gap: 2px; }
+      #handBoxTop { grid-area: ht; align-self: start; } #handBoxBottom { grid-area: hb; align-self: end; }
+      .hand-cap { font-size: 10px; color: #999; text-align: center; }
+      .hp { border: 1px solid #999; padding: 2px 4px; border-radius: 4px; background: #fbf6e8; cursor: pointer; font-size: calc(var(--cs) * 0.46); text-align: center; user-select: none; }
+      .hp.sel { background: #ff8; border-color: #c90; }
+      .hp.edit-sel { background: #fca; border: 2px solid #f60; }
+      .hp.dim { opacity: .55; cursor: default; }
+      #board { grid-area: bd; position: relative; display: grid; grid-template-columns: repeat(9, var(--cs)); grid-template-rows: repeat(9, var(--cs)); border: 2px solid #222; background: #e8c27a; }
+      .c { border: 1px solid #222; display: flex; align-items: center; justify-content: center; font-size: calc(var(--cs) * 0.6); cursor: pointer; user-select: none; }
       .c.w { transform: rotate(180deg); }
       .c.pr { color: #c00; }
       .c.sel { background: #ff8; }
       .c.legal-target { background: #8f8; }
-      .c.edit-sel { background: #fca; border: 2px solid #f60; }
-      #row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
-      #handArea { margin: 6px 0; }
-      .hp { border: 1px solid #999; padding: 2px 6px; border-radius: 4px; background: #fff; cursor: pointer; font-size: 15px; display: inline-block; margin: 2px; }
-      .hp.sel { background: #ff8; }
-      .hp.edit-sel { background: #fca; border: 2px solid #f60; }
-
+      .c.edit-sel { background: #fca; outline: 2px solid #f60; outline-offset: -2px; }
+      .edit-board { background-color: #fff0cf !important; border-color: #e67e22 !important; }
+      #hintSvg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+      #rightPanel { flex: 1; min-width: 240px; max-width: 340px; }
+      #evalBlock { margin-bottom: 14px; }
+      .eval-title { display: flex; justify-content: space-between; align-items: baseline; }
+      .eval-title b { font-size: 24px; font-weight: 500; }
+      #evalBar { display: flex; height: 24px; border: 2px solid #222; background: #ff7a1a; }
+      #evalSente { background: #0bc0df; width: 50%; transition: width .25s; }
+      #evalText { text-align: center; font-size: 18px; margin-top: 6px; }
+      #bookBadge { display: none; font-weight: bold; color: #fff; background: #2e7d32; padding: 2px 8px; border-radius: 4px; margin: 0 0 6px; }
+      #candBox { border: 2px solid #222; background: #fff; min-height: 190px; padding: 6px 8px; }
+      .hidden-note { font-size: 13px; color: #666; line-height: 1.6; }
+      #cand table { border-collapse: collapse; font-size: 13px; width: 100%; }
+      #cand td, #cand th { border-bottom: 1px solid #ddd; padding: 3px 4px; text-align: left; }
+      #cand td:last-child, #cand th:last-child { text-align: right; }
+      #cand tr.best td { font-weight: bold; color: #b71c1c; }
+      #cand tr.worst td { color: #6a1b9a; }
+      #analysis { margin-top: 14px; border-top: 1px solid #ccc; padding-top: 6px; }
+      #analysis summary { cursor: pointer; font-weight: bold; padding: 4px 0; }
       #moveAnalysis { border: 1px solid #4a90e2; background: #eef6ff; padding: 6px 10px; border-radius: 4px; margin: 6px 0; font-size: 13px; }
       #moveAnalysis .rank-best { color: #27ae60; font-weight: bold; }
       #moveAnalysis .rank-bad { color: #e74c3c; font-weight: bold; }
       #moveAnalysis .rank-worst { color: #8e44ad; font-weight: bold; background: #f3e5f5; padding: 1px 4px; border-radius: 3px; }
-
       #skillScoreCard { border: 1px solid #27ae60; background: #f0fff4; padding: 8px 10px; border-radius: 4px; margin: 6px 0; font-size: 13px; }
       .skill-table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 12px; }
       .skill-table th, .skill-table td { border: 1px solid #b7e4c7; padding: 3px 6px; text-align: center; }
       .skill-table th { background: #d8f3dc; }
-
-      #cand table { border-collapse: collapse; font-size: 12px; width: 100%; }
-      #cand td, #cand th { border: 1px solid #ccc; padding: 2px 6px; text-align: right; }
-      #cand th { background: #f0f0f0; }
-      #cand tr.worst { background: #fee; }
-      #cand tr.best { background: #efe; }
-      pre { background: #111; color: #9f9; padding: 6px; font-size: 11px; height: 100px; overflow: auto; margin: 4px 0; }
-      #note { font-size: 11px; color: #555; }
-
       #graphContainer { margin-top: 10px; border: 1px solid #ccc; background: #fff; padding: 8px; border-radius: 4px; }
       #evalGraph { width: 100%; height: 120px; display: block; }
-
-      .edit-board { border: 2px solid #e67e22 !important; background-color: #fff8e7 !important; }
+      pre { background: #111; color: #9f9; padding: 6px; font-size: 11px; height: 100px; overflow: auto; margin: 4px 0; }
       .edit-only { display: none; }
       .editing .edit-only { display: inline-block; }
-      .editing .non-edit { display: none; }
+      .editing .non-edit { display: none !important; }
       .ai-only { display: block; }
       .mode-study .ai-only { display: none; }
-      #modeBadge { font-weight: bold; padding: 2px 6px; border-radius: 4px; background: #ddd; font-size: 12px; margin-left: 8px; }
-
-      #topbar { display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:#fafafa; z-index:800; padding:4px 0; }
-      #btnMenu { font-size:22px; padding:2px 12px; line-height:1.2; }
-      #menuPanel { display:none; position:fixed; top:46px; right:8px; width:min(340px,92vw); max-height:80vh; overflow:auto; background:#fff; border:1px solid #bbb; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.25); padding:6px 12px 10px; z-index:900; }
-      #menuPanel section { border-top:1px solid #eee; padding:6px 0; }
-      #menuPanel h4 { margin:2px 0 6px; font-size:13px; color:#444; }
-      .menu-head { display:flex; justify-content:space-between; align-items:center; }
-      .menu-row { display:block; margin:5px 0; }
-      #mainControls { margin:6px 0; }
-      #bookBadge { display:none; font-weight:bold; color:#fff; background:#2e7d32; padding:2px 8px; border-radius:4px; margin:4px 0; }
+      @media (max-width: 860px) {
+        #leftInfo { width: 100%; display: flex; gap: 14px; align-items: baseline; }
+        #plyText { margin: 0; }
+        #rightPanel { max-width: none; width: 100%; }
+      }
     </style>
   </head>
   <body>
     <div id="promoteModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
       <div style="background:#fff; padding:20px 24px; border-radius:10px; text-align:center; box-shadow:0 4px 16px rgba(0,0,0,0.3);">
-        <div style="margin-bottom:14px; font-size:16px; font-weight:bold;">成りますか?</div>
+        <div id="promoteText" style="margin-bottom:14px; font-size:16px; font-weight:bold;">成りますか?</div>
         <button type="button" id="btnPromoteYes" style="margin:4px; padding:10px 24px; font-size:15px;">成る</button>
         <button type="button" id="btnPromoteNo" style="margin:4px; padding:10px 24px; font-size:15px;">成らない</button>
       </div>
     </div>
-    <div id="topbar">
-      <h3 style="margin:0">やねうら王NNUE将棋 <span id="modeBadge">研究/ローカル対戦</span></h3>
-      <button type="button" id="btnMenu" aria-label="メニュー">☰</button>
-    </div>
 
-    <div id="menuPanel">
-      <div class="menu-head"><b>メニュー</b><button type="button" id="btnMenuClose">✕</button></div>
-      <section>
-        <h4>評価関数</h4>
-        <label class="menu-row">nn.bin: <input type="file" id="nnfile" accept=".bin"></label>
-        <label class="menu-row">重み配置想定:
-          <select id="simd">
-            <option value="none">スクランブルなし(推奨・検証済み)</option>
-            <option value="avx2">AVX2風スクランブル</option>
-            <option value="avx512">AVX512風スクランブル</option>
-          </select>
-        </label>
-        <div id="loadstat" style="font-weight:bold"></div>
-        <div id="note">※nn.binはやねうら王配布物または自前で用意したものをご利用ください。</div>
-      </section>
-      <section>
-        <h4>定跡</h4>
-        <label class="menu-row">定跡ファイル(.db): <input type="file" id="josekiFile"></label>
-        <label class="menu-row"><input type="checkbox" id="bookEnabled" checked> 定跡を使う(定跡内なら思考せずに指す)</label>
-        <div id="josekiStatus" style="font-size:12px">定跡ファイル未読込</div>
-      </section>
-      <section>
-        <h4>思考設定</h4>
-        <label class="menu-row">探索深さ <input type="number" id="depth" value="4" min="1" max="20"></label>
-        <label class="menu-row">1手思考ms <input type="number" id="movems" value="800" min="50" step="50"></label>
-      </section>
-      <section>
-        <h4>対局モード</h4>
-        <label class="menu-row">動作モード:
-          <select id="gameMode">
-            <option value="study">研究 / ローカル対戦 (1台で交代で指す)</option>
-            <option value="vs_ai">VS AI対局 (対コンピュータ)</option>
-          </select>
-        </label>
-        <label class="menu-row ai-only">人間手番:
-          <select id="humanSide"><option value="0">先手</option><option value="1">後手</option><option value="2">見学(AI同士)</option></select>
-        </label>
-      </section>
-      <section>
-        <h4>その他</h4>
-        <button type="button" id="btnEditStart" class="non-edit" style="background:#e67e22; color:#fff;">局面編集モードへ</button>
-      </section>
-    </div>
-
-    <div id="mainControls">
-      <button id="btnNew" class="non-edit">開始</button>
-      <button id="btnAI" class="non-edit">AIに指させる</button>
-      <button id="btnUndo" class="non-edit">2手戻る</button>
-
-      <label class="edit-only">編集中の手番:
-        <select id="editSide">
-          <option value="0">先手番</option>
-          <option value="1">後手番</option>
-        </select>
-      </label>
-      <button id="btnEditApply" class="edit-only" style="background:#27ae60; color:#fff; font-weight:bold;">決定 (研究/対戦に反映)</button>
-      <button id="btnEditCancel" class="edit-only">キャンセル</button>
-      <button id="btnEditReset" class="edit-only">平手初期化</button>
-    </div>
-
-    <div id="status" style="font-weight:bold;margin:6px 0">nn.binを読み込んでください</div>
-
-    <div id="row">
-      <div>
-        <div id="hw" style="font-size:13px;height:24px"></div>
-        <div id="board"></div>
-        <div id="hb" style="font-size:13px;height:24px"></div>
-        <div id="handArea"></div>
+    <div id="app">
+      <div id="hdr">
+        <h1 id="title">将棋場<span id="modeBadge">研究/ローカル対戦</span></h1>
+        <div id="topBtns">
+          <button id="btnNew" class="non-edit">開始</button>
+          <button id="btnAI" class="non-edit">AIに指させる</button>
+          <button id="btnUndo" class="non-edit" title="自分の直前の手まで戻します">待った</button>
+          <button id="btnResign" class="non-edit">投了</button>
+          <button id="btnHint" class="non-edit">ヒント</button>
+        </div>
+        <div id="settingsWrap">
+          <button type="button" id="btnMenu">▼ 設定</button>
+          <div id="menuPanel">
+            <div class="menu-head"><b>設定</b><button type="button" id="btnMenuClose">✕</button></div>
+            <section>
+              <h4>表示</h4>
+              <label class="menu-row"><input type="checkbox" id="showCands" checked> AIの最善手・次善手(候補手)を表示</label>
+              <label class="menu-row"><input type="checkbox" id="showBar" checked> 形勢バー(評価値)を表示</label>
+              <div style="font-size:12px;color:#666">非表示のときは「ヒント」ボタンで最善手(赤)・次善手(青)を矢印で表示します。</div>
+              <label class="menu-row">盤の向き:
+                <select id="viewSel">
+                  <option value="auto">自動(VS AIで後手なら後手が手前)</option>
+                  <option value="sente">先手が手前</option>
+                  <option value="gote">後手が手前</option>
+                </select>
+              </label>
+              <label class="menu-row">持ち時間(分・0=無制限/経過時間を表示): <input type="number" id="timeLimit" value="0" min="0" max="180"></label>
+            </section>
+            <section>
+              <h4>対局モード</h4>
+              <label class="menu-row">動作モード:
+                <select id="gameMode">
+                  <option value="study">研究 / ローカル対戦 (1台で交代で指す)</option>
+                  <option value="vs_ai" selected>VS AI対局 (対コンピュータ)</option>
+                </select>
+              </label>
+              <label class="menu-row ai-only">人間手番:
+                <select id="humanSide"><option value="0">先手</option><option value="1">後手</option><option value="2">見学(AI同士)</option></select>
+              </label>
+            </section>
+            <section>
+              <h4>思考設定</h4>
+              <label class="menu-row">探索深さ <input type="number" id="depth" value="4" min="1" max="20"></label>
+              <label class="menu-row">1手思考ms <input type="number" id="movems" value="800" min="50" step="50"></label>
+            </section>
+            <section>
+              <h4>評価関数</h4>
+              <div style="font-size:12px;color:#555">既定: MathotaGamma/statics の nn.bin を自動取得(取得後は端末に保存)。</div>
+              <label class="menu-row">手動で読込: <input type="file" id="nnfile" accept=".bin"></label>
+              <label class="menu-row">重み配置想定:
+                <select id="simd">
+                  <option value="none">スクランブルなし(推奨・検証済み)</option>
+                  <option value="avx2">AVX2風スクランブル</option>
+                  <option value="avx512">AVX512風スクランブル</option>
+                </select>
+              </label>
+              <div id="loadstat" style="font-weight:bold"></div>
+              <div id="note"></div>
+            </section>
+            <section>
+              <h4>定跡</h4>
+              <label class="menu-row">定跡ファイル(.db): <input type="file" id="josekiFile"></label>
+              <label class="menu-row"><input type="checkbox" id="bookEnabled" checked> 定跡を使う(定跡内なら思考せずに指す)</label>
+              <div id="josekiStatus" style="font-size:12px">定跡ファイル未読込</div>
+            </section>
+            <section>
+              <h4>その他</h4>
+              <button type="button" id="btnEditStart" class="non-edit" style="background:#e67e22; color:#fff; padding:6px 12px;">局面編集モードへ</button>
+            </section>
+          </div>
+        </div>
       </div>
 
-      <div style="min-width:320px; flex: 1;">
-        <div id="bookBadge">📖 定跡です。</div>
-        <div><b>現在の局面</b>: <span id="gamePhase" style="font-weight:bold; color:#2c3e50;">序盤 (確率: 序100% / 中0% / 終0%)</span></div>
-        <div><b>局面評価値 (<span id="sideLabel">手番</span>視点)</b>: <span id="evalval" style="font-size:16px; font-weight:bold; color:#d35400;">-</span> cp</div>
+      <div id="status">nn.binを読み込み中…</div>
 
+      <div id="editBar">
+        <label class="edit-only">編集中の手番:
+          <select id="editSide"><option value="0">先手番</option><option value="1">後手番</option></select>
+        </label>
+        <button id="btnEditApply" class="edit-only" style="background:#27ae60; color:#fff; font-weight:bold; padding:6px 12px;">決定 (研究/対戦に反映)</button>
+        <button id="btnEditCancel" class="edit-only" style="padding:6px 12px;">キャンセル</button>
+        <button id="btnEditReset" class="edit-only" style="padding:6px 12px;">平手初期化</button>
+      </div>
+
+      <div id="main">
+        <div id="leftInfo">
+          <div id="turnText">先手番です</div>
+          <div id="plyText">1手目</div>
+        </div>
+
+        <div id="boardZone">
+          <div id="clockTop" class="clock">0:00</div>
+          <div id="nameTop" class="pname">後手: -</div>
+          <div id="handBoxTop" class="handbox"></div>
+          <div id="board"><svg id="hintSvg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+          <div id="handBoxBottom" class="handbox"></div>
+          <div id="nameBottom" class="pname">先手: -</div>
+          <div id="clockBottom" class="clock">0:00</div>
+        </div>
+
+        <div id="rightPanel">
+          <div id="evalBlock">
+            <div class="eval-title"><span>先手</span><b>形勢</b><span>後手</span></div>
+            <div id="evalBar"><div id="evalSente"></div></div>
+            <div id="evalText"><span id="evalNum">-</span> <span id="evalWord"></span></div>
+          </div>
+          <div id="bookBadge">📖 定跡です。</div>
+          <div id="candBox"><div id="cand"></div></div>
+        </div>
+      </div>
+
+      <details id="analysis">
+        <summary>▼ 分析・棋譜</summary>
+        <div><b>現在の局面</b>: <span id="gamePhase" style="font-weight:bold; color:#2c3e50;">序盤 (確率: 序100% / 中0% / 終0%)</span></div>
         <div id="skillScoreCard">
           <div style="font-weight:bold; margin-bottom:2px;">対局者別・局面段階評定 (100点満点)</div>
           <table class="skill-table">
-            <thead>
-              <tr>
-                <th>手番</th>
-                <th>序盤力</th>
-                <th>中盤力</th>
-                <th>終盤力</th>
-              </tr>
-            </thead>
+            <thead><tr><th>手番</th><th>序盤力</th><th>中盤力</th><th>終盤力</th></tr></thead>
             <tbody>
-              <tr>
-                <td><b>先手</b></td>
-                <td id="senteOpening">-</td>
-                <td id="senteMiddle">-</td>
-                <td id="senteEnding">-</td>
-              </tr>
-              <tr>
-                <td><b>後手</b></td>
-                <td id="goteOpening">-</td>
-                <td id="goteMiddle">-</td>
-                <td id="goteEnding">-</td>
-              </tr>
+              <tr><td><b>先手</b></td><td id="senteOpening">-</td><td id="senteMiddle">-</td><td id="senteEnding">-</td></tr>
+              <tr><td><b>後手</b></td><td id="goteOpening">-</td><td id="goteMiddle">-</td><td id="goteEnding">-</td></tr>
             </tbody>
           </table>
         </div>
-
         <div id="moveAnalysis">
           <div><b>直前の指し手分析:</b> <span id="lastMoveStr">-</span></div>
           <div>結果: <span id="lastMoveRank">-</span></div>
         </div>
-
-        <div style="margin-top:6px;"><b>候補手評価値リスト (探索中更新)</b></div>
-        <div id="cand"></div>
-      </div>
+        <div id="graphContainer">
+          <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">評価値推移 (先手有利: + / 後手有利: -)</div>
+          <canvas id="evalGraph" width="880" height="120"></canvas>
+        </div>
+        <div style="margin-top:8px;"><b>棋譜</b></div>
+        <div id="moves" style="font-size:12px;word-break:break-all"></div>
+        <pre id="log"></pre>
+      </details>
     </div>
-
-    <div id="graphContainer">
-      <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">評価値推移 (先手有利: + / 後手有利: -)</div>
-      <canvas id="evalGraph" width="880" height="120"></canvas>
-    </div>
-
-    <div style="margin-top:8px;"><b>棋譜</b></div>
-    <div id="moves" style="font-size:12px;max-width:900px;word-break:break-all"></div>
-    <pre id="log"></pre>
 
     <script>
       'use strict';
@@ -590,7 +632,7 @@
 
       const idxBuf0 = new Int32Array(64), idxBuf1 = new Int32Array(64);
       const accB = new Int32Array(HD), accW = new Int32Array(HD), inp = new Uint8Array(512);
-      const z1 = new Uint8Array(64), z2 = new Uint8Array(64);
+      const z1 = new Uint8Array(64), z2 = new Uint8Array(64), in2 = new Uint8Array(64), nzIdx = new Int32Array(512);
       function evalYane(p) {
         if (!NET) return 0;
         const n0 = halfkpIndices(p.b, p.h, p.ks, 0, idxBuf0);
@@ -604,13 +646,15 @@
         for (let j = 0; j < HD; j++) { let v = first[j]; inp[j] = v < 0 ? 0 : v > 127 ? 127 : v; }
         for (let j = 0; j < HD; j++) { let v = second[j]; inp[HD + j] = v < 0 ? 0 : v > 127 ? 127 : v; }
         const a1 = NET.a1;
+        let nz = 0; // クリップ後に0でない入力だけを使って内積を取る(約半分は0になるため高速)
+        for (let k = 0; k < 512; k++) { if (inp[k]) nzIdx[nz++] = k; }
         for (let j = 0; j < L1; j++) {
           let z = a1.bias[j] | 0; const o = j * a1.paddedIn;
-          for (let k = 0; k < 512; k++) z += a1.w[o + k] * inp[k];
+          for (let t = 0; t < nz; t++) { const k = nzIdx[t]; z += a1.w[o + k] * inp[k]; }
           z = z >> 6; z1[j] = z < 0 ? 0 : z > 127 ? 127 : z;
         }
         const a2 = NET.a2, pin2 = a2.paddedIn;
-        const in2 = new Uint8Array(pin2); in2.set(z1.subarray(0, L1));
+        in2.fill(0); in2.set(z1.subarray(0, L1));
         for (let j = 0; j < L2; j++) {
           let z = a2.bias[j] | 0; const o = j * pin2;
           for (let k = 0; k < pin2; k++) z += a2.w[o + k] * in2[k];
@@ -748,15 +792,46 @@
         const keys = ms.map(m => { const x = p.b[m & 127]; return (x ? VAL[x > 0 ? x : -x] * 10 : 0) + (((m >> 14) & 1) ? 300 : 0); });
         return ms.map((_, i) => i).sort((a, b) => keys[b] - keys[a]).map(i => ms[i]);
       }
+      let sMaxPly = 20;
+      const killers = [];            // killers[ply] = [手1, 手2] (カットオフを起こした静かな手)
+      const hist = new Int32Array(15 * 81); // history[駒種*81+行き先]
+      function resetSearchTables() { killers.length = 0; hist.fill(0); }
+      // 擬似合法手mを試しに指し、自玉が取られる/打ち歩詰めなら元に戻してnullを返す。合法ならundo情報を返す。
+      function tryMake(p, m) {
+        const c = p.side;
+        const u = make(p, m);
+        if (attacked(p, p.ks[c], 1 - c)) { undo(p, u); return null; }
+        if ((m >> 15) === 1 && attacked(p, p.ks[1 - c], c) && !hasLegal(p)) { undo(p, u); return null; }
+        return u;
+      }
+      // 指し手の並べ替え: 駒取り(取る駒が高いほど先) > キラー手 > 履歴 > その他
+      function orderPseudo(p, ms, ply) {
+        const n = ms.length, keys = new Array(n), kl = killers[ply];
+        const k0 = kl ? kl[0] : -1, k1 = kl ? kl[1] : -1;
+        for (let i = 0; i < n; i++) {
+          const m = ms[i], to = m & 127, x = p.b[to];
+          const promo = ((m >> 14) & 1) ? 300 : 0;
+          if (x) keys[i] = 100000 + VAL[x > 0 ? x : -x] * 10 + promo;
+          else {
+            const dr = m >> 15, pt = dr ? dr : Math.abs(p.b[(m >> 7) & 127]);
+            let k = hist[pt * 81 + to] + promo;
+            if (m === k0) k += 50000; else if (m === k1) k += 40000;
+            keys[i] = k;
+          }
+        }
+        return ms.map((_, i) => i).sort((a, b) => keys[b] - keys[a]).map(i => ms[i]);
+      }
       function qs(p, alpha, beta, qd) {
         if (((++sNodes) & 127) === 0 && (performance.now() > sDead || thinkAbort)) sAbort = true;
         if (sAbort) return evalYane(p);
         const stand = evalYane(p);
         if (qd <= 0 || stand >= beta) return stand;
         if (stand > alpha) alpha = stand;
-        const ms = orderMoves(p, legal(p, true));
+        const pm = []; pseudo(p, pm, true);
+        const ms = orderMoves(p, pm);
         for (let i = 0; i < ms.length; i++) {
-          const u = make(p, ms[i]);
+          const u = tryMake(p, ms[i]);
+          if (!u) continue;
           const s = -qs(p, -beta, -alpha, qd - 1);
           undo(p, u);
           if (sAbort) return s;
@@ -765,136 +840,157 @@
         }
         return alpha;
       }
+      // alpha-beta探索。合法性は指す直前に確かめる(カットオフした手以降の合法手生成を省く)。
+      // 王手がかかっている局面は深さを1延長し、王手の応酬の先にある詰みを見逃さないようにする。
       function ab(p, d, alpha, beta, ply) {
-        if (d <= 0) return qs(p, alpha, beta, 4);
         if (((++sNodes) & 127) === 0 && (performance.now() > sDead || thinkAbort)) sAbort = true;
         if (sAbort) return evalYane(p);
-        const ms = orderMoves(p, legal(p, false));
-        if (!ms.length) return -30000 + ply;
-        let best = -31000;
+        const c = p.side;
+        if (ply < sMaxPly && attacked(p, p.ks[c], 1 - c)) d++;
+        if (d <= 0) return qs(p, alpha, beta, 4);
+        const pm = []; pseudo(p, pm, false);
+        const ms = orderPseudo(p, pm, ply);
+        let best = -31000, legalCnt = 0;
         for (let i = 0; i < ms.length; i++) {
-          const u = make(p, ms[i]);
+          const m = ms[i];
+          const u = tryMake(p, m);
+          if (!u) continue;
+          legalCnt++;
           const s = -ab(p, d - 1, -beta, -alpha, ply + 1);
           undo(p, u);
           if (sAbort) return best > -31000 ? best : s;
           if (s > best) best = s;
           if (s > alpha) alpha = s;
-          if (alpha >= beta) break;
+          if (alpha >= beta) {
+            if (!p.b[m & 127]) { // 静かな手でカットオフ → キラー手/履歴を更新
+              const dr = m >> 15, pt = dr ? dr : Math.abs(p.b[(m >> 7) & 127]);
+              hist[pt * 81 + (m & 127)] += d * d;
+              const kl = killers[ply] || (killers[ply] = [-1, -1]);
+              if (kl[0] !== m) { kl[1] = kl[0]; kl[0] = m; }
+            }
+            break;
+          }
         }
+        if (legalCnt === 0) return -30000 + ply; // 動かせる手が無い=詰み
         return best;
       }
 
       function renderCandidateTable(rankedList, p) {
-        if (!rankedList || !rankedList.length) {
-          document.getElementById('cand').innerHTML = '';
-          return;
-        }
+        if (!document.getElementById('showCands').checked) { renderHiddenNote(); return; }
+        if (!rankedList || !rankedList.length) { document.getElementById('cand').innerHTML = ''; return; }
+        const labels = ['最善手', '次善手', '3番手', '4番手', '5番手'];
         let html = '<table><tr><th>順位</th><th>指し手</th><th>評価値</th></tr>';
-        const top = rankedList.slice(0, 5);
-        top.forEach((r, i) => { html += `<tr class="${i === 0 ? 'best' : ''}"><td>${i + 1}位</td><td>${humanMoveStr(p, r.move)}</td><td>${r.score.toFixed(0)}</td></tr>`; });
+        rankedList.slice(0, 5).forEach((r, i) => {
+          html += `<tr class="${i === 0 ? 'best' : ''}"><td>${labels[i]}</td><td>${humanMoveStr(p, r.move)}</td><td>${r.score.toFixed(0)}</td></tr>`;
+        });
         if (rankedList.length > 5) {
           const w = rankedList[rankedList.length - 1];
           html += `<tr class="worst"><td>最悪手</td><td>${humanMoveStr(p, w.move)}</td><td>${w.score.toFixed(0)}</td></tr>`;
         }
-        html += '</table>';
-        document.getElementById('cand').innerHTML = html;
+        document.getElementById('cand').innerHTML = html + '</table>';
       }
 
       // 反復深化+時間制限つきalpha-beta探索。中断要求(thinkAbort)やページの応答性を保つため、
       // ルート手を数手評価するごとに画面更新とイベントループへの制御返し(await)を行う。
-      // 反復深化+時間制限つきPVS(Principal Variation Search)。
-      // 設計方針: 「どの手を指すか」を決める探索と、「候補手として画面に表示する数値」を分離する。
-      //   - 候補表示は常に rankMovesQuick(静止探索・全手フルウィンドウ)の値を使う。
-      //     どの手も独立に正確な値が出るので、複数の候補が同じ/似た値に潰れることがない。
-      //   - 実際に指す手(と、その順位)だけは、深いPVS探索で得た正確なスコアで上書きする。
-      //   - PVS自体は1手目だけフルウィンドウ、2手目以降はまず狭い窓(null window)で高速に
-      //     判定し、現在の最善を上回りそうな時だけフルウィンドウで正確に再探索する
-      //     (全手を常にフルウィンドウで探索すると正確だが時間内に終わらなくなるため)。
-      // 重要: 中断された深さの結果は丸ごと捨て、最後まで完全に計算し終えた深さの結果だけを使う。
+      // 反復深化+時間制限つきPVS。
+      //  - 着手決定は深い探索、候補表示は「静止探索での評価(quick)」と「深い探索で分かった上限値」の小さい方
+      //    (深い探索で反駁された手が、静止探索の甘い評価のまま上位に見えてしまうのを防ぐ)。
+      //  - 実際に指す手は必ず1位に表示し、その値は深い探索の正確な値。
+      //  - 打ち切られた深さでも、最初に調べた最有力手が検証済みならその結果を採用する。
       async function searchBestAsync(p, maxDepth, msLimit) {
         const root0 = orderMoves(p, legal(p, false));
         if (!root0.length) return null;
 
-        // 注意: rankMovesQuickは内部で sNodes/sAbort/thinkAbort/sDead を自分用にリセットするため、
-        // 必ず先に呼んでおく。この後で本探索用の締め切り(sDead)を改めて正しく設定し直す
-        // (順序を誤ると、rankMovesQuickが設定した60秒後の締め切りが本探索にまで使われてしまい、
-        //  指定した持ち時間を大幅に超えて考え続けてしまう不具合の原因になる)。
-        const quickRanked = rankMovesQuick(p); // 候補表示用のベース(常にこれを使う)
+        // rankMovesQuickは内部で締め切り(sDead)等をリセットするため、必ず先に呼び、その後で本探索の締め切りを設定する
+        const quickRanked = rankMovesQuick(p);
         let root = quickRanked.map(r => r.move);
+        const scores = new Map(); // 手 -> 深い探索で分かった値(最新の深さのもの)
 
         sNodes = 0; sAbort = false; thinkAbort = false; sDead = performance.now() + msLimit;
+        sMaxPly = maxDepth + 6; resetSearchTables();
 
-        const dispRank = (bestMv, bestSc) => {
-          const list = quickRanked.map(r => r.move === bestMv ? { move: r.move, score: bestSc } : r);
-          list.sort((a, b) => b.score - a.score);
+        const dispRank = (bm, bs) => {
+          const list = quickRanked.map(r => {
+            if (r.move === bm) return { move: r.move, score: bs };
+            const sc = scores.get(r.move);
+            return { move: r.move, score: sc === undefined ? Math.min(r.score, bs) : Math.min(r.score, sc, bs) };
+          });
+          list.sort((x, y) => (y.score - x.score) || (x.move === bm ? -1 : y.move === bm ? 1 : 0));
           return list;
         };
 
         let bestMove = quickRanked[0].move, bestScore = quickRanked[0].score;
-        let lastRender = 0;
+        let reached = 0, lastRender = 0;
 
         depthLoop:
         for (let d = 1; d <= maxDepth; d++) {
           if (sAbort || thinkAbort || performance.now() > sDead) break;
-          let alpha = -31000, curBest = root[0], curBestScore = -31000, completedAll = true;
+          let alpha = -31000, curBest = null, curBestScore = -31000, completedAll = true;
 
           for (let i = 0; i < root.length; i++) {
             const m = root[i];
             const u = make(p, m);
-            let s;
+            let sc;
             if (i === 0) {
-              s = -ab(p, d - 1, -31000, 31000, 1);
+              sc = -ab(p, d - 1, -31000, 31000, 1);
             } else {
-              s = -ab(p, d - 1, -alpha - 1, -alpha, 1);
-              if (!sAbort && !thinkAbort && s > alpha) s = -ab(p, d - 1, -31000, -alpha, 1);
+              sc = -ab(p, d - 1, -alpha - 1, -alpha, 1);
+              if (!sAbort && !thinkAbort && sc > alpha) sc = -ab(p, d - 1, -31000, -alpha, 1);
             }
             undo(p, u);
             if (sAbort || thinkAbort) { completedAll = false; break; }
-            if (s > curBestScore) { curBestScore = s; curBest = m; }
-            if (s > alpha) alpha = s;
+            scores.set(m, sc);
+            if (sc > curBestScore) { curBestScore = sc; curBest = m; }
+            if (sc > alpha) alpha = sc;
 
             const now = performance.now();
             if (now - lastRender > 60) {
               lastRender = now;
               const preview = dispRank(curBest, curBestScore);
-              document.getElementById('evalval').textContent = preview[0].score.toFixed(0);
+              updateEvalDisplay(preview[0].score, p.side);
               renderCandidateTable(preview, p);
               await new Promise(r => setTimeout(r, 0));
               if (thinkAbort || performance.now() > sDead) { completedAll = false; break; }
             }
           }
-          if (!completedAll) break; // この深さは未完了として丸ごと捨てる(1つ前の深さの結果を維持)
+          if (!completedAll) {
+            // 打ち切られた深さでも、検証済み(フルウィンドウで調べ終えた)最有力手があれば採用する
+            if (curBest !== null) { bestMove = curBest; bestScore = curBestScore; }
+            break;
+          }
 
-          bestMove = curBest; bestScore = curBestScore;
+          bestMove = curBest; bestScore = curBestScore; reached = d;
           root = [curBest].concat(root.filter(x => x !== curBest)); // 次の深さは今回の最善手から調べる
 
           const ranked = dispRank(bestMove, bestScore);
-          document.getElementById('evalval').textContent = bestScore.toFixed(0);
+          updateEvalDisplay(bestScore, p.side);
           renderCandidateTable(ranked, p);
-          const phaseInfo = getGamePhase(p);
-          document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
+          document.getElementById('gamePhase').textContent = getGamePhase(p).phaseText;
 
-          if (Math.abs(bestScore) > 29000) break;
+          if (Math.abs(bestScore) > 29000) break; // 詰みが見つかった(または詰まされる)なら深追い不要
           await new Promise(r => setTimeout(r, 0));
         }
 
         const finalRanked = dispRank(bestMove, bestScore);
-        document.getElementById('evalval').textContent = finalRanked[0].score.toFixed(0);
+        updateEvalDisplay(finalRanked[0].score, p.side);
         renderCandidateTable(finalRanked, p);
-        return { move: bestMove, score: bestScore, rankedList: finalRanked };
+        return { move: bestMove, score: bestScore, rankedList: finalRanked, depth: reached };
       }
 
+      // 候補表示・探索の初期順位用の軽量評価: 各手を指した後の静止探索値。1手詰みは最優先で検出する。
       function rankMovesQuick(p) {
         sNodes = 0; sAbort = false; thinkAbort = false; sDead = performance.now() + 60000;
         const root = orderMoves(p, legal(p, false));
-        const res = [];
+        const c = p.side, res = [];
         for (const m of root) {
           const u = make(p, m);
-          const s = -qs(p, -31000, 31000, 4);
+          let sc;
+          if (attacked(p, p.ks[1 - c], c) && !hasLegal(p)) sc = 29999; // 1手詰み
+          else sc = -qs(p, -31000, 31000, 4);
           undo(p, u);
-          res.push({ move: m, score: s });
+          res.push({ move: m, score: sc });
         }
-        res.sort((a, b) => b.score - a.score);
+        res.sort((x, y) => y.score - x.score);
         return res;
       }
 
@@ -921,97 +1017,44 @@
 
       function log(s) { document.getElementById('log').textContent += s + '\n'; document.getElementById('log').scrollTop = 1e9; }
 
+      function viewFlipped() {
+        const v = document.getElementById('viewSel').value;
+        if (v === 'sente') return false;
+        if (v === 'gote') return true;
+        return document.getElementById('gameMode').value === 'vs_ai' && document.getElementById('humanSide').value === '1';
+      }
+
       function draw() {
         const p = isEditing ? EDIT_POS : POS;
-
-        let legals = [];
-        if (!isEditing) {
-          legals = legal(p, false);
-        }
+        const flip = viewFlipped();
+        const legals = isEditing ? [] : legal(p, false);
 
         for (let r = 0; r < 9; r++) {
           for (let c = 0; c < 9; c++) {
-            const sq = (8 - c) * 9 + r;
+            const sq = flip ? c * 9 + (8 - r) : (8 - c) * 9 + r;
             const x = p.b[sq], e = cells[r * 9 + c], a = Math.abs(x);
             e.textContent = x ? CH[a] : '';
-
-            let cls = 'c' + (x < 0 ? ' w' : '') + (a > 8 ? ' pr' : '');
-
+            const rot = flip ? x > 0 : x < 0; // 画面の上側のプレイヤーの駒は逆向きに表示する
+            let cls = 'c' + (rot ? ' w' : '') + (a > 8 ? ' pr' : '');
             if (SEL) {
-              if (SEL.type === 'sq' && SEL.sq === sq) {
-                cls += isEditing ? ' edit-sel' : ' sel';
-              }
+              if (SEL.type === 'sq' && SEL.sq === sq) cls += isEditing ? ' edit-sel' : ' sel';
               if (!isEditing) {
-                if (SEL.type === 'sq' && legals.some(m => !(m >> 15) && ((m >> 7) & 127) === SEL.sq && (m & 127) === sq)) {
-                  cls += ' legal-target';
-                } else if (SEL.type === 'hand' && SEL.side === p.side && legals.some(m => (m >> 15) === SEL.t && (m & 127) === sq)) {
-                  cls += ' legal-target';
-                }
+                if (SEL.type === 'sq' && legals.some(m => !(m >> 15) && ((m >> 7) & 127) === SEL.sq && (m & 127) === sq)) cls += ' legal-target';
+                else if (SEL.type === 'hand' && SEL.side === p.side && legals.some(m => (m >> 15) === SEL.t && (m & 127) === sq)) cls += ' legal-target';
               }
             }
             e.className = cls;
             e.dataset.sq = sq;
+            cellBySq[sq] = e;
           }
         }
 
-        const ht = c => {
-          let s = '';
-          for (let t = 7; t >= 1; t--) {
-            if (p.h[c][t]) s += CH[t] + (p.h[c][t] > 1 ? p.h[c][t] : '') + ' ';
-          }
-          return s;
-        };
-        document.getElementById('hw').textContent = '後手持駒: ' + ht(1);
-        document.getElementById('hb').textContent = '先手持駒: ' + ht(0);
-
-        const ha = document.getElementById('handArea'); ha.innerHTML = '';
-
-        if (isEditing) {
-          const renderEditHand = (side) => {
-            const label = side === 0 ? '先手' : '後手';
-            for (let t = 7; t >= 1; t--) {
-              if (!p.h[side][t]) continue;
-              const d = document.createElement('span');
-              const isSel = SEL && SEL.type === 'hand' && SEL.side === side && SEL.t === t;
-              d.className = 'hp' + (isSel ? ' edit-sel' : '');
-              d.textContent = `${label}${CH[t]}${p.h[side][t] > 1 ? p.h[side][t] : ''}`;
-              d.onclick = () => handleHandClick(side, t);
-              ha.appendChild(d);
-            }
-          };
-          renderEditHand(0);
-          renderEditHand(1);
-        } else {
-          const side = p.side;
-          for (let t = 7; t >= 1; t--) {
-            if (!p.h[side][t]) continue;
-            const d = document.createElement('span');
-            const isSel = SEL && SEL.type === 'hand' && SEL.side === side && SEL.t === t;
-            d.className = 'hp' + (isSel ? ' sel' : '');
-            d.textContent = `${CH[t]}${p.h[side][t] > 1 ? p.h[side][t] : ''}`;
-            d.onclick = (ev) => {
-              ev.stopPropagation();
-              if (isThinking) {
-                thinkAbort = true;
-                document.getElementById('status').textContent = '思考を中断しています…';
-                const pending = thinkingPromise;
-                if (pending) pending.then(() => { if (!isThinking) d.onclick(ev); }).catch(() => {});
-                return;
-              }
-              if (SEL && SEL.type === 'hand' && SEL.side === side && SEL.t === t) {
-                SEL = null;
-              } else {
-                SEL = { type: 'hand', side: side, t: t };
-              }
-              draw();
-            };
-            ha.appendChild(d);
-          }
-        }
-
-        document.getElementById('moves').textContent = MVSTR_DISP.map((s, i) => (i + 1) + '.' + s).join(' ');document.getElementById('sideLabel').textContent = p.side === 0 ? '先手' : '後手';
+        renderHands(p, flip);
+        updateInfoPanel(p, flip);
+        document.getElementById('moves').textContent = MVSTR_DISP.map((s, i) => (i + 1) + '.' + s).join(' ');
         drawGraph();
         updatePlayerSkillScores();
+        drawHintArrows();
       }
 
       function handleHandClick(side, t) {
@@ -1028,24 +1071,27 @@
         showEval();
       }
 
-      // 成りの確認を画面内モーダルで行う(window.confirm()はモバイル環境でページが上部へ
-      // ジャンプする副作用があったため、独自モーダルに置き換えた)。
-      function askPromote() {
+      // 確認ダイアログは画面内モーダルで行う(window.confirm()はモバイルでページが上部へジャンプするため)
+      function askDialog(text, yesLabel, noLabel) {
         return new Promise(resolve => {
           const modal = document.getElementById('promoteModal');
           const yes = document.getElementById('btnPromoteYes'), no = document.getElementById('btnPromoteNo');
+          document.getElementById('promoteText').textContent = text;
+          yes.textContent = yesLabel; no.textContent = noLabel;
           modal.style.display = 'flex';
           const cleanup = v => { modal.style.display = 'none'; yes.onclick = null; no.onclick = null; resolve(v); };
           yes.onclick = () => cleanup(true);
           no.onclick = () => cleanup(false);
         });
       }
+      function askPromote() { return askDialog('成りますか?', '成る', '成らない'); }
 
       function cellClick(sq) {
         if (isEditing) {
           handleEditCellClick(sq);
           return;
         }
+        if (gameOver) { document.getElementById('status').textContent = '対局は終了しています(「開始」または「待った」)'; return; }
 
         if (!NET) { document.getElementById('status').textContent = 'まずnn.binを読み込んでください'; return; }
 
@@ -1178,14 +1224,14 @@
         const p = isEditing ? EDIT_POS : POS;
         document.getElementById('bookBadge').style.display = 'none';
         if (!NET) {
-          document.getElementById('evalval').textContent = '-';document.getElementById('gamePhase').textContent = '序盤 (確率: 序100% / 中0% / 終0%)';
+          updateEvalDisplay(null);document.getElementById('gamePhase').textContent = '序盤 (確率: 序100% / 中0% / 終0%)';
           document.getElementById('cand').innerHTML = '<div style="font-size:12px;color:#666">nn.bin 読み込み後に評価値が表示されます</div>';
           return [];
         }
 
         const list = legal(p, false);
         if (!list.length) {
-          document.getElementById('evalval').textContent = '(詰み/合法手なし)';
+          updateEvalDisplay(null);
           document.getElementById('cand').innerHTML = '';
           const phaseInfo = getGamePhase(p);
           document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
@@ -1194,7 +1240,7 @@
 
         const quickRanked = rankMovesQuick(p);
         const topScore = quickRanked.length ? quickRanked[0].score : evalYane(p);
-        document.getElementById('evalval').textContent = topScore.toFixed(0);
+        updateEvalDisplay(topScore, p.side);
 
         const phaseInfo = getGamePhase(p);
         document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
@@ -1211,7 +1257,7 @@
         }
 
         // 定跡内・局面編集中・(AIが続けて同じ探索を行う)AI手番では、表示用の深い探索は省く
-        if (quickOnly || bookHit || isEditing) return quickRanked;
+        if (quickOnly || bookHit || isEditing || (!document.getElementById('showCands').checked && !document.getElementById('showBar').checked)) return quickRanked;
 
         const depth = Math.max(1, +document.getElementById('depth').value);
         const ms = Math.max(100, +document.getElementById('movems').value);
@@ -1283,6 +1329,7 @@
 
       async function doMove(m) {
         const ep = epoch;
+        clearHint();
         MVSTR.push(mstr(m));
         MVSTR_DISP.push(humanMoveStr(POS, m)); // POSはまだ着手前なのでここで駒種を調べる
         HIST.push(clonePos(POS));
@@ -1292,7 +1339,7 @@
         const list = legal(POS, false);
         if (!list.length) {
           const winner = (1 - POS.side) === 0 ? '先手' : '後手';
-          document.getElementById('status').textContent = winner + 'の勝利 (詰み/手なし)';
+          document.getElementById('status').textContent = winner + 'の勝利 (詰み/手なし)'; gameOver = true;
           document.getElementById('cand').innerHTML = '';
           document.getElementById('bookBadge').style.display = 'none';
           const phaseInfo = getGamePhase(POS);
@@ -1317,13 +1364,13 @@
         return hs === 2 || POS.side !== hs;
       }
       function maybeAI() {
-        if (!isAITurn()) return;
+        if (!isAITurn() || gameOver) return;
         const ep = epoch;
         setTimeout(() => { if (ep === epoch) aiMove(); }, 30);
       }
 
       async function aiMove() {
-        if (!NET || isEditing || isThinking) return;
+        if (!NET || isEditing || isThinking || gameOver) return;
         const list = legal(POS, false);
         if (!list.length) return;
         const ep = epoch;
@@ -1433,6 +1480,7 @@
       document.getElementById('btnEditStart').onclick = async () => {
         document.getElementById('menuPanel').style.display = 'none';
         await stopThinking();
+        clearHint();
         isEditing = true;
         EDIT_POS = clonePos(POS);
         SEL = null;
@@ -1445,6 +1493,7 @@
 
       document.getElementById('btnEditApply').onclick = async () => {
         await stopThinking();
+        gameOver = false; clearHint(); resetClocks();
         updateKingPositions(EDIT_POS);
         let hasK1 = false, hasK2 = false;
         for (let i = 0; i < 81; i++) {
@@ -1493,6 +1542,7 @@
 
       document.getElementById('btnNew').onclick = async () => {
         await stopThinking();
+        gameOver = false; clearHint(); resetClocks();
         POS = startPos(); SEL = null; HIST = []; MVSTR = []; MVSTR_DISP = []; EVAL_HIST = []; MOVE_RECORDS = [];
         resetPhaseProbs();
         document.getElementById('lastMoveStr').textContent = '-';document.getElementById('lastMoveRank').textContent = '-';
@@ -1507,6 +1557,7 @@
       // それ以外(研究/ローカル対戦・見学)は常に2手戻す。
       document.getElementById('btnUndo').onclick = async () => {
         await stopThinking();
+        gameOver = false; clearHint();
         if (!HIST.length || isEditing) return;
         let n = 2;
         if (document.getElementById('gameMode').value === 'vs_ai') {
@@ -1523,26 +1574,310 @@
         showEval(isAITurn()).then(() => maybeAI());
       };
 
+      // ===================== 終局・時計・ヒント・表示 =====================
+      let gameOver = false;
+      const CLOCK = [0, 0];
+      let lastTick = performance.now();
+      const cellBySq = new Array(81);
+      const handChip = [{}, {}];
+      let HINT = null; // {moves:[最善,次善], side}
+
+      function showCandsOn() { return document.getElementById('showCands').checked; }
+      function showBarOn() { return document.getElementById('showBar').checked; }
+      function renderHiddenNote() {
+        document.getElementById('cand').innerHTML = '<div class="hidden-note">AIの候補手は非表示です。<br>「ヒント」ボタンで最善手(赤)・次善手(青)を矢印で表示します。</div>';
+      }
+      function applyDisplaySettings() {
+        document.getElementById('evalBlock').style.display = showBarOn() ? '' : 'none';
+        if (!showCandsOn()) renderHiddenNote();
+      }
+
+      // 形勢バー: 評価値(手番側視点)を先手視点に直して表示する
+      function evalWord(sv) {
+        const a = Math.abs(sv);
+        if (a < 60) return '互角';
+        const who = sv > 0 ? '先手' : '後手';
+        return who + (a < 200 ? '有利' : a < 1000 ? '優勢' : '勝勢');
+      }
+      function updateEvalDisplay(score, side) {
+        const bar = document.getElementById('evalSente');
+        if (score === null || score === undefined) {
+          bar.style.width = '50%';
+          document.getElementById('evalNum').textContent = '-';
+          document.getElementById('evalWord').textContent = '';
+          return;
+        }
+        const sv = side === 0 ? score : -score;
+        bar.style.width = (100 / (1 + Math.exp(-sv / 600))).toFixed(1) + '%';
+        if (Math.abs(sv) > 29000) {
+          document.getElementById('evalNum').textContent = '詰み';
+          document.getElementById('evalWord').textContent = (sv > 0 ? '先手' : '後手') + '勝勢';
+        } else {
+          document.getElementById('evalNum').textContent = (sv > 0 ? '+' : '') + Math.round(sv);
+          document.getElementById('evalWord').textContent = evalWord(sv);
+        }
+      }
+
+      // 持駒(盤の左上=上側のプレイヤー、右下=手前のプレイヤー)
+      function renderHands(p, flip) {
+        const bottomSide = flip ? 1 : 0, topSide = 1 - bottomSide;
+        [[topSide, 'handBoxTop'], [bottomSide, 'handBoxBottom']].forEach(([side, id]) => {
+          const box = document.getElementById(id);
+          box.innerHTML = '';
+          handChip[side] = {};
+          const cap = document.createElement('div');
+          cap.className = 'hand-cap'; cap.textContent = '持駒';
+          box.appendChild(cap);
+          for (let t = 7; t >= 1; t--) {
+            const n = p.h[side][t];
+            if (!n) continue;
+            const d = document.createElement('div');
+            const isSel = SEL && SEL.type === 'hand' && SEL.side === side && SEL.t === t;
+            const usable = isEditing || (side === p.side && !gameOver);
+            d.className = 'hp' + (isSel ? (isEditing ? ' edit-sel' : ' sel') : '') + (usable ? '' : ' dim');
+            d.textContent = CH[t] + (n > 1 ? '×' + n : '');
+            if (isEditing) d.onclick = () => handleHandClick(side, t);
+            else if (usable) d.onclick = ev => { if (ev) ev.stopPropagation(); handClickPlay(side, t); };
+            box.appendChild(d);
+            handChip[side][t] = d;
+          }
+        });
+      }
+      function handClickPlay(side, t) {
+        if (isThinking) {
+          thinkAbort = true;
+          document.getElementById('status').textContent = '思考を中断しています…';
+          const pending = thinkingPromise;
+          if (pending) pending.then(() => { if (!isThinking) handClickPlay(side, t); }).catch(() => {});
+          return;
+        }
+        if (SEL && SEL.type === 'hand' && SEL.side === side && SEL.t === t) SEL = null;
+        else SEL = { type: 'hand', side: side, t: t };
+        draw();
+      }
+
+      // 名前・手番・手数・時計の表示
+      function playerName(side) {
+        const mode = document.getElementById('gameMode').value, hs = +document.getElementById('humanSide').value;
+        if (mode !== 'vs_ai') return 'プレイヤー';
+        if (hs === 2) return 'AI';
+        return side === hs ? 'あなた' : 'AI';
+      }
+      function updateInfoPanel(p, flip) {
+        const bottomSide = flip ? 1 : 0, topSide = 1 - bottomSide;
+        document.getElementById('nameTop').textContent = (topSide === 0 ? '先手' : '後手') + ': ' + playerName(topSide);
+        document.getElementById('nameBottom').textContent = (bottomSide === 0 ? '先手' : '後手') + ': ' + playerName(bottomSide);
+        document.getElementById('turnText').textContent = isEditing ? '局面編集中' : gameOver ? '終局' : (p.side === 0 ? '先手' : '後手') + '番です';
+        document.getElementById('plyText').textContent = isEditing ? '' : (HIST.length + 1) + '手目';
+        updateClockDisplay();
+      }
+      function fmtClock(ms) {
+        const sec = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), ss = sec % 60;
+        const two = n => (n < 10 ? '0' : '') + n;
+        return h ? h + ':' + two(m) + ':' + two(ss) : m + ':' + two(ss);
+      }
+      function timeLimitMs() { return Math.max(0, +document.getElementById('timeLimit').value || 0) * 60000; }
+      function updateClockDisplay() {
+        const flip = viewFlipped(), bottomSide = flip ? 1 : 0, topSide = 1 - bottomSide, lim = timeLimitMs();
+        const show = side => fmtClock(lim ? lim - CLOCK[side] : CLOCK[side]);
+        const top = document.getElementById('clockTop'), bot = document.getElementById('clockBottom');
+        top.textContent = show(topSide); bot.textContent = show(bottomSide);
+        const running = !!NET && !isEditing && !gameOver;
+        top.classList.toggle('active', running && POS.side === topSide);
+        bot.classList.toggle('active', running && POS.side === bottomSide);
+      }
+      function resetClocks() { CLOCK[0] = 0; CLOCK[1] = 0; lastTick = performance.now(); updateClockDisplay(); }
+      setInterval(() => {
+        const now = performance.now(), dt = Math.min(now - lastTick, 1000);
+        lastTick = now;
+        if (NET && !isEditing && !gameOver) {
+          CLOCK[POS.side] += dt;
+          const lim = timeLimitMs();
+          if (lim && CLOCK[POS.side] >= lim) {
+            gameOver = true; clearHint(); stopThinking();
+            document.getElementById('status').textContent = (POS.side === 0 ? '先手' : '後手') + 'の時間切れ: ' + (POS.side === 0 ? '後手' : '先手') + 'の勝ち';
+            draw();
+          }
+        }
+        updateClockDisplay();
+      }, 250);
+
+      // ヒント: 最善手(赤)と次善手(青)を盤上に矢印で示す
+      function arrowSvg(x1, y1, x2, y2, color, w) {
+        const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+        const head = w * 2.6, bx = x2 - ux * head, by = y2 - uy * head, px = -uy, py = ux;
+        return `<line x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}" stroke="${color}" stroke-width="${w}" stroke-linecap="round" opacity=".85"/>` +
+          `<polygon points="${x2},${y2} ${bx + px * head * 0.55},${by + py * head * 0.55} ${bx - px * head * 0.55},${by - py * head * 0.55}" fill="${color}" opacity=".85"/>`;
+      }
+      function drawHintArrows() {
+        const svg = document.getElementById('hintSvg'), board = document.getElementById('board');
+        if (!HINT || isEditing) { svg.innerHTML = ''; return; }
+        const W = board.clientWidth, H = board.clientHeight;
+        svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+        const bRect = board.getBoundingClientRect();
+        const center = sq => { const e = cellBySq[sq]; return { x: e.offsetLeft + e.offsetWidth / 2, y: e.offsetTop + e.offsetHeight / 2 }; };
+        const cs = (cellBySq[0] && cellBySq[0].offsetWidth) || 40;
+        let out = '';
+        HINT.moves.forEach((m, i) => {
+          const color = i === 0 ? '#e53935' : '#1e6fe0', w = cs * (i === 0 ? 0.2 : 0.15);
+          const to = m & 127, dr = m >> 15, t = center(to);
+          let f = null;
+          if (dr) {
+            const chip = handChip[HINT.side] && handChip[HINT.side][dr];
+            if (chip) { const r = chip.getBoundingClientRect(); f = { x: r.left + r.width / 2 - bRect.left - board.clientLeft, y: r.top + r.height / 2 - bRect.top - board.clientTop }; }
+          } else f = center((m >> 7) & 127);
+          out += f ? arrowSvg(f.x, f.y, t.x, t.y, color, w)
+                   : `<circle cx="${t.x}" cy="${t.y}" r="${cs * 0.38}" fill="none" stroke="${color}" stroke-width="${w}" opacity=".85"/>`;
+        });
+        svg.innerHTML = out;
+      }
+      function clearHint() { HINT = null; drawHintArrows(); }
+      async function doHint() {
+        if (isEditing) return;
+        if (HINT) { clearHint(); document.getElementById('status').textContent = ''; return; }
+        if (gameOver) return;
+        if (isAITurn()) { document.getElementById('status').textContent = 'AIの手番です'; return; }
+        if (!NET) { document.getElementById('status').textContent = 'nn.binの読込が終わっていません'; return; }
+        await stopThinking();
+        const ep = epoch, p = POS;
+        let moves = null;
+        const bk = bookCandidates(p);
+        if (bk) {
+          moves = bk.slice().sort((a, b) => b.count - a.count).slice(0, 2).map(c => c.move);
+        } else {
+          document.getElementById('status').textContent = 'ヒントを計算中…';
+          const depth = Math.max(1, +document.getElementById('depth').value), ms = Math.max(100, +document.getElementById('movems').value);
+          let res = null;
+          isThinking = true;
+          try { thinkingPromise = searchBestAsync(p, depth, ms); res = await thinkingPromise; }
+          catch (e) { log('ERROR(ヒント): ' + e.message); }
+          finally { isThinking = false; }
+          if (ep !== epoch || !res) return;
+          moves = res.rankedList.slice(0, 2).map(r => r.move);
+        }
+        HINT = { moves, side: p.side };
+        drawHintArrows();
+        document.getElementById('status').textContent = 'ヒント: 赤=最善手 ' + humanMoveStr(p, moves[0]) + (moves[1] !== undefined ? ' / 青=次善手 ' + humanMoveStr(p, moves[1]) : '');
+      }
+      async function doResign() {
+        if (isEditing || gameOver) return;
+        const mode = document.getElementById('gameMode').value, hs = +document.getElementById('humanSide').value;
+        if (mode === 'vs_ai' && hs === 2) { document.getElementById('status').textContent = '見学中は投了できません'; return; }
+        const loser = mode === 'vs_ai' ? hs : POS.side;
+        const name = loser === 0 ? '先手' : '後手';
+        if (!(await askDialog(name + 'が投了しますか?', '投了する', 'キャンセル'))) return;
+        await stopThinking();
+        gameOver = true; clearHint();
+        document.getElementById('status').textContent = name + 'の投了により' + (loser === 0 ? '後手' : '先手') + 'の勝ち';
+        draw();
+      }
+      document.getElementById('btnHint').onclick = doHint;
+      document.getElementById('btnResign').onclick = doResign;
+      window.addEventListener('resize', drawHintArrows);
+
+      // ===================== nn.bin の取得(MathotaGamma/statics) =====================
+      const NN_URLS = [
+        'https://raw.githubusercontent.com/MathotaGamma/MathotaGamma.github.io/main/statics/shogi/nn.bin',
+        'https://mathotagamma.github.io/statics/shogi/nn.bin'
+      ];
+      const NN_CACHE = 'shogi-nn-v1';
+      let NN_RAW = null;
+
+      function applyNN(buf, label) {
+        NET = loadNNUE(buf, document.getElementById('simd').value);
+        NN_RAW = buf;
+        const e0 = evalYane(startPos());
+        document.getElementById('loadstat').textContent = label + ' 読込完了(' + (NET.isLeb ? 'LEB128' : '標準') + ') 初期評価値=' + e0.toFixed(0) + 'cp';
+        log('NNUE loaded (' + label + '): e0=' + e0.toFixed(0));
+        document.getElementById('status').textContent = '準備完了 ― 「開始」を押してください';
+        resetClocks();
+        showEval();
+      }
+      async function fetchWithProgress(url, onProg) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const total = +res.headers.get('content-length') || 0;
+        if (!res.body || !total) return await res.arrayBuffer();
+        const reader = res.body.getReader();
+        let buf = new Uint8Array(total), got = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (got + value.length > buf.length) { const nb = new Uint8Array(Math.max(buf.length * 2, got + value.length)); nb.set(buf); buf = nb; }
+          buf.set(value, got); got += value.length;
+          onProg(got, total);
+        }
+        return buf.slice(0, got).buffer;
+      }
+      async function autoLoadNN() {
+        const st = document.getElementById('loadstat'), status = document.getElementById('status');
+        try {
+          let buf = null, fromCache = false;
+          try {
+            if (window.caches) {
+              const c = await caches.open(NN_CACHE), hit = await c.match('nn.bin');
+              if (hit) { const b = await hit.arrayBuffer(); if (b.byteLength > 1e7) { buf = b; fromCache = true; } }
+            }
+          } catch (e) { /* キャッシュ不可なら通常取得 */ }
+          if (!buf) {
+            let lastErr = null;
+            for (const u of NN_URLS) {
+              try {
+                buf = await fetchWithProgress(u, (g, t) => {
+                  const msg = 'nn.bin 取得中 ' + Math.floor(g * 100 / t) + '% (' + (g / 1048576).toFixed(1) + '/' + (t / 1048576).toFixed(1) + 'MB)';
+                  st.textContent = msg; status.textContent = msg;
+                });
+                break;
+              } catch (e) { lastErr = e; }
+            }
+            if (!buf) throw lastErr || new Error('取得失敗');
+            try { if (window.caches) { const c = await caches.open(NN_CACHE); await c.put('nn.bin', new Response(buf)); } } catch (e) { /* 保存できなくても動作する */ }
+          }
+          st.textContent = '解析中…';
+          await new Promise(r => setTimeout(r, 30));
+          applyNN(buf, fromCache ? '保存済みnn.bin' : 'MathotaGamma/statics');
+        } catch (err) {
+          st.textContent = 'nn.binの自動取得に失敗: ' + err.message + '(設定から手動で読み込めます)';
+          status.textContent = 'nn.binを読み込んでください(設定 → 評価関数)';
+          log('ERROR(nn.bin取得) ' + err.message);
+        }
+      }
       document.getElementById('nnfile').onchange = async e => {
         const f = e.target.files[0]; if (!f) return;
-        NNBUF = f;
         document.getElementById('loadstat').textContent = '読込中…';
-        try {
-          const buf = await f.arrayBuffer();
-          const simdMode = document.getElementById('simd').value;
-          NET = loadNNUE(buf, simdMode);
-          const e0 = evalYane(startPos());
-          document.getElementById('loadstat').textContent = '読込完了(' + (NET.isLeb ? 'LEB128' : '標準') + ') 初期評価値=' + e0.toFixed(0) + 'cp';
-          log('NNUE loaded: e0=' + e0.toFixed(0));
-          document.getElementById('status').textContent = '準備完了';
-          showEval();
-        } catch (err) {
-          document.getElementById('loadstat').textContent = 'エラー: ' + err.message;
-          log('ERROR ' + err.message);
-        }
+        try { applyNN(await f.arrayBuffer(), f.name); }
+        catch (err) { document.getElementById('loadstat').textContent = 'エラー: ' + err.message; log('ERROR ' + err.message); }
+      };
+      document.getElementById('simd').onchange = () => {
+        if (NN_RAW) { try { applyNN(NN_RAW, '再解析'); } catch (err) { document.getElementById('loadstat').textContent = 'エラー: ' + err.message; } }
       };
 
-      document.getElementById('simd').onchange = () => { if (NNBUF)document.getElementById('nnfile').onchange({ target: { files: [NNBUF] } }); };
+      // ===================== 設定の保存/復元 =====================
+      const PERSIST_IDS = ['depth', 'movems', 'gameMode', 'humanSide', 'showCands', 'showBar', 'viewSel', 'timeLimit', 'bookEnabled'];
+      function saveSettings() {
+        try {
+          const o = {};
+          PERSIST_IDS.forEach(id => { const el = document.getElementById(id); o[id] = el.type === 'checkbox' ? el.checked : el.value; });
+          localStorage.setItem('shogiSettings', JSON.stringify(o));
+        } catch (e) { /* 保存できなくても動作する */ }
+      }
+      function loadSettings() {
+        try {
+          const o = JSON.parse(localStorage.getItem('shogiSettings') || '{}');
+          PERSIST_IDS.forEach(id => {
+            if (!(id in o)) return;
+            const el = document.getElementById(id);
+            if (el.type === 'checkbox') el.checked = !!o[id]; else el.value = o[id];
+          });
+        } catch (e) { /* 無視 */ }
+      }
+      loadSettings();
+      PERSIST_IDS.forEach(id => document.getElementById(id).addEventListener('change', () => {
+        saveSettings();
+        if (id === 'showCands' || id === 'showBar') { applyDisplaySettings(); showEval(true); }
+        if (id === 'viewSel' || id === 'humanSide' || id === 'gameMode' || id === 'timeLimit') { clearHint(); draw(); }
+      }));
+      applyDisplaySettings();
 
       document.getElementById('gameMode').onchange();
       document.getElementById('josekiFile').onchange = async e => {
@@ -1563,6 +1898,7 @@
         }
       });
       draw();
+      autoLoadNN();
     </script>
   </body>
 </html>
