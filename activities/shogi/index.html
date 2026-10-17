@@ -48,6 +48,8 @@
       .c { border: 1px solid #222; display: flex; align-items: center; justify-content: center; font-size: calc(var(--cs) * 0.66); line-height: 1; cursor: pointer; user-select: none; }
       .c.w { transform: rotate(180deg); }
       .c.pr { color: #c00; }
+      .c.last-from { background: #f4d98a; }
+      .c.last-to { background: #ffd23f; box-shadow: inset 0 0 0 3px #e53935; }
       .c.sel { background: #ff8; }
       .c.legal-target { background: #8f8; }
       .c.edit-sel { background: #fca; outline: 2px solid #f60; outline-offset: -2px; }
@@ -126,8 +128,8 @@
       #nnBarFill.indet { width: 35%; animation: nnslide 1.1s ease-in-out infinite alternate; }
       @keyframes nnslide { from { margin-left: 0; } to { margin-left: 65%; } }
       @media (prefers-reduced-motion: reduce) { #nnBarFill.indet { animation: none; } }
-      #nnVeil { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; font-size: calc(var(--cs) * 0.5); font-weight: bold; color: #1b3a6b; background: rgba(255, 255, 255, .62); }
-      body.nn-ready #nnVeil { display: none; }
+      #nnVeil { position: absolute; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; text-align: center; padding: 10px; font-size: calc(var(--cs) * 0.5); font-weight: bold; color: #1b3a6b; background: rgba(255, 255, 255, .62); }
+      body.nn-wait #nnVeil { display: flex; }
       .learn-only { display: none; }
       .mode-learn .learn-only { display: block; }
       .mode-learn .learn-hide, .mode-learn #candBox, .mode-learn #bookBadge, .mode-learn #analysis { display: none !important; }
@@ -157,7 +159,13 @@
       .menu-btns button { font-size: 14px; padding: 7px 10px; border: 1px solid #777; border-radius: 6px; background: #fff; }
       #menuPanel select { max-width: 100%; font-size: 14px; padding: 3px 6px; }
       .pname { font-size: 16px; }
-      .clock { font-size: 14px; padding: 1px 4px; }
+      .clock { font-size: clamp(11px, calc(var(--cs) * 0.2), 15px); padding: 1px 3px; white-space: nowrap; overflow: hidden; }
+      .clock.low { color: #c00; font-weight: bold; }
+      #thinkProg { margin-top: 6px; }
+      .tp-bar { height: 8px; background: #ddd; border-radius: 4px; overflow: hidden; }
+      #tpFill { height: 100%; width: 0; background: #e67e22; transition: width .15s; }
+      #tpText { font-size: 12px; color: #444; margin-top: 2px; white-space: pre-line; }
+      .tc-group { border: 1px solid #ccc; border-radius: 6px; padding: 4px 8px; margin: 6px 0; }
       @media (max-width: 600px) {
         #hdr { flex-wrap: wrap; }
         #topBtns button { font-size: 13px; padding: 5px 9px; }
@@ -216,16 +224,19 @@
                   <option value="gote">後手が手前</option>
                 </select>
               </label>
-              <label class="menu-row">持ち時間(分・0=無制限/経過時間を表示): <input type="number" id="timeLimit" value="0" min="0" max="180"></label>
             </section>
             <section>
-              <h4>思考設定</h4>
-              <label class="menu-row">探索深さ <input type="number" id="depth" value="4" min="1" max="20"></label>
-              <label class="menu-row">1手思考ms <input type="number" id="movems" value="800" min="50" step="50"></label>
+              <h4>思考・持ち時間</h4>
+              <label class="menu-row">探索深さ(持ち時間なしのAI・対局中の解析の上限) <input type="number" id="depth" value="4" min="1" max="20"></label>
+              <label class="menu-row">研究モードの探索深さ(ここまで考え続ける) <input type="number" id="depthStudy" value="20" min="1" max="40"></label>
+              <div id="tcBox"></div>
+              <div style="font-size:12px;color:#666">持ち時間などは次の「開始」から反映されます。AIの持ち時間が「なし(無制限)」のときは探索深さまで、時間ありのときは残り時間から1手の考慮時間を決めます。研究/ローカル対戦は時間無制限で、探索が終わるまで考え続けます(進捗を%で表示)。</div>
             </section>
             <section>
               <h4>評価関数</h4>
-              <div style="font-size:12px;color:#555">既定: MathotaGamma/statics の nn.bin を自動取得(取得後は端末に保存)。</div>
+              <div style="font-size:12px;color:#555">MathotaGamma の statics/shogi-nn/ にある *.bin を自動で一覧にします。選ぶと読み込みます(取得後は端末に保存)。</div>
+              <label class="menu-row">nn: <select id="nnSelect"></select> <button type="button" id="nnReload">再取得</button></label>
+              <div id="nnListStat" style="font-size:12px;color:#555"></div>
               <label class="menu-row">手動で読込: <input type="file" id="nnfile" accept=".bin"></label>
               <label class="menu-row">重み配置想定:
                 <select id="simd">
@@ -264,6 +275,7 @@
         <div class="nn-sub" id="nnSub">評価関数ファイルを確認しています。完了するまで対局・学習はできません。</div>
         <div id="nnBar"><div id="nnBarFill" class="indet"></div></div>
         <button type="button" id="nnRetry" style="display:none; margin-top:8px; padding:6px 14px;">再試行</button>
+        <button type="button" id="nnClose" style="display:none; margin-top:8px; padding:6px 14px;">閉じる</button>
       </div>
 
       <div id="editBar">
@@ -326,6 +338,7 @@
             <div class="eval-title"><span>先手</span><b>形勢</b><span>後手</span></div>
             <div id="evalBar"><div id="evalSente"></div></div>
             <div id="evalText"><span id="evalNum">-</span> <span id="evalWord"></span></div>
+            <div id="thinkProg" style="display:none"><div class="tp-bar"><div id="tpFill"></div></div><div id="tpText"></div></div>
           </div>
           <div id="bookBadge">📖 定跡です。</div>
           <div id="candBox"><div id="cand"></div></div>
@@ -1011,10 +1024,96 @@
         return best;
       }
 
+      // ===================== 画面を固まらせない協調探索 =====================
+      // 残り深さが SYNC_D を超える層はジェネレータで探索し、SLICE_MS ごとに制御をブラウザへ返す。
+      // これで考慮中でも入力・描画・中断が止まらない(同期で動くのは葉の静止探索だけ=数ms)。
+      const SYNC_D = 0, SLICE_MS = 4;
+      let sliceEnd = 0, _yieldCnt = 0;
+      const _mcQ = [], _mc = new MessageChannel();
+      _mc.port1.onmessage = () => { const r = _mcQ.shift(); if (r) r(); };
+      function yieldUI() {
+        return (++_yieldCnt & 3)
+          ? new Promise(r => { _mcQ.push(r); _mc.port2.postMessage(0); })
+          : new Promise(r => setTimeout(r, 0)); // 4回に1回は本物のタイマーで描画の機会を確実に与える
+      }
+      function* abg(p, d, alpha, beta, ply) {
+        if (d <= SYNC_D) return ab(p, d, alpha, beta, ply);
+        if (((++sNodes) & 127) === 0 && (performance.now() > sDead || thinkAbort || sNodes > sMaxNodes)) sAbort = true;
+        if (!sAbort && performance.now() >= sliceEnd) {
+          yield;
+          if (thinkAbort) sAbort = true;
+        }
+        if (sAbort) return evalYane(p);
+        const c = p.side;
+        if (ply < sMaxPly && attacked(p, p.ks[c], 1 - c)) d++;
+        const pm = []; pseudo(p, pm, false);
+        const ms = orderPseudo(p, pm, ply);
+        let best = -31000, legalCnt = 0;
+        for (let i = 0; i < ms.length; i++) {
+          const m = ms[i];
+          const u = tryMake(p, m);
+          if (!u) continue;
+          legalCnt++;
+          const s = -(d - 1 > SYNC_D ? yield* abg(p, d - 1, -beta, -alpha, ply + 1) : ab(p, d - 1, -beta, -alpha, ply + 1));
+          undo(p, u);
+          if (sAbort) return best > -31000 ? best : s;
+          if (performance.now() >= sliceEnd) { // 手を1つ調べ終えるごとに時間を確認して制御を返す
+            yield;
+            if (thinkAbort) sAbort = true;
+            if (sAbort) return best > -31000 ? Math.max(best, s) : s;
+          }
+          if (s > best) best = s;
+          if (s > alpha) alpha = s;
+          if (alpha >= beta) {
+            if (!p.b[m & 127]) {
+              const dr = m >> 15, pt = dr ? dr : Math.abs(p.b[(m >> 7) & 127]);
+              hist[pt * 81 + (m & 127)] += d * d;
+              const kl = killers[ply] || (killers[ply] = [-1, -1]);
+              if (kl[0] !== m) { kl[1] = kl[0]; kl[0] = m; }
+            }
+            break;
+          }
+        }
+        if (legalCnt === 0) return -30000 + ply;
+        return best;
+      }
+      async function runCoop(gen) {
+        sliceEnd = performance.now() + SLICE_MS;
+        let r = gen.next();
+        while (!r.done) {
+          await yieldUI();
+          sliceEnd = performance.now() + SLICE_MS;
+          r = gen.next();
+        }
+        return r.value;
+      }
+
+      // ---- 思考の進捗表示(%) ----
+      let PROG = null, progTimer = null;
+      function progRender() {
+        if (!PROG) return;
+        const el = performance.now() - PROG.t0;
+        const f = isFinite(PROG.ms) ? Math.min(1, el / PROG.ms) : Math.min(1, PROG.frac), pct = Math.floor(f * 100);
+        document.getElementById('thinkProg').style.display = '';
+        document.getElementById('tpFill').style.width = pct + '%';
+        document.getElementById('tpText').textContent = PROG.label + ' ' + pct + '%(深さ ' + PROG.d + (PROG.maxDepth < 40 ? '/' + PROG.maxDepth : '') + ' ・ ' + (el / 1000).toFixed(1) + '秒)' + (PROG.cur ? '\n検討中 ' + PROG.cur : '');
+        if (PROG.statusToo) document.getElementById('status').textContent = PROG.label + ' ' + pct + '%';
+      }
+      function progStart(label, maxDepth, ms, statusToo) {
+        PROG = { label, maxDepth, ms, statusToo, t0: performance.now(), d: 1, frac: 0 };
+        progRender();
+        if (!progTimer) progTimer = setInterval(progRender, 120);
+      }
+      function progStop() {
+        PROG = null;
+        if (progTimer) { clearInterval(progTimer); progTimer = null; }
+        document.getElementById('thinkProg').style.display = 'none';
+      }
+
       // ===================== 自己対局用の軽量探索(画面更新なし・ノード数制限つき) =====================
       // 反復深化PVS。深さ1は必ず全手を完了し、その後はmaxNodes個のノードを使い切ったら打ち切る。
       // 返り値: { move, score, d1 }  (d1は深さ1での全合法手の値。探索の多様化に使う)
-      function searchFast(p, maxDepth, maxNodes) {
+      async function searchFast(p, maxDepth, maxNodes) {
         const root0 = legal(p, false);
         if (!root0.length) return null;
         let root = orderMoves(p, root0);
@@ -1030,13 +1129,14 @@
             for (let i = 0; i < root.length; i++) {
               const m = root[i], u = make(p, m);
               let sc;
-              if (d === 1 || i === 0) sc = -ab(p, d - 1, -31000, 31000, 1);
+              if (d === 1 || i === 0) sc = -(await runCoop(abg(p, d - 1, -31000, 31000, 1)));
               else {
-                sc = -ab(p, d - 1, -alpha - 1, -alpha, 1);
-                if (!sAbort && sc > alpha) sc = -ab(p, d - 1, -31000, -alpha, 1);
+                sc = -(await runCoop(abg(p, d - 1, -alpha - 1, -alpha, 1)));
+                if (!sAbort && sc > alpha) sc = -(await runCoop(abg(p, d - 1, -31000, -alpha, 1)));
               }
               undo(p, u);
               if (sAbort) { done = false; break; }
+              if (performance.now() >= sliceEnd) await yieldUI(); // 学習中も画面を止めない
               if (d === 1) scs.push({ move: m, score: sc });
               if (sc > curScore) { curScore = sc; curBest = m; }
               if (sc > alpha) alpha = sc;
@@ -1051,11 +1151,11 @@
         return { move: bestMove, score: bestScore, d1 };
       }
 
-      function renderCandidateTable(rankedList, p) {
+      function renderCandidateTable(rankedList, p, depthLabel) {
         if (!document.getElementById('showCands').checked) { renderHiddenNote(); return; }
         if (!rankedList || !rankedList.length) { document.getElementById('cand').innerHTML = ''; return; }
         const labels = ['最善手', '次善手', '3番手', '4番手', '5番手'];
-        let html = '<table><tr><th>順位</th><th>指し手</th><th>評価値</th></tr>';
+        let html = (depthLabel ? '<div style="font-size:11px;color:#666;margin:0 0 3px 2px">' + depthLabel + '</div>' : '') + '<table><tr><th>順位</th><th>指し手</th><th>評価値</th></tr>';
         rankedList.slice(0, 5).forEach((r, i) => {
           html += `<tr class="${i === 0 ? 'best' : ''}"><td>${labels[i]}</td><td>${humanMoveStr(p, r.move)}</td><td>${r.score.toFixed(0)}</td></tr>`;
         });
@@ -1073,83 +1173,94 @@
       //    (深い探索で反駁された手が、静止探索の甘い評価のまま上位に見えてしまうのを防ぐ)。
       //  - 実際に指す手は必ず1位に表示し、その値は深い探索の正確な値。
       //  - 打ち切られた深さでも、最初に調べた最有力手が検証済みならその結果を採用する。
-      async function searchBestAsync(p, maxDepth, msLimit) {
+      async function searchBestAsync(p, maxDepth, msLimit, label, statusToo, kPV) {
+        progStart(label || '探索中', maxDepth, msLimit, statusToo);
+        try { return await searchBestInner(p, maxDepth, msLimit, kPV); } finally { progStop(); }
+      }
+      async function searchBestInner(p, maxDepth, msLimit, kPV) {
         const root0 = orderMoves(p, legal(p, false));
         if (!root0.length) return null;
-
+        const K = Math.max(1, kPV || 1); // 上位K手は正確な評価値を求める(MultiPV)。AIが指すときはK=1
         // rankMovesQuickは内部で締め切り(sDead)等をリセットするため、必ず先に呼び、その後で本探索の締め切りを設定する
-        const quickRanked = rankMovesQuick(p);
+        const quickRanked = await rankMovesQuickAsync(p);
+        if (!quickRanked) return null; // 思考の中断
+        const sp = clonePos(p); // 探索は複製した局面で行う(思考中に盤の表示用の局面を触らない)
         let root = quickRanked.map(r => r.move);
-        const scores = new Map(); // 手 -> 深い探索で分かった値(最新の深さのもの)
 
-        sNodes = 0; sAbort = false; thinkAbort = false; sDead = performance.now() + msLimit;
+        sNodes = 0; sAbort = false; sMaxNodes = Infinity; sDead = performance.now() + msLimit;
         sMaxPly = maxDepth + 6; resetSearchTables();
 
-        const dispRank = (bm, bs) => {
-          const list = quickRanked.map(r => {
-            if (r.move === bm) return { move: r.move, score: bs };
-            const sc = scores.get(r.move);
-            return { move: r.move, score: sc === undefined ? Math.min(r.score, bs) : Math.min(r.score, sc, bs) };
-          });
-          list.sort((x, y) => (y.score - x.score) || (x.move === bm ? -1 : y.move === bm ? 1 : 0));
+        // 表示用の順位: 上位K手(top)は探索で求めた正確な値、それ以外はK位以下として並べる
+        const dispRank = top => {
+          const exact = new Map(top.map(t => [t.move, t.score])), kth = top[top.length - 1].score;
+          const list = quickRanked.map(r => ({ move: r.move, score: exact.has(r.move) ? exact.get(r.move) : Math.min(r.score, kth) }));
+          list.sort((x, y) => (exact.has(y.move) - exact.has(x.move)) || (y.score - x.score));
           return list;
         };
 
-        let bestMove = quickRanked[0].move, bestScore = quickRanked[0].score;
+        let lastTop = [{ move: quickRanked[0].move, score: quickRanked[0].score }]; // 最後に完了した深さの上位手
+        let bestMove = lastTop[0].move, bestScore = lastTop[0].score;
         let reached = 0, lastRender = 0;
 
-        depthLoop:
         for (let d = 1; d <= maxDepth; d++) {
           if (sAbort || thinkAbort || performance.now() > sDead) break;
-          let alpha = -31000, curBest = null, curBestScore = -31000, completedAll = true;
+          let top = [], completedAll = true;
 
           for (let i = 0; i < root.length; i++) {
             const m = root[i];
-            const u = make(p, m);
+            if (PROG) PROG.cur = (i + 1) + '/' + root.length + '手目 ' + humanMoveStr(p, m);
+            // 上位Kに入るまでは全窓で正確な値を求める。入った後は「K位を超えるか」だけを速く調べ、超えたら正確に調べ直す
+            const full = top.length < K, lo = full ? -31000 : top[K - 1].score;
+            const u = make(sp, m);
             let sc;
-            if (i === 0) {
-              sc = -ab(p, d - 1, -31000, 31000, 1);
-            } else {
-              sc = -ab(p, d - 1, -alpha - 1, -alpha, 1);
-              if (!sAbort && !thinkAbort && sc > alpha) sc = -ab(p, d - 1, -31000, -alpha, 1);
+            if (full) sc = -(await runCoop(abg(sp, d - 1, -31000, 31000, 1)));
+            else {
+              sc = -(await runCoop(abg(sp, d - 1, -lo - 1, -lo, 1)));
+              if (!sAbort && !thinkAbort && sc > lo) sc = -(await runCoop(abg(sp, d - 1, -31000, -lo, 1)));
             }
-            undo(p, u);
+            undo(sp, u);
             if (sAbort || thinkAbort) { completedAll = false; break; }
-            scores.set(m, sc);
-            if (sc > curBestScore) { curBestScore = sc; curBest = m; }
-            if (sc > alpha) alpha = sc;
+            if (performance.now() >= sliceEnd) await yieldUI();
+            if (full || sc > lo) {
+              top.push({ move: m, score: sc });
+              top.sort((x, y) => y.score - x.score);
+              if (top.length > K) top.length = K;
+            }
+            if (PROG) { PROG.d = d; PROG.frac = ((d - 1) + (i + 1) / root.length) / maxDepth; }
 
             const now = performance.now();
-            if (now - lastRender > 60) {
+            if (now - lastRender > 120) {
               lastRender = now;
-              const preview = dispRank(curBest, curBestScore);
-              updateEvalDisplay(preview[0].score, p.side);
-              renderCandidateTable(preview, p);
+              // 探索の途中経過: 今の深さで分かっている最善の値で評価値を更新(上位K手がそろっていれば候補表も更新)
+              if (top.length) updateEvalDisplay(top[0].score, p.side);
+              if (top.length === K) renderCandidateTable(dispRank(top), p, '深さ ' + d + '(探索中)');
               await new Promise(r => setTimeout(r, 0));
               if (thinkAbort || performance.now() > sDead) { completedAll = false; break; }
             }
           }
           if (!completedAll) {
-            // 打ち切られた深さでも、検証済み(フルウィンドウで調べ終えた)最有力手があれば採用する
-            if (curBest !== null) { bestMove = curBest; bestScore = curBestScore; }
+            // 打ち切られた深さでも、検証済み(正確な値の分かった)最有力手があれば採用する
+            if (top.length) {
+              bestMove = top[0].move; bestScore = top[0].score;
+              lastTop = top.concat(lastTop.filter(t => !top.some(x => x.move === t.move))).slice(0, K);
+            }
             break;
           }
 
-          bestMove = curBest; bestScore = curBestScore; reached = d;
-          root = [curBest].concat(root.filter(x => x !== curBest)); // 次の深さは今回の最善手から調べる
+          lastTop = top; bestMove = top[0].move; bestScore = top[0].score; reached = d;
+          root = top.map(t => t.move).concat(root.filter(x => !top.some(t => t.move === x))); // 次の深さは今回の上位手から調べる
 
-          const ranked = dispRank(bestMove, bestScore);
           updateEvalDisplay(bestScore, p.side);
-          renderCandidateTable(ranked, p);
+          renderCandidateTable(dispRank(top), p, '深さ ' + d);
           document.getElementById('gamePhase').textContent = getGamePhase(p).phaseText;
 
           if (Math.abs(bestScore) > 29000) break; // 詰みが見つかった(または詰まされる)なら深追い不要
           await new Promise(r => setTimeout(r, 0));
         }
 
-        const finalRanked = dispRank(bestMove, bestScore);
+        const finalRanked = dispRank(lastTop);
         updateEvalDisplay(finalRanked[0].score, p.side);
-        renderCandidateTable(finalRanked, p);
+        renderCandidateTable(finalRanked, p, reached ? '深さ ' + reached : '');
         return { move: bestMove, score: bestScore, rankedList: finalRanked, depth: reached };
       }
 
@@ -1166,6 +1277,27 @@
           undo(p, u);
           res.push({ move: m, score: sc });
         }
+        res.sort((x, y) => y.score - x.score);
+        return res;
+      }
+
+      // 候補表示用の軽量評価(協調版)。10msごとに制御を返す。中断・置き換えされたらnullを返す。
+      async function rankMovesQuickAsync(p, stopFn) {
+        sNodes = 0; sAbort = false; thinkAbort = false; sMaxNodes = Infinity; sDead = performance.now() + 60000;
+        const root = orderMoves(p, legal(p, false));
+        const c = p.side, res = [];
+        let t0 = performance.now();
+        for (const m of root) {
+          if (thinkAbort || (stopFn && stopFn())) return null;
+          const u = make(p, m);
+          let sc;
+          if (attacked(p, p.ks[1 - c], c) && !hasLegal(p)) sc = 29999; // 1手詰み
+          else sc = -qs(p, -31000, 31000, 4);
+          undo(p, u);
+          res.push({ move: m, score: sc });
+          if (performance.now() - t0 > SLICE_MS) { await yieldUI(); t0 = performance.now(); }
+        }
+        if (thinkAbort || (stopFn && stopFn())) return null;
         res.sort((x, y) => y.score - x.score);
         return res;
       }
@@ -1213,10 +1345,26 @@
         return document.getElementById('gameMode').value === 'vs_ai' && humanSideNow() === 1;
       }
 
+      // 直前に指された手(盤上でハイライトする)。整数表現の手を返す。なければnull。
+      let _lmKey = null, _lmVal = null;
+      function lastMoveInts() {
+        if (isLearnMode()) return typeof LEARN_VIEW.lastMv === 'number' ? LEARN_VIEW.lastMv : null;
+        const n = MVSTR.length;
+        if (isEditing || !n || HIST.length !== n) return null;
+        const key = n + ':' + MVSTR[n - 1];
+        if (key !== _lmKey) {
+          _lmKey = key;
+          const m = legal(HIST[n - 1], false).find(x => mstr(x) === MVSTR[n - 1]);
+          _lmVal = m === undefined ? null : m;
+        }
+        return _lmVal;
+      }
+
       function draw() {
         const p = isEditing ? EDIT_POS : POS;
         const flip = viewFlipped();
         const legals = isEditing ? [] : legal(p, false);
+        const lm = lastMoveInts(), lmTo = lm === null ? -1 : lm & 127, lmFrom = lm === null || (lm >> 15) ? -1 : (lm >> 7) & 127;
 
         for (let r = 0; r < 9; r++) {
           for (let c = 0; c < 9; c++) {
@@ -1224,7 +1372,7 @@
             const x = p.b[sq], e = cells[r * 9 + c], a = Math.abs(x);
             e.textContent = x ? CH[a] : '';
             const rot = flip ? x > 0 : x < 0; // 画面の上側のプレイヤーの駒は逆向きに表示する
-            let cls = 'c' + (rot ? ' w' : '') + (a > 8 ? ' pr' : '');
+            let cls = 'c' + (rot ? ' w' : '') + (a > 8 ? ' pr' : '') + (sq === lmTo ? ' last-to' : sq === lmFrom ? ' last-from' : '');
             if (SEL) {
               if (SEL.type === 'sq' && SEL.sq === sq) cls += isEditing ? ' edit-sel' : ' sel';
               if (!isEditing) {
@@ -1283,7 +1431,7 @@
         }
         if (gameOver) { document.getElementById('status').textContent = '対局は終了しています(「開始」または「待った」)'; return; }
 
-        if (!NET) { document.getElementById('status').textContent = 'まずnn.binを読み込んでください'; return; }
+        if (!NET && isNNMode()) { document.getElementById('status').textContent = 'まずnn.binを読み込んでください'; return; }
 
         if (isThinking) {
           thinkAbort = true;
@@ -1410,6 +1558,7 @@
       // ===================== イベントハンドラ =====================
       cells.forEach(c => c.onclick = () => cellClick(+c.dataset.sq));
 
+      let EVAL_TOKEN = 0, RATE_TOKEN = 0;
       async function showEval(quickOnly) {
         const p = isEditing ? EDIT_POS : POS;
         document.getElementById('bookBadge').style.display = 'none';
@@ -1428,41 +1577,49 @@
           return [];
         }
 
-        const quickRanked = rankMovesQuick(p);
-        const topScore = quickRanked.length ? quickRanked[0].score : evalYane(p);
-        updateEvalDisplay(topScore, p.side);
-
-        const phaseInfo = getGamePhase(p);
-        document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
-
-        renderCandidateTable(quickRanked, p);
-
-        const bookHit = bookCandidates(p) !== null;
-        document.getElementById('bookBadge').style.display = bookHit ? 'block' : 'none';
-
-        if (!isEditing) {
-          const evalSente = p.side === 0 ? topScore : -topScore;
-          EVAL_HIST[HIST.length] = evalSente;
-          drawGraph();
+        // 思考中に呼ばれたとき: 軽い更新要求は無視、通常の要求は前の思考を中断してから始める(最後の要求だけが実行される)
+        const tok = ++EVAL_TOKEN, ep = epoch;
+        if (isThinking) {
+          if (quickOnly) return [];
+          thinkAbort = true;
+          try { await thinkingPromise; } catch (e) { /* 無視 */ }
+          if (tok !== EVAL_TOKEN || ep !== epoch) return [];
         }
 
-        // 定跡内・局面編集中・(AIが続けて同じ探索を行う)AI手番では、表示用の深い探索は省く
-        if (quickOnly || bookHit || isEditing || (!document.getElementById('showCands').checked && !document.getElementById('showBar').checked)) return quickRanked;
-
-        const depth = Math.max(1, +document.getElementById('depth').value);
-        const ms = Math.max(100, +document.getElementById('movems').value);
-        let result;
+        let quickRanked = null, result = null;
         isThinking = true;
-        try {
-          thinkingPromise = searchBestAsync(p, depth, ms);
-          result = await thinkingPromise;
-        } catch (e) {
-          log('ERROR(showEval探索): ' + e.message);
-          result = null;
-        } finally {
-          isThinking = false; // 例外が起きてもここは必ず通す(思考中フラグが固まって操作不能になるのを防ぐ)
-        }
+        const job = (async () => {
+          quickRanked = await rankMovesQuickAsync(p, () => tok !== EVAL_TOKEN || ep !== epoch);
+          if (!quickRanked) return;
+          const topScore = quickRanked.length ? quickRanked[0].score : evalYane(p);
+          updateEvalDisplay(topScore, p.side);
 
+          const phaseInfo = getGamePhase(p);
+          document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
+
+          renderCandidateTable(quickRanked, p);
+
+          const bookHit = bookCandidates(p) !== null;
+          document.getElementById('bookBadge').style.display = bookHit ? 'block' : 'none';
+
+          if (!isEditing) {
+            const evalSente = p.side === 0 ? topScore : -topScore;
+            EVAL_HIST[HIST.length] = evalSente;
+            drawGraph();
+          }
+
+          // 定跡内・局面編集中・(AIが続けて同じ探索を行う)AI手番では、表示用の深い探索は省く
+          if (quickOnly || bookHit || isEditing || (!document.getElementById('showCands').checked && !document.getElementById('showBar').checked)) return;
+
+          const study = document.getElementById('gameMode').value === 'study';
+          const depth = Math.max(1, +document.getElementById(study ? 'depthStudy' : 'depth').value);
+          result = await searchBestAsync(p, depth, analysisMs(), study ? '探索中(終わるまで続けます)' : '解析中', false, 5);
+        })();
+        thinkingPromise = job;
+        try { await job; } catch (e) { log('ERROR(showEval探索): ' + e.message); result = null; }
+        finally { if (thinkingPromise === job) isThinking = false; }
+
+        if (ep !== epoch || tok !== EVAL_TOKEN) return [];
         if (result && result.rankedList && !isEditing) {
           const finalScore = result.score;
           const evalSente = p.side === 0 ? finalScore : -finalScore;
@@ -1471,20 +1628,29 @@
           return result.rankedList;
         }
 
-        return quickRanked;
+        return quickRanked || [];
       }
 
-      function checkBadMove(ranked, playedMove) {
+      // 指した手の評価(最善手との差)。盤上の手はすぐ反映し、評価は手を指した後で計算する。
+      async function rateMoveAsync(pb, m, plyB, ep) {
+        const tok = ++RATE_TOKEN;
+        const rk = await rankMovesQuickAsync(pb, () => tok !== RATE_TOKEN || ep !== epoch);
+        if (rk && tok === RATE_TOKEN && ep === epoch) checkBadMove(rk, m, pb, plyB);
+        return tok === RATE_TOKEN && ep === epoch;
+      }
+
+      function checkBadMove(ranked, playedMove, pb, plyB) {
+        if (!pb) { pb = POS; plyB = HIST.length; }
         if (!ranked || !ranked.length) {
           document.getElementById('lastMoveStr').textContent = '-';document.getElementById('lastMoveRank').textContent = '-';
           return;
         }
 
-        const playedStr = humanMoveStr(POS, playedMove);
+        const playedStr = humanMoveStr(pb, playedMove);
         document.getElementById('lastMoveStr').textContent = playedStr;
 
         const bestScore = ranked[0].score;
-        const bestMoveStr = humanMoveStr(POS, ranked[0].move);
+        const bestMoveStr = humanMoveStr(pb, ranked[0].move);
         const index = ranked.findIndex(r => r.move === playedMove);
         const total = ranked.length;
 
@@ -1498,16 +1664,16 @@
           if (diff < 20 || index === 0) {
             rankText = `<span class="rank-best">最善手 (評価差: ${diff.toFixed(0)}cp)</span>`;
             MOVE_RECORDS.push({
-              side: POS.side, ply: HIST.length,
-              phase: getGamePhase(POS).phaseIdx,
+              side: pb.side, ply: plyB,
+              phase: getGamePhase(pb).phaseIdx,
               diff: 0
             });
           } else if (isWorst) {
             rankText = `<span class="rank-worst">最悪手 (${index + 1}番手)</span> (最善手(${bestMoveStr})との差: <b style="color:#c00;">-${diff.toFixed(0)}cp</b>)`;
-            MOVE_RECORDS.push({ side: POS.side, ply: HIST.length, phase: getGamePhase(POS).phaseIdx, diff: diff });
+            MOVE_RECORDS.push({ side: pb.side, ply: plyB, phase: getGamePhase(pb).phaseIdx, diff: diff });
           } else {
             rankText = `<span class="rank-bad">${index + 1}番手</span> (最善手(${bestMoveStr})との差: <b style="color:#c00;">-${diff.toFixed(0)}cp</b>)`;
-            MOVE_RECORDS.push({ side: POS.side, ply: HIST.length, phase: getGamePhase(POS).phaseIdx, diff: diff });
+            MOVE_RECORDS.push({ side: pb.side, ply: plyB, phase: getGamePhase(pb).phaseIdx, diff: diff });
           }
           document.getElementById('lastMoveRank').innerHTML = rankText;
           updatePlayerSkillScores();
@@ -1517,8 +1683,11 @@
         }
       }
 
-      async function doMove(m) {
+      async function doMove(m, rate) {
         const ep = epoch;
+        if (!tcStarted) resetClocks(true);
+        const pb = rate && NET ? clonePos(POS) : null, plyB = HIST.length;
+        tcMoveDone(POS.side);
         clearHint();
         MVSTR.push(mstr(m));
         MVSTR_DISP.push(humanMoveStr(POS, m)); // POSはまだ着手前なのでここで駒種を調べる
@@ -1536,17 +1705,16 @@
           document.getElementById('gamePhase').textContent = phaseInfo.phaseText;
           return;
         }
-        // 次がAIの手番なら、表示用の深い探索は省く(aiMoveが同じ探索をして表示も更新するため)
-        const ranked = await showEval(isAITurn());
+        // 指した手の評価は、手を盤に反映した後で計算する(待たせない)
+        if (pb && !(await rateMoveAsync(pb, m, plyB, ep))) return;
         if (ep !== epoch) return;
-        maybeAI(ranked);
+        // 次がAIの手番なら、表示用の探索は省く(aiMoveが探索して表示も更新するため)
+        if (!isAITurn()) await showEval(false);
+        if (ep !== epoch) return;
+        maybeAI();
       }
 
-      async function beforeMoveEval(mv) {
-        const ranked = rankMovesQuick(POS);
-        checkBadMove(ranked, mv);
-        await doMove(mv);
-      }
+      async function beforeMoveEval(mv) { await doMove(mv, true); }
 
       function isAITurn() {
         if (document.getElementById('gameMode').value !== 'vs_ai') return false;
@@ -1576,12 +1744,12 @@
         }
 
         document.getElementById('status').textContent = 'AI思考中…';
-        const depth = Math.max(1, +document.getElementById('depth').value), ms = Math.max(100, +document.getElementById('movems').value);
+        const lim = aiSearchLimits();
 
         let best;
         isThinking = true;
         try {
-          thinkingPromise = searchBestAsync(POS, depth, ms);
+          thinkingPromise = searchBestAsync(POS, lim.depth, lim.ms, 'AI思考中', true);
           best = await thinkingPromise;
         } catch (e) {
           log('ERROR(AI探索): ' + e.message);
@@ -1650,12 +1818,14 @@
         document.body.classList.toggle('mode-study', mode === 'study');
         document.body.classList.toggle('mode-learn', mode === 'learn');
         fitLayout();
+        updateNNGate();
+        if (!tcStarted) resetClocks(false);
         clearHint();
         if (mode === 'learn') {
           await stopThinking();
           SEL = null; gameOver = false;
           POS = startPos(); HIST = []; MVSTR = []; MVSTR_DISP = []; EVAL_HIST = []; MOVE_RECORDS = [];
-          LEARN_VIEW.label = '学習待機中'; LEARN_VIEW.ply = 0;
+          LEARN_VIEW.label = '学習待機中'; LEARN_VIEW.ply = 0; LEARN_VIEW.lastMv = null;
           document.getElementById('modeBadge').textContent = 'AI学習';
           document.getElementById('status').textContent = NET ? 'AI学習モード: 「学習開始」で自己対局を始めます' : 'nn.bin の読み込みが終わると学習を始められます';
           updateEvalDisplay(null);
@@ -1679,8 +1849,9 @@
       //   評価値 = NNUE評価値 + bias + Σ w[k]・z[k]/127
       // この w を自己対局から学習する(目標値 = 対局結果と探索値の混合、Adamで更新)。
       // 強さは「元のNNUEだけのAI」との対局(同じ序盤から先後入れ替え)で測り、良くなった補正だけ採用する。
-      const EVAL_SCALE = 600, LEARN_LAMBDA = 0.5, LEARN_KEY = 'shogiLearn_v1';
-      const LEARN_VIEW = { names: ['先手AI', '後手AI'], label: '', ply: 0 };
+      const EVAL_SCALE = 600, LEARN_LAMBDA = 0.5;
+      const learnKey = () => 'shogiLearn_v1' + (NN_NAME ? ':' + NN_NAME : ''); // 補正は使っているnnごとに別々に保存する
+      const LEARN_VIEW = { names: ['先手AI', '後手AI'], label: '', ply: 0, lastMv: null };
       const LEARN = { running: false, stop: false, promise: null, best: null, cand: null, adam: null, buf: [], hist: [], total: 0, cycles: 0, bestScore: 0.5, avgSec: 0 };
       const sleep0 = () => new Promise(r => setTimeout(r, 0));
       const sigmoid = x => 1 / (1 + Math.exp(-x));
@@ -1698,9 +1869,14 @@
         return { p, elo: eloOfP(pc), lo: eloOfP(Math.max(0.01, pc - 1.96 * se)), hi: eloOfP(Math.min(0.99, pc + 1.96 * se)) };
       }
 
+      // nnを切り替えたとき: そのnn用の学習記録に入れ替える
+      function learnSwitchNN() {
+        Object.assign(LEARN, { best: null, cand: null, adam: null, buf: [], hist: [], total: 0, cycles: 0, bestScore: 0.5, avgSec: 0 });
+        loadLearn(); renderLearnUI();
+      }
       function saveLearn() {
         try {
-          localStorage.setItem(LEARN_KEY, JSON.stringify({
+          localStorage.setItem(learnKey(), JSON.stringify({
             best: LEARN.best ? Array.from(LEARN.best, v => +v.toFixed(4)) : null,
             hist: LEARN.hist.slice(-200), total: LEARN.total, cycles: LEARN.cycles, bestScore: LEARN.bestScore
           }));
@@ -1708,7 +1884,7 @@
       }
       function loadLearn() {
         try {
-          const o = JSON.parse(localStorage.getItem(LEARN_KEY) || 'null');
+          const o = JSON.parse(localStorage.getItem(learnKey()) || 'null');
           if (!o) return;
           if (o.best && o.best.length === ADJ_N) LEARN.best = Float64Array.from(o.best);
           LEARN.hist = o.hist || []; LEARN.total = o.total || 0; LEARN.cycles = o.cycles || 0;
@@ -1791,10 +1967,11 @@
 
       // ---- 自己対局 ----
       // ランダムな序盤(評価値が互角に近い局面になるまで試す)。手の列を返す。
-      function randomOpening(nPlies) {
+      async function randomOpening(nPlies) {
         const saved = ADJ_W; ADJ_W = null;
         try {
           for (let tr = 0; tr < 40; tr++) {
+            if (tr) await yieldUI();
             const p = startPos(), mv = [];
             let ok = true;
             for (let i = 0; i < nPlies; i++) {
@@ -1827,7 +2004,7 @@
           if (c >= 4) { result = 0; endReason = '千日手'; break; }
           if (!hasLegal(p)) { result = side === 0 ? -1 : 1; endReason = '詰み'; break; }
           ADJ_W = o.adj[side];
-          const res = searchFast(p, 8, o.nodes);
+          const res = await searchFast(p, 8, o.nodes);
           let mv = res.move;
           const score = res.score;
           lastSente = side === 0 ? score : -score;
@@ -1847,7 +2024,7 @@
           } else streak = { side: -1, n: 0 };
           disp.push(humanMoveStr(p, mv));
           make(p, mv); ply++;
-          if (o.onMove) await o.onMove(p, disp, ply, score, side);
+          if (o.onMove) await o.onMove(p, disp, ply, score, side, mv);
           else await sleep0();
         }
         return { result, ply, endReason, samples };
@@ -1855,7 +2032,8 @@
 
       // 盤面への表示・進行表示(1手ごと)
       function makeRenderer(names, label, progText) {
-        return async (p, disp, ply, score, side) => {
+        return async (p, disp, ply, score, side, mv) => {
+          LEARN_VIEW.lastMv = mv;
           LEARN_VIEW.names = names; LEARN_VIEW.label = label; LEARN_VIEW.ply = ply;
           setProg(progText() + ' ・' + ply + '手目');
           updateEvalDisplay(score, side);
@@ -1916,7 +2094,7 @@
         let w = 0, d = 0, l = 0, done = 0;
         const total = cfg.pairs * 2;
         for (let i = 0; i < cfg.pairs; i++) {
-          const opening = randomOpening(6);
+          const opening = await randomOpening(6);
           for (let candSide = 0; candSide < 2; candSide++) {
             const names = candSide === 0 ? ['補正AI', '基準AI(NNUEのみ)'] : ['基準AI(NNUEのみ)', '補正AI'];
             const t0 = performance.now();
@@ -1965,7 +2143,7 @@
             for (; gi < cfg.games && !LEARN.stop; gi++) {
               const t0 = performance.now(), cur = gi;
               const g = await playGame({
-                opening: randomOpening(4 + 2 * randInt(3)), adj: [LEARN.cand, LEARN.cand], nodes: cfg.nodes, maxPly: 220,
+                opening: await randomOpening(4 + 2 * randInt(3)), adj: [LEARN.cand, LEARN.cand], nodes: cfg.nodes, maxPly: 220,
                 collect: true, explore: true,
                 onMove: makeRenderer(['学習AI', '学習AI'], '自己対局(学習)', () => '自己対局 ' + (cur + 1) + '/' + cfg.games + '局目')
               });
@@ -2015,7 +2193,7 @@
         if (LEARN.running) return;
         if (!(await askDialog('学習した補正と記録をすべて消して、元のNNUEに戻しますか?', '消す', 'キャンセル'))) return;
         Object.assign(LEARN, { best: null, cand: null, adam: null, buf: [], hist: [], total: 0, cycles: 0, bestScore: 0.5, avgSec: 0 });
-        try { localStorage.removeItem(LEARN_KEY); } catch (e) { /* 無視 */ }
+        try { localStorage.removeItem(learnKey()); } catch (e) { /* 無視 */ }
         renderLearnUI(); setState('リセットしました'); setProg('-');
       };
       document.getElementById('useLearned').addEventListener('change', () => { applyPlayAdj(); if (NET && !isLearnMode()) showEval(true); });
@@ -2124,7 +2302,8 @@
         }
       };
 
-      document.getElementById('depth').onchange = () => { if (NET) showEval(); };document.getElementById('movems').onchange = () => { if (NET) showEval(); };
+      document.getElementById('depth').onchange = () => { if (NET) showEval(); };
+      document.getElementById('depthStudy').onchange = () => { if (NET) showEval(); };
 
       document.getElementById('btnEditStart').onclick = async () => {
         document.getElementById('menuPanel').style.display = 'none';
@@ -2142,7 +2321,7 @@
 
       document.getElementById('btnEditApply').onclick = async () => {
         await stopThinking();
-        gameOver = false; clearHint(); resetClocks();
+        gameOver = false; clearHint(); resetClocks(true);
         updateKingPositions(EDIT_POS);
         let hasK1 = false, hasK2 = false;
         for (let i = 0; i < 81; i++) {
@@ -2192,7 +2371,7 @@
       document.getElementById('btnNew').onclick = async () => {
         await stopThinking();
         rerollSide();
-        gameOver = false; clearHint(); resetClocks();
+        gameOver = false; clearHint(); resetClocks(true);
         POS = startPos(); SEL = null; HIST = []; MVSTR = []; MVSTR_DISP = []; EVAL_HIST = []; MOVE_RECORDS = [];
         resetPhaseProbs();
         document.getElementById('lastMoveStr').textContent = '-';document.getElementById('lastMoveRank').textContent = '-';
@@ -2226,7 +2405,6 @@
 
       // ===================== 終局・時計・ヒント・表示 =====================
       let gameOver = false;
-      const CLOCK = [0, 0];
       let lastTick = performance.now();
       const cellBySq = new Array(81);
       const handChip = [{}, {}];
@@ -2332,31 +2510,141 @@
         const two = n => (n < 10 ? '0' : '') + n;
         return h ? h + ':' + two(m) + ':' + two(ss) : m + ':' + two(ss);
       }
-      function timeLimitMs() { return Math.max(0, +document.getElementById('timeLimit').value || 0) * 60000; }
+      // ===================== 持ち時間(ユーザー / AI) =====================
+      // 持ち時間(分)・秒読み・フィッシャー(1手ごとの加算)・切れ負け を、ユーザーとAIで別々に設定できる。
+      const TC_DEF = {
+        main: [['inf', 'なし(無制限)'], ['10', '10分'], ['5', '5分'], ['3', '3分'], ['1', '1分'], ['custom', '任意…']],
+        byo: [['0', 'なし'], ['5', '5秒'], ['10', '10秒'], ['20', '20秒'], ['30', '30秒'], ['custom', '任意…']],
+        fis: [['0', 'なし'], ['3', '+3秒'], ['5', '+5秒'], ['custom', '任意…']]
+      };
+      const TC_IDS = [];
+      (function buildTcUi() {
+        const box = document.getElementById('tcBox');
+        const opts = list => list.map(o => '<option value="' + o[0] + '">' + o[1] + '</option>').join('');
+        let html = '';
+        [['U', 'ユーザー'], ['A', 'AI']].forEach(([w, name]) => {
+          html += '<div class="tc-group"><b>' + name + '</b>';
+          [['Main', '持ち時間', 'main', '分', '15', '0.5', '0.5'], ['Byo', '秒読み', 'byo', '秒', '15', '1', '1'], ['Fis', '加算(フィッシャー)', 'fis', '秒', '2', '1', '1']].forEach(([k, label, key, unit, cv, mn, st]) => {
+            html += '<label class="menu-row">' + label + ': <select id="tc' + k + w + '">' + opts(TC_DEF[key]) + '</select> ' +
+              '<span id="tc' + k + 'Cw' + w + '" style="display:none"><input type="number" id="tc' + k + 'C' + w + '" value="' + cv + '" min="' + mn + '" step="' + st + '" style="width:64px"> ' + unit + '</span></label>';
+            TC_IDS.push('tc' + k + w, 'tc' + k + 'C' + w);
+          });
+          html += '<label class="menu-row"><input type="checkbox" id="tcLoss' + w + '" checked> 時間切れで負け(切れ負け)</label></div>';
+          TC_IDS.push('tcLoss' + w);
+        });
+        box.innerHTML = html;
+        document.getElementById('tcMainU').value = '10'; document.getElementById('tcMainA').value = '10';
+      })();
+      function tcSyncCustom() {
+        ['U', 'A'].forEach(w => ['Main', 'Byo', 'Fis'].forEach(k => {
+          document.getElementById('tc' + k + 'Cw' + w).style.display = document.getElementById('tc' + k + w).value === 'custom' ? 'inline' : 'none';
+        }));
+      }
+      function tcConfig(w) {
+        const g = id => document.getElementById(id + w);
+        const val = (k, mul) => { const v = g('tc' + k).value; return (v === 'custom' ? Math.max(0, +g('tc' + k + 'C').value || 0) : +v) * mul; };
+        const unlimited = g('tcMain').value === 'inf';
+        return { unlimited, mainMs: unlimited ? 0 : Math.max(6000, val('Main', 60000)), byoMs: val('Byo', 1000), fisMs: val('Fis', 1000), loss: g('tcLoss').checked };
+      }
+      // その手番に適用する設定。研究/ローカル対戦は時間無制限(経過時間のみ表示)。
+      function tcCfgForSide(side) {
+        const mode = document.getElementById('gameMode').value;
+        if (mode !== 'vs_ai') return { unlimited: true, mainMs: 0, byoMs: 0, fisMs: 0, loss: false };
+        const hs = humanSideNow();
+        return tcConfig(hs !== 2 && side === hs ? 'U' : 'A');
+      }
+      const TC = [null, null];
+      let tcStarted = false;
+      function resetClocks(run) {
+        for (let s = 0; s < 2; s++) {
+          const cfg = tcCfgForSide(s);
+          TC[s] = { cfg, used: 0, main: cfg.unlimited ? 0 : cfg.mainMs, inByo: false, byoLeft: cfg.byoMs };
+        }
+        tcStarted = !!run; lastTick = performance.now();
+        updateClockDisplay();
+      }
+      // 1手指し終えたとき: 秒読み中なら秒読みを回復、そうでなければ持ち時間にフィッシャー加算
+      function tcMoveDone(side) {
+        const t = TC[side];
+        if (!t || t.cfg.unlimited) return;
+        if (t.inByo) t.byoLeft = t.cfg.byoMs; else t.main += t.cfg.fisMs;
+      }
+      function tcClockText(side) {
+        const t = TC[side];
+        if (!t) return '--';
+        if (t.cfg.unlimited) return fmtClock(t.used);
+        if (t.inByo) return Math.max(0, Math.ceil(t.byoLeft / 1000)) + '秒';
+        return fmtClock(Math.ceil(t.main / 1000) * 1000);
+      }
+      function tcLow(side) {
+        const t = TC[side];
+        return !!t && !t.cfg.unlimited && (t.inByo ? t.byoLeft <= 5000 : t.main <= 10000);
+      }
       function updateClockDisplay() {
-        const flip = viewFlipped(), bottomSide = flip ? 1 : 0, topSide = 1 - bottomSide, lim = timeLimitMs();
-        const show = side => fmtClock(lim ? lim - CLOCK[side] : CLOCK[side]);
+        const flip = viewFlipped(), bottomSide = flip ? 1 : 0, topSide = 1 - bottomSide;
         const top = document.getElementById('clockTop'), bot = document.getElementById('clockBottom');
-        top.textContent = show(topSide); bot.textContent = show(bottomSide);
-        const running = !!NET && !isEditing && !gameOver && !isLearnMode();
+        top.textContent = tcClockText(topSide); bot.textContent = tcClockText(bottomSide);
+        const running = tcStarted && !isEditing && !gameOver && !isLearnMode();
         top.classList.toggle('active', running && POS.side === topSide);
         bot.classList.toggle('active', running && POS.side === bottomSide);
+        top.classList.toggle('low', tcLow(topSide)); bot.classList.toggle('low', tcLow(bottomSide));
       }
-      function resetClocks() { CLOCK[0] = 0; CLOCK[1] = 0; lastTick = performance.now(); updateClockDisplay(); }
       setInterval(() => {
         const now = performance.now(), dt = Math.min(now - lastTick, 1000);
         lastTick = now;
-        if (NET && !isEditing && !gameOver && !isLearnMode()) {
-          CLOCK[POS.side] += dt;
-          const lim = timeLimitMs();
-          if (lim && CLOCK[POS.side] >= lim) {
-            gameOver = true; KIF_END = '切れ負け'; clearHint(); stopThinking();
-            document.getElementById('status').textContent = (POS.side === 0 ? '先手' : '後手') + 'の時間切れ: ' + (POS.side === 0 ? '後手' : '先手') + 'の勝ち';
-            draw();
+        if (tcStarted && !isEditing && !gameOver && !isLearnMode()) {
+          const s = POS.side, t = TC[s];
+          if (t) {
+            t.used += dt;
+            if (!t.cfg.unlimited) {
+              let over = false;
+              if (!t.inByo) {
+                t.main -= dt;
+                if (t.main <= 0) {
+                  const ov = -t.main; t.main = 0;
+                  if (t.cfg.byoMs > 0) { t.inByo = true; t.byoLeft = t.cfg.byoMs - ov; over = t.byoLeft <= 0; } else over = true;
+                }
+              } else { t.byoLeft -= dt; over = t.byoLeft <= 0; }
+              if (over) {
+                if (t.cfg.loss) {
+                  gameOver = true; KIF_END = '切れ負け'; clearHint(); stopThinking();
+                  document.getElementById('status').textContent = (s === 0 ? '先手' : '後手') + 'の時間切れ: ' + (s === 0 ? '後手' : '先手') + 'の勝ち';
+                  draw();
+                } else { t.main = 0; if (t.inByo) t.byoLeft = 0; }
+              }
+            }
           }
         }
         updateClockDisplay();
       }, 250);
+      // AIの1手の考慮時間: 持ち時間なしなら探索深さまで、ありなら残り時間から決める(秒読み・加算も考慮)
+      function aiSearchLimits() {
+        const D = Math.max(1, +document.getElementById('depth').value);
+        const t = TC[POS.side];
+        if (!t || t.cfg.unlimited) return { depth: D, ms: Infinity };
+        const cfg = t.cfg;
+        let budget, avail;
+        if (t.inByo) { avail = t.byoLeft; budget = avail * 0.8; }
+        else {
+          avail = t.main + (cfg.byoMs > 0 ? cfg.byoMs * 0.9 : 0);
+          budget = t.main / 25 + cfg.fisMs * 0.8 + (cfg.byoMs > 0 ? cfg.byoMs * 0.8 : 0);
+        }
+        budget = Math.min(budget, avail - 600, 90000);
+        return { depth: 40, ms: Math.max(100, budget) };
+      }
+      // 解析(評価値・候補手の表示)の考慮時間: 研究は探索が終わるまで、対局中は短く
+      function analysisMs() { return document.getElementById('gameMode').value === 'study' ? Infinity : 2500; }
+
+      // ===================== nn.bin の要否(研究・ローカル対戦なら不要) =====================
+      function isNNMode() { return document.getElementById('gameMode').value !== 'study'; }
+      function updateNNGate() {
+        const wait = !NET && isNNMode();
+        document.body.classList.toggle('nn-wait', wait);
+        document.getElementById('btnNew').disabled = wait;
+        document.getElementById('btnAI').disabled = !NET;
+        document.getElementById('btnHint').disabled = !NET;
+        setLearnUI(LEARN.running);
+      }
 
       // ヒント: 最善手(赤)と次善手(青)を盤上に矢印で示す
       function arrowSvg(x1, y1, x2, y2, color, w) {
@@ -2402,10 +2690,10 @@
           moves = bk.slice().sort((a, b) => b.count - a.count).slice(0, 2).map(c => c.move);
         } else {
           document.getElementById('status').textContent = 'ヒントを計算中…';
-          const depth = Math.max(1, +document.getElementById('depth').value), ms = Math.max(100, +document.getElementById('movems').value);
+          const depth = Math.max(1, +document.getElementById('depth').value), ms = analysisMs();
           let res = null;
           isThinking = true;
-          try { thinkingPromise = searchBestAsync(p, depth, ms); res = await thinkingPromise; }
+          try { thinkingPromise = searchBestAsync(p, depth, ms, 'ヒント計算中', false, 3); res = await thinkingPromise; }
           catch (e) { log('ERROR(ヒント): ' + e.message); }
           finally { isThinking = false; }
           if (ep !== epoch || !res) return;
@@ -2431,13 +2719,11 @@
       document.getElementById('btnResign').onclick = doResign;
       window.addEventListener('resize', drawHintArrows);
 
-      // ===================== nn.bin の取得(MathotaGamma/statics) =====================
-      const NN_URLS = [
-        'https://raw.githubusercontent.com/MathotaGamma/MathotaGamma.github.io/main/statics/shogi/nn.bin',
-        'https://mathotagamma.github.io/statics/shogi/nn.bin'
-      ];
-      const NN_CACHE = 'shogi-nn-v1';
-      let NN_RAW = null;
+      // ===================== 評価関数(nn)の選択: MathotaGamma の statics/shogi-nn/*.bin =====================
+      const NN_REPO = 'MathotaGamma/MathotaGamma.github.io', NN_DIR = 'statics/shogi-nn';
+      const NN_BASE = 'https://raw.githubusercontent.com/' + NN_REPO + '/main/' + NN_DIR + '/';
+      const NN_CACHE = 'shogi-nn-v2', NN_LIST_KEY = 'shogiNNList', NN_SEL_KEY = 'shogiNNName';
+      let NN_RAW = null, NN_NAME = null, NN_TOKEN = 0;
 
       // ===================== nn.bin 読込状況の表示 =====================
       function setNNBanner(kind, msg, sub, pct) {
@@ -2450,13 +2736,10 @@
         if (pct === null || pct === undefined) { fill.classList.add('indet'); fill.style.width = ''; }
         else { fill.classList.remove('indet'); fill.style.width = pct + '%'; }
         document.getElementById('nnRetry').style.display = kind === 'err' ? '' : 'none';
-        document.getElementById('nnVeil').textContent = kind === 'err' ? 'nn.bin が未読込です' : 'nn.bin 読み込み中… お待ちください';
+        document.getElementById('nnClose').style.display = kind === 'err' ? '' : 'none';
+        document.getElementById('nnVeil').textContent = kind === 'err' ? '評価関数(nn)が未読込です' : '評価関数(nn)読み込み中… お待ちください';
       }
-      function setNNReady(ready) {
-        document.body.classList.toggle('nn-ready', ready);
-        ['btnNew', 'btnAI', 'btnHint'].forEach(id => { document.getElementById(id).disabled = !ready; });
-        setLearnUI(LEARN.running);
-      }
+      function setNNReady() { updateNNGate(); }
 
       function applyNN(buf, label) {
         NET = loadNNUE(buf, document.getElementById('simd').value);
@@ -2468,8 +2751,9 @@
         setNNBanner('ok', 'nn.bin の読み込みが完了しました ✓', label + ' / 初期局面の評価値 ' + e0.toFixed(0) + 'cp', 100);
         setTimeout(() => { const bn = document.getElementById('nnBanner'); if (bn.className === 'ok') bn.style.display = 'none'; }, 5000);
         document.getElementById('status').textContent = isLearnMode() ? 'AI学習モード: 「学習開始」で自己対局を始めます' : '準備完了 ― 「開始」を押してください' + sideNote();
-        resetClocks();
-        showEval();
+        if (!tcStarted) resetClocks(false);
+        learnSwitchNN();
+        afterNNChange();
       }
       async function fetchWithProgress(url, onProg) {
         const res = await fetch(url);
@@ -2487,54 +2771,127 @@
         }
         return buf.slice(0, got).buffer;
       }
-      async function autoLoadNN() {
-        const st = document.getElementById('loadstat'), status = document.getElementById('status');
-        setNNReady(false);
-        setNNBanner('busy', 'nn.bin を読み込み中…', '評価関数ファイルを確認しています。完了するまで対局・学習はできません。', null);
-        status.textContent = 'nn.bin を読み込み中です。完了までお待ちください…';
+      // *.bin の一覧(拡張子なしの名前)を取得する。GitHub API → jsDelivr → 前回の一覧、の順に試す。
+      async function fetchNNList() {
+        let names = null, via = '';
+        try {
+          const r = await fetch('https://api.github.com/repos/' + NN_REPO + '/contents/' + NN_DIR);
+          if (r.ok) {
+            const j = await r.json();
+            if (Array.isArray(j)) { names = j.filter(f => f.type === 'file' && /\.bin$/i.test(f.name)).map(f => f.name.replace(/\.bin$/i, '')); via = 'GitHub'; }
+          }
+        } catch (e) { /* 次の方法へ */ }
+        if (!names) {
+          try {
+            const r = await fetch('https://data.jsdelivr.com/v1/package/gh/' + NN_REPO + '@main/flat');
+            if (r.ok) {
+              const j = await r.json(), pre = '/' + NN_DIR + '/';
+              names = j.files.map(f => f.name).filter(n => n.startsWith(pre) && /\.bin$/i.test(n) && n.indexOf('/', pre.length) < 0).map(n => n.slice(pre.length).replace(/\.bin$/i, ''));
+              via = 'jsDelivr';
+            }
+          } catch (e) { /* 次の方法へ */ }
+        }
+        if (names) {
+          names.sort();
+          try { localStorage.setItem(NN_LIST_KEY, JSON.stringify(names)); } catch (e) { /* 無視 */ }
+          return { names, via };
+        }
+        try {
+          const c = JSON.parse(localStorage.getItem(NN_LIST_KEY) || 'null');
+          if (c && c.length) return { names: c, via: '前回の一覧' };
+        } catch (e) { /* 無視 */ }
+        return { names: [], via: '' };
+      }
+      function fillNNSelect(names) {
+        const el = document.getElementById('nnSelect');
+        el.innerHTML = '';
+        names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; el.appendChild(o); });
+      }
+      // 評価関数を変えたあと: 学習済み補正はnnごとに別管理、表示を更新し、AIの手番なら再開する
+      async function afterNNChange() {
+        try { await showEval(isAITurn()); } catch (e) { /* 無視 */ }
+        if (tcStarted && !gameOver) maybeAI();
+      }
+      // 選んだ <name>.bin を取得して読み込む(取得済みなら端末のキャッシュを使う。force=trueで再取得)
+      async function loadNNByName(name, force) {
+        const tok = ++NN_TOKEN, st = document.getElementById('loadstat'), status = document.getElementById('status'), label = name + '.bin';
+        if (LEARN.running) { LEARN.stop = true; try { await LEARN.promise; } catch (e) { /* 無視 */ } }
+        setNNBanner('busy', label + ' を読み込み中…', '評価関数ファイルを確認しています。AI対局・学習は完了まで待つ必要があります(研究/ローカル対戦だけなら、なくても指せます)。', null);
+        status.textContent = isNNMode() ? label + ' を読み込み中です。完了までお待ちください…' : label + ' 読込中(研究/ローカル対戦はそのまま指せます)';
         try {
           let buf = null, fromCache = false;
-          try {
-            if (window.caches) {
-              const c = await caches.open(NN_CACHE), hit = await c.match('nn.bin');
-              if (hit) { const b = await hit.arrayBuffer(); if (b.byteLength > 1e7) { buf = b; fromCache = true; } }
-            }
-          } catch (e) { /* キャッシュ不可なら通常取得 */ }
-          if (!buf) {
-            let lastErr = null;
-            for (const u of NN_URLS) {
-              try {
-                setNNBanner('busy', 'nn.bin をダウンロード中…', '接続しています(初回のみ。次回からは端末に保存したファイルを使います)', null);
-                buf = await fetchWithProgress(u, (g, t) => {
-                  const pct = Math.floor(g * 100 / t), mb = (g / 1048576).toFixed(1) + ' / ' + (t / 1048576).toFixed(1) + ' MB';
-                  setNNBanner('busy', 'nn.bin をダウンロード中 ' + pct + '%', mb + '(初回のみ。次回からは端末に保存したファイルを使います)', pct);
-                  st.textContent = 'ダウンロード中 ' + pct + '%';
-                  status.textContent = 'nn.bin をダウンロード中 ' + pct + '% … 完了までお待ちください';
-                });
-                break;
-              } catch (e) { lastErr = e; }
-            }
-            if (!buf) throw lastErr || new Error('取得失敗');
-            try { if (window.caches) { const c = await caches.open(NN_CACHE); await c.put('nn.bin', new Response(buf)); } } catch (e) { /* 保存できなくても動作する */ }
+          const key = 'nn/' + encodeURIComponent(name) + '.bin';
+          if (!force) {
+            try {
+              if (window.caches) {
+                const c = await caches.open(NN_CACHE), hit = await c.match(key);
+                if (hit) { const b = await hit.arrayBuffer(); if (b.byteLength > 1e6) { buf = b; fromCache = true; } }
+              }
+            } catch (e) { /* キャッシュ不可なら通常取得 */ }
           }
-          setNNBanner('busy', 'nn.bin を解析中…', '数秒かかります。この間は画面が止まって見えることがあります。', null);
-          st.textContent = '解析中…'; status.textContent = 'nn.bin を解析中です…';
+          if (!buf) {
+            setNNBanner('busy', label + ' をダウンロード中…', '接続しています(初回のみ。次回からは端末に保存したファイルを使います)', null);
+            buf = await fetchWithProgress(NN_BASE + encodeURIComponent(name) + '.bin', (g, t) => {
+              if (tok !== NN_TOKEN) return;
+              const pct = Math.floor(g * 100 / t), mb = (g / 1048576).toFixed(1) + ' / ' + (t / 1048576).toFixed(1) + ' MB';
+              setNNBanner('busy', label + ' をダウンロード中 ' + pct + '%', mb + '(初回のみ。次回からは端末に保存したファイルを使います)', pct);
+              st.textContent = 'ダウンロード中 ' + pct + '%';
+              status.textContent = label + ' をダウンロード中 ' + pct + '% … 完了までお待ちください';
+            });
+            try { if (window.caches) { const c = await caches.open(NN_CACHE); await c.put(key, new Response(buf)); } } catch (e) { /* 保存できなくても動作する */ }
+          }
+          if (tok !== NN_TOKEN) return; // 読み込み中に別のnnが選ばれた
+          setNNBanner('busy', label + ' を解析中…', '数秒かかります。この間は画面が止まって見えることがあります。', null);
+          st.textContent = '解析中…'; status.textContent = label + ' を解析中です…';
+          await stopThinking();
           await new Promise(r => setTimeout(r, 50));
-          applyNN(buf, fromCache ? '保存済みnn.bin' : 'MathotaGamma/statics');
+          if (tok !== NN_TOKEN) return;
+          const prev = NN_NAME;
+          NN_NAME = name;
+          try { applyNN(buf, label + (fromCache ? '(保存済み)' : '')); }
+          catch (e) { NN_NAME = prev; throw e; }
+          try { localStorage.setItem(NN_SEL_KEY, name); } catch (e) { /* 無視 */ }
         } catch (err) {
-          st.textContent = 'nn.binの自動取得に失敗: ' + err.message + '(設定から手動で読み込めます)';
-          status.textContent = 'nn.binを読み込んでください(設定 → 評価関数)';
-          setNNBanner('err', 'nn.bin の読み込みに失敗しました', err.message + ' ― 「再試行」を押すか、設定 → 評価関数 から手動で読み込んでください。', null);
-          log('ERROR(nn.bin取得) ' + err.message);
+          if (tok !== NN_TOKEN) return;
+          st.textContent = label + ' の取得に失敗: ' + err.message + '(設定から手動で読み込めます)';
+          status.textContent = NET ? '評価関数の切り替えに失敗しました(前のnnのまま)' : 'nnを読み込んでください(設定 → 評価関数)';
+          setNNBanner('err', label + ' の読み込みに失敗しました', err.message + ' ― 「再試行」を押すか、別のnnを選ぶか、設定 → 評価関数 から手動で読み込んでください。', null);
+          log('ERROR(nn取得) ' + err.message);
         }
       }
-      document.getElementById('nnRetry').onclick = () => autoLoadNN();
+      // 起動時: 一覧を取得 → select に入れる → 前回の選択(なければ nn か先頭)を読み込む
+      async function initNN() {
+        setNNReady(false);
+        setNNBanner('busy', '評価関数(nn)の一覧を取得中…', NN_REPO + ' の ' + NN_DIR + '/ にある *.bin を探しています。', null);
+        const { names, via } = await fetchNNList();
+        fillNNSelect(names);
+        if (!names.length) {
+          document.getElementById('nnListStat').textContent = '一覧を取得できませんでした';
+          setNNBanner('err', '評価関数(nn)の一覧を取得できませんでした', 'ネットワークを確認して「再試行」を押すか、設定 → 評価関数 から .bin を手動で読み込んでください。', null);
+          document.getElementById('status').textContent = 'nnを読み込んでください(設定 → 評価関数)';
+          return;
+        }
+        document.getElementById('nnListStat').textContent = names.length + '個 (' + via + ')';
+        let want = null;
+        try { want = localStorage.getItem(NN_SEL_KEY); } catch (e) { /* 無視 */ }
+        if (!names.includes(want)) want = names.includes('nn') ? 'nn' : names[0];
+        document.getElementById('nnSelect').value = want;
+        await loadNNByName(want, false);
+      }
+      document.getElementById('nnSelect').onchange = () => { const n = document.getElementById('nnSelect').value; if (n) loadNNByName(n, false); };
+      document.getElementById('nnReload').onclick = () => { const n = document.getElementById('nnSelect').value; if (n) loadNNByName(n, true); };
+      document.getElementById('nnRetry').onclick = () => {
+        const n = document.getElementById('nnSelect').value;
+        if (n) loadNNByName(n, false); else initNN();
+      };
+      document.getElementById('nnClose').onclick = () => { document.getElementById('nnBanner').style.display = 'none'; };
       document.getElementById('nnfile').onchange = async e => {
         const f = e.target.files[0]; if (!f) return;
         document.getElementById('loadstat').textContent = '読込中…';
         setNNBanner('busy', f.name + ' を読み込み中…', '解析に数秒かかります。', null);
-        try { const ab = await f.arrayBuffer(); await new Promise(r => setTimeout(r, 50)); applyNN(ab, f.name); }
-        catch (err) { document.getElementById('loadstat').textContent = 'エラー: ' + err.message; setNNBanner('err', 'ファイルを解析できませんでした', err.message, null); log('ERROR ' + err.message); }
+        const prev = NN_NAME;
+        try { const ab = await f.arrayBuffer(); await stopThinking(); await new Promise(r => setTimeout(r, 50)); NN_NAME = '手動:' + f.name; applyNN(ab, f.name); }
+        catch (err) { NN_NAME = prev; document.getElementById('loadstat').textContent = 'エラー: ' + err.message; setNNBanner('err', 'ファイルを解析できませんでした', err.message, null); log('ERROR ' + err.message); }
       };
       document.getElementById('simd').onchange = () => {
         if (!NN_RAW) return;
@@ -2543,7 +2900,7 @@
       };
 
       // ===================== 設定の保存/復元 =====================
-      const PERSIST_IDS = ['depth', 'movems', 'humanSide', 'showCands', 'showBar', 'viewSel', 'timeLimit', 'bookEnabled', 'useLearned', 'lpGames', 'lpPairs', 'lpNodes', 'lpLr', 'lpShow']; // gameModeは保存せず、起動時は常にVS AI
+      const PERSIST_IDS = ['depth', 'depthStudy', 'humanSide', 'showCands', 'showBar', 'viewSel', 'bookEnabled', 'useLearned', 'lpGames', 'lpPairs', 'lpNodes', 'lpLr', 'lpShow'].concat(TC_IDS); // gameModeは保存せず、起動時は常にVS AI
       function saveSettings() {
         try {
           const o = {};
@@ -2562,11 +2919,14 @@
         } catch (e) { /* 無視 */ }
       }
       loadSettings();
+      tcSyncCustom();
       PERSIST_IDS.forEach(id => document.getElementById(id).addEventListener('change', () => {
         saveSettings();
         if (id === 'showCands' || id === 'showBar') { applyDisplaySettings(); showEval(true); }
         if (id === 'humanSide') rerollSide();
-        if (id === 'viewSel' || id === 'humanSide' || id === 'timeLimit') { clearHint(); draw(); }
+        if (TC_IDS.includes(id)) { tcSyncCustom(); if (!tcStarted) resetClocks(false); }
+        if (id === 'viewSel' || id === 'humanSide') { clearHint(); draw(); }
+        if (id === 'humanSide' && !tcStarted) resetClocks(false);
         if (id === 'humanSide') maybeAI();
       }));
       applyDisplaySettings();
@@ -2594,7 +2954,7 @@
       });
       fitLayout();
       draw();
-      autoLoadNN();
+      initNN();
     </script>
   </body>
-</html>
+  </html>
