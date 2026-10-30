@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>将棋AI (tanuki- HalfKP 256x2-32-32)</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #2b2b2b; color: #eee; font: 14px sans-serif; touch-action: manipulation; }
+      #app { height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 2px; box-sizing: border-box; gap: 2px; --c: min(10.6vw, calc((100dvh - 215px) / 10.2)); }
+      #top { width: calc(var(--c) * 9); display: flex; justify-content: space-between; height: 22px; font-size: 13px; }
+      .hand { width: calc(var(--c) * 9); height: calc(var(--c) * 0.85); display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; overflow: hidden; }
+      .hp { background: #e8c27a; color: #000; border-radius: 4px; padding: 0 5px; font-size: calc(var(--c) * 0.55); line-height: calc(var(--c) * 0.8); }
+      .hp.sl { background: #ff8; outline: 2px solid #f60; }
+      #board { display: grid; grid-template-columns: repeat(9, var(--c)); grid-template-rows: repeat(9, var(--c)); background: #e8c27a; border: 2px solid #5a3b10; }
+      .cell { box-shadow: inset 0 0 0 0.5px #5a3b10; display: flex; align-items: center; justify-content: center; font-size: calc(var(--c) * 0.7); color: #000; position: relative; user-select: none; }
+      .cell.w span { transform: rotate(180deg); }
+      .cell.pr span { color: #c00; }
+      .cell.lm { background: #9fd8ff; }
+      .cell.sl { background: #ff8; }
+      .cell.tg::after { content: ""; position: absolute; width: 30%; height: 30%; border-radius: 50%; background: rgba(0, 150, 0, .6); }
+      #info { width: calc(var(--c) * 9); flex: 1; min-height: 0; overflow: hidden; }
+      .bar { height: 8px; background: #555; border-radius: 4px; overflow: hidden; }
+      .bar i { display: block; height: 100%; width: 0; background: #4c8; }
+      #cand div { white-space: nowrap; font-size: 13px; line-height: 17px; }
+      #btns { display: flex; gap: 8px; padding-bottom: env(safe-area-inset-bottom, 0px); }
+      button, select, input { font-size: 15px; padding: 5px 9px; }
+      #menu { position: fixed; inset: 0; background: #1d1d1dee; overflow-y: auto; padding: 10px; box-sizing: border-box; z-index: 5; }
+      #menu label { display: block; margin: 6px 0 2px; color: #9cf; }
+      #menu input[type=number] { width: 70px; }
+      #menu input[type=text] { width: 90%; }
+      #ov { position: fixed; inset: 0; background: #000a; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9; font-size: 22px; gap: 14px; }
+      #ov .bar { width: 70%; height: 18px; }
+      #ask { position: fixed; inset: 0; background: #000a; display: flex; align-items: center; justify-content: center; gap: 20px; z-index: 8; }
+      #ask button { font-size: 28px; padding: 14px 24px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+
+  <body>
+    <div id="app">
+      <div id="top"><span id="clk"></span><span id="msg"></span></div>
+      <div class="hand" id="h0"></div>
+      <div id="board"></div>
+      <div class="hand" id="h1"></div>
+      <div id="info">
+        <div class="bar" id="bar"><i></i></div>
+        <div id="cand"></div>
+      </div>
+      <div id="btns">
+        <button id="bNew">新規</button>
+        <button id="bUndo">待った</button>
+        <button id="bMenu">☰</button>
+      </div>
+    </div>
+    <div id="menu" hidden></div>
+    <div id="ask" hidden>
+      <button id="aY">成</button>
+      <button id="aN">不成</button>
+    </div>
+    <div id="ov" hidden>
+      <div id="ovT"></div>
+      <div class="bar"><i id="ovB"></i></div>
+    </div>
+
+    <script id="eng">
+      /* ===== 将棋エンジン(メインとWorkerで共用) ===== */
+      var DR = [-1, -1, 0, 1, 1, 1, 0, -1], DF = [0, 1, 1, 1, 0, -1, -1, -1], FL = [4, 3, 2, 1, 0, 7, 6, 5];
+      var STEP = [0, 1, 0, 0, 171, 215, 0, 0, 255, 215, 215, 215, 215, 0, 85, 170];
+      var SLD = [0, 0, 1, 0, 0, 0, 170, 85, 0, 0, 0, 0, 0, 0, 170, 85];
+      var VAL = [0, 90, 350, 450, 550, 600, 900, 1000, 0, 600, 600, 600, 600, 0, 1100, 1300];
+      var KK = [0, 0, 1, 2, 3, 4, 5, 7, 0, 4, 4, 4, 4, 0, 6, 8];
+      var HB = [0, 1, 39, 49, 59, 69, 79, 85], HE = [0, 20, 44, 54, 64, 74, 82, 88];
+      function newPos() {
+        var P = { b: new Int8Array(81), h: [new Int8Array(8), new Int8Array(8)], side: 0, k: [4 * 9 + 8, 4 * 9] };
+        var back = [2, 3, 4, 5, 8, 5, 4, 3, 2];
+        for (var f = 0; f < 9; f++) {
+          P.b[f * 9] = back[f] | 16; P.b[f * 9 + 8] = back[f];
+          P.b[f * 9 + 2] = 17; P.b[f * 9 + 6] = 1;
+        }
+        P.b[7 * 9 + 1] = 7 | 16; P.b[1 * 9 + 1] = 6 | 16;
+        P.b[7 * 9 + 7] = 6; P.b[1 * 9 + 7] = 7;
+        return P;
+      }
+      function fromSt(s) {
+        return { b: Int8Array.from(s.b), h: [Int8Array.from(s.h[0]), Int8Array.from(s.h[1])], side: s.side, k: s.k.slice() };
+      }
+      function toSt(P) {
+        return { b: Array.from(P.b), h: [Array.from(P.h[0]), Array.from(P.h[1])], side: P.side, k: P.k.slice() };
+      }
+      function gen(P, co) {
+        var b = P.b, c = P.side, o = [], hd = P.h[c], pf = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+        function ad(s, ts, t) {
+          if (co && !b[ts]) return;
+          var r0 = s % 9, r1 = ts % 9, z0 = c ? r0 >= 6 : r0 <= 2, z1 = c ? r1 >= 6 : r1 <= 2, last = c ? 8 - r1 : r1;
+          var pr = t <= 7 && t !== 5 && t !== 8 && (z0 || z1);
+          var must = (t === 1 || t === 2) ? last === 0 : (t === 3 ? last <= 1 : 0);
+          if (pr) o.push(s | ts << 7 | 1 << 14);
+          if (!must) o.push(s | ts << 7);
+        }
+        for (var s = 0; s < 81; s++) {
+          var p = b[s];
+          if (!p || (p >> 4) !== c) continue;
+          var t = p & 15, f = (s / 9) | 0, r = s % 9;
+          if (t === 1) pf[f] = 1;
+          if (t === 3) {
+            var kr = r + (c ? 2 : -2);
+            if (kr >= 0 && kr < 9) for (var e = -1; e <= 1; e += 2) { var kf = f + e; if (kf >= 0 && kf < 9 && !(b[kf * 9 + kr] && (b[kf * 9 + kr] >> 4) === c)) ad(s, kf * 9 + kr, t); }
+          }
+          for (var j = 0; j < 8; j++) {
+            var sl = SLD[t] >> j & 1;
+            if (!(STEP[t] >> j & 1) && !sl) continue;
+            var a = c ? FL[j] : j, nf = f + DF[a], nr = r + DR[a];
+            while (nf >= 0 && nf < 9 && nr >= 0 && nr < 9) {
+              var q = b[nf * 9 + nr];
+              if (q && (q >> 4) === c) break;
+              ad(s, nf * 9 + nr, t);
+              if (q || !sl) break;
+              nf += DF[a]; nr += DR[a];
+            }
+          }
+        }
+        if (!co) {
+          for (var d = 1; d < 8; d++) {
+            if (!hd[d]) continue;
+            for (var u = 0; u < 81; u++) {
+              if (b[u]) continue;
+              var uf = (u / 9) | 0, ur = u % 9, ul = c ? 8 - ur : ur;
+              if ((d <= 2 && ul === 0) || (d === 3 && ul <= 1) || (d === 1 && pf[uf])) continue;
+              o.push(81 | u << 7 | d << 15);
+            }
+          }
+        }
+        return o;
+      }
+      function atk(P, s, c) {
+        var b = P.b, f = (s / 9) | 0, r = s % 9, kr = r + (c ? -2 : 2);
+        if (kr >= 0 && kr < 9) {
+          for (var e = -1; e <= 1; e += 2) { var kf = f + e; if (kf >= 0 && kf < 9 && b[kf * 9 + kr] === (3 | c << 4)) return 1; }
+        }
+        for (var i = 0; i < 8; i++) {
+          var a = (i + 4) & 7, j = c ? FL[a] : a, nf = f + DF[i], nr = r + DR[i], k = 1;
+          while (nf >= 0 && nf < 9 && nr >= 0 && nr < 9) {
+            var p = b[nf * 9 + nr];
+            if (p) {
+              if ((p >> 4) === c) {
+                var t = p & 15;
+                if (((STEP[t] >> j & 1) && k === 1) || (SLD[t] >> j & 1)) return 1;
+              }
+              break;
+            }
+            nf += DF[i]; nr += DR[i]; k++;
+          }
+        }
+        return 0;
+      }
+      function make(P, m) {
+        var f = m & 127, t = (m >> 7) & 127, pr = (m >> 14) & 1, d = m >> 15, c = P.side, b = P.b, cap = b[t];
+        if (f === 81) { b[t] = d | c << 4; P.h[c][d]--; }
+        else {
+          var p = b[f];
+          b[f] = 0;
+          if (pr) p += 8;
+          b[t] = p;
+          if ((p & 15) === 8) P.k[c] = t;
+          if (cap) { var ct = cap & 15; P.h[c][ct > 8 ? ct - 8 : ct]++; }
+        }
+        P.side ^= 1;
+        return cap;
+      }
+      function undo(P, m, cap) {
+        var f = m & 127, t = (m >> 7) & 127, pr = (m >> 14) & 1, d = m >> 15, c = P.side ^ 1, b = P.b;
+        if (f === 81) { b[t] = 0; P.h[c][d]++; }
+        else {
+          var p = b[t];
+          if (pr) p -= 8;
+          b[f] = p;
+          b[t] = cap;
+          if ((p & 15) === 8) P.k[c] = f;
+          if (cap) { var ct = cap & 15; P.h[c][ct > 8 ? ct - 8 : ct]--; }
+        }
+        P.side = c;
+      }
+      function legal(P) {
+        var ms = gen(P), o = [], c = P.side;
+        for (var i = 0; i < ms.length; i++) {
+          var m = ms[i], cap = make(P, m), ok = !atk(P, P.k[c], c ^ 1);
+          if (ok && (m >> 15) === 1 && atk(P, P.k[c ^ 1], c) && !legal(P).length) ok = false;
+          undo(P, m, cap);
+          if (ok) o.push(m);
+        }
+        return o;
+      }
+      /* ----- 評価 ----- */
+      var NN = 0, LW = new Float64Array(16), FB, FW, B1, W1, B2, W2, B3, W3;
+      var A0 = new Int32Array(256), A1 = new Int32Array(256), IN = new Int32Array(512), H1 = new Int32Array(32), H2 = new Int32Array(32);
+      function mat(P, x) {
+        var c = P.side, b = P.b;
+        x.fill(0);
+        for (var s = 0; s < 81; s++) { var p = b[s]; if (p) x[p & 15] += (p >> 4) === c ? 1 : -1; }
+        for (var t = 1; t < 8; t++) x[t] += P.h[c][t] - P.h[c ^ 1][t];
+        return x;
+      }
+      var XV = new Float64Array(16);
+      function nnEval(P) {
+        var b = P.b, W = FW, k0 = P.k[0] * 1548, k1 = (80 - P.k[1]) * 1548;
+        A0.set(FB); A1.set(FB);
+        function add(i0, i1) {
+          var o0 = (k0 + i0) * 256, o1 = (k1 + i1) * 256;
+          for (var j = 0; j < 256; j++) { A0[j] += W[o0 + j]; A1[j] += W[o1 + j]; }
+        }
+        for (var s = 0; s < 81; s++) {
+          var p = b[s];
+          if (!p) continue;
+          var t = p & 15;
+          if (t === 8) continue;
+          var c = p >> 4, kk = 90 + 162 * KK[t];
+          add(kk + (c ? 81 : 0) + s, kk + (c ? 0 : 81) + 80 - s);
+        }
+        for (var cc = 0; cc < 2; cc++) {
+          for (var d = 1; d < 8; d++) {
+            for (var i = 0; i < P.h[cc][d]; i++) add((cc ? HE[d] : HB[d]) + i, (cc ? HB[d] : HE[d]) + i);
+          }
+        }
+        var st = P.side, X0 = st ? A1 : A0, X1 = st ? A0 : A1;
+        for (var j = 0; j < 256; j++) {
+          var v = X0[j]; IN[j] = v < 0 ? 0 : v > 127 ? 127 : v;
+          v = X1[j]; IN[256 + j] = v < 0 ? 0 : v > 127 ? 127 : v;
+        }
+        for (var i2 = 0; i2 < 32; i2++) {
+          var sm = B1[i2], o = i2 * 512;
+          for (var j2 = 0; j2 < 512; j2++) { var iv = IN[j2]; if (iv) sm += W1[o + j2] * iv; }
+          sm >>= 6; H1[i2] = sm < 0 ? 0 : sm > 127 ? 127 : sm;
+        }
+        for (var i3 = 0; i3 < 32; i3++) {
+          var s3 = B2[i3];
+          for (var j3 = 0; j3 < 32; j3++) s3 += W2[i3 * 32 + j3] * H1[j3];
+          s3 >>= 6; H2[i3] = s3 < 0 ? 0 : s3 > 127 ? 127 : s3;
+        }
+        var out = B3[0];
+        for (var j4 = 0; j4 < 32; j4++) out += W3[j4] * H2[j4];
+        return out / 16;
+      }
+      function evalPos(P) {
+        var x = mat(P, XV), e = 0, k;
+        if (NN) e = nnEval(P);
+        else for (k = 1; k < 16; k++) e += VAL[k] * x[k];
+        for (k = 1; k < 16; k++) e += LW[k] * x[k];
+        return Math.round(e);
+      }
+      /* ----- 探索 ----- */
+      var nodes = 0, dl = 1e15, stopF = 0;
+      function sortMv(P, ms) {
+        var b = P.b, sc = ms.map(function (m) {
+          var v = b[(m >> 7) & 127] ? VAL[b[(m >> 7) & 127] & 15] * 10 - VAL[b[m & 127] & 15] : 0;
+          return (m >> 14 & 1) ? v + 50 : v;
+        }), idx = ms.map(function (_, i) { return i; });
+        idx.sort(function (x, y) { return sc[y] - sc[x]; });
+        return idx.map(function (i) { return ms[i]; });
+      }
+      function qs(P, a, b, ply) {
+        var e = evalPos(P);
+        if (e >= b) return e;
+        if (e > a) a = e;
+        if (ply > 6) return e;
+        var c = P.side, ms = sortMv(P, gen(P, 1));
+        for (var i = 0; i < ms.length; i++) {
+          var m = ms[i], cp = make(P, m);
+          if (atk(P, P.k[c], c ^ 1)) { undo(P, m, cp); continue; }
+          var v = -qs(P, -b, -a, ply + 1);
+          undo(P, m, cp);
+          if (stopF) return 0;
+          if (v >= b) return v;
+          if (v > a) a = v;
+        }
+        return a;
+      }
+      function srch(P, d, a, b, ply) {
+        if ((++nodes & 511) === 0 && Date.now() > dl) stopF = 1;
+        if (stopF) return 0;
+        if (d <= 0) return qs(P, a, b, ply);
+        var c = P.side, ms = sortMv(P, gen(P)), best = -1e9, n = 0;
+        for (var i = 0; i < ms.length; i++) {
+          var m = ms[i], cp = make(P, m);
+          if (atk(P, P.k[c], c ^ 1)) { undo(P, m, cp); continue; }
+          n++;
+          var v = -srch(P, d - 1, -b, -a, ply + 1);
+          undo(P, m, cp);
+          if (stopF) return 0;
+          if (v > best) { best = v; if (v > a) a = v; if (a >= b) break; }
+        }
+        return n ? best : -30000 + ply;
+      }
+      function rs(P, m, d) {
+        var cp = make(P, m), v = -srch(P, d - 1, -31000, 31000, 1);
+        undo(P, m, cp);
+        return v;
+      }
+      /* ----- Worker側 ----- */
+      if (typeof document === 'undefined') {
+        var job = 0, loadP = Promise.resolve();
+        var tick = function () { return new Promise(function (r) { setTimeout(r, 0); }); };
+        var leb = function (u, o, n, out) {
+          for (var i = 0; i < n; i++) {
+            var r = 0, sh = 0, x;
+            do { x = u[o++]; r |= (x & 127) << sh; sh += 7; } while (x & 128);
+            if (sh < 32 && (x & 64)) r |= -1 << sh;
+            out[i] = r;
+          }
+          return o;
+        };
+        var ldMsg = function (txt, pct) { postMessage({ t: 'ld', txt: txt, pct: pct }); };
+        var parseNet = async function (buf) {
+          try {
+            var u = new Uint8Array(buf), dv = new DataView(buf), o = 12 + dv.getUint32(8, true) + 4, n = 125388 * 256;
+            var isLeb = function () { var s = ''; for (var i = 0; i < 17; i++) s += String.fromCharCode(u[o + i]); return s === 'COMPRESSED_LEB128'; };
+            var fb = new Int16Array(256), fw = new Int16Array(n);
+            ldMsg('ヘッダ解析', 55); await tick();
+            if (isLeb()) {
+              o += 17; var sz = dv.getUint32(o, true); o += 4; leb(u, o, 256, fb); o += sz;
+              o += 17; sz = dv.getUint32(o, true); o += 4;
+              ldMsg('重み展開(LEB128)', 65); await tick();
+              leb(u, o, n, fw); o += sz;
+            } else {
+              fb = new Int16Array(buf.slice(o, o + 512)); o += 512;
+              ldMsg('入力層の重みを読込中', 65); await tick();
+              fw = new Int16Array(buf.slice(o, o + n * 2)); o += n * 2;
+            }
+            o += 4;
+            ldMsg('隠れ層の読込', 90); await tick();
+            var rd = function (cnt, w) {
+              var B = new Int32Array(cnt);
+              for (var i = 0; i < cnt; i++) B[i] = dv.getInt32(o + 4 * i, true);
+              o += 4 * cnt;
+              var Wt = new Int8Array(buf.slice(o, o + cnt * w));
+              o += cnt * w;
+              return [B, Wt];
+            };
+            var l1 = rd(32, 512), l2 = rd(32, 32), l3 = rd(1, 32);
+            FB = fb; FW = fw; B1 = l1[0]; W1 = l1[1]; B2 = l2[0]; W2 = l2[1]; B3 = l3[0]; W3 = l3[1];
+            NN = 1;
+            var ev = evalPos(newPos());
+            ldMsg('読込完了 (初期局面 ' + ev + 'cp' + (o !== buf.byteLength ? ' / サイズ差 ' + (buf.byteLength - o) : '') + ')', 100);
+            postMessage({ t: 'ldDone', ok: 1 });
+          } catch (err) {
+            NN = 0;
+            ldMsg('読込失敗: ' + err.message, 0);
+            postMessage({ t: 'ldDone', ok: 0 });
+          }
+        };
+        self.onmessage = function (e) {
+          var m = e.data;
+          if (m.cmd === 'net') loadP = parseNet(m.buf);
+          else if (m.cmd === 'stop') { job++; postMessage({ t: 'ack' }); }
+          else if (m.cmd === 'go') run(m, ++job);
+          else if (m.cmd === 'train') train(m, ++job);
+        };
+        var run = async function (m, id) {
+          postMessage({ t: 'ack' });
+          await loadP;
+          if (id !== job) return;
+          LW = Float64Array.from(m.lw);
+          var P = fromSt(m.st), ms = legal(P), t0 = Date.now(), end = m.ms ? t0 + m.ms : 1e15;
+          var L = ms.map(function (x) { return { m: x, s: 0, d: 0 }; });
+          if (!L.length) { postMessage({ t: 'done', id: id, list: [], play: m.play, pct: 100 }); return; }
+          var M = m.M, D = Math.max(m.D, M), top, worst, dn = 0, tot, i;
+          var post = function (fin) {
+            var pct = Math.min(99, dn * 100 / tot);
+            if (m.ms) pct = Math.max(pct, Math.min(99, (Date.now() - t0) * 100 / m.ms));
+            postMessage({ t: fin ? 'done' : 'p', id: id, play: m.play, pct: fin ? 100 : pct, worst: { m: worst.m, s: worst.s },
+              list: top.map(function (x) { return { m: x.m, s: x.s, d: x.d }; }) });
+          };
+          stopF = 0; dl = 1e15;
+          for (i = 0; i < L.length; i++) {
+            L[i].s = rs(P, L[i].m, M); L[i].d = M;
+            if (i % 3 === 2) { await tick(); if (id !== job) return; }
+          }
+          L.sort(function (a, b) { return b.s - a.s; });
+          worst = L[L.length - 1];
+          top = L.slice(0, Math.max(1, Math.min(m.N, L.length > 1 ? L.length - 1 : 1)));
+          tot = L.length + top.length * (D - M); dn = L.length;
+          post();
+          for (var d = M + 1; d <= D; d++) {
+            var tmp = [], to = 0;
+            for (i = 0; i < top.length; i++) {
+              dl = end; stopF = 0;
+              var s = rs(P, top[i].m, d);
+              if (id !== job) return;
+              if (stopF) { to = 1; break; }
+              tmp.push(s); dn++;
+              var keep = top[i].s, kd = top[i].d;
+              top[i].s = s; top[i].d = d;
+              post();
+              top[i].s = keep; top[i].d = kd;
+              await tick();
+              if (id !== job) return;
+            }
+            if (to) break;
+            for (i = 0; i < top.length; i++) { top[i].s = tmp[i]; top[i].d = d; }
+            top.sort(function (a, b) { return b.s - a.s; });
+          }
+          post(1);
+        };
+        var train = async function (m, id) {
+          postMessage({ t: 'ack' });
+          await loadP;
+          var lw = Float64Array.from(m.lw), zero = new Float64Array(16), dep = m.dep || 2, lr = 0.5;
+          var g = 0, mw = 0, md = 0, ml = 0;
+          var game = async function (wb, ww, rnd, rec) {
+            var P = newPos(), data = [];
+            for (var ply = 0; ply < 140; ply++) {
+              var ms = legal(P);
+              if (!ms.length) return { r: P.side ? 1 : -1, data: data };
+              LW = P.side ? ww : wb;
+              var mv = ms[0];
+              if (ply < rnd) mv = ms[Math.random() * ms.length | 0];
+              else { var bs = -1e9; stopF = 0; dl = 1e15; for (var i = 0; i < ms.length; i++) { var s = rs(P, ms[i], dep); if (s > bs) { bs = s; mv = ms[i]; } } }
+              if (rec) { LW = lw; data.push({ x: Array.from(mat(P, XV)), e: evalPos(P), c: P.side }); }
+              make(P, mv);
+              if (ply % 3 === 2) { await tick(); if (id !== job) return null; }
+            }
+            return { r: 0, data: data };
+          };
+          while (id === job) {
+            var res = await game(lw, lw, 6, 1);
+            if (!res) return;
+            res.data.forEach(function (d) {
+              var y = res.r * (d.c ? -1 : 1), p = 1 / (1 + Math.exp(-d.e / 600)), gr = p - (y + 1) / 2;
+              for (var k = 1; k < 16; k++) lw[k] = Math.max(-200, Math.min(200, lw[k] - lr * gr * d.x[k]));
+            });
+            g++;
+            if (g % 3 === 0) {
+              for (var q = 0; q < 2; q++) {
+                var r2 = await game(q ? zero : lw, q ? lw : zero, 4, 0);
+                if (!r2) return;
+                var rr = q ? -r2.r : r2.r;
+                if (rr > 0) mw++; else if (rr < 0) ml++; else md++;
+              }
+            }
+            var n = mw + md + ml, rate = n ? (mw + md / 2) / n : 0.5, pc = Math.min(0.99, Math.max(0.01, rate));
+            postMessage({ t: 'tr', id: id, lw: Array.from(lw), g: g, mw: mw, md: md, ml: ml, rate: rate, elo: Math.round(-400 * Math.log10(1 / pc - 1)) });
+            await tick();
+          }
+        };
+      }
+    </script>
+
+    <script>
+      /* ===== UI ===== */
+      var NM = ['', '歩', '香', '桂', '銀', '金', '角', '飛', '玉', 'と', '杏', '圭', '全', '', '馬', '龍'];
+      var FN = '１２３４５６７８９', RN = '一二三四五六七八九';
+      var P = newPos(), hist = [], sel = null, last = null, over = 0, mode = 'vs', human = 0, flip = 0, gid = 0, busy = 0, tm = 0;
+      var W = null, netBuf = null, netName = '', lastMsg = null, trainLog = '';
+      var LWS = new Float64Array(16);
+      try { var sv = JSON.parse(localStorage.getItem('shogiLW') || 'null'); if (sv) LWS = Float64Array.from(sv); } catch (e) { }
+      var clk = { on: 0, left: 0, by: 0, fi: 0, t0: 0 };
+      function g(id) { return document.getElementById(id); }
+      function num(id) { var v = g(id).value; return v === 'c' ? +g(id + 'C').value : +v; }
+
+      /* --- メニュー生成 --- */
+      var SPEC = [
+        ['mode', 'モード', [['vs', 'VS AI'], ['study', '研究(ローカル対戦)'], ['train', 'AI学習(自己対局)']]],
+        ['side', 'あなたの手番', [['0', '先手'], ['1', '後手'], ['r', 'ランダム']]],
+        ['tm', '人間の時間', [['n', '制限なし'], ['s', '切れ負け'], ['b', '持ち時間+秒読み/加算']]],
+        ['base', '持ち時間(分)', [['10', '10'], ['5', '5'], ['3', '3'], ['1', '1'], ['c', '任意']]],
+        ['by', '秒読み(秒)', [['0', 'なし'], ['5', '5'], ['10', '10'], ['20', '20'], ['30', '30'], ['c', '任意']]],
+        ['fi', 'フィッシャー(秒)', [['0', 'なし'], ['3', '+3'], ['5', '+5'], ['c', '任意']]],
+        ['ai', 'AI考慮時間(秒/手)', [['5', '5'], ['10', '10'], ['20', '20'], ['0', '無制限'], ['c', '任意']]]
+      ];
+      function buildMenu() {
+        var h = '<h3>設定</h3><label>評価関数 nn.bin(無くても指せます)</label><div id="nnS">未読込</div>' +
+          '<input type="file" id="nnF"><label>GitHubリポジトリ(statics/shogi-nn/内の.bin)</label>' +
+          '<input type="text" id="repo" value="MathotaGamma/MathotaGamma.github.io"><br><button id="bList">一覧取得</button> ' +
+          '<select id="nnSel"></select> <button id="bLoad">読込</button>';
+        SPEC.forEach(function (s) {
+          h += '<label>' + s[1] + '</label><select id="' + s[0] + '">' + s[2].map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select>';
+          if (s[2][s[2].length - 1][0] === 'c') h += ' <input type="number" id="' + s[0] + 'C" value="' + (s[0] === 'base' ? 15 : 7) + '">';
+        });
+        h += '<label>全手の探索深度 M / 深く読む手数 N / 表示数 / 指定深度 D</label>' +
+          '<input type="number" id="M" value="3"> <input type="number" id="N" value="10"> <input type="number" id="show" value="5"> <input type="number" id="D" value="6">' +
+          '<label><input type="checkbox" id="useLW" checked> 学習成果を使う</label><div id="lwS"></div><br>' +
+          '<button id="bKif">棋譜(.kif)出力</button> <button id="bClose">閉じる</button>';
+        g('menu').innerHTML = h;
+        g('nnF').onchange = function (e) { var f = e.target.files[0]; if (f) readFile(f); };
+        g('bList').onclick = listNN; g('bLoad').onclick = function () { var u = g('nnSel').value; if (u) loadUrl(u); };
+        g('bKif').onclick = exportKif; g('bClose').onclick = function () { g('menu').hidden = true; };
+        g('mode').onchange = function () { g('menu').hidden = true; newGame(); };
+      }
+
+      /* --- NN読込 --- */
+      function setNN(txt, pct, ov) {
+        g('ovT').textContent = txt; g('ovB').style.width = pct + '%'; g('ov').hidden = !ov;
+        g('nnS').textContent = txt;
+      }
+      function newWorker() {
+        var url = URL.createObjectURL(new Blob([g('eng').textContent], { type: 'text/javascript' }));
+        W = new Worker(url);
+        W.onmessage = onMsg;
+        if (netBuf) W.postMessage({ cmd: 'net', buf: netBuf });
+      }
+      function useNet(buf, name) {
+        netBuf = buf; netName = name;
+        setNN('NN 解析中…', 50, 1);
+        W.postMessage({ cmd: 'net', buf: buf });
+      }
+      function readFile(f) {
+        var r = new FileReader();
+        r.onprogress = function (e) { if (e.total) setNN('NN 読込中 ' + (e.loaded / 1048576).toFixed(0) + 'MB / ' + (e.total / 1048576).toFixed(0) + 'MB', e.loaded * 50 / e.total, 1); };
+        r.onload = function () { useNet(r.result, f.name); };
+        r.readAsArrayBuffer(f);
+      }
+      async function loadUrl(u) {
+        try {
+          setNN('ダウンロード開始…', 0, 1);
+          var r = await fetch(u), tot = +r.headers.get('content-length') || 0, rd = r.body.getReader(), ch = [], n = 0;
+          for (;;) {
+            var x = await rd.read();
+            if (x.done) break;
+            ch.push(x.value); n += x.value.length;
+            setNN('ダウンロード中 ' + (n / 1048576).toFixed(1) + 'MB' + (tot ? ' / ' + (tot / 1048576).toFixed(1) + 'MB' : ''), tot ? n * 50 / tot : 25, 1);
+          }
+          var u8 = new Uint8Array(n), o = 0;
+          ch.forEach(function (c) { u8.set(c, o); o += c.length; });
+          useNet(u8.buffer, u.split('/').pop());
+        } catch (e) { setNN('ダウンロード失敗: ' + e.message, 0, 0); }
+      }
+      async function listNN() {
+        try {
+          var r = await fetch('https://api.github.com/repos/' + g('repo').value + '/contents/statics/shogi-nn'), j = await r.json();
+          g('nnSel').innerHTML = j.filter(function (x) { return /\.bin$/.test(x.name); }).map(function (x) { return '<option value="' + x.download_url + '">' + x.name + '</option>'; }).join('');
+          if (!g('nnSel').innerHTML) setNN('.bin が見つかりません(リポジトリ名を確認)', 0, 0);
+        } catch (e) { setNN('一覧取得失敗: ' + e.message, 0, 0); }
+      }
+
+      /* --- Worker通信 --- */
+      function send(msg) {
+        lastMsg = msg;
+        if (busy) tm = setTimeout(function () { W.terminate(); newWorker(); W.postMessage(msg); }, 350);
+        busy = 1;
+        W.postMessage(msg);
+      }
+      function onMsg(e) {
+        var m = e.data;
+        if (m.t === 'ld') { setNN('NN ' + m.txt + ' (' + Math.round(m.pct) + '%)', m.pct, m.pct < 100); }
+        else if (m.t === 'ldDone') { g('ov').hidden = true; if (m.ok) setNN('NN読込済: ' + netName, 100, 0); }
+        else if (m.t === 'ack') clearTimeout(tm);
+        else if (m.id !== gid) return;
+        else if (m.t === 'p' || m.t === 'done') {
+          showList(m);
+          if (m.t === 'done') { busy = 0; if (m.play && m.list.length && !over) doMove(m.list[0].m); }
+        } else if (m.t === 'tr') showTrain(m);
+      }
+      function stRaw() { return { cmd: 'go', id: ++gid, st: toSt(P), M: num('M'), N: num('N'), D: num('D'), lw: Array.from(g('useLW').checked ? LWS : new Float64Array(16)) }; }
+      function think(play) {
+        var m = stRaw();
+        m.play = play; m.ms = play ? num('ai') * 1000 : 0;
+        send(m);
+      }
+
+      /* --- 表記・棋譜 --- */
+      function mvT(m, kif) {
+        var f = m & 127, t = (m >> 7) & 127, pr = (m >> 14) & 1, d = m >> 15;
+        var nm = f === 81 ? NM[d] : NM[P.b[f] & 15];
+        return FN[(t / 9) | 0] + RN[t % 9] + nm + (pr ? '成' : '') + (f === 81 ? '打' : (kif ? '(' + (((f / 9) | 0) + 1) + (f % 9 + 1) + ')' : ''));
+      }
+      function fmtS(s) { return Math.abs(s) > 29000 ? (s > 0 ? '詰ませ' : '詰まされ') : (s > 0 ? '+' : '') + s; }
+      function showList(m) {
+        g('bar').firstChild.style.width = m.pct + '%';
+        var n = num('show'), h = '<div>思考 ' + Math.round(m.pct) + '% (手番側の評価値)</div>';
+        m.list.slice(0, n).forEach(function (x, i) {
+          h += '<div>' + (i + 1) + '. ' + (P.side ? '△' : '▲') + mvT(x.m) + '  ' + fmtS(x.s) + '  (深さ' + x.d + ')</div>';
+        });
+        if (m.worst) h += '<div style="color:#f88">最悪手 ' + mvT(m.worst.m) + '  ' + fmtS(m.worst.s) + '</div>';
+        g('cand').innerHTML = h;
+      }
+      function exportKif() {
+        var t = '手合割：平手\n先手：' + (mode === 'vs' && human === 0 ? '人間' : 'AI') + '\n後手：' + (mode === 'vs' && human === 1 ? '人間' : 'AI') +
+          '\n手数----指手---------消費時間--\n';
+        hist.forEach(function (h, i) { t += String(i + 1).padStart(4, ' ') + ' ' + h.kif + '   ( 0:00/00:00:00)\n'; });
+        if (over) t += String(hist.length + 1).padStart(4, ' ') + ' 投了\n';
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain' }));
+        a.download = 'shogi_' + Date.now() + '.kif';
+        a.click();
+      }
+
+      /* --- 対局進行 --- */
+      function newGame() {
+        mode = g('mode').value; sel = null; last = null; over = 0; hist = []; P = newPos(); gid++;
+        var hs = g('side').value;
+        human = hs === 'r' ? (Math.random() < 0.5 ? 0 : 1) : +hs;
+        flip = mode === 'vs' && human === 1 ? 1 : 0;
+        var t = g('tm').value;
+        clk.on = mode === 'vs' && t !== 'n'; clk.left = num('base') * 60000;
+        clk.by = t === 'b' ? num('by') * 1000 : 0; clk.fi = t === 'b' ? num('fi') * 1000 : 0;
+        g('cand').innerHTML = ''; g('menu').hidden = true;
+        if (mode === 'train') { startTrain(); render(); return; }
+        g('msg').textContent = mode === 'vs' ? 'あなたは' + (human ? '後手' : '先手') : '研究';
+        next();
+      }
+      function next() {
+        render();
+        if (!legal(P).length) { over = 1; g('msg').textContent = (P.side ? '後手' : '先手') + 'の負け(詰み)'; if (busy) { W.postMessage({ cmd: 'stop' }); busy = 0; } return; }
+        if (mode === 'vs' && P.side !== human) think(1);
+        else { clk.t0 = Date.now(); think(0); }
+      }
+      function doMove(m) {
+        var txt = (P.side ? '△' : '▲') + mvT(m), kif = mvT(m, 1), pc = P.side, cap = make(P, m);
+        if (clk.on && pc === human) clk.left = Math.max(0, clk.left - (Date.now() - clk.t0)) + clk.fi;
+        hist.push({ m: m, cap: cap, kif: kif, txt: txt });
+        last = { f: m & 127, t: (m >> 7) & 127 }; sel = null;
+        next();
+      }
+      function undoMove() {
+        if (mode === 'train') return;
+        var n = mode === 'vs' && P.side === human ? 2 : 1;
+        while (n-- && hist.length) { var h = hist.pop(); undo(P, h.m, h.cap); }
+        var l = hist[hist.length - 1];
+        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null; over = 0; sel = null; g('msg').textContent = '';
+        next();
+      }
+      function canPlay() { return !over && (mode === 'study' || (mode === 'vs' && P.side === human)); }
+
+      /* --- 盤操作 --- */
+      function mk(f, d) {
+        var tg = {};
+        legal(P).forEach(function (m) {
+          if ((m & 127) === f && (f < 81 || (m >> 15) === d)) { var t = (m >> 7) & 127; (tg[t] = tg[t] || []).push(m); }
+        });
+        return { f: f, d: d, tg: tg };
+      }
+      function clickSq(s) {
+        if (!canPlay()) return;
+        var p = P.b[s];
+        if (sel && sel.tg[s]) {
+          var mm = sel.tg[s];
+          if (mm.length > 1) {
+            g('ask').hidden = false;
+            g('aY').onclick = function () { g('ask').hidden = true; doMove(mm[0] & 16384 ? mm[0] : mm[1]); };
+            g('aN').onclick = function () { g('ask').hidden = true; doMove(mm[0] & 16384 ? mm[1] : mm[0]); };
+          } else doMove(mm[0]);
+          return;
+        }
+        sel = p && (p >> 4) === P.side ? mk(s, 0) : null;
+        render();
+      }
+      function clickHand(c, d) {
+        if (!canPlay() || c !== P.side) return;
+        sel = mk(81, d); render();
+      }
+      function render() {
+        var bd = g('board');
+        if (!bd.firstChild) {
+          for (var i = 0; i < 81; i++) { var d = document.createElement('div'); d.className = 'cell'; bd.appendChild(d); }
+          bd.onclick = function (e) { var c = e.target.closest('.cell'); if (c) clickSq(+c.dataset.s); };
+          ['h0', 'h1'].forEach(function (id) {
+            g(id).onclick = function (e) { var s = e.target.closest('.hp'); if (s) clickHand(+s.dataset.c, +s.dataset.t); };
+          });
+        }
+        for (var k = 0; k < 81; k++) {
+          var r = flip ? 8 - ((k / 9) | 0) : ((k / 9) | 0), f = flip ? k % 9 : 8 - (k % 9), s = f * 9 + r, p = P.b[s], el = bd.children[k];
+          el.dataset.s = s;
+          el.className = 'cell' + (p && (p >> 4) ? ' w' : '') + ((p & 15) > 8 ? ' pr' : '') +
+            (last && (last.t === s || last.f === s) ? ' lm' : '') + (sel && sel.f === s ? ' sl' : '') + (sel && sel.tg[s] ? ' tg' : '');
+          el.innerHTML = p ? '<span>' + NM[p & 15] + '</span>' : '';
+        }
+        [0, 1].forEach(function (row) {
+          var c = flip ? row : 1 - row, h = '';
+          for (var t = 7; t >= 1; t--) {
+            var n = P.h[c][t];
+            if (n) h += '<span class="hp' + (sel && sel.f === 81 && sel.d === t && c === P.side ? ' sl' : '') + '" data-c="' + c + '" data-t="' + t + '">' + NM[t] + (n > 1 ? n : '') + '</span>';
+          }
+          g('h' + row).innerHTML = (c ? '△' : '▲') + h;
+        });
+      }
+      function fmtT(ms) { var s = Math.ceil(ms / 1000); return ((s / 60) | 0) + ':' + String(s % 60).padStart(2, '0'); }
+      setInterval(function () {
+        if (!clk.on || over || mode !== 'vs') { g('clk').textContent = ''; return; }
+        if (P.side !== human) { g('clk').textContent = '持ち ' + fmtT(clk.left); return; }
+        var rem = clk.left - (Date.now() - clk.t0);
+        if (rem > 0) { g('clk').textContent = '持ち ' + fmtT(rem); return; }
+        var b = clk.by + rem;
+        if (b <= 0) { over = 1; g('msg').textContent = '時間切れ(あなたの負け)'; g('clk').textContent = '0:00'; return; }
+        g('clk').textContent = '秒読み ' + Math.ceil(b / 1000);
+      }, 100);
+
+      /* --- AI学習 --- */
+      function startTrain() {
+        g('cand').innerHTML = '自己対局を開始します…';
+        send({ cmd: 'train', id: gid, lw: Array.from(LWS), dep: 2 });
+      }
+      function showTrain(m) {
+        LWS = Float64Array.from(m.lw);
+        try { localStorage.setItem('shogiLW', JSON.stringify(m.lw)); } catch (e) { }
+        g('bar').firstChild.style.width = (m.rate * 100) + '%';
+        var n = m.mw + m.md + m.ml;
+        g('cand').innerHTML = '<div>自己対局 ' + m.g + '局 完了</div><div>対ベース(学習前): ' + m.mw + '勝 ' + m.md + '分 ' + m.ml + '敗 / ' + n + '局</div>' +
+          '<div>勝率 ' + Math.round(m.rate * 100) + '% (推定 Elo差 ' + (m.elo > 0 ? '+' : '') + m.elo + ')</div><div>(新規/モード変更で停止)</div>';
+        g('msg').textContent = '学習中';
+      }
+
+      /* --- 初期化 --- */
+      buildMenu();
+      newWorker();
+      g('bNew').onclick = newGame;
+      g('bUndo').onclick = undoMove;
+      g('bMenu').onclick = function () { g('menu').hidden = !g('menu').hidden; };
+      newGame();
+    </script>
+  </body>
+
+</html>
