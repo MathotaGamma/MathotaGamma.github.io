@@ -7,7 +7,7 @@
     <title>将棋AI (tanuki- HalfKP 256x2-32-32)</title>
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: #2b2b2b; color: #eee; font: 14px sans-serif; touch-action: manipulation; }
-      #app { height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 2px; box-sizing: border-box; gap: 2px; --c: min(10.6vw, calc((100dvh - 235px) / 10.2)); }
+      #app { height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 2px; box-sizing: border-box; gap: 2px; --c: min(10.6vw, calc((100dvh - 255px) / 10.2)); }
       #top { width: calc(var(--c) * 9); display: flex; justify-content: space-between; height: 22px; font-size: 13px; }
       .hand { width: calc(var(--c) * 9); height: calc(var(--c) * 0.85); display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; overflow: hidden; }
       .hp { background: #e8c27a; color: #000; border-radius: 4px; padding: 0 5px; font-size: calc(var(--c) * 0.55); line-height: calc(var(--c) * 0.8); }
@@ -19,6 +19,9 @@
       .cell.lm { background: #9fd8ff; }
       .cell.sl { background: #ff8; }
       .cell.tg::after { content: ""; position: absolute; width: 30%; height: 30%; border-radius: 50%; background: rgba(0, 150, 0, .6); }
+      #ev { position: relative; width: calc(var(--c) * 9); height: 16px; background: #eee; border-radius: 3px; overflow: hidden; }
+      #ev i { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; background: #111; transition: width .3s; }
+      #ev span { position: absolute; inset: 0; text-align: center; font-size: 12px; line-height: 16px; color: #fff; mix-blend-mode: difference; }
       #info { width: calc(var(--c) * 9); flex: 1; min-height: 0; overflow: hidden; }
       .bar { height: 8px; background: #555; border-radius: 4px; overflow: hidden; }
       .bar i { display: block; height: 100%; width: 0; background: #4c8; }
@@ -41,6 +44,7 @@
   <body>
     <div id="app">
       <div id="top"><span id="clk"></span><span id="msg"></span></div>
+      <div id="ev"><i id="evB"></i><span id="evT">形勢</span></div>
       <div class="hand" id="h0"></div>
       <div id="board"></div>
       <div class="hand" id="h1"></div>
@@ -402,25 +406,33 @@
         var train = async function (m, id) {
           postMessage({ t: 'ack' });
           await loadP;
-          var lw = Float64Array.from(m.lw), zero = new Float64Array(16), dep = m.dep || 2, lr = 0.5;
+          var lw = Float64Array.from(m.lw), zero = new Float64Array(16), dep = m.dep || 2, lr = m.lr || 0.5, vms = m.vms || 200, lastV = 0;
           var g = 0, mw = 0, md = 0, ml = 0;
-          var game = async function (wb, ww, rnd, rec) {
-            var P = newPos(), data = [];
+          var game = async function (wb, ww, rnd, rec, label) {
+            var P = newPos(), data = [], big = 0;
             for (var ply = 0; ply < 140; ply++) {
               var ms = legal(P);
               if (!ms.length) return { r: P.side ? 1 : -1, data: data };
               LW = P.side ? ww : wb;
               var mv = ms[0];
-              if (ply < rnd) mv = ms[Math.random() * ms.length | 0];
-              else { var bs = -1e9; stopF = 0; dl = 1e15; for (var i = 0; i < ms.length; i++) { var s = rs(P, ms[i], dep); if (s > bs) { bs = s; mv = ms[i]; } } }
+              if (ply < rnd) { mv = ms[Math.random() * ms.length | 0]; big = 0; }
+              else {
+                var bs = -1e9; stopF = 0; dl = 1e15;
+                for (var i = 0; i < ms.length; i++) { var s = rs(P, ms[i], dep); if (s > bs) { bs = s; mv = ms[i]; } }
+                big = Math.abs(bs) > 1200 ? big + 1 : 0;
+                if (big >= 3) return { r: (bs > 0 ? P.side : P.side ^ 1) ? -1 : 1, data: data };
+              }
               if (rec) { LW = lw; data.push({ x: Array.from(mat(P, XV)), e: evalPos(P), c: P.side }); }
               make(P, mv);
-              if (ply % 3 === 2) { await tick(); if (id !== job) return null; }
+              var now = Date.now();
+              if (now - lastV >= vms) { lastV = now; postMessage({ t: 'tv', id: m.id, st: toSt(P), mv: mv, ply: ply + 1, label: label }); }
+              await tick();
+              if (id !== job) return null;
             }
             return { r: 0, data: data };
           };
           while (id === job) {
-            var res = await game(lw, lw, 6, 1);
+            var res = await game(lw, lw, 6, 1, '学習対局 第' + (g + 1) + '局');
             if (!res) return;
             res.data.forEach(function (d) {
               var y = res.r * (d.c ? -1 : 1), p = 1 / (1 + Math.exp(-d.e / 600)), gr = p - (y + 1) / 2;
@@ -429,7 +441,7 @@
             g++;
             if (g % 3 === 0) {
               for (var q = 0; q < 2; q++) {
-                var r2 = await game(q ? zero : lw, q ? lw : zero, 4, 0);
+                var r2 = await game(q ? zero : lw, q ? lw : zero, 4, 0, '評価対局(学習後 vs 学習前)');
                 if (!r2) return;
                 var rr = q ? -r2.r : r2.r;
                 if (rr > 0) mw++; else if (rr < 0) ml++; else md++;
@@ -449,7 +461,7 @@
       var FN = '１２３４５６７８９', RN = '一二三四五六七八九';
       var P = newPos(), hist = [], sel = null, last = null, over = 0, mode = 'vs', human = 0, flip = 0, gid = 0, busy = 0, tm = 0;
       var W = null, netBuf = null, netName = '', lastMsg = null, trainLog = '';
-      var LWS = new Float64Array(16);
+      var LWS = new Float64Array(16), trainOn = 0, trStat = '', trLive = '', evS = 0;
       try { var sv = JSON.parse(localStorage.getItem('shogiLW') || 'null'); if (sv) LWS = Float64Array.from(sv); } catch (e) { }
       var clk = { on: 0, left: 0, by: 0, fi: 0, t0: 0 };
       function g(id) { return document.getElementById(id); }
@@ -476,6 +488,9 @@
           '<label>上位を深く読む手数 <input type="number" id="N" value="10"></label>' +
           '<label>上位の読む深さ <input type="number" id="D" value="6"></label>' +
           '<label>候補手の表示数 <input type="number" id="show" value="5"></label>' +
+          '<label>自己対局の読み深さ <input type="number" id="trD" value="2"></label>' +
+          '<label>自己対局の盤面更新間隔(ms) <input type="number" id="trV" value="200"></label>' +
+          '<label>学習率 <input type="number" step="0.1" id="trL" value="0.5"></label>' +
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="useLW" checked> 学習成果を使う</label><br>' +
@@ -539,6 +554,7 @@
       /* --- Worker通信 --- */
       function send(msg) {
         lastMsg = msg;
+        if (msg.cmd === 'go') { g('bar').firstChild.style.width = '0%'; g('cand').innerHTML = '<div>思考中…</div>'; }
         if (busy) tm = setTimeout(function () { W.terminate(); newWorker(); W.postMessage(msg); }, 350);
         busy = 1;
         W.postMessage(msg);
@@ -553,6 +569,10 @@
           showList(m);
           if (m.t === 'done') { busy = 0; if (m.play && m.list.length && !over) doMove(m.list[0].m); }
         } else if (m.t === 'tr') showTrain(m);
+        else if (m.t === 'tv' && mode === 'train') {
+          P = fromSt(m.st); last = { f: m.mv & 127, t: (m.mv >> 7) & 127 }; flip = 0;
+          trLive = m.label + ' ' + m.ply + '手目'; g('msg').textContent = m.ply + '手目'; paintTrain(); render();
+        }
       }
       function stRaw() { return { cmd: 'go', id: ++gid, st: toSt(P), M: num('M'), N: num('N'), D: num('D'), lw: Array.from(g('useLW').checked ? LWS : new Float64Array(16)) }; }
       function think(play) {
@@ -570,6 +590,7 @@
       function fmtS(s) { return Math.abs(s) > 29000 ? (s > 0 ? '詰ませ' : '詰まされ') : (s > 0 ? '+' : '') + s; }
       function showList(m) {
         g('bar').firstChild.style.width = m.pct + '%';
+        if (m.list.length) setEv(m.list[0].s * (P.side ? -1 : 1));
         if (!g(m.play ? 'showA' : 'showU').checked) { g('cand').innerHTML = '<div>思考 ' + Math.round(m.pct) + '%</div>'; return; }
         var n = num('show'), h = '<div>思考 ' + Math.round(m.pct) + '% (手番側の評価値)</div>';
         m.list.slice(0, n).forEach(function (x, i) {
@@ -577,6 +598,11 @@
         });
         if (m.worst) h += '<div style="color:#f88">最悪手 ' + mvT(m.worst.m) + '  ' + fmtS(m.worst.s) + '</div>';
         g('cand').innerHTML = h;
+      }
+      function setEv(sb) {
+        var p = 1 / (1 + Math.exp(-Math.max(-3000, Math.min(3000, sb)) / 600));
+        g('evB').style.width = (p * 100) + '%';
+        g('evT').textContent = (sb >= 0 ? '先手 ' : '後手 ') + Math.round((sb >= 0 ? p : 1 - p) * 100) + '% (' + (sb > 0 ? '+' : '') + Math.round(sb) + ')';
       }
       function exportKif() {
         var t = '手合割：平手\n先手：' + (mode === 'vs' && human === 0 ? '人間' : 'AI') + '\n後手：' + (mode === 'vs' && human === 1 ? '人間' : 'AI') +
@@ -598,7 +624,7 @@
         var t = g('tm').value;
         clk.on = mode === 'vs' && t !== 'n'; clk.left = num('base') * 60000;
         clk.by = t === 'b' ? num('by') * 1000 : 0; clk.fi = t === 'b' ? num('fi') * 1000 : 0;
-        g('cand').innerHTML = ''; g('menu').hidden = true; renderBtns();
+        g('cand').innerHTML = ''; g('menu').hidden = true; renderBtns(); g('evB').style.width = '50%'; g('evT').textContent = '形勢'; trainOn = 0;
         if (mode === 'train') { startTrain(); render(); return; }
         g('msg').textContent = mode === 'vs' ? 'あなたは' + (human ? '後手' : '先手') : '研究';
         next();
@@ -614,6 +640,7 @@
         if (clk.on && pc === human) clk.left = Math.max(0, clk.left - (Date.now() - clk.t0)) + clk.fi;
         hist.push({ m: m, cap: cap, kif: kif, txt: txt, c: pc });
         last = { f: m & 127, t: (m >> 7) & 127 }; sel = null;
+        g('msg').textContent = hist.length + '手目 ' + txt;
         next();
       }
       function undoFor(c) {
@@ -623,7 +650,7 @@
         if (i < 0) return;
         while (hist.length > i) { var h = hist.pop(); undo(P, h.m, h.cap); }
         var l = hist[hist.length - 1];
-        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null; over = 0; sel = null; g('msg').textContent = '';
+        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null; over = 0; sel = null; g('msg').textContent = l ? hist.length + '手目 ' + l.txt : '';
         next();
       }
       function resign(c) {
@@ -638,6 +665,7 @@
           h += '<button data-a="u" data-c="' + c + '">' + mk2 + '待った</button><button data-a="r" data-c="' + c + '">' + mk2 + '投了</button>';
         });
         else if (mode === 'vs') h += '<button data-a="u" data-c="' + human + '">待った</button><button data-a="r" data-c="' + human + '">投了</button>';
+        else if (mode === 'train') h += '<button id="bTr">' + (trainOn ? '⏸停止' : '▶再開') + '</button><button id="bTrR">学習リセット</button>';
         h += '<button id="bMenu">☰</button>';
         g('btns').innerHTML = h;
       }
@@ -707,18 +735,19 @@
       }, 100);
 
       /* --- AI学習 --- */
+      function paintTrain() { g('cand').innerHTML = '<div>' + trLive + '</div>' + trStat; }
       function startTrain() {
-        g('cand').innerHTML = '自己対局を開始します…';
-        send({ cmd: 'train', id: gid, lw: Array.from(LWS), dep: 2 });
+        trainOn = 1; trStat = ''; trLive = '自己対局を開始します…'; paintTrain(); renderBtns();
+        send({ cmd: 'train', id: gid, lw: Array.from(LWS), dep: num('trD'), vms: num('trV'), lr: num('trL') });
       }
       function showTrain(m) {
         LWS = Float64Array.from(m.lw);
         try { localStorage.setItem('shogiLW', JSON.stringify(m.lw)); } catch (e) { }
         g('bar').firstChild.style.width = (m.rate * 100) + '%';
         var n = m.mw + m.md + m.ml;
-        g('cand').innerHTML = '<div>自己対局 ' + m.g + '局 完了</div><div>対ベース(学習前): ' + m.mw + '勝 ' + m.md + '分 ' + m.ml + '敗 / ' + n + '局</div>' +
-          '<div>勝率 ' + Math.round(m.rate * 100) + '% (推定 Elo差 ' + (m.elo > 0 ? '+' : '') + m.elo + ')</div><div>(新規/モード変更で停止)</div>';
-        g('msg').textContent = '学習中';
+        trStat = '<div>' + m.g + '局完了 / 対学習前: ' + m.mw + '勝 ' + m.md + '分 ' + m.ml + '敗 (' + n + '局)</div>' +
+          '<div>勝率 ' + Math.round(m.rate * 100) + '% (推定 Elo差 ' + (m.elo > 0 ? '+' : '') + m.elo + ') ※上のバー=勝率</div>';
+        paintTrain();
       }
 
       /* --- 初期化 --- */
@@ -728,6 +757,8 @@
         var b = e.target.closest('button');
         if (!b) return;
         if (b.id === 'bNew') newGame();
+        else if (b.id === 'bTr') { if (trainOn) { trainOn = 0; busy = 0; W.postMessage({ cmd: 'stop' }); renderBtns(); } else startTrain(); }
+        else if (b.id === 'bTrR') { LWS = new Float64Array(16); try { localStorage.removeItem('shogiLW'); } catch (e) { } if (trainOn) startTrain(); else { trStat = '学習をリセットしました'; paintTrain(); } }
         else if (b.id === 'bMenu') g('menu').hidden = !g('menu').hidden;
         else if (b.dataset.a === 'u') undoFor(+b.dataset.c);
         else if (b.dataset.a === 'r') resign(+b.dataset.c);
