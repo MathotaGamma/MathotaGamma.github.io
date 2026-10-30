@@ -419,10 +419,11 @@
               list: L.slice(0, L.length > 1 ? L.length - 1 : 1).map(function (x) { return { m: x.m, s: x.s, d: x.d }; }) });
           };
           for (var d = 1; d <= D; d++) {
-            var tmp = [], to = 0, order = L.slice();
+            var tmp = [], to = 0, order = L.slice(), bs0 = -1e9;
             for (i = 0; i < order.length; i++) {
               dl = d === 1 ? 1e15 : end; stopF = 0;
-              var s = rs(P, order[i].m, d);
+              var s = sub(P, order[i].m, d, (i === 0 || d === 1) ? -31000 : bs0 - 100, 31000, 1);
+              if (s > bs0) bs0 = s;
               if (id !== job) return;
               if (stopF) { to = 1; break; }
               tmp.push(s); dn++;
@@ -475,7 +476,7 @@
             if (!res) return;
             res.data.forEach(function (d) {
               var y = res.r * (d.c ? -1 : 1), p = 1 / (1 + Math.exp(-d.e / 600)), gr = p - (y + 1) / 2;
-              for (var k = 1; k < 16; k++) lw[k] = Math.max(-200, Math.min(200, lw[k] - lr * gr * d.x[k]));
+              for (var k = 1; k < 16; k++) lw[k] = Math.max(-60, Math.min(60, lw[k] - lr * gr * d.x[k]));
             });
             g++;
             {
@@ -500,8 +501,8 @@
       var FN = '１２３４５６７８９', RN = '一二三四五六七八九';
       var P = newPos(), hist = [], sel = null, last = null, over = 0, mode = 'vs', human = 0, flip = 0, gid = 0, busy = 0, tm = 0;
       var W = null, netBuf = null, netName = '', lastMsg = null, trainLog = '';
-      var nnOk = 0, lastRx = 0, turnT0 = 0, hKeys = [], hChk = [], endKif = '', endTxt = '', LWS = new Float64Array(16), trainOn = 0, trStat = '', trLive = '', evS = 0;
-      try { var sv = JSON.parse(localStorage.getItem('shogiLW') || 'null'); if (sv) LWS = Float64Array.from(sv); } catch (e) { }
+      var curAn = null, lastInfo = '', nnOk = 0, lastRx = 0, turnT0 = 0, hKeys = [], hChk = [], endKif = '', endTxt = '', LWS = new Float64Array(16), trainOn = 0, trStat = '', trLive = '', evS = 0;
+      try { var sv = JSON.parse(localStorage.getItem('shogiLW') || 'null'); if (sv) LWS = Float64Array.from(sv, function (x) { return Math.max(-60, Math.min(60, x)); }); } catch (e) { }
       var clk = { on: 0, left: 0, by: 0, fi: 0, t0: 0 };
       function g(id) { return document.getElementById(id); }
       function num(id) { var v = g(id).value; return v === 'c' ? +g(id + 'C').value : +v; }
@@ -530,7 +531,7 @@
           '<label>学習率 <input type="number" step="0.1" id="trL" value="0.5"></label>' +
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
-          '<label><input type="checkbox" id="useLW" checked> 学習成果を使う</label><br>' +
+          '<label><input type="checkbox" id="useLW"> 学習成果(駒価値補正)を使う ※効果は小さく、悪化する場合あり</label><br>' +
           '<button id="bKif">棋譜(.kif)出力</button> <button id="bClose">閉じる</button>';
         g('menu').innerHTML = h;
         g('nnF').onchange = function (e) { var f = e.target.files[0]; if (f) readFile(f); };
@@ -635,7 +636,7 @@
       /* --- Worker通信 --- */
       function send(msg) {
         lastMsg = msg;
-        if (msg.cmd === 'go') { g('bar').firstChild.style.width = '0%'; g('cand').innerHTML = '<div>思考中…</div>'; }
+        if (msg.cmd === 'go') { g('bar').firstChild.style.width = '0%'; g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…</div>'; }
         if (busy) tm = setTimeout(function () { W.terminate(); newWorker(); W.postMessage(msg); }, 350);
         busy = 1;
         W.postMessage(msg);
@@ -673,9 +674,11 @@
       function fmtS(s) { return Math.abs(s) > 29000 ? (s > 0 ? '詰ませ' : '詰まされ') : (s > 0 ? '+' : '') + s; }
       function showList(m) {
         g('bar').firstChild.style.width = m.pct + '%';
+        curAn = { list: m.list, worst: m.worst };
+        var pv = lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '';
         if (m.list.length) setEv(m.list[0].s * (P.side ? -1 : 1));
-        if (!g(m.play ? 'showA' : 'showU').checked) { g('cand').innerHTML = '<div>思考 ' + Math.round(m.pct) + '%</div>'; return; }
-        var n = num('show'), h = '<div>思考 ' + Math.round(m.pct) + '% (手番側の評価値)</div>';
+        if (!g(m.play ? 'showA' : 'showU').checked) { g('cand').innerHTML = pv + '<div>思考 ' + Math.round(m.pct) + '%</div>'; return; }
+        var n = num('show'), h = pv + '<div>思考 ' + Math.round(m.pct) + '% (手番側の評価値)</div>';
         m.list.slice(0, n).forEach(function (x, i) {
           h += '<div>' + (i + 1) + '. ' + (P.side ? '△' : '▲') + mvT(x.m) + '  ' + fmtS(x.s) + '  (深さ' + x.d + ')</div>';
         });
@@ -694,7 +697,7 @@
         hist.forEach(function (h, i) {
           var sec = Math.round(h.t / 1000);
           tot[h.c] += sec;
-          t += String(i + 1).padStart(4, ' ') + ' ' + h.kif + '   (' + ((sec / 60) | 0) + ':' + f2(sec % 60) + '/' + f2((tot[h.c] / 3600) | 0) + ':' + f2(((tot[h.c] / 60) | 0) % 60) + ':' + f2(tot[h.c] % 60) + ')\n';
+          t += String(i + 1).padStart(4, ' ') + ' ' + h.kif + '   (' + ((sec / 60) | 0) + ':' + f2(sec % 60) + '/' + f2((tot[h.c] / 3600) | 0) + ':' + f2(((tot[h.c] / 60) | 0) % 60) + ':' + f2(tot[h.c] % 60) + ')\n' + (h.inf ? '*' + h.inf + '\n' : '');
         });
         if (over && endKif) t += String(hist.length + 1).padStart(4, ' ') + ' ' + endKif + '\n' + endTxt + '\n';
         var a = document.createElement('a');
@@ -705,7 +708,7 @@
 
       /* --- 対局進行 --- */
       function newGame() {
-        mode = g('mode').value; sel = null; last = null; over = 0; endKif = ''; hist = []; P = newPos(); gid++; hKeys = [hashP(P)]; hChk = [0];
+        mode = g('mode').value; sel = null; last = null; over = 0; endKif = ''; hist = []; P = newPos(); gid++; hKeys = [hashP(P)]; hChk = [0]; lastInfo = ''; curAn = null;
         var hs = g('side').value;
         human = hs === 'r' ? (Math.random() < 0.5 ? 0 : 1) : +hs;
         flip = mode === 'vs' && human === 1 ? 1 : 0;
@@ -757,19 +760,28 @@
       }
       function next() {
         render();
-        turnT0 = Date.now();
+        turnT0 = Date.now(); curAn = null;
         if (!legal(P).length) { finish('詰み(' + sideN(P.side) + 'の負け)', P.side ^ 1, '詰み'); return; }
         if (mode === 'vs' && P.side !== human && canDecl(P.side)) { finish('入玉宣言で' + sideN(P.side) + 'の勝ち', P.side, '入玉勝ち'); return; }
         if (mode === 'vs' && P.side !== human) think(1);
         else { clk.t0 = Date.now(); think(0); }
       }
+      function rankInfo(m) {
+        if (!curAn) return '';
+        var all = curAn.list.concat(curAn.worst ? [curAn.worst] : []), ix = -1;
+        for (var i = 0; i < all.length; i++) if (all[i].m === m) { ix = i; break; }
+        if (ix < 0) return '';
+        var best = all[0].s, sc = all[ix].s;
+        return (ix + 1) + '位' + (Math.abs(sc) > 29000 || Math.abs(best) > 29000 ? '' : ' 最善比' + (sc - best) + 'cp');
+      }
       function doMove(m) {
-        var txt = (P.side ? '△' : '▲') + mvT(m), kif = mvT(m, 1), pc = P.side, el = Date.now() - turnT0, cap = make(P, m);
+        var inf = rankInfo(m), txt = (P.side ? '△' : '▲') + mvT(m), kif = mvT(m, 1), pc = P.side, el = Date.now() - turnT0, cap = make(P, m);
         if (clk.on && pc === human) clk.left = Math.max(0, clk.left - (Date.now() - clk.t0)) + clk.fi;
-        hist.push({ m: m, cap: cap, kif: kif, txt: txt, c: pc, t: el });
+        hist.push({ m: m, cap: cap, kif: kif, txt: txt, c: pc, t: el, inf: inf });
+        lastInfo = txt + (inf ? ' ' + inf : '');
         hKeys.push(hashP(P)); hChk.push(atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0);
         last = { f: m & 127, t: (m >> 7) & 127 }; sel = null;
-        g('msg').textContent = hist.length + '手目 ' + txt;
+        g('msg').textContent = hist.length + '手目 ' + txt + (inf ? ' ' + inf : '');
         render();
         if (judge()) return;
         next();
@@ -782,7 +794,7 @@
         while (hist.length > i) { var h = hist.pop(); undo(P, h.m, h.cap); }
         hKeys.length = hist.length + 1; hChk.length = hist.length + 1;
         var l = hist[hist.length - 1];
-        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null; over = 0; endKif = ''; sel = null; g('msg').textContent = l ? hist.length + '手目 ' + l.txt : '';
+        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null; over = 0; endKif = ''; sel = null; g('msg').textContent = l ? hist.length + '手目 ' + l.txt + (l.inf ? ' ' + l.inf : '') : ''; lastInfo = l ? l.txt + (l.inf ? ' ' + l.inf : '') : '';
         next();
       }
       function resign(c) {
