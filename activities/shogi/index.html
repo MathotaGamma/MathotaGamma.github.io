@@ -3,6 +3,7 @@
 
   <head>
     <meta charset="utf-8">
+    <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>将棋AI (tanuki- HalfKP 256x2-32-32)</title>
     <style>
@@ -36,6 +37,11 @@
       #menu input[type=text] { width: 90%; }
       #ov { position: fixed; left: 6%; right: 6%; top: 38%; background: #000d; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; align-items: center; z-index: 9; font-size: 16px; gap: 10px; pointer-events: none; }
       #ov .bar { width: 90%; height: 14px; }
+      #res { position: fixed; left: 8%; right: 8%; top: 28%; z-index: 7; text-align: center; padding: 18px 8px; border-radius: 14px; font-size: 9vw; font-weight: bold; background: #000e; border: 4px solid #fff; }
+      #res small { display: block; font-size: 3.6vw; font-weight: normal; margin-top: 8px; color: #ddd; }
+      #res.win { color: #6f6; border-color: #6f6; }
+      #res.lose { color: #f66; border-color: #f66; }
+      #res.draw { color: #fd6; border-color: #fd6; }
       #ask { position: fixed; inset: 0; background: #000a; display: flex; align-items: center; justify-content: center; gap: 20px; z-index: 8; }
       #ask button { font-size: 28px; padding: 14px 24px; }
       [hidden] { display: none !important; }
@@ -60,6 +66,7 @@
       <button id="aY">成</button>
       <button id="aN">不成</button>
     </div>
+    <div id="res" hidden></div>
     <div id="ov" hidden>
       <div id="ovT"></div>
       <div class="bar"><i id="ovB"></i></div>
@@ -264,7 +271,7 @@
         }
         var out = B3[0];
         for (var j4 = 0; j4 < 32; j4++) out += W3[j4] * H2[j4];
-        return out / 16;
+        return out / 20;
       }
       function evalPos(P) {
         var x = mat(P, XV), e = 0, k;
@@ -279,10 +286,15 @@
       }
       /* ----- 探索 ----- */
       var nodes = 0, dl = 1e15, stopF = 0;
-      function sortMv(P, ms) {
-        var b = P.b, sc = ms.map(function (m) {
-          var v = b[(m >> 7) & 127] ? VAL[b[(m >> 7) & 127] & 15] * 10 - VAL[b[m & 127] & 15] : 0;
-          return (m >> 14 & 1) ? v + 50 : v;
+      var TT = new Map(), KL = [], HT = new Int32Array(32768), ttLW = '';
+      function sortMv(P, ms, tm, ply) {
+        var b = P.b, k1 = KL[ply * 2] | 0, k2 = KL[ply * 2 + 1] | 0;
+        var sc = ms.map(function (m) {
+          if (m === tm) return 1e8;
+          var v = b[(m >> 7) & 127] ? VAL[b[(m >> 7) & 127] & 15] * 10 - VAL[b[m & 127] & 15] + 1e6 : 0;
+          if (m >> 14 & 1) v += 5e5;
+          if (!v) v = m === k1 ? 9e5 : m === k2 ? 8e5 : HT[m & 32767];
+          return v;
         }), idx = ms.map(function (_, i) { return i; });
         idx.sort(function (x, y) { return sc[y] - sc[x]; });
         return idx.map(function (i) { return ms[i]; });
@@ -292,7 +304,7 @@
         if (e >= b) return e;
         if (e > a) a = e;
         if (ply > 6) return e;
-        var c = P.side, ms = sortMv(P, gen(P, 1));
+        var c = P.side, ms = sortMv(P, gen(P, 1), 0, 63);
         for (var i = 0; i < ms.length; i++) {
           var m = ms[i], cp = make(P, m);
           if (atk(P, P.k[c], c ^ 1)) { undo(P, m, cp); continue; }
@@ -304,14 +316,14 @@
         }
         return a;
       }
-      function sub(P, m, d, a, b, ply) {
+      function sub(P, m, d, a, b, ply, red) {
         var c = P.side, cp = make(P, m), v;
         if (atk(P, P.k[c], c ^ 1) || ((m >> 15) === 1 && atk(P, P.k[c ^ 1], c) && !legal(P).length)) { undo(P, m, cp); return 1e9; }
         var k = hashP(P), n = PK.length, j, f = 0;
         PK.push(k); PC.push(atk(P, P.k[c ^ 1], c) ? 1 : 0);
         for (j = n - 4; j >= 0 && j >= n - 60; j -= 2) if (PK[j] === k) { f = 1; break; }
         if (f) { var r = cyc(PC, n, j); v = r === 1 ? -(29000 - ply) : r === 2 ? 29000 - ply : 0; }
-        else v = -srch(P, d - 1, -b, -a, ply);
+        else v = -srch(P, d - 1 - (red || 0), -b, -a, ply);
         PK.pop(); PC.pop(); undo(P, m, cp);
         return v;
       }
@@ -319,17 +331,37 @@
         if ((++nodes & 511) === 0 && Date.now() > dl) stopF = 1;
         if (stopF) return 0;
         if (d <= 0) return qs(P, a, b, ply);
-        var ms = sortMv(P, gen(P)), best = -1e9, n = 0;
+        var key = PK[PK.length - 1], e = TT.get(key), tm = 0, a0 = a, inChk = PC[PC.length - 1];
+        if (e) {
+          tm = e[3];
+          if (e[0] >= d && e[1] < 29000 && e[1] > -29000) {
+            if (e[2] === 0) return e[1];
+            if (e[2] === 1 && e[1] >= b) return e[1];
+            if (e[2] === 2 && e[1] <= a) return e[1];
+          }
+        }
+        var ms = sortMv(P, gen(P), tm, ply), best = -1e9, n = 0, bm = 0;
         for (var i = 0; i < ms.length; i++) {
-          var v = sub(P, ms[i], d, a, b, ply + 1);
+          var m = ms[i], quiet = !P.b[(m >> 7) & 127] && !(m >> 14 & 1);
+          var v = sub(P, m, d, a, b, ply + 1, 0);
           if (v === 1e9) continue;
           n++;
           if (stopF) return 0;
-          if (v > best) { best = v; if (v > a) a = v; if (a >= b) break; }
+          if (v > best) {
+            best = v; bm = m;
+            if (v > a) a = v;
+            if (a >= b) {
+              if (quiet) { if (KL[ply * 2] !== m) { KL[ply * 2 + 1] = KL[ply * 2]; KL[ply * 2] = m; } HT[m & 32767] += d * d; }
+              break;
+            }
+          }
         }
-        return n ? best : -30000 + ply;
+        if (!n) return -30000 + ply;
+        if (TT.size > 2e6) TT.clear();
+        TT.set(key, [d, best, best <= a0 ? 2 : best >= b ? 1 : 0, bm]);
+        return best;
       }
-      function rs(P, m, d) { return sub(P, m, d, -31000, 31000, 1); }
+      function rs(P, m, d) { return sub(P, m, d, -31000, 31000, 1, 0); }
       /* ----- Worker側 ----- */
       if (typeof document === 'undefined') {
         var job = 0, loadP = Promise.resolve(), lastGo = null;
@@ -373,7 +405,7 @@
             };
             var l1 = rd(32, 512), l2 = rd(32, 32), l3 = rd(1, 32);
             FB = fb; FW = fw; B1 = l1[0]; W1 = l1[1]; B2 = l2[0]; W2 = l2[1]; B3 = l3[0]; W3 = l3[1];
-            NN = 1; EC.clear();
+            NN = 1; EC.clear(); TT.clear();
             var ev = evalPos(newPos()), nz = 0;
             for (var q = 0; q < 512; q++) if (IN[q]) nz++;
             if (nz < 8) {
@@ -406,6 +438,8 @@
           await loadP;
           if (id !== job) return;
           LW = Float64Array.from(m.lw); PK = m.rk.slice(); PC = m.rc.slice();
+          var lwk = m.lw.join(); if (lwk !== ttLW) { TT.clear(); ttLW = lwk; }
+          HT.fill(0); KL.length = 0;
           var P = fromSt(m.st), ms = legal(P), t0 = Date.now(), end = m.ms ? t0 + m.ms : 1e15;
           var i, L = ms.map(function (x) { return { m: x, s: 0, d: 0 }; });
           if (!L.length) { postMessage({ t: 'done', id: m.id, list: [], play: m.play, pct: 100 }); return; }
@@ -422,7 +456,7 @@
             var tmp = [], to = 0, order = L.slice(), bs0 = -1e9;
             for (i = 0; i < order.length; i++) {
               dl = d === 1 ? 1e15 : end; stopF = 0;
-              var s = sub(P, order[i].m, d, (i === 0 || d === 1) ? -31000 : bs0 - 100, 31000, 1);
+              var s = sub(P, order[i].m, d, -31000, 31000, 1, 0);
               if (s > bs0) bs0 = s;
               if (id !== job) return;
               if (stopF) { to = 1; break; }
@@ -449,7 +483,7 @@
             for (var ply = 0; ply < 140; ply++) {
               var ms = legal(P);
               if (!ms.length) return { r: P.side ? 1 : -1, data: data };
-              LW = P.side ? ww : wb;
+              LW = P.side ? ww : wb; TT.clear();
               var mv = ms[0];
               if (ply < rnd) { mv = ms[Math.random() * ms.length | 0]; big = 0; }
               else {
@@ -501,7 +535,7 @@
       var FN = '１２３４５６７８９', RN = '一二三四五六七八九';
       var P = newPos(), hist = [], sel = null, last = null, over = 0, mode = 'vs', human = 0, flip = 0, gid = 0, busy = 0, tm = 0;
       var W = null, netBuf = null, netName = '', lastMsg = null, trainLog = '';
-      var curAn = null, lastInfo = '', nnOk = 0, lastRx = 0, turnT0 = 0, hKeys = [], hChk = [], endKif = '', endTxt = '', LWS = new Float64Array(16), trainOn = 0, trStat = '', trLive = '', evS = 0;
+      var jsNet = 0, curAn = null, lastInfo = '', nnOk = 0, lastRx = 0, turnT0 = 0, hKeys = [], hChk = [], endKif = '', endTxt = '', LWS = new Float64Array(16), trainOn = 0, trStat = '', trLive = '', evS = 0;
       try { var sv = JSON.parse(localStorage.getItem('shogiLW') || 'null'); if (sv) LWS = Float64Array.from(sv, function (x) { return Math.max(-60, Math.min(60, x)); }); } catch (e) { }
       var clk = { on: 0, left: 0, by: 0, fi: 0, t0: 0 };
       function g(id) { return document.getElementById(id); }
@@ -545,18 +579,22 @@
         g('ovT').textContent = txt; g('ovB').style.width = pct + '%'; g('ov').hidden = !ov;
         g('nnS').textContent = txt;
         g('nnB').textContent = ov && pct < 100 ? 'NN ' + Math.round(pct) + '%' : txt.slice(0, 26);
+        g('nnB').style.color = nnOk ? '#9cf' : '#f88';
       }
       function newWorker() {
         var url = URL.createObjectURL(new Blob([g('eng').textContent], { type: 'text/javascript' }));
         W = new Worker(url);
         W.onmessage = onMsg; lastRx = Date.now();
         W.onerror = function (e) { busy = 0; g('cand').innerHTML = '<div>ワーカーエラー: ' + e.message + '</div>'; };
-        if (netBuf) W.postMessage({ cmd: 'net', buf: netBuf });
+        if (netBuf && jsNet) W.postMessage({ cmd: 'net', buf: netBuf });
+      }
+      function ensureJsNet() {
+        if (netBuf && !jsNet) { jsNet = 1; setNN('NN 解析中…', 50, 1); W.postMessage({ cmd: 'net', buf: netBuf }); }
       }
       function useNet(buf, name) {
         netBuf = buf; netName = name;
-        setNN('NN 解析中…', 50, 1);
-        W.postMessage({ cmd: 'net', buf: buf });
+        if (YO.state === 'ok') { yoApplyNet(); return; }
+        ensureJsNet();
       }
       function readFile(f) {
         var r = new FileReader();
@@ -660,6 +698,7 @@
       }
       function stRaw() { return { cmd: 'go', id: ++gid, st: toSt(P), D: num('D'), rk: hKeys.slice(), rc: hChk.slice(), lw: Array.from(g('useLW').checked ? LWS : new Float64Array(16)) }; }
       function think(play) {
+        if (YO.state === 'ok') { yoThink(play); return; }
         var m = stRaw();
         m.play = play; m.ms = play ? num('ai') * 1000 : 0;
         send(m);
@@ -675,7 +714,7 @@
       function showList(m) {
         g('bar').firstChild.style.width = m.pct + '%';
         curAn = { list: m.list, worst: m.worst };
-        var pv = lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '';
+        var pv = (nnOk ? '' : '<div style="color:#f88">⚠評価関数(NN)未使用: 駒得評価で指しています</div>') + (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '');
         if (m.list.length) setEv(m.list[0].s * (P.side ? -1 : 1));
         if (!g(m.play ? 'showA' : 'showU').checked) { g('cand').innerHTML = pv + '<div>思考 ' + Math.round(m.pct) + '%</div>'; return; }
         var n = num('show'), h = pv + '<div>思考 ' + Math.round(m.pct) + '% (手番側の評価値)</div>';
@@ -708,7 +747,7 @@
 
       /* --- 対局進行 --- */
       function newGame() {
-        mode = g('mode').value; sel = null; last = null; over = 0; endKif = ''; hist = []; P = newPos(); gid++; hKeys = [hashP(P)]; hChk = [0]; lastInfo = ''; curAn = null;
+        g('res').hidden = true; mode = g('mode').value; sel = null; last = null; over = 0; endKif = ''; hist = []; P = newPos(); gid++; hKeys = [hashP(P)]; hChk = [0]; lastInfo = ''; curAn = null;
         var hs = g('side').value;
         human = hs === 'r' ? (Math.random() < 0.5 ? 0 : 1) : +hs;
         flip = mode === 'vs' && human === 1 ? 1 : 0;
@@ -726,7 +765,12 @@
         over = 1; gid++; endKif = kw;
         endTxt = 'まで' + hist.length + '手で' + (winner < 0 ? '引き分け' : sideN(winner) + 'の勝ち');
         g('msg').textContent = msg;
+        var vs = mode === 'vs', el = g('res');
+        el.className = winner < 0 ? 'draw' : vs ? (winner === human ? 'win' : 'lose') : 'win';
+        el.innerHTML = (winner < 0 ? '引き分け' : vs ? (winner === human ? 'あなたの勝ち' : 'あなたの負け') : sideN(winner) + 'の勝ち') + '<small>' + msg + '(タップで閉じる)</small>';
+        el.hidden = false;
         if (busy) { W.postMessage({ cmd: 'stop' }); busy = 0; }
+        yoStop();
       }
       function canDecl(c) {
         var b = P.b, kp = P.k[c], kr = kp % 9;
@@ -794,7 +838,7 @@
         while (hist.length > i) { var h = hist.pop(); undo(P, h.m, h.cap); }
         hKeys.length = hist.length + 1; hChk.length = hist.length + 1;
         var l = hist[hist.length - 1];
-        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null; over = 0; endKif = ''; sel = null; g('msg').textContent = l ? hist.length + '手目 ' + l.txt + (l.inf ? ' ' + l.inf : '') : ''; lastInfo = l ? l.txt + (l.inf ? ' ' + l.inf : '') : '';
+        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null; over = 0; endKif = ''; sel = null; g('res').hidden = true; g('msg').textContent = l ? hist.length + '手目 ' + l.txt + (l.inf ? ' ' + l.inf : '') : ''; lastInfo = l ? l.txt + (l.inf ? ' ' + l.inf : '') : '';
         next();
       }
       function resign(c) {
@@ -881,6 +925,7 @@
       /* --- AI学習 --- */
       function paintTrain() { g('cand').innerHTML = '<div>' + trLive + '</div>' + trStat; }
       function startTrain() {
+        yoStop(); ensureJsNet();
         trainOn = 1; trStat = ''; trLive = '自己対局を開始します…'; paintTrain(); renderBtns();
         send({ cmd: 'train', id: gid, lw: Array.from(LWS), dep: num('trD'), vms: num('trV'), lr: num('trL') });
       }
@@ -894,9 +939,132 @@
         paintTrain();
       }
 
+      /* ===== YaneuraOu (WASM) ===== */
+      var YO = { state: 'none', mod: null, ready: false, running: false, pending: false, req: null, cur: null, send: function () { } };
+      var YO_VER = '@mizarjp/yaneuraou.halfkp@7.6.2-alpha.2/lib/';
+      function m2u(m) {
+        var f = m & 127, t = (m >> 7) & 127, sq = function (x) { return (((x / 9) | 0) + 1) + 'abcdefghi'[x % 9]; };
+        return (f === 81 ? 'PLNSGBR'[(m >> 15) - 1] + '*' : sq(f)) + sq(t) + ((m >> 14) & 1 ? '+' : '');
+      }
+      function u2m(u) {
+        var sq = function (i) { return (u.charCodeAt(i) - 49) * 9 + (u.charCodeAt(i + 1) - 97); };
+        if (u[1] === '*') return 81 | sq(2) << 7 | ('PLNSGBR'.indexOf(u[0]) + 1) << 15;
+        return sq(0) | sq(2) << 7 | (u.length > 4 ? 16384 : 0);
+      }
+      async function yoFetch(key, name, asText, label) {
+        try { var c = await to(idbGet(key), 2500); if (c) return c; } catch (e) { }
+        var err = '', urls = ['./' + name, 'https://unpkg.com/' + YO_VER + name, 'https://cdn.jsdelivr.net/npm/' + YO_VER + name];
+        for (var k = 0; k < urls.length; k++) {
+          try {
+            var r = await fetch(urls[k]);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var tot = +r.headers.get('content-length') || (asText ? 0 : 61754225), ch = [], n = 0, rd = r.body.getReader();
+            for (;;) {
+              var x = await rd.read();
+              if (x.done) break;
+              ch.push(x.value); n += x.value.length;
+              if (!asText) setNN(label + ' ' + (n / 1048576).toFixed(0) + 'MB', Math.min(95, n * 95 / tot), 1);
+            }
+            var u8 = new Uint8Array(n), o = 0;
+            ch.forEach(function (q) { u8.set(q, o); o += q.length; });
+            var val = asText ? new TextDecoder().decode(u8) : u8.buffer;
+            if (!asText && n < 1e6) throw new Error('サイズ不正');
+            idbPut(key, val).catch(function () { });
+            return val;
+          } catch (e) { err += e.message + ' '; }
+        }
+        throw new Error(name + ' 取得失敗: ' + err);
+      }
+      async function yoInit() {
+        if (!self.crossOriginIsolated) { YO.state = 'fail'; g('nnB').title = 'WASM不可'; ensureJsNet(); return; }
+        YO.state = 'init';
+        try {
+          var glue = await yoFetch('yoJs', 'yaneuraou.halfkp.js', 1), wk = await yoFetch('yoWk', 'yaneuraou.halfkp.worker.js', 1);
+          var wasm = await yoFetch('yoWasm', 'yaneuraou.halfkp.wasm', 0, 'やねうら王WASM取得中');
+          setNN('やねうら王を起動中…', 97, 1);
+          var jsUrl = URL.createObjectURL(new Blob([glue], { type: 'text/javascript' })), wkUrl = URL.createObjectURL(new Blob([wk], { type: 'text/javascript' }));
+          await new Promise(function (res, rej) {
+            var sc = document.createElement('script');
+            sc.src = jsUrl; sc.onload = res; sc.onerror = function () { rej(new Error('エンジンJS読込失敗')); };
+            document.head.appendChild(sc);
+          });
+          var mod = await YaneuraOu_HalfKP({ wasmBinary: wasm, locateFile: function (n) { return /worker/.test(n) ? wkUrl : n; }, mainScriptUrlOrBlob: jsUrl });
+          YO.mod = mod; YO.send = function (c) { mod.postMessage(c); };
+          mod.addMessageListener(yoLine);
+          var T = Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2));
+          YO.send('usi');
+          YO.send('setoption name Threads value ' + T); YO.send('setoption name USI_Hash value 128');
+          YO.send('setoption name NetworkDelay value 0'); YO.send('setoption name NetworkDelay2 value 0');
+          YO.state = 'ok';
+          if (busy) { W.postMessage({ cmd: 'stop' }); busy = 0; }
+          if (netBuf) yoApplyNet(); else YO.send('isready');
+        } catch (e) {
+          YO.state = 'fail'; g('ov').hidden = true; g('nnB').textContent = 'WASM失敗:' + String(e.message).slice(0, 20);
+          ensureJsNet();
+        }
+      }
+      function yoApplyNet() {
+        YO.ready = false; yoStop();
+        YO.mod.FS.writeFile('/hao.bin', new Uint8Array(netBuf));
+        YO.send('setoption name EvalDir value .'); YO.send('setoption name EvalFile value hao.bin'); YO.send('setoption name FV_SCALE value 20');
+        YO.send('isready');
+      }
+      function yoStop() { YO.pending = false; if (YO.running) YO.send('stop'); }
+      function yoThink(play) {
+        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: play ? num('ai') * 1000 : 0, tops: {}, depth: 0, ui: 0 };
+        YO.pending = true;
+        g('bar').firstChild.style.width = '0%';
+        g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…(やねうら王)</div>';
+        yoKick();
+      }
+      function yoKick() {
+        if (!YO.pending || !YO.ready) return;
+        if (YO.running) { YO.send('stop'); return; }
+        YO.pending = false; YO.running = true; YO.cur = YO.req; YO.cur.t0 = Date.now();
+        YO.send('setoption name MultiPV value ' + Math.max(1, num('show')));
+        YO.send('position startpos' + (hist.length ? ' moves ' + hist.map(function (h) { return m2u(h.m); }).join(' ') : ''));
+        YO.send(YO.cur.play ? (YO.cur.ms ? 'go movetime ' + YO.cur.ms : 'go depth ' + Math.max(8, num('D'))) : 'go infinite');
+      }
+      function yoPaint(r, done) {
+        var list = Object.keys(r.tops).map(Number).sort(function (a, b) { return a - b; }).map(function (k) { return r.tops[k]; });
+        var pct = r.ms ? Math.min(99, (Date.now() - r.t0) * 100 / r.ms) : Math.min(99, r.depth * 4);
+        showList({ t: 'p', id: r.id, play: r.play, pct: done ? 100 : pct, worst: null, list: list });
+      }
+      function yoLine(l) {
+        if (l === 'readyok') {
+          YO.ready = true; nnOk = 1;
+          setNN(netBuf ? 'やねうら王 + ' + netName : 'やねうら王(内蔵:水匠5)', 100, 0);
+          if (YO.pending) yoKick();
+          return;
+        }
+        if (l.indexOf('bestmove') === 0) return yoBest(l);
+        if (l.indexOf('info ') !== 0 || l.indexOf('info string') === 0) return;
+        var r = YO.cur;
+        if (!r || r.id !== gid) return;
+        var mp = /multipv (\d+)/.exec(l), sc = /score (cp|mate) (-?\d+)/.exec(l), pv = / pv (\S+)/.exec(l), dp = /depth (\d+)/.exec(l);
+        if (!sc || !pv || !dp) return;
+        var v = +sc[2], s = sc[1] === 'cp' ? v : (v > 0 ? 30000 - v : -30000 - v);
+        r.tops[mp ? +mp[1] : 1] = { m: u2m(pv[1]), s: s, d: +dp[1] };
+        r.depth = Math.max(r.depth, +dp[1]);
+        if (Date.now() - r.ui > 150) { r.ui = Date.now(); yoPaint(r, 0); }
+      }
+      function yoBest(l) {
+        var r = YO.cur; YO.running = false; YO.cur = null;
+        if (YO.pending) { yoKick(); return; }
+        if (!r || r.id !== gid || over || !r.play) return;
+        var u = l.split(/\s+/)[1];
+        yoPaint(r, 1);
+        if (u === 'resign') { finish(sideN(P.side) + '投了', P.side ^ 1, '投了'); return; }
+        if (u === 'win') { finish('入玉宣言で' + sideN(P.side) + 'の勝ち', P.side, '入玉勝ち'); return; }
+        var m = u2m(u), ls = legal(P);
+        if (ls.indexOf(m) < 0) m = ls[0];
+        doMove(m);
+      }
+
       /* --- 初期化 --- */
       buildMenu();
       g('nnB').onclick = function () { if (!nnOk) loadHao(); };
+      g('res').onclick = function () { this.hidden = true; };
       setInterval(function () {
         if (busy && !over && mode !== 'train' && lastMsg && lastMsg.id === gid && Date.now() - lastRx > 25000) {
           lastRx = Date.now(); W.terminate(); newWorker(); W.postMessage(lastMsg);
@@ -904,6 +1072,7 @@
       }, 3000);
       newWorker();
       autoLoad();
+      yoInit();
       g('btns').onclick = function (e) {
         var b = e.target.closest('button');
         if (!b) return;
