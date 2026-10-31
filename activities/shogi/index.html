@@ -562,8 +562,7 @@
           h += '<label>' + s[1] + '</label><select id="' + s[0] + '">' + s[2].map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select>';
           if (s[2][s[2].length - 1][0] === 'c') h += ' <input type="number" id="' + s[0] + 'C" value="' + (s[0] === 'base' ? 15 : 7) + '">';
         });
-        h += '<label>読みの深さ(全手を同じ深さまで読む / 0=無制限) <input type="number" id="D" value="14"></label>' +
-          '<label>候補手の表示数 <input type="number" id="show" value="5"></label>' +
+        h += '<label>読み込む深度 <input type="number" id="D" value="14" min="1"></label>' +
           '<label>自己対局の読み深さ <input type="number" id="trD" value="2"></label>' +
           '<label>自己対局の盤面更新間隔(ms) <input type="number" id="trV" value="200"></label>' +
           '<label>学習率 <input type="number" step="0.1" id="trL" value="0.5"></label>' +
@@ -721,10 +720,10 @@
         curAn = { list: m.list, worst: m.worst };
         var pv = (nnOk ? '' : '<div style="color:#f88">⚠評価関数(NN)未使用: 駒得評価で指しています</div>') + (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '');
         if (m.list.length) setEv(m.list[0].s * (P.side ? -1 : 1));
-        if (!g(m.play ? 'showA' : 'showU').checked) { g('cand').innerHTML = pv + '<div>思考 ' + Math.round(m.pct) + '%</div>'; return; }
-        var n = num('show'), h = pv + '<div>思考 ' + Math.round(m.pct) + '% (手番側の評価値)</div>';
+        if (!g(m.play ? 'showA' : 'showU').checked) { g('cand').innerHTML = pv + '<div>思考 ' + Math.round(m.pct) + '%' + (m.info || '') + '</div>'; return; }
+        var n = 5, h = pv + '<div>思考 ' + Math.round(m.pct) + '%' + (m.info || '') + ' (手番側の評価値)</div>';
         m.list.slice(0, n).forEach(function (x, i) {
-          h += '<div>' + (i + 1) + '. ' + (P.side ? '△' : '▲') + mvT(x.m) + '  ' + fmtS(x.s) + '  (深さ' + x.d + ')</div>';
+          h += '<div>' + (i + 1) + '. ' + (P.side ? '△' : '▲') + mvT(x.m) + '  ' + fmtS(x.s) + '  (深度' + x.d + ')</div>';
         });
         if (m.worst) h += '<div style="color:#f88">最悪手 ' + mvT(m.worst.m) + '  ' + fmtS(m.worst.s) + '</div>';
         g('cand').innerHTML = h;
@@ -1130,8 +1129,8 @@
       }
       function yoStop() { YO.pending = false; if (YO.running) YO.send('stop'); }
       function yoThink(play) {
-        var n = play ? Math.max(1, num('show')) : Math.max(1, Math.min(legal(P).length, 300));
-        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: play ? num('ai') * 1000 : 0, mpv: n, mv: {}, depth: 0, ui: 0 };
+        var n = play ? (g('showA').checked ? 5 : 1) : Math.max(1, Math.min(legal(P).length, 300));
+        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: play ? num('ai') * 1000 : 0, mpv: n, mv: {}, dt: {}, depth: 0, ui: 0 };
         YO.pending = true;
         g('bar').firstChild.style.width = '0%';
         g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…(やねうら王)</div>';
@@ -1141,17 +1140,30 @@
         if (!YO.pending || !YO.ready) return;
         if (YO.running) { YO.send('stop'); return; }
         YO.pending = false; YO.running = true;
-        var r = YO.cur = YO.req, D = num('D');
+        var r = YO.cur = YO.req, D = Math.max(1, num('D'));
         r.t0 = Date.now();
         YO.send('setoption name MultiPV value ' + r.mpv);
         YO.send('position ' + (startSfen ? 'sfen ' + startSfen : 'startpos') + (hist.length ? ' moves ' + hist.map(function (h) { return m2u(h.m); }).join(' ') : ''));
-        YO.send(r.play ? (r.ms ? 'go movetime ' + r.ms : 'go depth ' + (D > 0 ? Math.max(8, D) : 18)) : (D > 0 ? 'go depth ' + D : 'go infinite'));
+        YO.send(r.ms && r.play ? 'go movetime ' + r.ms : 'go depth ' + D);
+      }
+      /* 進捗: 深さごとの所要時間は約 1.5〜2.5 倍ずつ増えるので、実測の増加率から終了までの時間を見積もる */
+      function yoProg(r, D) {
+        var el = Date.now() - r.t0;
+        if (r.ms) return Math.min(99, el * 100 / r.ms);
+        var ds = Object.keys(r.dt).map(Number).sort(function (x, y) { return x - y; }), n = ds.length;
+        if (r.depth >= D) return 99;
+        if (n < 3) return Math.min(8, r.depth * 100 / D / 3);
+        var d1 = ds[n - 1], t1 = r.dt[d1], dur1 = Math.max(1, t1 - r.dt[ds[n - 2]]), dur0 = Math.max(1, r.dt[ds[n - 2]] - r.dt[ds[n - 3]]);
+        var ratio = Math.max(1.3, Math.min(3, dur1 / dur0)), est = t1, d = dur1;
+        for (var j = d1 + 1; j <= D; j++) { d *= ratio; est += d; }
+        return Math.min(99, el * 100 / Math.max(est, el + 1));
       }
       function yoPaint(r, done) {
         var arr = Object.keys(r.mv).map(function (k) { return r.mv[k]; });
         arr.sort(function (a, b) { return ((b.d === r.depth) - (a.d === r.depth)) || (a.k - b.k); });
-        var D = num('D'), pct = r.ms ? Math.min(99, (Date.now() - r.t0) * 100 / r.ms) : (D ? Math.min(99, r.depth * 100 / D) : Math.min(99, r.depth * 4));
-        showList({ t: 'p', id: r.id, play: r.play, pct: done ? 100 : pct, worst: r.mpv > 5 && arr.length > 1 ? arr[arr.length - 1] : null, list: arr });
+        var D = Math.max(1, num('D')), el = ((Date.now() - r.t0) / 1000).toFixed(1);
+        showList({ t: 'p', id: r.id, play: r.play, pct: done ? 100 : yoProg(r, D), worst: r.mpv > 5 && arr.length > 1 ? arr[arr.length - 1] : null, list: arr,
+          info: ' 深度' + r.depth + (r.ms ? '' : '/' + D) + ' ' + el + '秒' + (done ? ' 完了' : '') });
       }
       function yoLine(l) {
         if (l === 'readyok') {
@@ -1171,6 +1183,7 @@
         var mv = u2m(pv[1]);
         r.mv[mv] = { m: mv, s: s, d: +dp[1], k: mp ? +mp[1] : 1 };
         r.depth = Math.max(r.depth, +dp[1]);
+        if (!r.dt[+dp[1]]) r.dt[+dp[1]] = Date.now() - r.t0;
         if (Date.now() - r.ui > 150) { r.ui = Date.now(); yoPaint(r, 0); }
       }
       function yoBest(l) {
