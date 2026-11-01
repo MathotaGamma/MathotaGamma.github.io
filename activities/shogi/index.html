@@ -459,11 +459,18 @@
           for (var d = 1; d <= D; d++) {
             var tmp = [], to = 0, order = L.slice(), bs0 = -1e9;
             for (i = 0; i < order.length; i++) {
-              dl = d === 1 ? 1e15 : end; stopF = 0;
-              var s = sub(P, order[i].m, d, -31000, 31000, 1, 0);
+              var s, endD = d === 1 ? 1e15 : end;
+              for (;;) {
+                dl = Math.min(endD, Date.now() + 120); stopF = 0;
+                s = sub(P, order[i].m, d, -31000, 31000, 1, 0);
+                if (id !== job) return;
+                if (!stopF) break;
+                if (Date.now() >= endD) { to = 1; break; }
+                await tick();
+                if (id !== job) return;
+              }
+              if (to) break;
               if (s > bs0) bs0 = s;
-              if (id !== job) return;
-              if (stopF) { to = 1; break; }
               tmp.push(s); dn++;
               if (d > 1 && i % 2 === 1) post();
               await tick();
@@ -679,7 +686,8 @@
       function send(msg) {
         lastMsg = msg;
         if (msg.cmd === 'go') { g('bar').firstChild.style.width = '0%'; g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…</div>'; }
-        if (busy) tm = setTimeout(function () { W.terminate(); newWorker(); W.postMessage(msg); }, 350);
+        clearTimeout(tm);
+        if (busy) tm = setTimeout(function () { W.terminate(); newWorker(); W.postMessage(lastMsg); }, 3000);
         busy = 1;
         W.postMessage(msg);
       }
@@ -711,8 +719,33 @@
       /* --- 表記・棋譜 --- */
       function mvT(m, kif) {
         var f = m & 127, t = (m >> 7) & 127, pr = (m >> 14) & 1, d = m >> 15;
-        var nm = f === 81 ? NM[d] : NM[P.b[f] & 15];
-        return FN[(t / 9) | 0] + RN[t % 9] + nm + (pr ? '成' : '') + (f === 81 ? '打' : (kif ? '(' + (((f / 9) | 0) + 1) + (f % 9 + 1) + ')' : ''));
+        var nm = f === 81 ? NM[d] : NM[P.b[f] & 15], dis = '';
+        if (f !== 81 && !kif) {
+          dis = disamb(f, t);
+          if (!pr && legal(P).indexOf(m | 16384) >= 0) dis += '不成';
+        }
+        return FN[(t / 9) | 0] + RN[t % 9] + nm + dis + (pr ? '成' : '') + (f === 81 ? '打' : (kif ? '(' + (((f / 9) | 0) + 1) + (f % 9 + 1) + ')' : ''));
+      }
+      /* 同じ種類の駒が複数ある場合の区別: 直・右・左・上・引・寄 (先手後手それぞれ自分から見た向き) */
+      function disamb(f, t) {
+        var pc = P.b[f], black = (pc >> 4) === 0, froms = [], tF = (t / 9) | 0, tR = t % 9;
+        legal(P).forEach(function (x) {
+          var xf = x & 127;
+          if (xf < 81 && ((x >> 7) & 127) === t && P.b[xf] === pc && froms.indexOf(xf) < 0) froms.push(xf);
+        });
+        if (froms.length < 2) return '';
+        var info = froms.map(function (x) {
+          var xF = (x / 9) | 0, xR = x % 9;
+          return { me: x === f, rs: black ? tF - xF : xF - tF, fw: black ? xR - tR : tR - xR };
+        });
+        var me = info.filter(function (o) { return o.me; })[0], others = info.filter(function (o) { return !o.me; });
+        if (me.rs === 0 && me.fw > 0 && !others.some(function (o) { return o.rs === 0 && o.fw > 0; }) && others.some(function (o) { return o.rs !== 0; })) return '直';
+        var mov = me.fw > 0 ? '上' : me.fw < 0 ? '引' : '寄';
+        var rights = others.filter(function (o) { return o.rs > me.rs; }).length, lefts = others.filter(function (o) { return o.rs < me.rs; }).length;
+        var same = others.filter(function (o) { return o.rs === me.rs; }).length;
+        var side = rights === 0 && lefts > 0 ? '右' : lefts === 0 && rights > 0 ? '左' : '';
+        if (same === 0) return side || mov;
+        return side + mov;
       }
       function fmtS(s) { return Math.abs(s) > 29000 ? (s > 0 ? '詰ませ' : '詰まされ') : (s > 0 ? '+' : '') + s; }
       function showList(m) {
@@ -1130,7 +1163,7 @@
       function yoStop() { YO.pending = false; if (YO.running) YO.send('stop'); }
       function yoThink(play) {
         var n = play ? (g('showA').checked ? 5 : 1) : Math.max(1, Math.min(legal(P).length, 300));
-        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: play ? num('ai') * 1000 : 0, mpv: n, mv: {}, dt: {}, depth: 0, ui: 0 };
+        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: play ? num('ai') * 1000 : 0, mpv: n, mv: {}, dt: {}, depth: 0, cdepth: 0, pm: 0, ui: 0 };
         YO.pending = true;
         g('bar').firstChild.style.width = '0%';
         g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…(やねうら王)</div>';
@@ -1145,25 +1178,37 @@
         YO.send('setoption name MultiPV value ' + r.mpv);
         YO.send('position ' + (startSfen ? 'sfen ' + startSfen : 'startpos') + (hist.length ? ' moves ' + hist.map(function (h) { return m2u(h.m); }).join(' ') : ''));
         YO.send(r.ms && r.play ? 'go movetime ' + r.ms : 'go depth ' + D);
+        clearTimeout(YO.gt);
+        if (r.play) YO.gt = setTimeout(function () {
+          if (YO.cur !== r || !YO.running) return;
+          YO.send('stop');
+          YO.gt = setTimeout(function () { if (YO.cur === r && YO.running) yoFail(); }, 5000);
+        }, (r.ms || 120000) + 5000);
       }
       /* 進捗: 深さごとの所要時間は約 1.5〜2.5 倍ずつ増えるので、実測の増加率から終了までの時間を見積もる */
+      /* 進捗: 各深さの最初の行が出た時刻から反復1回分の所要時間を測り、増加率で「深さDの反復が終わる時刻」を見積もる */
       function yoProg(r, D) {
-        var el = Date.now() - r.t0;
+        var el = Date.now() - r.t0, p;
         if (r.ms) return Math.min(99, el * 100 / r.ms);
         var ds = Object.keys(r.dt).map(Number).sort(function (x, y) { return x - y; }), n = ds.length;
-        if (r.depth >= D) return 99;
-        if (n < 3) return Math.min(8, r.depth * 100 / D / 3);
-        var d1 = ds[n - 1], t1 = r.dt[d1], dur1 = Math.max(1, t1 - r.dt[ds[n - 2]]), dur0 = Math.max(1, r.dt[ds[n - 2]] - r.dt[ds[n - 3]]);
-        var ratio = Math.max(1.3, Math.min(3, dur1 / dur0)), est = t1, d = dur1;
-        for (var j = d1 + 1; j <= D; j++) { d *= ratio; est += d; }
-        return Math.min(99, el * 100 / Math.max(est, el + 1));
+        if (n < 4) p = Math.min(8, r.depth * 100 / D / 3);
+        else {
+          var du = [], q;
+          for (q = n - 4; q < n - 1; q++) du.push(Math.max(1, r.dt[ds[q + 1]] - r.dt[ds[q]]));
+          var ratio = Math.max(1.9, Math.min(3, ((du[1] / du[0]) + (du[2] / du[1])) / 2)), est = r.dt[ds[n - 1]], d = du[2];
+          for (var j = ds[n - 1] + 1; j <= D + 1; j++) { d *= ratio; est += d; }
+          if (el > est) est = el * 1.25;
+          p = Math.min(95, el * 100 / est);
+        }
+        r.pm = Math.max(r.pm, p);
+        return r.pm;
       }
       function yoPaint(r, done) {
         var arr = Object.keys(r.mv).map(function (k) { return r.mv[k]; });
         arr.sort(function (a, b) { return ((b.d === r.depth) - (a.d === r.depth)) || (a.k - b.k); });
         var D = Math.max(1, num('D')), el = ((Date.now() - r.t0) / 1000).toFixed(1);
         showList({ t: 'p', id: r.id, play: r.play, pct: done ? 100 : yoProg(r, D), worst: r.mpv > 5 && arr.length > 1 ? arr[arr.length - 1] : null, list: arr,
-          info: ' 深度' + r.depth + (r.ms ? '' : '/' + D) + ' ' + el + '秒' + (done ? ' 完了' : '') });
+          info: ' 深度' + (r.ms ? r.depth : r.depth + '/' + D) + ' ' + el + '秒' + (done ? ' 完了' : '') });
       }
       function yoLine(l) {
         if (l === 'readyok') {
@@ -1186,7 +1231,13 @@
         if (!r.dt[+dp[1]]) r.dt[+dp[1]] = Date.now() - r.t0;
         if (Date.now() - r.ui > 150) { r.ui = Date.now(); yoPaint(r, 0); }
       }
+      function yoFail() {
+        YO.state = 'fail'; YO.running = false; YO.cur = null; YO.pending = false;
+        g('nnB').textContent = 'WASM応答なし→自作エンジン'; ensureJsNet();
+        if (!over && !paused && !editing) next();
+      }
       function yoBest(l) {
+        clearTimeout(YO.gt);
         var r = YO.cur; YO.running = false; YO.cur = null;
         if (YO.pending) { yoKick(); return; }
         if (!r || r.id !== gid || over) return;
