@@ -1,0 +1,724 @@
+<style>
+  #canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+</style>
+<canvas id="canvas"></canvas>
+<script type="module">
+const canvas = document.getElementById('canvas');
+const W = innerWidth;
+const H = innerHeight;
+canvas.width = W;
+canvas.height = H;
+let stepCount = 0;
+// nodeCount,MemberCountは色々なところに干渉しているため要注意。
+// outputDataの配列のサイズ、draw関数など
+let nodeCount;
+let memberCount;
+const workgroupSize = 64;
+const substeps = 80;
+
+// ===== Node, MemberのInfo
+// x, y, isFixed(1で固定 0で自由)
+const s3_2 = Math.sqrt(3)/2;
+const nodeInfo = [
+  [-1,   0,    1],
+  [-0.5, s3_2, 0],
+  [0,    0,    0],
+  [0.5,  s3_2, 0],
+  [1,    0,    0],
+  [1.5,  s3_2, 0],
+  [2,    0,    1],
+  
+  [-0.5,  s3_2+1, 0]
+];
+
+// 材質を定義
+// 固体のばね定数は、E*A/L (E:ヤング率[N/m^2],A:断面積[m^2],L:長さ[m])で求められる。
+/*
+  木材のヤング率は7e+9~1.2e+10程度。
+  鉄は2e+11程度
+*/
+//(k:ばね定数, t: threshold(伸び縮みの長さ/自然長がthresholdを超えると破断), mu: 自然長1m辺りの質量(kg), c: 減衰係数[N·s/m](部材の伸び縮みの速さに比例する抵抗)
+const materials = {
+  soft: { k: 6e+4, t: 0.2, mu: 10, c: 2000 },
+  medium: { k: 1e+5, t: 0.2, mu: 100, c: 3000 },
+  hard: { k: 2e+8, t: 0.1, mu: 500, c: 2000 },
+  wood: { k: 1e+8, t: 0.1, mu: 5, c: 2000 },
+  stone:{ k: 5e+8, t: 0.05,mu: 25, c: 10000 },
+  iron: { k: 2e+10,t: 0.1, mu: 78, c: 0 }, // 今のdtでは不安定なためc=0にしてある
+}
+// nodeA, nodeB, restLength(自然長), isSubstance(実体か(道や壁か)), type(種類)
+const memberInfo = [
+  [0, 1, 1, 0, 'soft'],
+  [1, 2, 1, 0, 'soft'],
+  [0, 2, 1, 1, 'soft'],
+  [1, 3, 1, 0, 'soft'],
+  [2, 4, 1, 1, 'soft'],
+  [2, 3, 1, 0, 'soft'],
+  [3, 4, 1, 0, 'soft'],
+  [3, 5, 1, 0, 'hard'],
+  [4, 5, 1, 0, 'soft'],
+  [5, 6, 1, 0, 'soft'],
+  [4, 6, 1, 1, 'soft'],
+  
+  [1, 7, 1, 1, 'soft'],
+  [3, 7, Math.sqrt(2), 1, 'soft']
+]
+
+async function initWebGPU() {
+  if (!navigator.gpu) {
+    console.log('このデバイスはWebGPUに対応していません。');
+    return null;
+  }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) {
+    alert('Adapterの作成に失敗しました。このデバイスが対応していない可能性があります。');
+    return null;
+  }
+  const device = await adapter.requestDevice();
+  return device;
+}
+
+async function main() {
+  const device = await initWebGPU();
+  if (!device) {
+    return;
+  }
+  console.log('WebGPUの初期化が完了しました。');
+  
+  // ===== Bufferに入れるDataを定義 =====
+  
+  // FloatとUintを混ぜるための関数を作成
+  function makeMixedData(rows, u32Cols) {
+    const width = rows[0].length;
+    const f32 = new Float32Array(rows.length * width);
+    // Float32と同じビューをUint32と共有する。
+    const u32 = new Uint32Array(f32.buffer);
+    rows.forEach((row, i) => {
+      row.forEach((val, j) => {
+        if (u32Cols.includes(j)) {
+          u32[i * width + j] = val;
+        } else {
+          f32[i * width + j] = val;
+        }
+      });
+    });
+    return f32;
+  }
+  
+  // ===== ノード =====
+  // vec2<f32>(x,y), vec2<f32>(vx,vy), isFixed, 0
+  // 例: -1, 0, 0, 0, 1, 0
+  // 最大のアライメントである、vec2<f32>のアライメントが8なので8の倍数にサイズを合わせるため、0を追加(24バイトに)
+  // --- nodeInfoからnodeDataを作成する ---
+  nodeCount = nodeInfo.length;
+  const nodeWidth = nodeInfo[0].length;
+  const nodeDataArray = [];
+  for (let i = 0; i < nodeCount; i++) {
+    nodeDataArray.push([]);
+    const nodeInfo_k = nodeInfo[i];
+    // pos
+    nodeDataArray[i].push(nodeInfo_k[0], nodeInfo_k[1]);
+    // v
+    nodeDataArray[i].push(0, 0);
+    // isFixed
+    nodeDataArray[i].push(nodeInfo_k[2]);
+    // padding
+    nodeDataArray[i].push(0);
+  }
+  
+  const nodeData = makeMixedData(nodeDataArray, [4, 5]);
+  
+  // ===== Member =====
+  // nodeA,nodeB(2つの端点(node)のidx),restLength(自然長),threshold(伸び縮みの長さ/自然長 がthresholdを超えると破断),mass,k(ばね定数),isAlive(破断していないか),isSubstance(carとの衝突するか(道や壁など))
+  memberCount = memberInfo.length;
+  const memberWidth = memberInfo[0].length;
+  const memberDataArray = [];
+  for (let i = 0; i < memberCount; i++) {
+    memberDataArray.push([]);
+    const memberInfo_k = memberInfo[i];
+    // pos
+    memberDataArray[i].push(memberInfo_k[0], memberInfo_k[1]);
+    // restLength
+    const restLength = memberInfo_k[2];
+    memberDataArray[i].push(restLength);
+    // threshold
+    const materialInfo = materials[memberInfo_k[4]];
+    memberDataArray[i].push(materialInfo.t);
+    // mass
+    memberDataArray[i].push(materialInfo.mu*restLength);
+    // k, isAlive
+    memberDataArray[i].push(materialInfo.k, 1);
+    // isSubstance
+    memberDataArray[i].push(memberInfo_k[3]);
+    // coefficient
+    memberDataArray[i].push(materialInfo.c);
+    // pad
+    memberDataArray[i].push(0);
+  }
+  const memberData = makeMixedData(memberDataArray, [0, 1, 6, 7]);
+  
+  const carData = new Float32Array([
+    // pos(vec2<f32>), vel(vec2<f32>), lx, ly, mass, theta, omega, 0
+    0, 2.5, 0, 0, 2, 1, 500, 0, 0, 0
+  ]);
+  
+  const envData = makeMixedData([[
+    // g, dt, damping, 接触のばね定数, 減衰, 線分の厚み(半径), 線分上に取る判定点の数(両端を含む)(u32)
+    9.81, 1/4800, 2.0, 1000000.0, 2000.0, 0.05, 12
+  ]], [6]);
+  
+  // nodePoses(nodeCount*2), isAlive(memberCount), riskLevel(memberCount), carPos(vec2(x,y)), carTheta, accTime(累積時間)
+  const outputData = new Float32Array(nodeCount*2+memberCount*2+4);
+  // isAlivesのところだけ、Float32の初期値1にする。
+  outputData.fill(1, nodeCount*2, nodeCount*2+memberCount);
+  
+  // ===== Buffer =====
+  // ピンポンバッファにする。
+  
+  const nodeBufferOptions = {
+    size: nodeData.byteLength,
+    usage: GPUBufferUsage.STORAGE |
+           GPUBufferUsage.COPY_DST
+  }
+  
+  const nodeBufferA = device.createBuffer(nodeBufferOptions);
+  const nodeBufferB = device.createBuffer(nodeBufferOptions);
+  
+  const memberBuffer = device.createBuffer({
+    size: memberData.byteLength,
+    usage: GPUBufferUsage.STORAGE |
+           GPUBufferUsage.COPY_DST
+  });
+  
+  const carBufferOptions = {
+    size: carData.byteLength,
+    usage: GPUBufferUsage.STORAGE |
+           GPUBufferUsage.COPY_DST
+  }
+  
+  const carBufferA = device.createBuffer(carBufferOptions);
+  const carBufferB = device.createBuffer(carBufferOptions);
+  
+  const envBuffer = device.createBuffer({
+    size: envData.byteLength,
+    usage: GPUBufferUsage.STORAGE |
+           GPUBufferUsage.COPY_DST
+  });
+  
+  const outputBuffer = device.createBuffer({
+    size: outputData.byteLength,
+    usage: GPUBufferUsage.STORAGE |
+           GPUBufferUsage.COPY_DST |
+           GPUBufferUsage.COPY_SRC
+  });
+  
+  const readBuffer = device.createBuffer({
+    size: outputData.byteLength,
+    usage: GPUBufferUsage.MAP_READ |
+           GPUBufferUsage.COPY_DST
+  });
+  
+  // 初期値代入
+  device.queue.writeBuffer(nodeBufferA, 0, nodeData);
+  device.queue.writeBuffer(nodeBufferB, 0, nodeData);
+  device.queue.writeBuffer(memberBuffer, 0, memberData);
+  device.queue.writeBuffer(carBufferA, 0, carData);
+  device.queue.writeBuffer(carBufferB, 0, carData);
+  device.queue.writeBuffer(envBuffer, 0, envData);
+  device.queue.writeBuffer(outputBuffer, 0, outputData);
+  
+  
+  const shaderCode = `
+    struct Node {
+      pos: vec2<f32>,
+      // 速度
+      vel: vec2<f32>,
+      isFixed: u32,
+      pad: u32,
+    };
+    
+    struct Member {
+      nodeA: u32,
+      nodeB: u32,
+      restLength: f32,
+      threshold: f32,
+      mass: f32,
+      k: f32,
+      isAlive: u32,
+      isSubstance: u32,
+      c: f32,
+      pad: f32
+    }
+    
+    struct Car {
+      pos: vec2<f32>,
+      vel: vec2<f32>,
+      lx: f32,
+      ly: f32,
+      mass: f32,
+      theta: f32,
+      omega: f32,
+      pad: f32
+    }
+    
+    struct Env {
+      g: f32,
+      dt: f32,
+      damping: f32,
+      // 接触のばね定数、減衰、線分の厚み(半径)
+      contactK: f32,
+      contactC: f32,
+      segRadius: f32,
+      // 線分上に取る判定点の数(両端を含む)
+      sampleCount: u32
+    }
+    
+    // ※ 全てFloat32型にする！
+    struct Output {
+      nodePoses: array<vec2<f32>, ${nodeCount}>,
+      isAlives: array<f32, ${memberCount}>,
+      riskLevel: array<f32, ${memberCount}>,
+      carPos: vec2<f32>,
+      carTheta: f32,
+      // 累積時間
+      accTime: f32,
+    }
+    
+    // nodeがnodeConut個あるためarray
+    @group(0) @binding(0) var<storage, read> nodesIn: array<Node>;
+    // writeがないため(read or read_write)、read_writeを使う
+    @group(0) @binding(1) var<storage, read_write> nodesOut: array<Node>;
+    @group(0) @binding(2) var<storage, read_write> members: array<Member>;
+    @group(0) @binding(3) var<storage, read> carIn: Car;
+    @group(0) @binding(4) var<storage, read_write> carOut: Car;
+    // envは全てで同じ値を使うためarrayにしない
+    @group(0) @binding(5) var<storage, read> env: Env;
+    @group(0) @binding(6) var<storage, read_write> output: Output;
+    
+    // ベクトルの回転
+    fn rotate(v: vec2<f32>, theta: f32) -> vec2<f32> {
+      let cs = cos(theta);
+      let sn = sin(theta);
+      return vec2<f32>(cs*v.x-sn*v.y, sn*v.x+cs*v.y);
+    }
+    
+    // 車上の点の速度
+    fn carPointVel(c: Car, p: vec2<f32>) -> vec2<f32> {
+      // 重心からのベクトル
+      let r = p - c.pos;
+      return c.vel + c.omega * vec2<f32>(-r.y, r.x);
+    }
+    
+    // 車の四つ角の座標(iは、左上、右上、右下、左下の順で0,1,2,3)
+    fn cornerPos(c: Car, i: u32) -> vec2<f32> {
+      let sx = select(-1.0, 1.0, i == 1u || i == 2u);
+      let sy = select(-1.0, 1.0, i < 2u);
+      // 車の中心から見た角の位置を回転させて、重心に足す
+      return c.pos + rotate(vec2<f32>(sx * c.lx * 0.5, sy * c.ly * 0.5), c.theta);
+    }
+    
+    
+    struct SegResult {
+      // 車が受ける力とトルク
+      carForce: vec2<f32>,
+      carTorque: f32,
+      // 線分の両端のノードが受ける力
+      forceA: vec2<f32>,
+      forceB: vec2<f32>,
+    }
+    
+    
+    // 車と線分(A→B)の接触(車の角 vs 線分)
+    fn segmentContact(c: Car, aPos: vec2<f32>, bPos: vec2<f32>, aVel: vec2<f32>, bVel: vec2<f32>) -> SegResult {
+      var res: SegResult;
+      res.carForce = vec2<f32>(0.0, 0.0);
+      res.carTorque = 0.0;
+      res.forceA = vec2<f32>(0.0, 0.0);
+      res.forceB = vec2<f32>(0.0, 0.0);
+      
+      let ab = bPos - aPos;
+      let len2 = dot(ab, ab);
+      // 長さ0の線分は無視する
+      if (len2 < 1e-8) {
+        return res;
+      }
+      
+      for (var i = 0u; i < 4u; i = i + 1u) {
+        let p = cornerPos(c, i);
+        // 線分上の最も近い点の位置t(0でA端、1でB端)
+        let t = clamp(dot(p - aPos, ab) / len2, 0.0, 1.0);
+        // 最も近い点から角へ向かうベクトルと、その距離
+        let d = p - (aPos + ab * t);
+        let dist = length(d);
+        
+        if (dist < env.segRadius) {
+          // 法線は「最も近い点から角へ向かう向き」(距離がほぼ0のときだけ上向き)
+          var n = vec2<f32>(0.0, 1.0);
+          if (dist > 1e-6) {
+            n = d / dist;
+          }
+          // 線分側から見た、角の法線方向の相対速度(近づくと負)
+          let vn = dot(carPointVel(c, p) - mix(aVel, bVel, t), n);
+          // ばね + ダンパー(引っ張る力は出さない)
+          let mag = max(env.contactK * (env.segRadius - dist) - env.contactC * vn, 0.0);
+          let f = n * mag;
+          // 重心から角へのベクトル
+          let r = p - c.pos;
+          
+          res.carForce = res.carForce + f;
+          res.carTorque = res.carTorque + (r.x * f.y - r.y * f.x);
+          // 線分は逆向きの力を受ける。tに応じて両端に配分する
+          res.forceA = res.forceA - f * (1.0 - t);
+          res.forceB = res.forceB - f * t;
+        }
+      }
+      
+      // 線分上の判定点 vs 車の本体(角では拾えない、線分が車の辺や面に刺さるケース用)
+      let h = vec2<f32>(c.lx * 0.5, c.ly * 0.5);
+      for (var s = 0u; s < env.sampleCount; s = s + 1u) {
+        // 線分上の位置(0〜1)と、ワールド座標
+        let t = f32(s) / f32(env.sampleCount - 1u);
+        let p = aPos + ab * t;
+        // 車の座標系に直す(負なら、その軸方向で箱の内側)
+        let q = rotate(p - c.pos, -c.theta);
+        let d = abs(q) - h;
+        
+        if (d.x < 0.0 && d.y < 0.0) {
+          // めり込みが浅い方の面から押し出す
+          var nl = vec2<f32>(0.0, 0.0);
+          var pen = 0.0;
+          if (d.x > d.y) {
+            nl = vec2<f32>(select(-1.0, 1.0, q.x >= 0.0), 0.0);
+            pen = -d.x;
+          } else {
+            nl = vec2<f32>(0.0, select(-1.0, 1.0, q.y >= 0.0));
+            pen = -d.y;
+          }
+          // 箱の外向きの法線をワールドに戻す
+          let n = rotate(nl, c.theta);
+          // 線分の点から見た、車の面に対する相対速度(近づくと負)
+          let vn = dot(mix(aVel, bVel, t) - carPointVel(c, p), n);
+          let mag = max(env.contactK * pen - env.contactC * vn, 0.0);
+          // 線分の点が受ける力(車はその逆向き)
+          let f = n * mag;
+          let r = p - c.pos;
+          
+          res.carForce = res.carForce - f;
+          res.carTorque = res.carTorque - (r.x * f.y - r.y * f.x);
+          res.forceA = res.forceA + f * (1.0 - t);
+          res.forceB = res.forceB + f * t;
+        }
+      }
+      
+      return res;
+    }
+    
+    // ※ NODEごとに計算(MEMBERごとではない)
+    @compute @workgroup_size(${workgroupSize})
+    fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+      let myIdx = global_id.x;
+      if (myIdx > ${nodeCount}u) {
+        return;
+      }
+      
+      // 車の計算(又は、一回だけ処理したいコード)
+      if (myIdx == ${nodeCount}u) {
+        output.accTime = output.accTime + env.dt;
+        
+        let c = carIn;
+        // 重力
+        var force = vec2<f32>(0.0, -env.g * c.mass);
+        var torque = 0.0;
+        
+        // 実体(isSubstance == 1)の部材との接触
+        for (var idx = 0u; idx < ${memberCount}u; idx = idx + 1u) {
+          let member = members[idx];
+          if (member.isAlive != 1u || member.isSubstance != 1u) {
+            continue;
+          }
+          let a = nodesIn[member.nodeA];
+          let b = nodesIn[member.nodeB];
+          let res = segmentContact(c, a.pos, b.pos, a.vel, b.vel);
+          force = force + res.carForce;
+          torque = torque + res.carTorque;
+        }
+        
+        // 慣性モーメント(長方形の板)
+        let inertia = c.mass * (c.lx * c.lx + c.ly * c.ly) / 12.0;
+        
+        // 速度・位置・角速度・角度の更新
+        var nc = c;
+        nc.vel = c.vel + (force / c.mass) * env.dt;
+        nc.pos = c.pos + nc.vel * env.dt;
+        nc.omega = c.omega + (torque / inertia) * env.dt;
+        nc.theta = c.theta + nc.omega * env.dt;
+        carOut = nc;
+        
+        output.carPos = nc.pos;
+        output.carTheta = nc.theta;
+        
+        return;
+      }
+      
+      var me = nodesIn[myIdx];
+      
+      // 固定されてる場合
+      if (me.isFixed == 1u) {
+        nodesOut[myIdx] = me;
+        output.nodePoses[myIdx] = me.pos;
+        return;
+      }
+      
+      var totalForce = vec2<f32>(0.0, 0.0);
+      var nodeMass = 0f;
+      
+      // 部材達から受ける力(フックの法則で計算)
+      for (var idx = 0u; idx < ${memberCount}u; idx = idx + 1u) {
+        var member = members[idx];
+        
+        // この部材が生きていない、もしくはこの部材のどちらの端にもこのノードが含まれない時
+        if (member.isAlive != 1u || (myIdx != member.nodeA && myIdx != member.nodeB)) {
+          continue;
+        }
+        
+        // selectはfalseが先
+        let otherIdx = select(member.nodeA, member.nodeB, myIdx == member.nodeA);
+        let otherPos = nodesIn[otherIdx].pos;
+        
+        nodeMass = nodeMass + member.mass / 2f;        
+        let diff = otherPos - me.pos;
+        let currentLen = length(diff);
+        
+        if (currentLen > 1e-4) {
+          let delta = currentLen - member.restLength;
+          
+          // 伸び率が閾値を超えていたら破断させる
+          if (abs(delta) / member.restLength > member.threshold) {
+            members[idx].isAlive = 0u;
+            output.isAlives[idx] = 0f;
+            output.riskLevel[idx] = 0f;
+          } else {
+            output.riskLevel[idx] = abs(delta) / member.restLength / member.threshold;
+            // 相手に向かう単位ベクトル
+            let dir = diff / currentLen;
+            // 部材の伸び縮みの速さ(正なら伸びている)
+            let stretchVel = dot(nodesIn[otherIdx].vel - me.vel, dir);
+            // バネの復元力
+            let springForce = dir * (member.k * delta + member.c * stretchVel);
+            totalForce = totalForce + springForce;
+          }
+        }
+      }
+      
+      // 車から受ける力(自分が端点の実体部材が、車と接触している場合)
+      let cr = carIn;
+      for (var idx = 0u; idx < ${memberCount}u; idx = idx + 1u) {
+        let member = members[idx];
+        if (member.isAlive != 1u || member.isSubstance != 1u || (myIdx != member.nodeA && myIdx != member.nodeB)) {
+          continue;
+        }
+        let a = nodesIn[member.nodeA];
+        let b = nodesIn[member.nodeB];
+        let res = segmentContact(cr, a.pos, b.pos, a.vel, b.vel);
+        // 自分が端Bなら forceB、端Aなら forceA を受ける
+        totalForce = totalForce + select(res.forceA, res.forceB, myIdx == member.nodeB);
+      }
+      
+      // 零除算を避ける
+      if (nodeMass < 1e-5) {
+        nodeMass = 1;
+      }
+            
+      // 外力
+      totalForce.y = totalForce.y - env.g * nodeMass;
+      
+      // 減衰
+      totalForce = totalForce - me.vel * (env.damping * nodeMass);
+      
+      // 位置更新
+      let accel = totalForce / nodeMass;
+      me.vel = me.vel + accel * env.dt;
+      me.pos = me.pos + me.vel * env.dt;
+      
+      // 書き込み
+      nodesOut[myIdx] = me;
+      
+      output.nodePoses[myIdx] = me.pos;
+    }
+  `;
+  
+  const shaderModule = device.createShaderModule({ code: shaderCode });
+  
+  const info = await shaderModule.getCompilationInfo();
+  info.messages.forEach(m => console.log(`シェーダ ${m.type} ${m.lineNum}行目: ${m.message}`));
+  
+  const pipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: {
+      module: shaderModule,
+      entryPoint: 'main'
+    }
+  });
+  
+  const bindGroupA = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      // 読み取り用: nodeBufferA
+      { binding: 0, resource: { buffer: nodeBufferA }},
+      { binding: 1, resource: { buffer: nodeBufferB }},
+      { binding: 2, resource: { buffer: memberBuffer }},
+      { binding: 3, resource: { buffer: carBufferA }},
+      { binding: 4, resource: { buffer: carBufferB }},
+      { binding: 5, resource: { buffer: envBuffer }},
+      { binding: 6, resource: { buffer: outputBuffer }}
+    ]
+  });
+  
+  const bindGroupB = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      // 読み取り用: nodeBufferB
+      { binding: 0, resource: { buffer: nodeBufferB }},
+      { binding: 1, resource: { buffer: nodeBufferA }},
+      { binding: 2, resource: { buffer: memberBuffer }},
+      { binding: 3, resource: { buffer: carBufferB }},
+      { binding: 4, resource: { buffer: carBufferA }},
+      { binding: 5, resource: { buffer: envBuffer }},
+      { binding: 6, resource: { buffer: outputBuffer }}
+    ]
+  });
+  
+  console.log('シミュレーションの初期化およびパイプライン構築が完了しました。');
+  
+  
+  
+  let isDraw = false;
+  let preTime = Date.now();
+  
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 5;
+  
+  function draw(readData) {
+    ctx.clearRect(0, 0, W, H);
+    // memberDataのnodeなどはu32なので、f32からu32に変換するための器
+    const f32 = new Float32Array(1);
+    const u32 = new Uint32Array(f32.buffer);
+    
+    // どれだけ拡大して描画するか
+    const scale = 50;
+    
+    const toX = (x) => W/2 + x * scale;
+    const toY = (y) => H/2 - y * scale;
+    
+    
+    const isShowRiskLevel = true;
+    
+    for (let i = 0; i < memberCount; i++) {
+      if (readData[nodeCount*2+i] == 0)
+        continue;
+      const memberWidth = memberData.length/memberCount;
+      f32[0] = memberData[i*memberWidth];
+      const nodeA = u32[0];
+      f32[0] = memberData[i*memberWidth+1];
+      const nodeB = u32[0];
+      
+      const posA = {x: readData[2*nodeA], y: readData[2*nodeA+1]};
+      const posB = {x: readData[2*nodeB], y: readData[2*nodeB+1]};
+      
+      f32[0] = memberData[memberWidth*i+7];
+      const isSubstance = u32[0];
+      ctx.lineWidth = isSubstance == 1 ? 5 : 2;
+      if (isShowRiskLevel) {
+        // 1ほど危険
+        const riskLevel = readData[nodeCount*2+memberCount+i];
+        ctx.strokeStyle = `rgb(${255*riskLevel}, ${255*(1-riskLevel)}, 0)`;
+      } else {
+        ctx.strokeStyle = 'brown';
+      }
+      ctx.beginPath();
+      ctx.moveTo(toX(posA.x), toY(posA.y));
+      ctx.lineTo(toX(posB.x), toY(posB.y));
+      ctx.stroke();
+    }
+    
+    // car描画
+    const carX = readData[nodeCount*2+memberCount*2];
+    const carY = readData[nodeCount*2+memberCount*2+1];
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'black';
+    const cs = Math.cos(readData[nodeCount*2+memberCount*2+2]);
+    const sn = Math.sin(readData[nodeCount*2+memberCount*2+2]);
+    const hlx = carData[4]/2;
+    const hly = carData[5]/2;
+    ctx.beginPath();
+    ctx.moveTo(toX(carX+(-hlx*cs-hly*sn)), toY(carY+(hly*cs-hlx*sn)));
+    ctx.lineTo(toX(carX+(hlx*cs-hly*sn)), toY(carY+(hly*cs+hlx*sn)));
+    ctx.lineTo(toX(carX+(hlx*cs+hly*sn)), toY(carY+(-hly*cs+hlx*sn)));
+    ctx.lineTo(toX(carX+(-hlx*cs+hly*sn)), toY(carY+(-hly*cs-hlx*sn)));
+    ctx.closePath();
+    ctx.stroke();
+    
+    if (preTime+5000 > Date.now())
+      return;
+    preTime = Date.now();
+    const data = Array.from(readData);
+    console.log('node pos:', data.splice(0, nodeCount*2));
+    console.log('member alive:', data.splice(0, memberCount));
+    console.log('member riskLevel:', data.splice(0, memberCount));
+    console.log('car pos:', data.splice(0, 2));
+    console.log('car theta:', data.shift());
+  }
+  
+  
+  async function loop() {
+    if (isDraw) {
+      // データの読み取り
+      const commandEncoder = device.createCommandEncoder();
+      commandEncoder.copyBufferToBuffer(
+        outputBuffer, 0,
+        readBuffer, 0,
+        readBuffer.size
+      );
+      
+      device.queue.submit([ commandEncoder.finish() ]);
+      
+      await readBuffer.mapAsync(GPUMapMode.READ);
+      // new Float32ArrayでGPUのメモリと共有するビューが作られる。
+      const readData = new Float32Array(readBuffer.getMappedRange()).slice(0);
+      readBuffer.unmap();
+      draw(readData);
+      isDraw = false;
+    }
+    const commandEncoder = device.createCommandEncoder();
+    const passEncoder = commandEncoder.beginComputePass();
+    passEncoder.setPipeline(pipeline);
+    
+    // 1フレームでsubsteps進める。
+    for (let s = 0; s < substeps; s++) {
+      let currentBindGroup = stepCount % 2 === 0 ? bindGroupA : bindGroupB;
+      passEncoder.setBindGroup(0, currentBindGroup);
+      // +1しているのは、車の計算用
+      passEncoder.dispatchWorkgroups(Math.ceil((nodeCount + 1) / workgroupSize), 1, 1);
+      stepCount++;
+    }
+    
+    passEncoder.end();
+    device.queue.submit([ commandEncoder.finish() ]);
+    
+    
+    // console.log(`シミュレーション実行中... step数: ${stepCount}`);
+    isDraw = true;
+    
+    requestAnimationFrame(loop);
+  }
+  
+  requestAnimationFrame(loop);
+}
+
+main();
+</script>
