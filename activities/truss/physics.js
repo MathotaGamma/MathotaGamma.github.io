@@ -17,53 +17,72 @@ const ctx = canvas.getContext('2d');
 ctx.strokeStyle = 'black';
 ctx.lineWidth = 2;
 
-// ===== Node, MemberのInfo
-// x, y, isFixed(1で固定 0で自由)
-const s3_2 = Math.sqrt(3)/2;
-const nodeInfo = [
-  [-1,   0,    1],
-  [-0.5, s3_2, 0],
-  [0,    0,    0],
-  [0.5,  s3_2, 0],
-  [1,    0,    0],
-  [1.5,  s3_2, 0],
-  [2,    0,    1],
-  
-  [-0.5,  s3_2+1, 0]
-];
-
 // 材質を定義
 // 固体のばね定数は、E*A/L (E:ヤング率[N/m^2],A:断面積[m^2],L:長さ[m])で求められる。
 /*
   木材のヤング率は7e+9~1.2e+10程度。
   鉄は2e+11程度
 */
-//(k:ばね定数, t: threshold(伸び縮みの長さ/自然長がthresholdを超えると破断), mu: 自然長1m辺りの質量(kg), c: 減衰係数[N·s/m](部材の伸び縮みの速さに比例する抵抗)
+//(k:ばね定数, t: threshold(伸び縮みの長さ/自然長がthresholdを超えると破断), mu: 自然長1m辺りの質量(kg), c: 減衰係数[N·s/m](部材の伸び縮みの速さに比例する抵抗), maxLength(Editでのみ使用)
 const materials = {
-  jelly: { k: 5e+2, t: 1, mu: 1, c: 2000 },
-  soft: { k: 6e+4, t: 0.2, mu: 10, c: 2000 },
-  medium: { k: 1e+5, t: 0.2, mu: 50, c: 3000 },
-  hard: { k: 2e+8, t: 0.1, mu: 100, c: 2000 },
+  jelly: { k: 5e+2, t: 1, mu: 1, c: 2000, maxLength: 3 },
+  soft: { k: 6e+4, t: 0.2, mu: 10, c: 2000, maxLength: 2 },
+  medium: { k: 1e+5, t: 0.2, mu: 50, c: 3000, maxLength: 1.8 },
+  hard: { k: 2e+6, t: 0.1, mu: 100, c: 2000, maxLength: 2 },
   wood: { k: 1e+8, t: 0.1, mu: 5, c: 2000 },
   stone:{ k: 5e+8, t: 0.05,mu: 25, c: 10000 },
   iron: { k: 2e+10,t: 0.1, mu: 78, c: 0 }, // 今のdtでは不安定なためc=0にしてある
 }
+
+// √(0.5**2+1**2)
+const s5_2 = Math.sqrt(5)/2;
+// ===== Node, MemberのInfo =====
+/*
+// x, y, isFixed(1で固定 0で自由)
+const nodeInfo = [
+  [-1,   0, 1],
+  [-0.5, 1, 0],
+  [0,    0, 0],
+  [0.5,  1, 0],
+  [1,    0, 0],
+  [1.5,  1, 0],
+  [2,    0, 1],
+  
+  [-0.5, 2, 0]
+];
+
 // nodeA, nodeB, restLength(自然長), isSubstance(実体か(道や壁か)), type(種類)
 const memberInfo = [
-  [0, 1, 1, 0, 'soft'],
-  [1, 2, 1, 0, 'soft'],
+  [0, 1, s5_2, 0, 'soft'],
+  [1, 2, s5_2, 0, 'soft'],
   [0, 2, 1, 1, 'soft'],
   [1, 3, 1, 0, 'soft'],
   [2, 4, 1, 1, 'jelly'],
-  [2, 3, 1, 0, 'soft'],
-  [3, 4, 1, 0, 'soft'],
+  [2, 3, s5_2, 0, 'soft'],
+  [3, 4, s5_2, 0, 'soft'],
   [3, 5, 1, 0, 'hard'],
-  [4, 5, 1, 0, 'soft'],
-  [5, 6, 1, 0, 'soft'],
+  [4, 5, s5_2, 0, 'soft'],
+  [5, 6, s5_2, 0, 'soft'],
   [4, 6, 1, 1, 'soft'],
   
   [1, 7, 1, 1, 'soft'],
   [3, 7, Math.sqrt(2), 1, 'soft']
+]
+*/
+
+// ----- 本番用 -----
+const nodeInfo = [
+  [ -2, 0, 1 ],
+  [ -1, 0, 0 ],
+  [  0, 0, 0 ],
+  [  1, 0, 0 ],
+  [  2, 0, 1 ]
+]
+const memberInfo = [
+  [ 0, 1, 1, 1, 'medium' ],
+  [ 1, 2, 1, 1, 'medium' ],
+  [ 2, 3, 1, 1, 'medium' ],
+  [ 3, 4, 1, 1, 'medium' ]
 ]
 
 async function initWebGPU() {
@@ -82,6 +101,11 @@ async function initWebGPU() {
 
 async function main() {
   if (!device) {
+    return;
+  }
+  // ノードか部材が空だと、バッファが作れないので実行しない
+  if (nodeInfo.length === 0 || memberInfo.length === 0) {
+    console.warn('ノードか部材がありません');
     return;
   }
   // member内に、存在しないnodeのidxが入っていたらエラー
@@ -125,7 +149,6 @@ async function main() {
   // 最大のアライメントである、vec2<f32>のアライメントが8なので8の倍数にサイズを合わせるため、0を追加(24バイトに)
   // --- nodeInfoからnodeDataを作成する ---
   const nodeCount = nodeInfo.length;
-  const nodeWidth = nodeInfo[0].length;
   const nodeDataArray = [];
   for (let i = 0; i < nodeCount; i++) {
     nodeDataArray.push([]);
@@ -145,7 +168,6 @@ async function main() {
   // ===== Member =====
   // nodeA,nodeB(2つの端点(node)のidx),restLength(自然長),threshold(伸び縮みの長さ/自然長 がthresholdを超えると破断),mass,k(ばね定数),isAlive(破断していないか),isSubstance(carとの衝突するか(道や壁など))
   const memberCount = memberInfo.length;
-  const memberWidth = memberInfo[0].length;
   const memberDataArray = [];
   for (let i = 0; i < memberCount; i++) {
     memberDataArray.push([]);
@@ -743,6 +765,27 @@ document.getElementById('stop-btn').onclick = () => {
   runId++;
 }
 
+// ===== undo / redo(nodeInfoとmemberInfoを保存) =====
+const undoStack = [];
+const redoStack = [];
+const maxHistory = 100;
+function snapshot() {
+  return JSON.stringify({ nodes: nodeInfo, members: memberInfo });
+}
+function restoreSnapshot(str) {
+  const s = JSON.parse(str);
+  nodeInfo.splice(0, nodeInfo.length, ...s.nodes);
+  memberInfo.splice(0, memberInfo.length, ...s.members);
+}
+// ※変更する"前"に呼ぶ
+function pushHistory() {
+  undoStack.push(snapshot());
+  if (undoStack.length > maxHistory)
+    undoStack.shift();
+  // 新しい変更をしたら、redoは使えなくなる
+  redoStack.length = 0;
+}
+
 document.getElementById('to-editor').onclick = edit;
 function edit() {
   if (!isStopped)
@@ -750,15 +793,326 @@ function edit() {
   
   document.getElementById('stop-btn').style.display = 'none';
   document.getElementById('to-editor').innerHTML = 'Play';
+  document.getElementById('edit-btn-container').style.display = 'flex';
   let touchStartPos = { x: null, y: null }
-  canvas.addEventListener('pointerdown', (e) => {
+  // touchstart時に一番近くて20px以内のnodeのidx
+  let touchStartNode = null;
+  // drag, touchmove時に新たに生成する部材の他端
+  let touchOtherNode = { valied: false }
+  let touchType = 'none';
+  let toX, toY;
+  // handleTouchMoveに使う
+  let toXInv, toYInv;
+  
+  const step = 0.5;
+  function roundToStep(v) {
+    return step*Math.round(v/step);
+  }
+  
+  let isDelete = false;
+  
+  document.getElementById('delete-btn').onclick = () => {
     
-  });
+    if (document.getElementById('delete-btn').innerHTML === '部材を配置') {
+      document.getElementById('delete-btn').innerHTML = '部材を削除';
+      isDelete = true;
+    } else {
+      document.getElementById('delete-btn').innerHTML = '部材を配置';
+      isDelete = false;
+    }
+  }
+  
+  // ===== undo / redo =====
+  // 1回の操作(指を置いてから離すまで)の中で、履歴を1回だけ保存するための印
+  let historySaved = false;
+  function pushHistoryOnce() {
+    if (historySaved)
+      return;
+    pushHistory();
+    historySaved = true;
+  }
+  function undo() {
+    if (undoStack.length === 0)
+      return;
+    redoStack.push(snapshot());
+    restoreSnapshot(undoStack.pop());
+    draw();
+  }
+  function redo() {
+    if (redoStack.length === 0)
+      return;
+    undoStack.push(snapshot());
+    restoreSnapshot(redoStack.pop());
+    draw();
+  }
+  document.getElementById('undo-btn').onclick = undo;
+  document.getElementById('redo-btn').onclick = redo;
+  
+  // ===== 2本指の拡大縮小・移動 =====
+  // 2本指の操作を始めたときの状態
+  let pan = null;
+  function startPan(touches) {
+    const a = touches[0];
+    const b = touches[1];
+    const cx = (a.clientX + b.clientX) / 2;
+    const cy = (a.clientY + b.clientY) / 2;
+    pan = {
+      // 指の間隔
+      dist: Math.max(Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), 1),
+      scale: scale,
+      // 指の中心の下にある、表示座標(これが指の中心に追従する)
+      world: { x: toXInv(cx), y: toYInv(cy) }
+    };
+  }
+  function movePan(touches) {
+    if (!pan)
+      return;
+    const a = touches[0];
+    const b = touches[1];
+    const cx = (a.clientX + b.clientX) / 2;
+    const cy = (a.clientY + b.clientY) / 2;
+    const dist = Math.max(Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), 1);
+    // 指が開く(distが大きい)ほど拡大 = 画面幅[m](scale)は小さくなる
+    scale = Math.min(Math.max(pan.scale * pan.dist / dist, 3), 40);
+    // 指の中心の下に、開始時と同じ表示座標が来るようにoffsetを決める
+    const ppu = W / scale;
+    offset.x = pan.world.x - (cx - W/2) / ppu;
+    offset.y = pan.world.y + (cy - H/2) / ppu;
+    draw();
+  }
+  
+  // どの部材にも使われていないノードを削除
+  function removeUnusedNodes() {
+    const used = new Set();
+    for (const m of memberInfo) {
+      used.add(m[0]);
+      used.add(m[1]);
+    }
+    // 古い番号 → 新しい番号
+    const newIdx = [];
+    const newNodeInfo = [];
+    for (let i = 0; i < nodeInfo.length; i++) {
+      if (used.has(i) || nodeInfo[i][2] === 1) {
+        newIdx[i] = newNodeInfo.length;
+        newNodeInfo.push(nodeInfo[i]);
+      }
+    }
+    // nodeInfoの中身を入れ替える
+    nodeInfo.splice(0, nodeInfo.length, ...newNodeInfo);
+    // 部材が指すノード番号を付け替える
+    for (const m of memberInfo) {
+      m[0] = newIdx[m[0]];
+      m[1] = newIdx[m[1]];
+    }
+  }
+  
+  function delFunc(e) {
+    if (!toX || !toY)
+      return;
+    const touch = e.changedTouches[0];
+    const pos = [touch.clientX, touch.clientY];
+    const deleteRange2 = 400;
+    let minLength2 = Infinity;
+    let delNode = null;
+    for (let i = 0; i < memberInfo.length; i++) {
+      const nodeA = nodeInfo[memberInfo[i][0]];
+      const posA = [toX(nodeA[0]), toY(nodeA[1])];
+      const nodeB = nodeInfo[memberInfo[i][1]];
+      const posB = [toX(nodeB[0]), toY(nodeB[1])];
+      
+      const abx = posB[0]-posA[0];
+      const aby = posB[1]-posA[1];
+      const ab2 = abx*abx + aby*aby;
+      let t = 0;
+      if (ab2 > 0) {
+        t = ((pos[0]-posA[0])*abx + (pos[1]-posA[1])*aby) / ab2;
+        t = Math.min(Math.max(t, 0), 1);
+      }
+      // 最も近い点までの距離の2乗
+      const dx = pos[0] - (posA[0] + abx*t);
+      const dy = pos[1] - (posA[1] + aby*t);
+      const len2 = dx*dx + dy*dy;
+      if (len2 < deleteRange2 && len2 < minLength2) {
+        minLength2 = len2;
+        delNode = i;
+      }
+    }
+    if (delNode != null) {
+      // なぞって消しても、undoは1回で戻せるように、1操作につき1回だけ保存
+      pushHistoryOnce();
+      memberInfo.splice(delNode, 1);
+      removeUnusedNodes();
+    }
+    draw();
+    return;
+  }
+  
+  function handleTouchStart(e) {
+    if (e.touches.length === 1) {
+      touchType = 'none';
+      if (isDelete) {
+        delFunc(e);
+        return;
+      }
+      if (!toX || !toY)
+        return;
+      const touch = e.touches[0];
+      touchType = 'drag';
+      let minDis2 = Infinity;
+      touchOtherNode.material = document.getElementById('material-btn').innerHTML;
+      touchOtherNode.isSubstance = document.getElementById('substance-inp').checked;
+      touchOtherNode.maxLength = materials[touchOtherNode.material].maxLength ?? 1.5;
+      // 近いノードを検索
+      for (let i = 0; i < nodeInfo.length; i++) {
+        const dis2 = (touch.clientX-toX(nodeInfo[i][0]))**2+(touch.clientY-toY(nodeInfo[i][1]))**2;
+        if (dis2 < 400 && dis2 < minDis2) {
+          minDis2 = dis2;
+          touchStartNode = i;
+          touchOtherNode.startNode = i;
+        }
+      }
+    } else {
+      touchStartNode = null;
+      touchOtherNode.valied = false;
+      if( e.touches.length === 2) {
+        touchType = 'pan';
+        startPan(e.touches);
+        
+        // 配置中の部材のプレビューを削除
+        draw();
+      }
+    }
+  }
+  function handleTouchMove(e) {
+    if (touchType === 'pan') {
+      if (e.touches.length === 2)
+        movePan(e.touches);
+      return;
+    }
+    // 2本指のあとに残った1本は無視
+    if (touchType === 'ignore')
+      return;
+    if (isDelete) {
+      delFunc(e);
+      return;
+    }
+    if (touchType === 'drag') {
+      if (touchStartNode == null)
+        return;
+      const touch = e.touches[0];
+      
+      touchOtherNode.pos = { x: roundToStep(toXInv(touch.clientX)), y: roundToStep(toYInv(touch.clientY)) }
+      
+      const minLength = 0.5;
+      touchOtherNode.valied = true;
+      const len = Math.sqrt((nodeInfo[touchStartNode][0]-touchOtherNode.pos.x)**2
+                      + (nodeInfo[touchStartNode][1]-touchOtherNode.pos.y)**2);
+      touchOtherNode.len = len;
+      touchOtherNode.lengthValied = len < minLength || touchOtherNode.maxLength+1e-3 < len ? false : true;
+      
+      draw();
+    }
+  }
+  function handleTouchEnd(e) {
+    // 2本指の操作中
+    if (touchType === 'pan' || touchType === 'ignore') {
+      if (touchType === 'pan' && e.touches.length >= 2) {
+        // 指の組み合わせが変わったので、基準を取り直す
+        startPan(e.touches);
+      } else {
+        // 1本だけ残ったら、全部離れるまで無視
+        touchType = e.touches.length === 0 ? 'none' : 'ignore';
+      }
+      return;
+    }
+    if (isDelete) {
+      delFunc(e);
+      return;
+    }
+    if (touchType === 'drag') {
+      if (touchOtherNode.valied && touchOtherNode.lengthValied) {
+        const pos = touchOtherNode.pos;
+        const nodeA = touchOtherNode.startNode;
+        // すでに同じ位置にノードがあれば、それを他端にする
+        let nodeB = null;
+        for (let i = 0; i < nodeInfo.length; i++) {
+          const info = nodeInfo[i];
+          if (Math.abs(info[0]-pos.x) < 1e-2 && Math.abs(info[1]-pos.y) < 1e-2) {
+            nodeB = i;
+            break;
+          }
+        }
+        
+        // すでに同じ組の部材があれば、配置しない
+        let exists = nodeB != null && memberInfo.some(m => (m[0] === nodeA && m[1] === nodeB) || (m[0] === nodeB && m[1] === nodeA));
+        // 同じ始点から同じ方向の部材があれば配置しない
+        for(let i = 0; i < memberInfo.length; i++) {
+          // 始点が同じ
+          if (memberInfo[i][0] == nodeA || memberInfo[i][1] == nodeA) {
+            const nodeB_k = memberInfo[i][0] == nodeA ? memberInfo[i][1] : memberInfo[i][0];
+            // 外積が0で内積が正か
+            if (
+              Math.abs((nodeInfo[nodeB_k][0]-nodeInfo[nodeA][0])*(pos.y-nodeInfo[nodeA][1])
+               - (nodeInfo[nodeB_k][1]-nodeInfo[nodeA][1])*(pos.x-nodeInfo[nodeA][0]))
+               < 1e-3) {
+              if (
+                (nodeInfo[nodeB_k][0]-nodeInfo[nodeA][0])*(pos.x-nodeInfo[nodeA][0])
+                 + (nodeInfo[nodeB_k][1]-nodeInfo[nodeA][1])*(pos.y-nodeInfo[nodeA][1])
+                 > 1e-3) {
+                exists = true;
+              }
+            }
+          }
+        }
+        if (!exists) {
+          // 変更する前に、履歴を保存する(新しいノードを作るのは、この後)
+          pushHistory();
+          if (nodeB == null) {
+            nodeInfo.push(
+              [ pos.x, pos.y, 0 ]
+            );
+            nodeB = nodeInfo.length-1;
+          }
+          console.log('部材を配置しました。');
+          memberInfo.push(
+            [ nodeA, nodeB, touchOtherNode.len, touchOtherNode.isSubstance, touchOtherNode.material ]
+          );
+        }
+      }
+    }
+    touchStartNode = null;
+    touchOtherNode.valied = false;
+    
+    touchType = 'none';
+    historySaved = false;
+    draw();
+  }
+  // iPadのシステム操作などで、指が取り消されたとき
+  function handleTouchCancel() {
+    touchStartNode = null;
+    touchOtherNode.valied = false;
+    touchType = 'none';
+    historySaved = false;
+    pan = null;
+    draw();
+  }
+  canvas.addEventListener('touchstart', handleTouchStart);
+  canvas.addEventListener('touchmove', handleTouchMove);
+  canvas.addEventListener('touchend', handleTouchEnd);
+  canvas.addEventListener('touchcancel', handleTouchCancel);
   
   document.getElementById('to-editor').onclick = () => {
     document.getElementById('stop-btn').style.display = 'block';
     document.getElementById('to-editor').innerHTML = 'Edit';
     document.getElementById('to-editor').onclick = edit;
+    document.getElementById('edit-btn-container').style.display = 'none';
+    
+    canvas.removeEventListener('touchstart', handleTouchStart);
+    canvas.removeEventListener('touchmove', handleTouchMove);
+    canvas.removeEventListener('touchend', handleTouchEnd);
+    canvas.removeEventListener('touchcancel', handleTouchCancel);
+    
+    removeUnusedNodes();
     main();
   }
   
@@ -774,10 +1128,15 @@ function edit() {
     }
     
     
-    // マス目を表示
-    const toX = (x) => W*(x-endPoints.x[0])/scale;
-    const toY = (y) => H*(1-W/H*(y-endPoints.y[0])/scale);
+    // 表示座標からcanvas上のpx座標に変換
+    toX = (x) => W*(x-endPoints.x[0])/scale;
+    toY = (y) => H*(1-W/H*(y-endPoints.y[0])/scale);
+    // handleTouchMoveに使う
+    // canvas上のpx座標から表示座標に変換
+    toXInv = (X) => scale*X/W+endPoints.x[0];
+    toYInv = (Y) => scale*H*(1-Y/H)/W+endPoints.y[0];
     
+    // 格子
     ctx.strokeStyle = 'black';
     for (let i = Math.ceil(endPoints.y[0]); i <= Math.floor(endPoints.y[1]); i++) {
       if (i === 0)
@@ -800,20 +1159,60 @@ function edit() {
       ctx.stroke();
     }
     
-    // member描画
-    for (let i = 0; i < memberInfo.length; i++) {
-      const mInfo = memberInfo[i];
-      const nodeA = mInfo[0];
-      const nodeB = mInfo[1];
-      const len = mInfo[2];
-      const isSubstance = mInfo[3];
-      const material = mInfo[4];
+    // node描画(固定は黒、自由は白)
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'black';
+    for (let i = 0; i < nodeInfo.length; i++) {
+      ctx.fillStyle = nodeInfo[i][2] === 1 ? 'black' : 'white';
+      ctx.beginPath();
+      ctx.arc(toX(nodeInfo[i][0]), toY(nodeInfo[i][1]), 6, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    
+    // member描画(i==memberInfo.lengthのとき、touchOtherNodeから描画)
+    for (let i = 0; i < memberInfo.length+1; i++) {
+      let posA, posB, isSubstance, material;
+      if (i == memberInfo.length) {
+        if (!touchOtherNode.valied)
+          break;
+        const nodeA = touchOtherNode.startNode;
+        posA = { x: nodeInfo[nodeA][0], y: nodeInfo[nodeA][1] }
+        posB = { x: touchOtherNode.pos.x, y: touchOtherNode.pos.y }
+        isSubstance = touchOtherNode.isSubstance;
+        material = touchOtherNode.lengthValied ? touchOtherNode.material : 'INVALIED';
+      } else {
+        const mInfo = memberInfo[i];
+        const nodeA = mInfo[0];
+        const nodeB = mInfo[1];
+        const len = mInfo[2];
+        isSubstance = mInfo[3];
+        material = mInfo[4];
+        posA = { x: nodeInfo[nodeA][0], y: nodeInfo[nodeA][1] }
+        posB = { x: nodeInfo[nodeB][0], y: nodeInfo[nodeB][1] }
+      }
       
-      const posA = { x: nodeInfo[nodeA][0], y: nodeInfo[nodeA][1] }
-      const posB = { x: nodeInfo[nodeB][0], y: nodeInfo[nodeB][1] }
       
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'brown';
+      ctx.lineWidth = isSubstance ? 5 : 2;
+      let strokeColor = 'red';
+      switch (material) {
+        case 'jelly':
+          strokeColor = 'blue';
+          break;
+        case 'soft':
+          strokeColor = 'orange';
+          break;
+        case 'medium':
+          strokeColor = 'brown';
+          break;
+        case 'hard':
+          strokeColor = 'black';
+          break;
+        case 'INVALIED':
+          strokeColor = 'red';
+          break;
+      }
+      ctx.strokeStyle = strokeColor;
       ctx.beginPath()
       ctx.moveTo(toX(posA.x), toY(posA.y));
       ctx.lineTo(toX(posB.x), toY(posB.y));
@@ -824,4 +1223,36 @@ function edit() {
   draw();
   
   
+}
+
+// ダブルクリック禁止(ボタンはいける))
+let lastTouchEnd = 0;
+document.body.addEventListener('touchend', (e) => {
+  // ボタンは連打できるように
+  if (e.target.closest('button'))
+    return;
+  if (Date.now()-lastTouchEnd <= 300) {
+    e.preventDefault();
+  }
+  lastTouchEnd = Date.now();
+});
+
+// editの素材選択ボタン
+document.getElementById('material-btn').onclick = () => {
+  let material = 'medium';
+  switch (document.getElementById('material-btn').innerHTML) {
+    case 'jelly':
+      material = 'soft';
+      break;
+    case 'soft':
+      material = 'medium';
+      break;
+    case 'medium':
+      material = 'hard';
+      break;
+    case 'hard':
+      material = 'jelly';
+      break;
+  }
+  document.getElementById('material-btn').innerHTML = material;
 }
