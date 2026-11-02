@@ -26,9 +26,9 @@ ctx.lineWidth = 2;
 //(k:ばね定数, t: threshold(伸び縮みの長さ/自然長がthresholdを超えると破断), mu: 自然長1m辺りの質量(kg), c: 減衰係数[N·s/m](部材の伸び縮みの速さに比例する抵抗), maxLength(Editでのみ使用)
 const materials = {
   jelly: { k: 5e+2, t: 1, mu: 1, c: 2000, maxLength: 3 },
-  soft: { k: 6e+4, t: 0.2, mu: 10, c: 2000, maxLength: 2 },
-  medium: { k: 1e+5, t: 0.2, mu: 50, c: 3000, maxLength: 1.8 },
-  hard: { k: 2e+6, t: 0.1, mu: 100, c: 2000, maxLength: 2 },
+  soft: { k: 6e+4, t: 0.1, mu: 10, c: 2000, maxLength: 2 },
+  medium: { k: 1e+5, t: 0.1, mu: 50, c: 3000, maxLength: 1.8 },
+  hard: { k: 2e+6, t: 0.05, mu: 100, c: 2000, maxLength: 2 },
   wood: { k: 1e+8, t: 0.1, mu: 5, c: 2000 },
   stone:{ k: 5e+8, t: 0.05,mu: 25, c: 10000 },
   iron: { k: 2e+10,t: 0.1, mu: 78, c: 0 }, // 今のdtでは不安定なためc=0にしてある
