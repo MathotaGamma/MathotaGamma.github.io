@@ -1,6 +1,6 @@
 const canvas = document.getElementById('canvas');
-const W = innerWidth;
-const H = innerHeight;
+let W = innerWidth;
+let H = innerHeight;
 canvas.width = W;
 canvas.height = H;
 let stepCount = 0;
@@ -26,9 +26,9 @@ ctx.lineWidth = 2;
 //(k:ばね定数, t: threshold(伸び縮みの長さ/自然長がthresholdを超えると破断), mu: 自然長1m辺りの質量(kg), c: 減衰係数[N·s/m](部材の伸び縮みの速さに比例する抵抗), maxLength(Editでのみ使用)
 const materials = {
   jelly: { k: 5e+2, t: 1, mu: 1, c: 2000, maxLength: 3 },
-  soft: { k: 6e+4, t: 0.1, mu: 10, c: 2000, maxLength: 2 },
-  medium: { k: 1e+5, t: 0.1, mu: 50, c: 3000, maxLength: 1.8 },
-  hard: { k: 2e+6, t: 0.05, mu: 100, c: 2000, maxLength: 2 },
+  soft: { k: 6e+4, t: 0.2, mu: 10, c: 2000, maxLength: 2 },
+  medium: { k: 1e+5, t: 0.2, mu: 50, c: 3000, maxLength: 2 },
+  hard: { k: 2e+6, t: 0.1, mu: 100, c: 2000, maxLength: 2 },
   wood: { k: 1e+8, t: 0.1, mu: 5, c: 2000 },
   stone:{ k: 5e+8, t: 0.05,mu: 25, c: 10000 },
   iron: { k: 2e+10,t: 0.1, mu: 78, c: 0 }, // 今のdtでは不安定なためc=0にしてある
@@ -200,7 +200,7 @@ async function main() {
   
   const envData = makeMixedData([[
     // g, dt, damping, 接触のばね定数, 減衰, 線分の厚み(半径), 線分上に取る判定点の数(両端を含む)(u32)
-    9.81, 1/4800, 2.0, 1000000.0, 2000.0, 0.05, 12
+    9.81, 1/4800, 0.4, 1e+6, 2000.0, 0.05, 12
   ]], [6]);
   
   // nodePoses(nodeCount*2), isAlive(memberCount), riskLevel(memberCount), carPos(vec2(x,y)), carTheta, accTime(累積時間)
@@ -704,7 +704,6 @@ async function main() {
     console.log('car theta:', data.shift());
   }
   
-  
   async function loop() {
     // 新しいmainが始まっていたら、このloopは終了して、GPUのバッファを解放する
     if (myRunId !== runId) {
@@ -754,6 +753,14 @@ async function main() {
   }
   
   requestAnimationFrame(loop);
+  
+  window.onresize = () => {
+    // stopしてたら描画消える。
+    W = innerWidth;
+    H = innerHeight;
+    canvas.width = W;
+    canvas.heiht = H;
+  };
 }
 
 const device = await initWebGPU();
@@ -940,6 +947,7 @@ function edit() {
     if (delNode != null) {
       // なぞって消しても、undoは1回で戻せるように、1操作につき1回だけ保存
       pushHistoryOnce();
+      //pushHistory();
       memberInfo.splice(delNode, 1);
       removeUnusedNodes();
     }
@@ -1027,6 +1035,7 @@ function edit() {
     }
     if (isDelete) {
       delFunc(e);
+      historySaved = false;
       return;
     }
     if (touchType === 'drag') {
@@ -1220,9 +1229,15 @@ function edit() {
     }
   }
   
+  window.onresize = () => {
+    W = innerWidth;
+    H = innerHeight;
+    canvas.width = W;
+    canvas.heiht = H;
+    draw();
+  };
+  
   draw();
-  
-  
 }
 
 // ダブルクリック禁止(ボタンはいける))
