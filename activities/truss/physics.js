@@ -7,7 +7,8 @@ let stepCount = 0;
 // nodeCount,MemberCountは色々なところに干渉しているため要注意。
 // outputDataの配列のサイズ、draw関数など
 const workgroupSize = 64;
-const substeps = 80;
+// 1ステップの時間[s](envバッファにも使う)
+const dt = 1 / 4800;
 
 // 実行中のmainを識別する番号(再実行したら、古いloopを止める)
 let runId = 0;
@@ -16,6 +17,95 @@ let isStopped = true;
 const ctx = canvas.getContext('2d');
 ctx.strokeStyle = 'black';
 ctx.lineWidth = 2;
+
+// ===== 表示(Play/Editで別々に保持) =====
+// scale: 画面幅[m], x,y: 画面中心の表示座標
+const viewEdit = { scale: 10, x: 0, y: H / W * 10 / 2 - 2 };
+// Playは(0,0)が画面中心
+const viewPlay = { scale: 10, x: 0, y: 0 };
+// 現在使っているview(toX等はこれを参照する)
+let view = viewEdit;
+
+// 表示座標からcanvas上のpx座標に変換
+const toX = (x) => W / 2 + (x - view.x) * W / view.scale;
+const toY = (y) => H / 2 - (y - view.y) * W / view.scale;
+// canvas上のpx座標から表示座標に変換
+const toXInv = (X) => view.x + (X - W / 2) * view.scale / W;
+const toYInv = (Y) => view.y - (Y - H / 2) * view.scale / W;
+
+// 現在のモードに応じた再描画関数(mainとeditがそれぞれ設定する)
+let redrawFn = null;
+let isEditing = false;
+
+// ===== 2本指の拡大縮小・移動(Play/Edit共通の処理) =====
+// 2本指の操作を始めたときの状態
+let pan = null;
+function startPan(touches) {
+  const a = touches[0];
+  const b = touches[1];
+  const cx = (a.clientX + b.clientX) / 2;
+  const cy = (a.clientY + b.clientY) / 2;
+  pan = {
+    // 指の間隔
+    dist: Math.max(Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), 1),
+    scale: view.scale,
+    // 指の中心の下にある、表示座標(これが指の中心に追従する)
+    world: { x: toXInv(cx), y: toYInv(cy) }
+  };
+}
+function movePan(touches) {
+  if (!pan)
+    return;
+  const a = touches[0];
+  const b = touches[1];
+  const cx = (a.clientX + b.clientX) / 2;
+  const cy = (a.clientY + b.clientY) / 2;
+  const dist = Math.max(Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), 1);
+  // 指が開く(distが大きい)ほど拡大 = 画面幅[m](scale)は小さくなる
+  view.scale = Math.min(Math.max(pan.scale * pan.dist / dist, 3), 40);
+  // 指の中心の下に、開始時と同じ表示座標が来るようにviewの中心を決める
+  const ppu = W / view.scale;
+  view.x = pan.world.x - (cx - W / 2) / ppu;
+  view.y = pan.world.y + (cy - H / 2) / ppu;
+  if (redrawFn)
+    redrawFn();
+}
+
+// Play中のタッチ(Editは自前のリスナーを使うので無視)
+canvas.addEventListener('touchstart', (e) => {
+  if (isEditing)
+    return;
+  if (e.touches.length === 2)
+    startPan(e.touches);
+});
+canvas.addEventListener('touchmove', (e) => {
+  if (isEditing)
+    return;
+  if (e.touches.length === 2)
+    movePan(e.touches);
+});
+canvas.addEventListener('touchend', (e) => {
+  if (isEditing)
+    return;
+  // 指の組み合わせが変わったので、基準を取り直す
+  if (e.touches.length >= 2)
+    startPan(e.touches);
+  else
+    pan = null;
+});
+canvas.addEventListener('touchcancel', () => {
+  pan = null;
+});
+
+// リサイズ(Play/Edit/停止中すべて共通)
+window.onresize = () => {
+  W = innerWidth;
+  H = innerHeight;
+  canvas.width = W;
+  canvas.height = H;
+  if (redrawFn)
+    redrawFn();
+};
 
 // 材質を定義
 // 固体のばね定数は、E*A/L (E:ヤング率[N/m^2],A:断面積[m^2],L:長さ[m])で求められる。
@@ -51,7 +141,7 @@ const nodeInfo = [
   [-0.5, 2, 0]
 ];
 
-// nodeA, nodeB, restLength(自然長), isSubstance(実体か(道や壁か)), type(種類)
+// nodeA, nodeB, restLength(自然長), isSubstance(実体か(道や壁か)), type(種類), isRigid(地面などの剛体か。省略可。省略時は、両端のノードがどちらも固定なら剛体)
 const memberInfo = [
   [0, 1, s5_2, 0, 'soft'],
   [1, 2, s5_2, 0, 'soft'],
@@ -84,6 +174,12 @@ const memberInfo = [
   [ 2, 3, 1, 1, 'medium' ],
   [ 3, 4, 1, 1, 'medium' ]
 ]
+
+// 地面などの剛体の部材か(isRigidが1、または両端のノードがどちらも固定)
+// 地面の例: 固定ノードを2つ置いて、[ 固定ノードA, 固定ノードB, 距離, 1, 'hard', 1 ] を足す
+function isRigidMember(m) {
+  return m[5] === 1 || (nodeInfo[m[0]][2] === 1 && nodeInfo[m[1]][2] === 1);
+}
 
 async function initWebGPU() {
   if (!navigator.gpu) {
@@ -120,6 +216,14 @@ async function main() {
     myRunId = ++runId;
   else
     myRunId = runId;
+  
+  // Playのviewは毎回(0,0)から始める
+  Object.assign(viewPlay, { scale: 10, x: 0, y: 0 });
+  view = viewPlay;
+  pan = null;
+  // 最後に読み取った描画データ(停止中のリサイズ・パンで再描画するため)
+  let lastReadData = null;
+  
   isStopped = false;
   stepCount = 0;
   
@@ -200,7 +304,7 @@ async function main() {
   
   const envData = makeMixedData([[
     // g, dt, damping, 接触のばね定数, 減衰, 線分の厚み(半径), 線分上に取る判定点の数(両端を含む)(u32)
-    9.81, 1/4800, 0.4, 1e+6, 2000.0, 0.05, 12
+    9.81, dt, 0.4, 1e+6, 2000.0, 0.05, 12
   ]], [6]);
   
   // nodePoses(nodeCount*2), isAlive(memberCount), riskLevel(memberCount), carPos(vec2(x,y)), carTheta, accTime(累積時間)
@@ -630,6 +734,8 @@ async function main() {
   
   let isDraw = false;
   let preTime = Date.now();
+  // 前フレームの時刻(1フレームで進めるステップ数を実時間に合わせる)
+  let lastFrame = performance.now();
   
   ctx.strokeStyle = 'black';
   ctx.lineWidth = 5;
@@ -639,12 +745,6 @@ async function main() {
     // memberDataのnodeなどはu32なので、f32からu32に変換するための器
     const f32 = new Float32Array(1);
     const u32 = new Uint32Array(f32.buffer);
-    
-    // どれだけ拡大して描画するか
-    const scale = 50;
-    
-    const toX = (x) => W/2 + x * scale;
-    const toY = (y) => H/2 - y * scale;
     
     const isShowRiskLevel = true;
     
@@ -663,7 +763,9 @@ async function main() {
       f32[0] = memberData[memberWidth*i+7];
       const isSubstance = u32[0];
       ctx.lineWidth = isSubstance == 1 ? 5 : 2;
-      if (isShowRiskLevel) {
+      if (isRigidMember(memberInfo[i])) {
+        ctx.strokeStyle = 'green';
+      } else if (isShowRiskLevel) {
         // 1ほど危険
         const riskLevel = readData[nodeCount*2+memberCount+i];
         ctx.strokeStyle = `rgb(${255*riskLevel}, ${255*(1-riskLevel)}, 0)`;
@@ -725,16 +827,24 @@ async function main() {
       // new Float32ArrayでGPUのメモリと共有するビューが作られる。
       const readData = new Float32Array(readBuffer.getMappedRange()).slice(0);
       readBuffer.unmap();
-      if (myRunId === runId)
+      if (myRunId === runId) {
+        lastReadData = readData;
         draw(readData);
+      }
       isDraw = false;
     }
     const commandEncoder = device.createCommandEncoder();
     const passEncoder = commandEncoder.beginComputePass();
     passEncoder.setPipeline(pipeline);
     
-    // 1フレームでsubsteps進める。
-    for (let s = 0; s < substeps; s++) {
+    // 実時間に合わせたステップ数(飛びすぎ防止で最大50ms分まで)
+    const now = performance.now();
+    const frameSec = Math.min(now - lastFrame, 50) / 1000;
+    lastFrame = now;
+    const steps = Math.max(1, Math.round(frameSec / dt));
+    
+    // 1フレームでsteps進める。
+    for (let s = 0; s < steps; s++) {
       let currentBindGroup = stepCount % 2 === 0 ? bindGroupA : bindGroupB;
       passEncoder.setBindGroup(0, currentBindGroup);
       // +1しているのは、車の計算用
@@ -754,12 +864,11 @@ async function main() {
   
   requestAnimationFrame(loop);
   
-  window.onresize = () => {
-    // stopしてたら描画消える。
-    W = innerWidth;
-    H = innerHeight;
-    canvas.width = W;
-    canvas.heiht = H;
+  // リサイズ・パン時の再描画(onresizeはトップレベルで共通化)
+  isEditing = false;
+  redrawFn = () => {
+    if (lastReadData)
+      draw(lastReadData);
   };
 }
 
@@ -798,6 +907,11 @@ function edit() {
   if (!isStopped)
     runId++;
   
+  // Editは自分のviewを使う(前回の位置・倍率が残る)
+  isEditing = true;
+  view = viewEdit;
+  pan = null;
+  
   document.getElementById('stop-btn').style.display = 'none';
   document.getElementById('to-editor').innerHTML = 'Play';
   document.getElementById('edit-btn-container').style.display = 'flex';
@@ -807,9 +921,6 @@ function edit() {
   // drag, touchmove時に新たに生成する部材の他端
   let touchOtherNode = { valied: false }
   let touchType = 'none';
-  let toX, toY;
-  // handleTouchMoveに使う
-  let toXInv, toYInv;
   
   const step = 0.5;
   function roundToStep(v) {
@@ -854,39 +965,6 @@ function edit() {
   }
   document.getElementById('undo-btn').onclick = undo;
   document.getElementById('redo-btn').onclick = redo;
-  
-  // ===== 2本指の拡大縮小・移動 =====
-  // 2本指の操作を始めたときの状態
-  let pan = null;
-  function startPan(touches) {
-    const a = touches[0];
-    const b = touches[1];
-    const cx = (a.clientX + b.clientX) / 2;
-    const cy = (a.clientY + b.clientY) / 2;
-    pan = {
-      // 指の間隔
-      dist: Math.max(Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), 1),
-      scale: scale,
-      // 指の中心の下にある、表示座標(これが指の中心に追従する)
-      world: { x: toXInv(cx), y: toYInv(cy) }
-    };
-  }
-  function movePan(touches) {
-    if (!pan)
-      return;
-    const a = touches[0];
-    const b = touches[1];
-    const cx = (a.clientX + b.clientX) / 2;
-    const cy = (a.clientY + b.clientY) / 2;
-    const dist = Math.max(Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), 1);
-    // 指が開く(distが大きい)ほど拡大 = 画面幅[m](scale)は小さくなる
-    scale = Math.min(Math.max(pan.scale * pan.dist / dist, 3), 40);
-    // 指の中心の下に、開始時と同じ表示座標が来るようにoffsetを決める
-    const ppu = W / scale;
-    offset.x = pan.world.x - (cx - W/2) / ppu;
-    offset.y = pan.world.y + (cy - H/2) / ppu;
-    draw();
-  }
   
   // どの部材にも使われていないノードを削除
   function removeUnusedNodes() {
@@ -1084,7 +1162,7 @@ function edit() {
           }
           console.log('部材を配置しました。');
           memberInfo.push(
-            [ nodeA, nodeB, touchOtherNode.len, touchOtherNode.isSubstance, touchOtherNode.material ]
+            [ nodeA, nodeB, touchOtherNode.len, touchOtherNode.isSubstance, touchOtherNode.material, 0 ]
           );
         }
       }
@@ -1125,25 +1203,13 @@ function edit() {
     main();
   }
   
-  // 画面の幅をscaleとする(scale=10,offset={x:0,y:0}ならxは-5~5の範囲が見れる)
-  let scale = 10
-  let offset = { x: 0, y: H/W*scale/2-2 }
   function draw() {
     ctx.clearRect(0,0,W,H);
     
     const endPoints = {
-      x: [offset.x-scale/2, offset.x+scale/2],
-      y: [offset.y-H/W*scale/2, offset.y+H/W*scale/2]
+      x: [view.x - view.scale / 2, view.x + view.scale / 2],
+      y: [view.y - H / W * view.scale / 2, view.y + H / W * view.scale / 2]
     }
-    
-    
-    // 表示座標からcanvas上のpx座標に変換
-    toX = (x) => W*(x-endPoints.x[0])/scale;
-    toY = (y) => H*(1-W/H*(y-endPoints.y[0])/scale);
-    // handleTouchMoveに使う
-    // canvas上のpx座標から表示座標に変換
-    toXInv = (X) => scale*X/W+endPoints.x[0];
-    toYInv = (Y) => scale*H*(1-Y/H)/W+endPoints.y[0];
     
     // 格子
     ctx.strokeStyle = 'black';
@@ -1182,6 +1248,7 @@ function edit() {
     // member描画(i==memberInfo.lengthのとき、touchOtherNodeから描画)
     for (let i = 0; i < memberInfo.length+1; i++) {
       let posA, posB, isSubstance, material;
+      let isRigid = false;
       if (i == memberInfo.length) {
         if (!touchOtherNode.valied)
           break;
@@ -1197,6 +1264,7 @@ function edit() {
         const len = mInfo[2];
         isSubstance = mInfo[3];
         material = mInfo[4];
+        isRigid = isRigidMember(mInfo);
         posA = { x: nodeInfo[nodeA][0], y: nodeInfo[nodeA][1] }
         posB = { x: nodeInfo[nodeB][0], y: nodeInfo[nodeB][1] }
       }
@@ -1221,6 +1289,8 @@ function edit() {
           strokeColor = 'red';
           break;
       }
+      if (isRigid)
+        strokeColor = 'green';
       ctx.strokeStyle = strokeColor;
       ctx.beginPath()
       ctx.moveTo(toX(posA.x), toY(posA.y));
@@ -1229,13 +1299,8 @@ function edit() {
     }
   }
   
-  window.onresize = () => {
-    W = innerWidth;
-    H = innerHeight;
-    canvas.width = W;
-    canvas.heiht = H;
-    draw();
-  };
+  // リサイズ・パン時の再描画(onresizeはトップレベルで共通化)
+  redrawFn = draw;
   
   draw();
 }
