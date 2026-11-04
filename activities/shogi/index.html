@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
-
   <head>
     <meta charset="utf-8">
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v21 (v20からの変更点)
+      - VS AIの自分の手番の解析を、AIの手番と同じ方式に変更(考慮時間=AI考慮時間、候補手は上位5手)。研究・AI学習は従来のまま
+      - そのため VS AI中は、自分の手の「何位・最善比」は上位5手に入った場合のみ表示され、最悪手は表示されない
+
       v20 (v19からの変更点)
       - ばらつきの許容値を手数に応じて滑らかに減衰: 許容cp = 設定値 × 4 / (1 + e^((手数 - 15) / 5))
         (0手目で約3.8倍、15手目で2倍、30手目で約0.2倍、以降ほぼ最善手)
@@ -763,7 +766,7 @@
       function think(play) {
         if (YO.state === 'ok') { yoThink(play); return; }
         var m = stRaw();
-        m.play = play; m.ms = play ? num('ai') * 1000 : 0;
+        m.play = play; m.ms = (play || mode === 'vs') ? num('ai') * 1000 : 0;
         send(m);
       }
 
@@ -1214,8 +1217,8 @@
       }
       function yoStop() { YO.pending = false; if (YO.running) YO.send('stop'); }
       function yoThink(play) {
-        var n = play ? (g('showA').checked || +g('rnd').value ? 5 : 1) : Math.max(1, Math.min(legal(P).length, 300));
-        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: play ? num('ai') * 1000 : 0, mpv: n, mv: {}, dt: {}, depth: 0, cdepth: 0, pm: 0, ui: 0 };
+        var vsU = !play && mode === 'vs', n = play ? (g('showA').checked || +g('rnd').value ? 5 : 1) : (vsU ? (g('showU').checked ? 5 : 1) : Math.max(1, Math.min(legal(P).length, 300)));
+        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: (play || vsU) ? num('ai') * 1000 : 0, mpv: n, mv: {}, dt: {}, depth: 0, cdepth: 0, pm: 0, ui: 0 };
         YO.pending = true;
         g('bar').firstChild.style.width = '0%';
         g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…(やねうら王)</div>';
@@ -1229,7 +1232,7 @@
         r.t0 = Date.now();
         YO.send('setoption name MultiPV value ' + r.mpv);
         YO.send('position ' + (startSfen ? 'sfen ' + startSfen : 'startpos') + (hist.length ? ' moves ' + hist.map(function (h) { return m2u(h.m); }).join(' ') : ''));
-        YO.send(r.ms && r.play ? 'go movetime ' + r.ms : 'go depth ' + D);
+        YO.send(r.ms ? 'go movetime ' + r.ms : 'go depth ' + D);
         clearTimeout(YO.gt);
         if (r.play) YO.gt = setTimeout(function () {
           if (YO.cur !== r || !YO.running) return;
