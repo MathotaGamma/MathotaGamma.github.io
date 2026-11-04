@@ -6,6 +6,14 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v20 (v19からの変更点)
+      - ばらつきの許容値を手数に応じて滑らかに減衰: 許容cp = 設定値 × 4 / (1 + e^((手数 - 15) / 5))
+        (0手目で約3.8倍、15手目で2倍、30手目で約0.2倍、以降ほぼ最善手)
+
+      v19 (v18からの変更点)
+      - AIの手のばらつき設定を追加(既定60cp)。最善手との評価差が許容内の候補から評価差で重み付けして選ぶ(序盤16手までは許容2倍)
+      - ばらつきが有効なときは AIの手番も MultiPV=5 で探索
+
       v18 (元ファイルからの変更点)
       - 盤面サイズを JS で実測計算(ボタンの折返し高さも考慮)。小さい画面でも極端に小さくならない
       - 横長/狭い画面では「左:盤面 / 右:情報・ボタン」の横配置に自動切替
@@ -615,6 +623,7 @@
           '<label>自己対局の読み深さ <input type="number" id="trD" value="2"></label>' +
           '<label>自己対局の盤面更新間隔(ms) <input type="number" id="trV" value="200"></label>' +
           '<label>学習率 <input type="number" step="0.1" id="trL" value="0.5"></label>' +
+          '<label>AIの手のばらつき(基準値。手数が進むほど滑らかに減衰) <select id="rnd"><option value="0">なし(常に最善手)</option><option value="30">小(30cp)</option><option value="60" selected>中(60cp)</option><option value="120">大(120cp)</option><option value="250">特大(250cp)</option></select></label>' +
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="useLW"> 学習成果(駒価値補正)を使う ※効果は小さく、悪化する場合あり</label><br>' +
@@ -743,7 +752,7 @@
         else if (m.id !== gid) return;
         else if (m.t === 'p' || m.t === 'done') {
           showList(m);
-          if (m.t === 'done') { busy = 0; if (m.play && m.list.length && !over) doMove(m.list[0].m); }
+          if (m.t === 'done') { busy = 0; if (m.play && m.list.length && !over) doMove(pickVar(m.list, m.list[0].m)); }
         } else if (m.t === 'tr') showTrain(m);
         else if (m.t === 'tv' && mode === 'train') {
           P = fromSt(m.st); last = { f: m.mv & 127, t: (m.mv >> 7) & 127 }; flip = 0;
@@ -1205,7 +1214,7 @@
       }
       function yoStop() { YO.pending = false; if (YO.running) YO.send('stop'); }
       function yoThink(play) {
-        var n = play ? (g('showA').checked ? 5 : 1) : Math.max(1, Math.min(legal(P).length, 300));
+        var n = play ? (g('showA').checked || +g('rnd').value ? 5 : 1) : Math.max(1, Math.min(legal(P).length, 300));
         YO.req = { id: ++gid, play: play, t0: Date.now(), ms: play ? num('ai') * 1000 : 0, mpv: n, mv: {}, dt: {}, depth: 0, cdepth: 0, pm: 0, ui: 0 };
         YO.pending = true;
         g('bar').firstChild.style.width = '0%';
@@ -1280,6 +1289,22 @@
         g('nnB').textContent = 'WASM応答なし→自作エンジン'; ensureJsNet();
         if (!over && !paused && !editing) next();
       }
+      /* 最善手との評価差が許容内の候補から、評価差で重み付けしてランダムに選ぶ */
+      function pickVar(arr, bm) {
+        var T = +g('rnd').value, best = null, i, j;
+        if (!T || arr.length < 2) return bm;
+        T *= 4 / (1 + Math.exp((hist.length - 15) / 5));
+        if (T < 1) return bm;
+        for (i = 0; i < arr.length; i++) if (arr[i].m === bm) best = arr[i];
+        if (!best || Math.abs(best.s) > 29000) return bm;
+        var c = arr.filter(function (x) { return x.d >= best.d - 1 && Math.abs(x.s) < 29000 && x.s >= best.s - T; });
+        if (c.length < 2) return bm;
+        var w = c.map(function (x) { return Math.exp(-(best.s - x.s) / (T / 2)); }), tot = 0, rv;
+        for (j = 0; j < w.length; j++) tot += w[j];
+        rv = Math.random() * tot;
+        for (j = 0; j < c.length; j++) { rv -= w[j]; if (rv <= 0) return c[j].m; }
+        return bm;
+      }
       function yoBest(l) {
         clearTimeout(YO.gt);
         var r = YO.cur; YO.running = false; YO.cur = null;
@@ -1291,6 +1316,8 @@
         if (u === 'resign') { finish(sideN(P.side) + '投了', P.side ^ 1, '投了'); return; }
         if (u === 'win') { finish('入玉宣言で' + sideN(P.side) + 'の勝ち', P.side, '入玉勝ち'); return; }
         var m = u2m(u), ls = legal(P);
+        if (ls.indexOf(m) < 0) m = ls[0];
+        m = pickVar(Object.keys(r.mv).map(function (k) { return r.mv[k]; }), m);
         if (ls.indexOf(m) < 0) m = ls[0];
         doMove(m);
       }
