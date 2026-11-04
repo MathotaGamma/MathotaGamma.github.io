@@ -1,10 +1,18 @@
 <!DOCTYPE html>
 <html lang="ja">
+
   <head>
     <meta charset="utf-8">
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v23 (v22からの変更点)
+      - AIの強さ: 「10(最強)」を「10」に変更し、末尾に「無制限」(探索深さの制限なし)を追加。既定は無制限
+      - 局面編集: パレット(駒の種類選択・先手後手の駒・盤に置く/持駒に追加・消す)を廃止
+        「全消去」を「全て持駒へ」に変更(玉以外の駒を先手の持駒にまとめる。そこから選択して好きな場所・側に置ける)
+        玉の上には置けない(玉が消えるのを防止)
+      - 設定の「任意」用の数値欄は、「任意」を選んだときだけ表示(初期値7が紛らわしかったため)
+
       v22 (v21からの変更点)
       - 局面編集の操作を刷新
         盤上の駒をタップ=選択 / 別のマスをタップ=移動(先に駒があれば、選択した駒の持ち主の持駒にして置く)
@@ -598,7 +606,7 @@
         var pw = Math.min(inW, 560);
         app.style.setProperty('--pw', pw + 'px');
         var bh = g('btns').offsetHeight;
-        var fixedH = 22 + 16 + bh + (edOn ? 96 : 48) + 12 + 4;
+        var fixedH = 22 + 16 + bh + (edOn ? 64 : 48) + 12 + 4;
         var cP = Math.min((inW - 4) / 9, (inH - fixedH) / 10.7);
         var cL = Math.min((inW - 240) / 9, (inH - 8) / 10.7);
         var land = cL > cP * 1.08;
@@ -635,7 +643,7 @@
           '<label>自己対局の読み深さ <input type="number" id="trD" value="2"></label>' +
           '<label>自己対局の盤面更新間隔(ms) <input type="number" id="trV" value="200"></label>' +
           '<label>学習率 <input type="number" step="0.1" id="trL" value="0.5"></label>' +
-          '<label>AIの強さ <select id="lv"><option value="1">1 (最弱)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10" selected>10 (最強)</option></select></label>' +
+          '<label>AIの強さ <select id="lv"><option value="1">1 (最弱)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11" selected>無制限</option></select></label>' +
           '<label>AIの手のばらつき(基準値。手数が進むほど滑らかに減衰) <select id="rnd"><option value="0">なし(常に最善手)</option><option value="30">小(30cp)</option><option value="60" selected>中(60cp)</option><option value="120">大(120cp)</option><option value="250">特大(250cp)</option></select></label>' +
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
@@ -1113,34 +1121,21 @@
         paintEd(); render();
       }
       function paintEd() {
-        var h = '', i;
-        for (i = 1; i < 16; i++) {
-          if (i === 13) continue;
-          h += '<button data-t="' + i + '"' + (edT === i && !edErase ? ' class="on"' : '') + '>' + NM[i] + '</button>';
-        }
-        h += '<br><button data-x="c">' + (edC ? '後手の駒' : '先手の駒') + '</button><button data-x="m">' + (edMode ? '持駒に追加' : '盤に置く') + '</button>' +
-          '<button data-x="e"' + (edErase ? ' class="on"' : '') + '>消す</button><button data-x="s">' + (P.side ? '後手番' : '先手番') + '</button>' +
-          '<button data-x="i">初期配置</button><button data-x="z">全消去</button><button data-x="x">取消</button><button data-x="k">完了</button>';
-        g('ed').innerHTML = h;
+        g('ed').innerHTML = '<button data-x="s">' + (P.side ? '後手番' : '先手番') + '</button><button data-x="i">初期配置</button>' +
+          '<button data-x="z">全て持駒へ</button><button data-x="x">取消</button><button data-x="k">完了</button>';
       }
       function edClick(e) {
-        var b = e.target.closest('button');
+        var b = e.target.closest('button'), x, sd, i, p, bb;
         if (!b) return;
-        sel = null;
-        if (b.dataset.t) {
-          edT = +b.dataset.t; edErase = 0;
-          if (edMode && edT <= 7) P.h[edC][edT] = Math.min(18, P.h[edC][edT] + 1);
-        } else {
-          var x = b.dataset.x;
-          if (x === 'c') edC ^= 1;
-          else if (x === 'm') edMode ^= 1;
-          else if (x === 'e') edErase ^= 1;
-          else if (x === 's') P.side ^= 1;
-          else if (x === 'i') { var sd = P.side; P = newPos(); P.side = sd; }
-          else if (x === 'z') P = { b: new Int8Array(81), h: [new Int8Array(8), new Int8Array(8)], side: P.side, k: [0, 0] };
-          else if (x === 'x') { cancelEdit(); return; }
-          else if (x === 'k') { finishEdit(); return; }
+        sel = null; x = b.dataset.x;
+        if (x === 's') P.side ^= 1;
+        else if (x === 'i') { sd = P.side; P = newPos(); P.side = sd; }
+        else if (x === 'z') {
+          for (i = 0; i < 81; i++) { p = P.b[i]; bb = baseOf(p & 15); if (p && bb) { addHand(0, bb); P.b[i] = 0; } }
+          for (i = 1; i < 8; i++) { P.h[0][i] = Math.min(18, P.h[0][i] + P.h[1][i]); P.h[1][i] = 0; }
         }
+        else if (x === 'x') { cancelEdit(); return; }
+        else if (x === 'k') { finishEdit(); return; }
         paintEd(); render();
       }
       /* 成駒→元の駒(持駒にできる種類)。玉は 0 */
@@ -1148,7 +1143,7 @@
       function addHand(c, t) { if (t) P.h[c][t] = Math.min(18, P.h[c][t] + 1); }
       function editClick(s) {
         var p = P.b[s], q, c, t, b, pr, seq, cur, nx;
-        if (edErase) { P.b[s] = 0; sel = null; render(); return; }
+        if (sel && sel.f !== s && p && (p & 15) === 8) { g('msg').textContent = '玉の上には置けません'; return; }
         if (sel && sel.f === 81) {
           /* 持駒 → 盤 */
           c = sel.c; t = sel.d;
@@ -1171,7 +1166,6 @@
             P.b[s] = q; P.b[sel.f] = 0; sel = null;
           }
         } else if (p) sel = { f: s, tg: {} };
-        else P.b[s] = edT | (edC << 4);
         render();
       }
       function editHand(c, t) {
@@ -1353,8 +1347,8 @@
       }
       /* 最善手との評価差が許容内の候補から、評価差で重み付けしてランダムに選ぶ */
       var MAXDROP = 150;
-      var LVS = [null, { d: 1, k: 3 }, { d: 2, k: 2.5 }, { d: 3, k: 2 }, { d: 4, k: 1.6 }, { d: 6, k: 1.3 }, { d: 8, k: 1.1 }, { d: 10, k: 1 }, { d: 12, k: 1 }, { d: 16, k: 1 }, { d: 0, k: 1 }];
-      function lvOf() { return LVS[+g('lv').value] || LVS[10]; }
+      var LVS = [null, { d: 1, k: 3 }, { d: 2, k: 2.5 }, { d: 3, k: 2 }, { d: 4, k: 1.6 }, { d: 6, k: 1.3 }, { d: 8, k: 1.1 }, { d: 10, k: 1 }, { d: 12, k: 1 }, { d: 16, k: 1 }, { d: 20, k: 1 }, { d: 0, k: 1 }];
+      function lvOf() { return LVS[+g('lv').value] || LVS[11]; }
       function pickVar(arr, bm) {
         var T = +g('rnd').value, best = null, i, j;
         if (!T || arr.length < 2) return bm;
@@ -1390,6 +1384,14 @@
 
       /* --- 初期化 --- */
       buildMenu();
+      function syncCustom() {
+        SPEC.forEach(function (sp) {
+          var c = g(sp[0] + 'C');
+          if (c) c.style.display = g(sp[0]).value === 'c' ? '' : 'none';
+        });
+      }
+      document.addEventListener('change', syncCustom);
+      syncCustom();
       g('nnB').onclick = function () { if (!nnOk) loadHao(); };
       g('res').onclick = function () { this.hidden = true; };
       g('ed').onclick = edClick;
