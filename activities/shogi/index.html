@@ -5,6 +5,15 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v22 (v21からの変更点)
+      - 局面編集の操作を刷新
+        盤上の駒をタップ=選択 / 別のマスをタップ=移動(先に駒があれば、選択した駒の持ち主の持駒にして置く)
+        選択中に同じ駒をもう一度タップ=種類切替(自歩→自と→相歩→相と→…。金・玉は 自→相)して選択解除
+        選択中に持駒エリアをタップ=その側の持駒にする(玉は不可) / 持駒の駒をタップ=選択して盤へ置ける
+        移動・配置・切替・持駒化のあとは選択解除
+      - AIの強さレベル(1〜10)を追加。低いほど探索深さを制限し、手のばらつきを大きくする
+      - ばらつきで選ぶ手の評価低下に上限(150cp)を設定。勝勢から互角以下になる手も選ばない
+
       v21 (v20からの変更点)
       - VS AIの自分の手番の解析を、AIの手番と同じ方式に変更(考慮時間=AI考慮時間、候補手は上位5手)。研究・AI学習は従来のまま
       - そのため VS AI中は、自分の手の「何位・最善比」は上位5手に入った場合のみ表示され、最悪手は表示されない
@@ -626,6 +635,7 @@
           '<label>自己対局の読み深さ <input type="number" id="trD" value="2"></label>' +
           '<label>自己対局の盤面更新間隔(ms) <input type="number" id="trV" value="200"></label>' +
           '<label>学習率 <input type="number" step="0.1" id="trL" value="0.5"></label>' +
+          '<label>AIの強さ <select id="lv"><option value="1">1 (最弱)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10" selected>10 (最強)</option></select></label>' +
           '<label>AIの手のばらつき(基準値。手数が進むほど滑らかに減衰) <select id="rnd"><option value="0">なし(常に最善手)</option><option value="30">小(30cp)</option><option value="60" selected>中(60cp)</option><option value="120">大(120cp)</option><option value="250">特大(250cp)</option></select></label>' +
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
@@ -767,6 +777,7 @@
         if (YO.state === 'ok') { yoThink(play); return; }
         var m = stRaw();
         m.play = play; m.ms = (play || mode === 'vs') ? num('ai') * 1000 : 0;
+        if (play && lvOf().d) m.D = Math.min(m.D, lvOf().d);
         send(m);
       }
 
@@ -985,7 +996,7 @@
         render();
       }
       function clickHand(c, d) {
-        if (editing) { if (P.h[c][d] > 0) P.h[c][d]--; render(); return; }
+        if (editing) { editHand(c, d); return; }
         if (!canPlay() || c !== P.side) return;
         sel = mk(81, d); render();
       }
@@ -995,7 +1006,11 @@
           for (var i = 0; i < 81; i++) { var d = document.createElement('div'); d.className = 'cell'; bd.appendChild(d); }
           bd.onclick = function (e) { var c = e.target.closest('.cell'); if (c) clickSq(+c.dataset.s); };
           ['h0', 'h1'].forEach(function (id) {
-            g(id).onclick = function (e) { var s = e.target.closest('.hp'); if (s) clickHand(+s.dataset.c, +s.dataset.t); };
+            g(id).onclick = function (e) {
+              var s = e.target.closest('.hp'), row = id === 'h0' ? 0 : 1;
+              if (editing) { editHand(flip ? row : 1 - row, s ? +s.dataset.t : 0); return; }
+              if (s) clickHand(+s.dataset.c, +s.dataset.t);
+            };
           });
         }
         for (var k = 0; k < 81; k++) {
@@ -1009,7 +1024,7 @@
           var c = flip ? row : 1 - row, h = '';
           for (var t = 7; t >= 1; t--) {
             var n = P.h[c][t];
-            if (n) h += '<span class="hp' + (sel && sel.f === 81 && sel.d === t && c === P.side ? ' sl' : '') + '" data-c="' + c + '" data-t="' + t + '">' + NM[t] + (n > 1 ? n : '') + '</span>';
+            if (n) h += '<span class="hp' + (sel && sel.f === 81 && sel.d === t && c === (editing ? sel.c : P.side) ? ' sl' : '') + '" data-c="' + c + '" data-t="' + t + '">' + NM[t] + (n > 1 ? n : '') + '</span>';
           }
           g('h' + row).innerHTML = (c ? '△' : '▲') + h;
         });
@@ -1111,6 +1126,7 @@
       function edClick(e) {
         var b = e.target.closest('button');
         if (!b) return;
+        sel = null;
         if (b.dataset.t) {
           edT = +b.dataset.t; edErase = 0;
           if (edMode && edT <= 7) P.h[edC][edT] = Math.min(18, P.h[edC][edT] + 1);
@@ -1127,13 +1143,56 @@
         }
         paintEd(); render();
       }
+      /* 成駒→元の駒(持駒にできる種類)。玉は 0 */
+      function baseOf(t) { return t === 8 ? 0 : t > 8 ? (t === 14 ? 6 : t === 15 ? 7 : t - 8) : t; }
+      function addHand(c, t) { if (t) P.h[c][t] = Math.min(18, P.h[c][t] + 1); }
       function editClick(s) {
-        if (edErase) P.b[s] = 0;
-        else { var np = edT | (edC << 4); P.b[s] = P.b[s] === np ? 0 : np; }
+        var p = P.b[s], q, c, t, b, pr, seq, cur, nx;
+        if (edErase) { P.b[s] = 0; sel = null; render(); return; }
+        if (sel && sel.f === 81) {
+          /* 持駒 → 盤 */
+          c = sel.c; t = sel.d;
+          if (p) addHand(c, baseOf(p & 15));
+          P.h[c][t]--; P.b[s] = t | (c << 4); sel = null;
+        } else if (sel) {
+          if (sel.f === s) {
+            /* 種類切替: 自歩→自と→相歩→相と */
+            c = p >> 4; t = p & 15; b = baseOf(t) || 8;
+            pr = (b === 8 || b === 5) ? 0 : b === 6 ? 14 : b === 7 ? 15 : b + 8;
+            seq = [[0, b], [0, pr], [1, b], [1, pr]].filter(function (x) { return x[1]; });
+            cur = 0;
+            seq.forEach(function (x, i) { if (x[0] === c && x[1] === t) cur = i; });
+            nx = seq[(cur + 1) % seq.length];
+            P.b[s] = nx[1] | (nx[0] << 4); sel = null;
+          } else {
+            /* 盤 → 盤(先にある駒は、動かした駒の持ち主の持駒へ) */
+            q = P.b[sel.f];
+            if (p) addHand(q >> 4, baseOf(p & 15));
+            P.b[s] = q; P.b[sel.f] = 0; sel = null;
+          }
+        } else if (p) sel = { f: s, tg: {} };
+        else P.b[s] = edT | (edC << 4);
+        render();
+      }
+      function editHand(c, t) {
+        var p, b;
+        if (sel && sel.f < 81) {
+          /* 盤の駒 → その側の持駒 */
+          p = P.b[sel.f]; b = baseOf(p & 15);
+          if (!b) { g('msg').textContent = '玉は持駒にできません'; sel = null; render(); return; }
+          addHand(c, b); P.b[sel.f] = 0; sel = null;
+        } else if (sel && sel.f === 81) {
+          if (t && c === sel.c) {
+            if (t === sel.d) { P.h[c][t]--; sel = null; } else sel = { f: 81, d: t, c: c, tg: {} };
+          } else {
+            if (c !== sel.c) { P.h[sel.c][sel.d]--; addHand(c, sel.d); }
+            sel = null;
+          }
+        } else if (t) sel = { f: 81, d: t, c: c, tg: {} };
         render();
       }
       function cancelEdit() {
-        P = edBackup; editing = 0; g('ed').hidden = true; g('info').hidden = false; g('msg').textContent = '';
+        P = edBackup; editing = 0; sel = null; g('ed').hidden = true; g('info').hidden = false; g('msg').textContent = '';
         if (over || paused) render(); else next();
       }
       function finishEdit() {
@@ -1218,7 +1277,7 @@
       function yoStop() { YO.pending = false; if (YO.running) YO.send('stop'); }
       function yoThink(play) {
         var vsU = !play && mode === 'vs', n = play ? (g('showA').checked || +g('rnd').value ? 5 : 1) : (vsU ? (g('showU').checked ? 5 : 1) : Math.max(1, Math.min(legal(P).length, 300)));
-        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: (play || vsU) ? num('ai') * 1000 : 0, mpv: n, mv: {}, dt: {}, depth: 0, cdepth: 0, pm: 0, ui: 0 };
+        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: (play || vsU) ? num('ai') * 1000 : 0, dcap: play ? lvOf().d : 0, mpv: n, mv: {}, dt: {}, depth: 0, cdepth: 0, pm: 0, ui: 0 };
         YO.pending = true;
         g('bar').firstChild.style.width = '0%';
         g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…(やねうら王)</div>';
@@ -1232,7 +1291,7 @@
         r.t0 = Date.now();
         YO.send('setoption name MultiPV value ' + r.mpv);
         YO.send('position ' + (startSfen ? 'sfen ' + startSfen : 'startpos') + (hist.length ? ' moves ' + hist.map(function (h) { return m2u(h.m); }).join(' ') : ''));
-        YO.send(r.ms ? 'go movetime ' + r.ms : 'go depth ' + D);
+        YO.send(r.ms ? 'go movetime ' + r.ms + (r.dcap ? ' depth ' + r.dcap : '') : 'go depth ' + (r.dcap ? Math.min(D, r.dcap) : D));
         clearTimeout(YO.gt);
         if (r.play) YO.gt = setTimeout(function () {
           if (YO.cur !== r || !YO.running) return;
@@ -1293,14 +1352,18 @@
         if (!over && !paused && !editing) next();
       }
       /* 最善手との評価差が許容内の候補から、評価差で重み付けしてランダムに選ぶ */
+      var MAXDROP = 150;
+      var LVS = [null, { d: 1, k: 3 }, { d: 2, k: 2.5 }, { d: 3, k: 2 }, { d: 4, k: 1.6 }, { d: 6, k: 1.3 }, { d: 8, k: 1.1 }, { d: 10, k: 1 }, { d: 12, k: 1 }, { d: 16, k: 1 }, { d: 0, k: 1 }];
+      function lvOf() { return LVS[+g('lv').value] || LVS[10]; }
       function pickVar(arr, bm) {
         var T = +g('rnd').value, best = null, i, j;
         if (!T || arr.length < 2) return bm;
-        T *= 4 / (1 + Math.exp((hist.length - 15) / 5));
+        T *= 4 / (1 + Math.exp((hist.length - 15) / 5)) * lvOf().k;
+        T = Math.min(T, MAXDROP);
         if (T < 1) return bm;
         for (i = 0; i < arr.length; i++) if (arr[i].m === bm) best = arr[i];
         if (!best || Math.abs(best.s) > 29000) return bm;
-        var c = arr.filter(function (x) { return x.d >= best.d - 1 && Math.abs(x.s) < 29000 && x.s >= best.s - T; });
+        var c = arr.filter(function (x) { return x.d >= best.d - 1 && Math.abs(x.s) < 29000 && x.s >= best.s - T && (best.s <= MAXDROP || x.s > 0); });
         if (c.length < 2) return bm;
         var w = c.map(function (x) { return Math.exp(-(best.s - x.s) / (T / 2)); }), tot = 0, rv;
         for (j = 0; j < w.length; j++) tot += w[j];
