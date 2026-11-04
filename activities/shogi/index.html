@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
-
   <head>
     <meta charset="utf-8">
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v24 (v23からの変更点)
+      - 詰みが見つかった局面で、時間制限の探索が深度245(上限)まで空回りする問題を修正
+        (時間指定の探索で詰みの評価が出て深度6以上になったら探索を打ち切る。深度表示も99を上限に)
+
       v23 (v22からの変更点)
       - AIの強さ: 「10(最強)」を「10」に変更し、末尾に「無制限」(探索深さの制限なし)を追加。既定は無制限
       - 局面編集: パレット(駒の種類選択・先手後手の駒・盤に置く/持駒に追加・消す)を廃止
@@ -1316,7 +1319,7 @@
         arr.sort(function (a, b) { return ((b.d === r.depth) - (a.d === r.depth)) || (a.k - b.k); });
         var D = Math.max(1, num('D')), el = ((Date.now() - r.t0) / 1000).toFixed(1);
         showList({ t: 'p', id: r.id, play: r.play, ev: r.ev, pct: done ? 100 : yoProg(r, D), worst: r.mpv > 5 && arr.length > 1 ? arr[arr.length - 1] : null, list: arr,
-          info: ' 深度' + (r.ms ? r.depth : r.depth + '/' + D) + ' ' + el + '秒' + (done ? ' 完了' : '') });
+          info: ' 深度' + (r.ms ? Math.min(r.depth, 99) : r.depth + '/' + D) + ' ' + el + '秒' + (done ? ' 完了' : '') });
       }
       function yoLine(l) {
         if (l === 'readyok') {
@@ -1337,6 +1340,8 @@
         r.mv[mv] = { m: mv, s: s, d: +dp[1], k: mp ? +mp[1] : 1 };
         if (!mp || +mp[1] === 1) r.ev = s;
         r.depth = Math.max(r.depth, +dp[1]);
+        /* 詰みが見つかったら、時間いっぱい深度だけ増やし続けないよう打ち切る(時間指定の探索のみ) */
+        if (r.ms && !r.stopped && (!mp || +mp[1] === 1) && Math.abs(s) > 29000 && +dp[1] >= 6 && YO.cur === r && YO.running) { r.stopped = 1; YO.send('stop'); }
         if (!r.dt[+dp[1]]) r.dt[+dp[1]] = Date.now() - r.t0;
         if (Date.now() - r.ui > 150) { r.ui = Date.now(); yoPaint(r, 0); }
       }
@@ -1439,5 +1444,4 @@
       newGame();
     </script>
   </body>
-
 </html>
