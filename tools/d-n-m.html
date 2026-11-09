@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>デイリーナンバーマッチ Solver (横9マス)</title>
+  <style>
+    :root {
+      --bg-color: #f4f6f9;
+      --card-bg: #ffffff;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --accent: #ef4444;
+      --text: #1f2937;
+      --cell-bg: #f3f4f6;
+      --cell-border: #d1d5db;
+      --match-highlight: #fef08a;
+      --match-border: #eab308;
+      --selected-bg: #93c5fd;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 10px;
+      min-height: 100vh;
+    }
+
+    h1 { margin-bottom: 5px; font-size: 1.6rem; color: #111827; }
+    p.subtitle { margin-bottom: 20px; font-size: 0.85rem; color: #6b7280; text-align: center; }
+
+    .container {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      width: 100%;
+      max-width: 500px;
+    }
+
+    /* Controls */
+    .section { margin-bottom: 16px; }
+    label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; }
+    textarea {
+      width: 100%;
+      height: 70px;
+      padding: 8px;
+      border: 1px solid var(--cell-border);
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    button {
+      flex: 1;
+      min-width: 100px;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background-color: var(--primary);
+      color: white;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background-color: var(--primary-hover); }
+    button.secondary { background-color: #6b7280; }
+    button.secondary:hover { background-color: #4b5563; }
+    button.accent { background-color: #10b981; }
+    button.accent:hover { background-color: #059669; }
+    button.danger { background-color: var(--accent); }
+    button.danger:hover { background-color: #dc2626; }
+
+    /* Game Board (9 Columns) */
+    .board-container {
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+      margin: 15px 0;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 4px;
+      width: 100%;
+      max-width: 410px;
+    }
+    .cell {
+      aspect-ratio: 1;
+      background-color: var(--cell-bg);
+      border: 1px solid var(--cell-border);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+    .cell.cleared {
+      background-color: #ffffff;
+      border-color: #f3f4f6;
+      color: #e5e7eb;
+    }
+    .cell.highlight {
+      background-color: var(--match-highlight);
+      border-color: var(--match-border);
+      color: #854d0e;
+      animation: pulse 1s infinite alternate;
+    }
+    .cell.selected {
+      background-color: var(--selected-bg);
+      border-color: #2563eb;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.05); }
+    }
+
+    .status-box {
+      background-color: #f9fafb;
+      border-left: 4px solid var(--primary);
+      padding: 10px;
+      font-size: 0.85rem;
+      border-radius: 0 6px 6px 0;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>デイリーナンバーマッチ Solver</h1>
+  <p class="subtitle">横9マス固定 / 同じ数字 or 足して10のペアを検出・自動消去</p>
+
+  <div class="container">
+    <div class="section">
+      <label for="inputData">初期数字の一括入力 (数字のみ / スペース・改行可):</label>
+      <textarea id="inputData" placeholder="例: 1234567891112131415..."></textarea>
+      <div style="display: flex; gap: 8px; margin-top: 6px;">
+        <button onclick="loadFromText()">盤面に反映</button>
+        <button class="secondary" onclick="loadDefault()">デフォルト例</button>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="accent" onclick="findHints()">ヒント表示</button>
+      <button onclick="stepSolve()">1手進める</button>
+      <button class="secondary" onclick="addNumbers()">+ 数字追加</button>
+      <button class="danger" onclick="resetBoard()">リセット</button>
+    </div>
+
+    <div class="board-container">
+      <div id="board" class="board"></div>
+    </div>
+
+    <div class="status-box" id="status">
+      準備完了: 数字を入力するか、デフォルト例を読み込んでください。
+    </div>
+  </div>
+
+  <script>
+    const COLS = 9;
+    let grid = []; // { value: number, cleared: boolean }
+    let selectedIdx = null;
+
+    function initBoard(numbers) {
+      grid = numbers.map(n => ({ value: n, cleared: false }));
+      selectedIdx = null;
+      renderBoard();
+      updateStatus(`盤面を読み込みました (全 ${grid.length} マス)`);
+    }
+
+    function loadFromText() {
+      const text = document.getElementById('inputData').value;
+      const nums = text.replace(/[^1-9]/g, '').split('').map(Number);
+      if (nums.length === 0) {
+        alert('1〜9の有効な数字を入力してください。');
+        return;
+      }
+      initBoard(nums);
+    }
+
+    function loadDefault() {
+      const defaultNums = [
+        1,2,3,4,5,6,7,8,9,
+        1,1,1,2,1,3,1,4,1,
+        5,1,6,1,7,1,8,1,9
+      ];
+      document.getElementById('inputData').value = defaultNums.join('');
+      initBoard(defaultNums);
+    }
+
+    function addNumbers() {
+      const active = grid.filter(cell => !cell.cleared).map(cell => ({ value: cell.value, cleared: false }));
+      if (active.length === 0) {
+        updateStatus('追加する数字がありません。');
+        return;
+      }
+      grid = grid.concat(active);
+      renderBoard();
+      updateStatus(`数字を複製追加しました (全 ${grid.length} マス)`);
+    }
+
+    function resetBoard() {
+      grid = [];
+      selectedIdx = null;
+      renderBoard();
+      updateStatus('盤面をリセットしました。');
+    }
+
+    // 隣接判定コアロジック (横9マス・折り返し・空白スルー対応)
+    function canMatch(idx1, idx2) {
+      if (idx1 === idx2) return false;
+      if (grid[idx1].cleared || grid[idx2].cleared) return false;
+
+      const v1 = grid[idx1].value;
+      const v2 = grid[idx2].value;
+
+      // 条件: 同じ数字 or 足して10
+      if (v1 !== v2 && v1 + v2 !== 10) return false;
+
+      // 隣接判定 (水平・垂直・斜め・折り返し)
+      return isAdjacent(idx1, idx2);
+    }
+
+    function isAdjacent(idx1, idx2) {
+      const min = Math.min(idx1, idx2);
+      const max = Math.max(idx1, idx2);
+
+      // 1. 直列（配列上の直線）順序判定 (横・折り返し含む)
+      let clearBetween = true;
+      for (let i = min + 1; i < max; i++) {
+        if (!grid[i].cleared) {
+          clearBetween = false;
+          break;
+        }
+      }
+      if (clearBetween) return true;
+
+      // 2. 2Dグリッド上での直線（水平・垂直・斜め）方向判定
+      const r1 = Math.floor(idx1 / COLS), c1 = idx1 % COLS;
+      const r2 = Math.floor(idx2 / COLS), c2 = idx2 % COLS;
+
+      const dr = Math.sign(r2 - r1);
+      const dc = Math.sign(c2 - c1);
+
+      // 水平・垂直・対角線上にない場合は不可
+      if (r1 !== r2 && c1 !== c2 && Math.abs(r2 - r1) !== Math.abs(c2 - c1)) {
+        return false;
+      }
+
+      let currR = r1 + dr;
+      let currC = c1 + dc;
+      while (currR !== r2 || currC !== c2) {
+        const currIdx = currR * COLS + currC;
+        if (currIdx >= grid.length) return false;
+        if (!grid[currIdx].cleared) return false; // 途中に未クリアセルがあれば不可
+        currR += dr;
+        currC += dc;
+      }
+
+      return true;
+    }
+
+    function findAllMatches() {
+      const matches = [];
+      const len = grid.length;
+      for (let i = 0; i < len; i++) {
+        if (grid[i].cleared) continue;
+        for (let j = i + 1; j < len; j++) {
+          if (grid[j].cleared) continue;
+          if (canMatch(i, j)) {
+            matches.push([i, j]);
+          }
+        }
+      }
+      return matches;
+    }
+
+    function findHints() {
+      const matches = findAllMatches();
+      renderBoard(matches);
+      if (matches.length > 0) {
+        updateStatus(`マッチ可能なペアが ${matches.length} 件見つかりました（ハイライト中）。`);
+      } else {
+        updateStatus('消せるペアが見つかりません。「+ 数字追加」を押してください。');
+      }
+    }
+
+    function stepSolve() {
+      const matches = findAllMatches();
+      if (matches.length === 0) {
+        updateStatus('消せるペアがありません。「+ 数字追加」を押してください。');
+        return;
+      }
+      const [i, j] = matches[0];
+      grid[i].cleared = true;
+      grid[j].cleared = true;
+      renderBoard();
+      updateStatus(`ペア (${grid[i].value}, ${grid[j].value}) を消去しました。`);
+    }
+
+    function handleCellClick(idx) {
+      if (grid[idx].cleared) return;
+
+      if (selectedIdx === null) {
+        selectedIdx = idx;
+        renderBoard();
+      } else if (selectedIdx === idx) {
+        selectedIdx = null;
+        renderBoard();
+      } else {
+        if (canMatch(selectedIdx, idx)) {
+          grid[selectedIdx].cleared = true;
+          grid[idx].cleared = true;
+          updateStatus(`ペア (${grid[selectedIdx].value}, ${grid[idx].value}) を消去しました。`);
+          selectedIdx = null;
+        } else {
+          selectedIdx = idx;
+          updateStatus('選択したペアはマッチできません。');
+        }
+        renderBoard();
+      }
+    }
+
+    function renderBoard(highlightPairs = []) {
+      const boardEl = document.getElementById('board');
+      boardEl.innerHTML = '';
+
+      const highlightedSet = new Set();
+      highlightPairs.forEach(([i, j]) => {
+        highlightedSet.add(i);
+        highlightedSet.add(j);
+      });
+
+      grid.forEach((cell, idx) => {
+        const div = document.createElement('div');
+        div.className = 'cell';
+        if (cell.cleared) div.classList.add('cleared');
+        if (highlightedSet.has(idx)) div.classList.add('highlight');
+        if (selectedIdx === idx) div.classList.add('selected');
+
+        div.textContent = cell.cleared ? '' : cell.value;
+        div.onclick = () => handleCellClick(idx);
+        boardEl.appendChild(div);
+      });
+    }
+
+    function updateStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    // 初期起動
+    loadDefault();
+  </script>
+</body>
+</html>
