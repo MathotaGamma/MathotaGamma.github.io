@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>デイリーナンバーマッチ Solver (次の一手ナビゲーション)</title>
+  <title>デイリーナンバーマッチ Solver (OCR自動読込対応)</title>
+  <!-- 画面上で画像文字認識を行うためのTesseract.js読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -98,7 +100,7 @@
     button.danger { background-color: var(--accent); }
     button.danger:hover { background-color: #dc2626; }
 
-    /* 次に押すべき「+ボタン」の光るアニメーション */
+    /* +ボタンの光るアニメーション */
     button.pulse-active {
       background-color: #10b981 !important;
       box-shadow: 0 0 12px #10b981;
@@ -110,7 +112,6 @@
       100% { transform: scale(1.08); box-shadow: 0 0 18px #10b981; }
     }
 
-    /* ボード表示 */
     .board-container {
       overflow-x: auto;
       display: flex;
@@ -143,7 +144,6 @@
       border-color: #f3f4f6;
       color: #e5e7eb;
     }
-    /* 次に消すペアの光るアニメーション */
     .cell.next-pair {
       background-color: var(--next-match-bg);
       border: 2px solid var(--next-match-border);
@@ -169,31 +169,28 @@
       border-radius: 0 6px 6px 0;
       margin-top: 8px;
     }
-    
-    #previewCanvas { display: none; }
   </style>
 </head>
 <body>
 
   <div class="container">
     <h1>ナンバーマッチ Solver</h1>
-    <p class="subtitle">自動ナビゲーション ＆ 次の手ハイライト機能付き</p>
+    <p class="subtitle">スクショ自動OCR読込 ＆ 次の手ナビゲーション</p>
 
     <div class="section">
-      <label>スクショ画像から数字を自動読込:</label>
+      <label>スクショ画像から数字を自動読込 (OCR):</label>
       <label class="upload-box" for="imageInput">
-        <span class="upload-text">📁 タップしてスクリーンショット画像を選択</span>
+        <span class="upload-text" id="uploadLabelText">📁 タップしてスクリーンショット画像を選択</span>
         <input type="file" id="imageInput" accept="image/*">
       </label>
-      <canvas id="previewCanvas"></canvas>
     </div>
 
     <div class="section">
-      <label for="inputData">テキスト一括入力 (変更可能):</label>
+      <label for="inputData">テキスト一括入力 (読込後に確認・手動修正も可能):</label>
       <textarea id="inputData"></textarea>
       <div style="display: flex; gap: 6px; margin-top: 4px;">
         <button id="btnLoadText">テキストを反映</button>
-        <button class="secondary" id="btnLoadDefault">ご提示の画像例をロード</button>
+        <button class="secondary" id="btnLoadDefault">サンプル例をロード</button>
       </div>
     </div>
 
@@ -208,7 +205,7 @@
     </div>
 
     <div class="status-box" id="status">
-      準備完了: 画像をアップロードするか、ステージ1の例をご利用ください。
+      準備完了: スクリーンショット画像を選択してください。自動で数字が読み込まれます。
     </div>
   </div>
 
@@ -245,20 +242,50 @@
       initBoard(nums);
     }
 
-    function handleImageUpload(event) {
+    // Tesseract.js を用いた本格的な画像OCR解析
+    async function handleImageUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          updateStatus('画像を読み込みました！ステージ1の配置を自動セットしました。');
-          loadStage1Default();
+      const uploadText = document.getElementById('uploadLabelText');
+      uploadText.textContent = '🔄 画像を解析中 (OCR読込中)...';
+      updateStatus('画像解析中: AIが数字を読み取っています...');
+
+      try {
+        const result = await Tesseract.recognize(
+          file,
+          'eng',
+          {
+            logger: m => {
+              if (m.status === 'recognizing text') {
+                updateStatus(`画像解析中... ${Math.round(m.progress * 100)}%`);
+              }
+            }
+          }
+        );
+
+        const recognizedText = result.data.text;
+        console.log("OCR読込結果:", recognizedText);
+
+        // 1〜9の数字のみを順番に抽出
+        const nums = recognizedText.replace(/[^1-9]/g, '').split('').map(Number);
+
+        if (nums.length > 0) {
+          document.getElementById('inputData').value = nums.join('');
+          initBoard(nums);
+          uploadText.textContent = `✅ 読込成功 (${nums.length}個の数字を検出)`;
+          updateStatus(`画像を正常に読み込みました！ (${nums.length}マス) 次の手がハイライトされています。`);
+        } else {
+          uploadText.textContent = '📁 タップしてスクリーンショット画像を選択';
+          alert('画像から数字を検出できませんでした。別の画像をお試しいただくか、テキストエリアに直接入力してください。');
+          updateStatus('数字の検出に失敗しました。');
         }
-        img.src = e.target.result;
+      } catch (error) {
+        console.error(error);
+        uploadText.textContent = '📁 タップしてスクリーンショット画像を選択';
+        alert('OCR処理中にエラーが発生しました。');
+        updateStatus('画像解析エラー');
       }
-      reader.readAsDataURL(file);
     }
 
     function addNumbers() {
@@ -344,7 +371,7 @@
     function stepSolve() {
       const matches = findAllMatches();
       if (matches.length === 0) {
-        updateStatus('消せるペアがありません。「+ 数字追加」を押してください。');
+        updateStatus('消せるペアがありません。「+ 数字追加」ボタンが光っています！');
         return;
       }
       const [i, j] = matches[0];
@@ -381,11 +408,9 @@
       const boardEl = document.getElementById('board');
       boardEl.innerHTML = '';
 
-      // 全マッチ候補の取得
       const matches = findAllMatches();
       const nextPair = matches.length > 0 ? matches[0] : null;
 
-      // 「+ 数字追加」ボタンの光る状態をコントロール
       const btnAdd = document.getElementById('btnAdd');
       const hasActiveCells = grid.some(c => !c.cleared);
 
