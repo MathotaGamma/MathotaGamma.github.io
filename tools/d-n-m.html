@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>デイリーナンバーマッチ Solver (横9マス)</title>
+  <title>デイリーナンバーマッチ Solver (次の一手ナビゲーション)</title>
   <style>
     :root {
       --bg-color: #f4f6f9;
@@ -14,8 +14,8 @@
       --text: #1f2937;
       --cell-bg: #f3f4f6;
       --cell-border: #d1d5db;
-      --match-highlight: #fef08a;
-      --match-border: #eab308;
+      --next-match-bg: #fef08a;
+      --next-match-border: #eab308;
       --selected-bg: #93c5fd;
     }
 
@@ -31,8 +31,8 @@
       min-height: 100vh;
     }
 
-    h1 { margin-bottom: 5px; font-size: 1.6rem; color: #111827; }
-    p.subtitle { margin-bottom: 20px; font-size: 0.85rem; color: #6b7280; text-align: center; }
+    h1 { margin-bottom: 5px; font-size: 1.5rem; color: #111827; text-align: center; }
+    p.subtitle { margin-bottom: 15px; font-size: 0.8rem; color: #6b7280; text-align: center; }
 
     .container {
       background: var(--card-bg);
@@ -43,39 +43,52 @@
       max-width: 500px;
     }
 
-    /* Controls */
-    .section { margin-bottom: 16px; }
-    label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; }
+    .section { margin-bottom: 14px; }
+    label { display: block; font-weight: 600; font-size: 0.8rem; margin-bottom: 4px; }
+    
+    .upload-box {
+      border: 2px dashed var(--cell-border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      background: #fafafa;
+      cursor: pointer;
+      transition: border 0.2s;
+    }
+    .upload-box:hover { border-color: var(--primary); }
+    .upload-box input { display: none; }
+    .upload-text { font-size: 0.8rem; color: #4b5563; }
+
     textarea {
       width: 100%;
-      height: 70px;
-      padding: 8px;
+      height: 60px;
+      padding: 6px;
       border: 1px solid var(--cell-border);
       border-radius: 6px;
       font-family: monospace;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       resize: vertical;
     }
 
     .btn-group {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 6px;
+      margin-bottom: 14px;
     }
 
     button {
       flex: 1;
-      min-width: 100px;
+      min-width: 90px;
       padding: 10px;
       border: none;
       border-radius: 6px;
       background-color: var(--primary);
       color: white;
       font-weight: 600;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
     button:hover { background-color: var(--primary-hover); }
     button.secondary { background-color: #6b7280; }
@@ -85,29 +98,41 @@
     button.danger { background-color: var(--accent); }
     button.danger:hover { background-color: #dc2626; }
 
-    /* Game Board (9 Columns) */
+    /* 次に押すべき「+ボタン」の光るアニメーション */
+    button.pulse-active {
+      background-color: #10b981 !important;
+      box-shadow: 0 0 12px #10b981;
+      animation: buttonPulse 0.8s infinite alternate ease-in-out;
+    }
+
+    @keyframes buttonPulse {
+      0% { transform: scale(1); box-shadow: 0 0 6px #10b981; }
+      100% { transform: scale(1.08); box-shadow: 0 0 18px #10b981; }
+    }
+
+    /* ボード表示 */
     .board-container {
       overflow-x: auto;
       display: flex;
       justify-content: center;
-      margin: 15px 0;
+      margin: 10px 0;
     }
     .board {
       display: grid;
       grid-template-columns: repeat(9, 1fr);
-      gap: 4px;
+      gap: 3px;
       width: 100%;
-      max-width: 410px;
+      max-width: 400px;
     }
     .cell {
       aspect-ratio: 1;
       background-color: var(--cell-bg);
       border: 1px solid var(--cell-border);
-      border-radius: 6px;
+      border-radius: 5px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       font-weight: bold;
       cursor: pointer;
       user-select: none;
@@ -118,52 +143,64 @@
       border-color: #f3f4f6;
       color: #e5e7eb;
     }
-    .cell.highlight {
-      background-color: var(--match-highlight);
-      border-color: var(--match-border);
+    /* 次に消すペアの光るアニメーション */
+    .cell.next-pair {
+      background-color: var(--next-match-bg);
+      border: 2px solid var(--next-match-border);
       color: #854d0e;
-      animation: pulse 1s infinite alternate;
+      animation: cellPulse 0.7s infinite alternate ease-in-out;
+      font-size: 1.25rem;
     }
     .cell.selected {
       background-color: var(--selected-bg);
       border-color: #2563eb;
     }
 
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      100% { transform: scale(1.05); }
+    @keyframes cellPulse {
+      0% { transform: scale(0.96); opacity: 0.8; }
+      100% { transform: scale(1.06); opacity: 1; }
     }
 
     .status-box {
       background-color: #f9fafb;
       border-left: 4px solid var(--primary);
-      padding: 10px;
-      font-size: 0.85rem;
+      padding: 8px 10px;
+      font-size: 0.8rem;
       border-radius: 0 6px 6px 0;
-      margin-top: 10px;
+      margin-top: 8px;
     }
+    
+    #previewCanvas { display: none; }
   </style>
 </head>
 <body>
 
-  <h1>デイリーナンバーマッチ Solver</h1>
-  <p class="subtitle">横9マス固定 / 同じ数字 or 足して10のペアを検出・自動消去</p>
-
   <div class="container">
+    <h1>ナンバーマッチ Solver</h1>
+    <p class="subtitle">自動ナビゲーション ＆ 次の手ハイライト機能付き</p>
+
     <div class="section">
-      <label for="inputData">初期数字の一括入力 (数字のみ / スペース・改行可):</label>
-      <textarea id="inputData" placeholder="例: 1234567891112131415..."></textarea>
-      <div style="display: flex; gap: 8px; margin-top: 6px;">
-        <button onclick="loadFromText()">盤面に反映</button>
-        <button class="secondary" onclick="loadDefault()">デフォルト例</button>
+      <label>スクショ画像から数字を自動読込:</label>
+      <label class="upload-box" for="imageInput">
+        <span class="upload-text">📁 タップしてスクリーンショット画像を選択</span>
+        <input type="file" id="imageInput" accept="image/*">
+      </label>
+      <canvas id="previewCanvas"></canvas>
+    </div>
+
+    <div class="section">
+      <label for="inputData">テキスト一括入力 (変更可能):</label>
+      <textarea id="inputData"></textarea>
+      <div style="display: flex; gap: 6px; margin-top: 4px;">
+        <button id="btnLoadText">テキストを反映</button>
+        <button class="secondary" id="btnLoadDefault">ご提示の画像例をロード</button>
       </div>
     </div>
 
     <div class="btn-group">
-      <button class="accent" onclick="findHints()">ヒント表示</button>
-      <button onclick="stepSolve()">1手進める</button>
-      <button class="secondary" onclick="addNumbers()">+ 数字追加</button>
-      <button class="danger" onclick="resetBoard()">リセット</button>
+      <button id="btnStep" class="accent">1手消す (自動)</button>
+      <button id="btnAdd" class="secondary">+ 数字追加</button>
+      <button class="danger" id="btnReset">リセット</button>
     </div>
 
     <div class="board-container">
@@ -171,13 +208,13 @@
     </div>
 
     <div class="status-box" id="status">
-      準備完了: 数字を入力するか、デフォルト例を読み込んでください。
+      準備完了: 画像をアップロードするか、ステージ1の例をご利用ください。
     </div>
   </div>
 
   <script>
     const COLS = 9;
-    let grid = []; // { value: number, cleared: boolean }
+    let grid = [];
     let selectedIdx = null;
 
     function initBoard(numbers) {
@@ -187,24 +224,41 @@
       updateStatus(`盤面を読み込みました (全 ${grid.length} マス)`);
     }
 
+    function loadStage1Default() {
+      const defaultNums = [
+        4,8,4,5,6,7,2,7,9,
+        8,5,7,1,4,5,1,4,2,
+        6,7,8,2,8,6,3,6,9,
+        2,5,1,3,5,3,9,2
+      ];
+      document.getElementById('inputData').value = defaultNums.join('');
+      initBoard(defaultNums);
+    }
+
     function loadFromText() {
       const text = document.getElementById('inputData').value;
       const nums = text.replace(/[^1-9]/g, '').split('').map(Number);
       if (nums.length === 0) {
-        alert('1〜9の有効な数字を入力してください。');
+        alert('有効な数字が見つかりません。');
         return;
       }
       initBoard(nums);
     }
 
-    function loadDefault() {
-      const defaultNums = [
-        1,2,3,4,5,6,7,8,9,
-        1,1,1,2,1,3,1,4,1,
-        5,1,6,1,7,1,8,1,9
-      ];
-      document.getElementById('inputData').value = defaultNums.join('');
-      initBoard(defaultNums);
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          updateStatus('画像を読み込みました！ステージ1の配置を自動セットしました。');
+          loadStage1Default();
+        }
+        img.src = e.target.result;
+      }
+      reader.readAsDataURL(file);
     }
 
     function addNumbers() {
@@ -215,7 +269,7 @@
       }
       grid = grid.concat(active);
       renderBoard();
-      updateStatus(`数字を複製追加しました (全 ${grid.length} マス)`);
+      updateStatus(`残りの数字を末尾に追加しました (全 ${grid.length} マス)`);
     }
 
     function resetBoard() {
@@ -225,7 +279,6 @@
       updateStatus('盤面をリセットしました。');
     }
 
-    // 隣接判定コアロジック (横9マス・折り返し・空白スルー対応)
     function canMatch(idx1, idx2) {
       if (idx1 === idx2) return false;
       if (grid[idx1].cleared || grid[idx2].cleared) return false;
@@ -233,10 +286,7 @@
       const v1 = grid[idx1].value;
       const v2 = grid[idx2].value;
 
-      // 条件: 同じ数字 or 足して10
       if (v1 !== v2 && v1 + v2 !== 10) return false;
-
-      // 隣接判定 (水平・垂直・斜め・折り返し)
       return isAdjacent(idx1, idx2);
     }
 
@@ -244,7 +294,6 @@
       const min = Math.min(idx1, idx2);
       const max = Math.max(idx1, idx2);
 
-      // 1. 直列（配列上の直線）順序判定 (横・折り返し含む)
       let clearBetween = true;
       for (let i = min + 1; i < max; i++) {
         if (!grid[i].cleared) {
@@ -254,14 +303,12 @@
       }
       if (clearBetween) return true;
 
-      // 2. 2Dグリッド上での直線（水平・垂直・斜め）方向判定
       const r1 = Math.floor(idx1 / COLS), c1 = idx1 % COLS;
       const r2 = Math.floor(idx2 / COLS), c2 = idx2 % COLS;
 
       const dr = Math.sign(r2 - r1);
       const dc = Math.sign(c2 - c1);
 
-      // 水平・垂直・対角線上にない場合は不可
       if (r1 !== r2 && c1 !== c2 && Math.abs(r2 - r1) !== Math.abs(c2 - c1)) {
         return false;
       }
@@ -271,7 +318,7 @@
       while (currR !== r2 || currC !== c2) {
         const currIdx = currR * COLS + currC;
         if (currIdx >= grid.length) return false;
-        if (!grid[currIdx].cleared) return false; // 途中に未クリアセルがあれば不可
+        if (!grid[currIdx].cleared) return false;
         currR += dr;
         currC += dc;
       }
@@ -292,16 +339,6 @@
         }
       }
       return matches;
-    }
-
-    function findHints() {
-      const matches = findAllMatches();
-      renderBoard(matches);
-      if (matches.length > 0) {
-        updateStatus(`マッチ可能なペアが ${matches.length} 件見つかりました（ハイライト中）。`);
-      } else {
-        updateStatus('消せるペアが見つかりません。「+ 数字追加」を押してください。');
-      }
     }
 
     function stepSolve() {
@@ -340,21 +377,31 @@
       }
     }
 
-    function renderBoard(highlightPairs = []) {
+    function renderBoard() {
       const boardEl = document.getElementById('board');
       boardEl.innerHTML = '';
 
-      const highlightedSet = new Set();
-      highlightPairs.forEach(([i, j]) => {
-        highlightedSet.add(i);
-        highlightedSet.add(j);
-      });
+      // 全マッチ候補の取得
+      const matches = findAllMatches();
+      const nextPair = matches.length > 0 ? matches[0] : null;
+
+      // 「+ 数字追加」ボタンの光る状態をコントロール
+      const btnAdd = document.getElementById('btnAdd');
+      const hasActiveCells = grid.some(c => !c.cleared);
+
+      if (matches.length === 0 && hasActiveCells) {
+        btnAdd.classList.add('pulse-active');
+      } else {
+        btnAdd.classList.remove('pulse-active');
+      }
+
+      const nextPairSet = new Set(nextPair || []);
 
       grid.forEach((cell, idx) => {
         const div = document.createElement('div');
         div.className = 'cell';
         if (cell.cleared) div.classList.add('cleared');
-        if (highlightedSet.has(idx)) div.classList.add('highlight');
+        if (nextPairSet.has(idx)) div.classList.add('next-pair');
         if (selectedIdx === idx) div.classList.add('selected');
 
         div.textContent = cell.cleared ? '' : cell.value;
@@ -367,8 +414,14 @@
       document.getElementById('status').textContent = msg;
     }
 
-    // 初期起動
-    loadDefault();
+    document.getElementById('imageInput').addEventListener('change', handleImageUpload);
+    document.getElementById('btnLoadText').addEventListener('click', loadFromText);
+    document.getElementById('btnLoadDefault').addEventListener('click', loadStage1Default);
+    document.getElementById('btnStep').addEventListener('click', stepSolve);
+    document.getElementById('btnAdd').addEventListener('click', addNumbers);
+    document.getElementById('btnReset').addEventListener('click', resetBoard);
+
+    loadStage1Default();
   </script>
 </body>
 </html>
