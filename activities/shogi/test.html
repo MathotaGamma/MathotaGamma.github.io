@@ -2,9 +2,21 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8">
-    <script src="/activities/shogi/coi-serviceworker.js"></script>
+    <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v29 (v28からの変更点)
+      - 定跡の作り方を変更: 「検索条件」を入力して、それが出てくる棋譜だけから定跡を作る
+        戦法 = 指し手を何手か入力(USI形式 7g7f 3c3d …、CSA形式も可)。その手順または手順前後で同じ局面になる棋譜を拾う
+        囲い = 駒とマスを入力(k2h s3h g4i g5h など。先手/後手/どちらでも)。その形ができる棋譜を拾い、できるまでの手を使う
+        指定なし = 高レートの対局すべて
+      - 既存の定跡に.7zを追加できる(追加先を選択)。追加済みの.7z(名前とサイズで判定)を入れると、追加日と条件を出して確認する
+      - 使う棋譜の最小手数を指定できる
+      - 「勝った側の手だけを使う」を廃止(局面ごとの出現数が親の手の出現数と合わなくなる原因になるため)
+      - 次の手の定跡リストを、評価値リストの右側の専用コンテナに表示(採用数順が標準、勝率順に切替可、縦スクロール)。定跡を指したら「直前の手は定跡」と表示し、KIFにも「*定跡 ○局 勝率○%」を書く
+      - 評価値リストに、現在の局面で指せない手(前の探索の遅れて届いた結果)が混ざらないよう除外
+      - 取得先: GitHub Releases のほか、wdoor(東大)のアーカイブも自動で順に試す
+
       v28 (v27からの変更点)
       - 設定「AIの手を自分で指せる」の動作を変更: AIが考えている間に、盤をタップしてAI側の駒を直接動かせる
         (候補手のタップ・「AI推奨で指す」ボタン・AIの手の選択待ちは廃止。動かさなければAIが自動で指す)
@@ -412,6 +424,45 @@
         font-size: 28px;
         padding: 14px 24px;
       }
+      #info {
+        display: flex;
+        flex-direction: column;
+      }
+      #infoRow {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        gap: 4px;
+      }
+      #cand {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+      }
+      #bkc {
+        flex: none;
+        width: 44%;
+        overflow-y: scroll;
+        overflow-x: hidden;
+        font-size: 12px;
+        line-height: 16px;
+        border-left: 1px solid #555;
+        padding-left: 4px;
+        box-sizing: border-box;
+        touch-action: pan-y;
+      }
+      #bkc div {
+        white-space: nowrap;
+      }
+      #bkc button {
+        font-size: 11px;
+        padding: 1px 5px;
+        margin-left: 2px;
+      }
+      #bkc button.on {
+        background: #ff8;
+        color: #000;
+      }
       #bk {
         position: fixed;
         inset: 0;
@@ -459,7 +510,10 @@
         <div id="ev"><i id="evB"></i><span id="evT">形勢</span></div>
         <div id="info">
           <div class="bar" id="bar"><i></i></div>
-          <div id="cand"></div>
+          <div id="infoRow">
+            <div id="cand"></div>
+            <div id="bkc" hidden></div>
+          </div>
         </div>
         <div id="ed" hidden></div>
         <div id="btns"></div>
@@ -2003,6 +2057,21 @@
         return (f - 1) * 9 + (r - 1);
       }
 
+      function bkwForm(P, goals, sides) {
+        for (var k = 0; k < sides.length; k++) {
+          var sd = sides[k],
+            ok = true;
+          for (var i = 0; i < goals.length; i++)
+            if (P.b[sd ? 80 - goals[i].sq : goals[i].sq] !== (goals[i].t | (sd << 4))) {
+              ok = false;
+              break;
+            }
+          if (ok) return true;
+        }
+        return false;
+      }
+
+      /* 1局を調べる。pat: null(指定なし) / {type:'moves', hash} 指した手の列で作った局面を通る棋譜 / {type:'form', goals, side} 囲いができる棋譜 */
       function bkwGame(text, opt, S, book) {
         S.scanned++;
         var head = text.substr(0, 3000),
@@ -2012,9 +2081,7 @@
           S.norate++;
           return;
         }
-        var rb = +mb[1],
-          rw = +mw[1];
-        if (Math.min(rb, rw) < opt.minRate) return;
+        if (Math.min(+mb[1], +mw[1]) < opt.minRate) return;
         if (opt.names && opt.names.length) {
           var nb = /^N\+(.*)$/m.exec(head),
             nw = /^N-(.*)$/m.exec(head),
@@ -2028,7 +2095,6 @@
             return;
           }
         }
-        S.rated++;
         var lines = text.split('\n'),
           pl = [],
           P = newPos(),
@@ -2036,11 +2102,14 @@
           ms = [],
           ss = [],
           ply = 0,
+          total = 0,
           i,
           standard = false,
           first = true,
           bad = false,
-          endSeen = false;
+          pat = opt.pat,
+          cut = -1,
+          sides = pat && pat.type === 'form' ? (pat.side === 2 ? [0, 1] : [pat.side]) : null;
         for (i = 0; i < lines.length; i++) {
           var ln = lines[i];
           if (ln.charCodeAt(ln.length - 1) === 13) ln = ln.slice(0, -1);
@@ -2050,72 +2119,87 @@
             else if (/^P[1-9]/.test(ln)) pl.push(ln.replace(/\s+/g, ''));
             continue;
           }
-          if (c0 === '+' || c0 === '-') {
-            if (ln.length < 7) continue;
-            if (first) {
-              first = false;
-              if (!standard && pl.join('|') !== BKW_STD) {
-                bad = true;
-                break;
-              }
-            }
-            if (ply >= opt.maxPly) break;
-            var sd = c0 === '+' ? 0 : 1;
-            if (sd !== P.side) {
+          if ((c0 !== '+' && c0 !== '-') || ln.length < 7) continue;
+          if (first) {
+            first = false;
+            if (!standard && pl.join('|') !== BKW_STD) {
               bad = true;
               break;
             }
-            var f1 = ln.charCodeAt(1) - 48,
-              r1 = ln.charCodeAt(2) - 48,
-              f2 = ln.charCodeAt(3) - 48,
-              r2 = ln.charCodeAt(4) - 48,
-              pt = BKW_PIECE[ln.substr(5, 2)];
-            if (!pt || f2 < 1 || f2 > 9 || r2 < 1 || r2 > 9) {
+          }
+          total++;
+          if (ply >= opt.maxPly || cut >= 0) continue;
+          var sd = c0 === '+' ? 0 : 1;
+          if (sd !== P.side) {
+            bad = true;
+            break;
+          }
+          var f1 = ln.charCodeAt(1) - 48,
+            r1 = ln.charCodeAt(2) - 48,
+            f2 = ln.charCodeAt(3) - 48,
+            r2 = ln.charCodeAt(4) - 48,
+            pt = BKW_PIECE[ln.substr(5, 2)];
+          if (!pt || f2 < 1 || f2 > 9 || r2 < 1 || r2 > 9) {
+            bad = true;
+            break;
+          }
+          var to = bkwSq(f2, r2),
+            m;
+          if (f1 === 0 && r1 === 0) {
+            if (pt > 7 || P.h[sd][pt] < 1) {
               bad = true;
               break;
             }
-            var to = bkwSq(f2, r2),
-              m;
-            if (f1 === 0 && r1 === 0) {
-              if (pt > 7 || P.h[sd][pt] < 1) {
+            m = 81 | (to << 7) | (pt << 15);
+          } else {
+            var fr = bkwSq(f1, r1),
+              pc = P.b[fr];
+            if (!pc || pc >> 4 !== sd) {
+              bad = true;
+              break;
+            }
+            var tp = pc & 15;
+            m = fr | (to << 7);
+            if (tp !== pt) {
+              if (pt === tp + 8 && tp <= 7 && tp !== 5) m |= 16384;
+              else {
                 bad = true;
                 break;
-              }
-              m = 81 | (to << 7) | (pt << 15);
-            } else {
-              var fr = bkwSq(f1, r1),
-                pc = P.b[fr];
-              if (!pc || pc >> 4 !== sd) {
-                bad = true;
-                break;
-              }
-              var tp = pc & 15;
-              m = fr | (to << 7);
-              if (tp !== pt) {
-                if (pt === tp + 8 && tp <= 7 && tp !== 5) m |= 16384;
-                else {
-                  bad = true;
-                  break;
-                }
               }
             }
-            ks.push(hashP(P));
-            ms.push(m);
-            ss.push(sd);
-            make(P, m);
-            ply++;
-          } else if (c0 === '%') endSeen = true;
+          }
+          ks.push(hashP(P));
+          ms.push(m);
+          ss.push(sd);
+          make(P, m);
+          ply++;
+          if (pat) {
+            if (pat.type === 'moves') {
+              if (hashP(P) === pat.hash) cut = ply;
+            } else if (bkwForm(P, pat.goals, sides)) cut = ply;
+          }
         }
         if (bad || !ks.length) {
           S.bad++;
           return;
+        }
+        if (total < opt.minPly) {
+          S.short++;
+          return;
+        }
+        S.rated++;
+        if (pat) {
+          if (cut < 0) return;
+          /* 戦法(指し手)の指定は、その先の序盤まで使う。囲いの指定は、囲いができる手まで使う */
+          if (pat.type === 'form') {
+            ks.length = ms.length = ss.length = cut;
+          }
         }
         /* 勝敗: 'summary:理由:先手名 win:後手名 lose */
         var sm = /^'summary:[^:]*:[^:\n]* (win|lose|draw):[^:\n]* (win|lose|draw)/m.exec(text),
           win = -1;
         if (sm) win = sm[1] === 'win' ? 0 : sm[2] === 'win' ? 1 : -1;
         for (i = 0; i < ks.length; i++) {
-          if (opt.winnerOnly && ss[i] !== win) continue;
           var arr = book.get(ks[i]);
           if (!arr) {
             arr = [];
@@ -2181,10 +2265,18 @@
       /* 複数の7zをまとめて処理 */
       function bkwBuild(io, files, opt, post) {
         var book = new Map(),
-          S = { scanned: 0, norate: 0, nameSkip: 0, rated: 0, games: 0, bad: 0 },
+          S = { scanned: 0, norate: 0, nameSkip: 0, short: 0, rated: 0, games: 0, bad: 0 },
           t0 = Date.now(),
           lastP = 0,
           dec = new TextDecoder();
+        if (opt.base) {
+          var B = opt.base;
+          for (var bi = 0; bi < B.keys.length; bi++) {
+            var ar = [];
+            for (var bj = B.off[bi]; bj < B.off[bi + 1]; bj++) ar.push(B.mv[bj], B.cnt[bj], B.win[bj]);
+            book.set(B.keys[bi], ar);
+          }
+        }
         files.forEach(function (file, fi) {
           var fname = file.name || 'archive' + fi;
           bkwExtract7z(
@@ -2881,7 +2973,6 @@
           '<div style="font-size:11px;color:#9cf">エンジン: ' +
           engLabel() +
           '</div>' +
-          bkLine() +
           (stratLine ? '<div style="color:#fc6">' + stratLine + '</div>' : '') +
           (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '');
         var es = m.ev != null ? m.ev : m.list.length ? m.list[0].s : null;
@@ -3308,6 +3399,7 @@
       }
 
       function render() {
+        bkcPaint();
         var bd = g('board');
         if (!bd.firstChild) {
           for (var i = 0; i < 81; i++) {
@@ -4290,6 +4382,7 @@
         var v = +sc[2],
           s = sc[1] === 'cp' ? v : v > 0 ? 30000 - v : -30000 - v;
         var mv = u2m(pv[1]);
+        if (legal(P).indexOf(mv) < 0) return;
         r.mv[mv] = { m: mv, s: s, d: +dp[1], k: mp ? +mp[1] : 1 };
         if (!mp || +mp[1] === 1) r.ev = s;
         r.depth = Math.max(r.depth, +dp[1]);
@@ -4538,6 +4631,7 @@
             BKA.id = id;
           }
         } catch (e) {}
+        bkcPaint();
       }
 
       /* 現在の局面の定跡手(出現数の多い順、合法手のみ) */
@@ -4573,17 +4667,40 @@
           .join(' / ');
       }
 
-      /* 候補手欄に出す定跡の行 */
-      function bkLine() {
-        if (!BKA) return '';
-        var h = hashP(P);
-        if (h === bkKey) return bkVal;
-        bkKey = h;
-        var ls = bkMoves();
-        bkVal = ls.length
-          ? '<div style="color:#8f8;font-size:12px">定跡「' + bkEsc(BKA.name || '') + '」: ' + bkText(ls.slice(0, 5)) + '</div>'
-          : '';
-        return bkVal;
+      /* 評価値リストの右の定跡コンテナ(採用数順が標準。勝率順に切り替え可) */
+      var bkSort = 'c',
+        bkcKey = '';
+
+      function bkcPaint() {
+        var el = g('bkc');
+        if (!BKA) {
+          el.hidden = true;
+          return;
+        }
+        el.hidden = false;
+        var key = hashP(P) + '|' + bkSort + '|' + hist.length + '|' + BKA.id;
+        if (key === bkcKey) return;
+        bkcKey = key;
+        var ls = bkMoves().slice(),
+          tot = 0,
+          last = hist.length ? hist[hist.length - 1] : null;
+        ls.forEach(function (x) {
+          tot += x.c;
+        });
+        ls.sort(function (a, b) {
+          return bkSort === 'w' ? b.w / b.c - a.w / a.c || b.c - a.c : b.c - a.c || b.w - a.w;
+        });
+        var h =
+          '<div style="color:#9cf">定跡「' + bkEsc(BKA.name || '') + '」 <button data-s="c"' + (bkSort === 'c' ? ' class="on"' : '') + '>採用数順</button><button data-s="w"' + (bkSort === 'w' ? ' class="on"' : '') + '>勝率順</button></div>';
+        if (last && last.inf && last.inf.indexOf('定跡') === 0) h += '<div style="color:#8f8">直前の手は定跡(' + bkEsc(last.inf.replace(/^定跡 ?/, '')) + ')</div>';
+        if (!ls.length) h += '<div style="color:#aaa">この局面は定跡にありません</div>';
+        else {
+          h += '<div style="color:#aaa">' + ls.length + '通り / 合計' + tot + '局</div>';
+          ls.forEach(function (x) {
+            h += '<div>' + (P.side ? '△' : '▲') + mvT(x.m) + ' <b>' + x.c + '</b>局 ' + Math.round((x.w * 100) / x.c) + '%</div>';
+          });
+        }
+        el.innerHTML = h;
       }
 
       /* AIの手番で定跡の手があれば、それを指す(指したら true) */
@@ -4652,11 +4769,15 @@
           '<label>年(複数選べます。1年あたり約100〜220MB)</label><div>' +
           yrs +
           '</div>' +
+          '<label>追加先(既存の定跡に、.7zの内容を追加できます)</label><select id="bkTarget"></select>' +
+          '<label>検索条件(どんな棋譜を探すか)</label><select id="bkPatT"><option value="none">指定なし(高レートの対局すべて)</option><option value="moves">戦法: 指し手を何手か入れる</option><option value="form">囲い: 駒とマスを入れる</option></select>' +
+          '<div id="bkPatMoves" hidden><label>指し手(USI形式をスペース区切り 例: 7g7f 3c3d 6g6f。CSA形式の7776FUも可。手順が違っても同じ局面になる棋譜も拾います)</label><input type="text" id="bkMoves" placeholder="7g7f 3c3d 6g6f"></div>' +
+          '<div id="bkPatForm" hidden><label>囲いの形(駒+マス、先手視点 例: k2h s3h g4i g5h / 歩76 / 成香1d / +b22)</label><input type="text" id="bkForm" placeholder="k2h s3h g4i g5h"><label>どちらの囲いか</label><select id="bkFSide"><option value="2">どちらでも</option><option value="0">先手</option><option value="1">後手</option></select></div>' +
           '<label>最低レート(対局した2人とも、この値以上の対局だけ使う)</label><input type="number" id="bkRate" value="3800">' +
-          '<label>序盤の手数(各対局の先頭から何手目まで使うか)</label><input type="number" id="bkPly" value="40" min="1">' +
+          '<label>序盤の手数(各対局の先頭から何手目まで使うか。囲いの検索では、囲いができるまでの手を使い、この手数までに囲いができた棋譜だけ拾う)</label><input type="number" id="bkPly" value="50" min="1">' +
+          '<label>使う棋譜の最小手数(これより短い対局は使わない)</label><input type="number" id="bkMin" value="0" min="0">' +
           '<label>最小出現数(これ未満の手は捨てる)</label><input type="number" id="bkCnt" value="2" min="1">' +
           '<label>対局者名で絞る(部分一致・空白区切り・どれか。空欄なら絞らない。例: suisho dlshogi)</label><input type="text" id="bkNames">' +
-          '<label style="color:#eee"><input type="checkbox" id="bkWin"> 勝った側の手だけを使う</label>' +
           '<label>CORSプロキシ(任意。空欄なら直接取得。{url} を含めるとその部分にURLが入る)</label><input type="text" id="bkProxy" placeholder="例: https://プロキシ/?url={url}">' +
           '<div style="margin-top:8px"><button data-a="go">ダウンロードして作成</button> <button data-a="pick">ファイルを選んで作成(.7z)</button> <button data-a="stop" hidden>中止</button>' +
           '<input type="file" id="bkFile" accept=".7z" multiple hidden></div>' +
@@ -4666,6 +4787,13 @@
         g('bkRate').value = bkLS('shogiBkRate', '3800');
         g('bkTag').value = bkLS('shogiBkTag', '2026-04-10');
         g('bkProxy').value = bkLS('shogiBkProxy', '');
+        g('bkc').onclick = function (e) {
+          var b = e.target.closest('[data-s]');
+          if (b) {
+            bkSort = b.dataset.s;
+            bkcPaint();
+          }
+        };
         g('bk').onclick = function (e) {
           var b = e.target.closest('button');
           if (!b) return;
@@ -4688,9 +4816,13 @@
           } else if (t.id === 'bkImp') {
             if (t.files[0]) bkImport(t.files[0]);
             t.value = '';
+          } else if (t.id === 'bkPatT') {
+            g('bkPatMoves').hidden = t.value !== 'moves';
+            g('bkPatForm').hidden = t.value !== 'form';
           } else if (t.id === 'bkUse') {
             bkSetLS('shogiBkUse', t.checked ? '1' : '0');
             bkKey = -1;
+            bkcKey = '';
           } else if (t.id === 'bkMax') bkSetLS('shogiBkMax', String(Math.max(1, +t.value || 30)));
           else if (t.name === 'bkSel') {
             bkSetLS('shogiBkOn', t.value);
@@ -4707,6 +4839,72 @@
           b.classList.toggle('on', b.dataset.t === BKS.tab);
         });
         if (!on) bkRenderList();
+        else bkFillTarget();
+      }
+
+      function bkFillTarget() {
+        var cur = g('bkTarget').value,
+          h = '<option value="">新しい定跡を作る</option>';
+        bkMeta().forEach(function (x) {
+          h += '<option value="' + x.id + '">既存「' + bkEsc(x.name) + '」に追加(' + x.pos + '局面)</option>';
+        });
+        g('bkTarget').innerHTML = h;
+        g('bkTarget').value = cur;
+      }
+
+      /* --- 検索条件の解釈 --- */
+      function bkTokMove(tk, Q) {
+        var u = tk.replace(/^[▲△+\-]/, ''),
+          x = /^([1-9])([1-9])([1-9])([1-9])([A-Z]{2})?$/.exec(u),
+          m = -1;
+        if (x) {
+          var pr = x[5] && 'TO NY NK NG UM RY'.indexOf(x[5]) >= 0 ? '+' : '';
+          u = x[1] + 'abcdefghi'.charAt(x[2] - 1) + x[3] + 'abcdefghi'.charAt(x[4] - 1) + pr;
+        } else if (/^[plnsgbr]\*[1-9][a-i]$/i.test(u)) u = u.charAt(0).toUpperCase() + u.slice(1);
+        if (/^[1-9][a-i][1-9][a-i]\+?$/.test(u) || /^[PLNSGBR]\*[1-9][a-i]$/.test(u)) m = u2m(u);
+        return m >= 0 && legal(Q).indexOf(m) >= 0 ? m : -1;
+      }
+
+      function bkParseMoves(str) {
+        var Q = newPos(),
+          ts = str.trim().split(/[\s,、]+/).filter(Boolean);
+        if (!ts.length) throw new Error('指し手が入力されていません');
+        ts.forEach(function (tk, i) {
+          var m = bkTokMove(tk, Q);
+          if (m < 0) throw new Error((i + 1) + '手目「' + tk + '」は解釈できないか、その局面で指せない手です');
+          make(Q, m);
+        });
+        return { hash: hashP(Q), n: ts.length };
+      }
+
+      function bkParseForm(str) {
+        var gs = [];
+        str
+          .trim()
+          .split(/[\s,、]+/)
+          .filter(Boolean)
+          .forEach(function (tk) {
+            var o = parseGoalTok(tk);
+            if (!o) throw new Error('「' + tk + '」は解釈できません(例: k2h s3h 歩76 成香1d)');
+            gs.push(o);
+          });
+        if (!gs.length) throw new Error('囲いの駒とマスが入力されていません');
+        return gs;
+      }
+
+      /* 同じ.7zを、この定跡に追加済みか調べる */
+      function bkDup(meta, name, size) {
+        if (!meta || !meta.files) return null;
+        return (
+          meta.files.filter(function (f) {
+            return f.name === name && (!size || !f.size || f.size === size);
+          })[0] || null
+        );
+      }
+
+      function bkAskDup(meta, name, size) {
+        var d = bkDup(meta, name, size);
+        return !d || confirm('「' + name + '」は、定跡「' + meta.name + '」に追加済みです(' + (d.date || '') + ' / 条件: ' + (d.cond || '') + ')。もう一度追加しますか?');
       }
 
       function openBook() {
@@ -4747,7 +4945,7 @@
             ' / 先頭' +
             x.maxPly +
             '手 / ' +
-            bkEsc(x.src || '') +
+            bkEsc((x.files || []).map(function (f) { return f.name; }).join(', ') || x.src || '') +
             ' / ' +
             bkEsc(x.made || '') +
             '</div><button data-a="exp" data-id="' +
@@ -4816,28 +5014,38 @@
             : '');
       }
 
-      async function bkDownload(url, label) {
-        var u = url,
-          px = g('bkProxy').value.trim();
-        if (px) u = px.indexOf('{url}') >= 0 ? px.replace('{url}', encodeURIComponent(url)) : px + url;
-        var r = await fetch(u);
-        if (!r.ok) throw new Error('HTTP ' + r.status + '(' + label + ')');
-        var tot = +r.headers.get('content-length') || 0,
-          ch = [],
-          n = 0,
-          rd = r.body.getReader();
-        for (;;) {
-          var x = await rd.read();
-          if (x.done) break;
-          if (BKS.cancel) {
-            rd.cancel();
-            throw new Error('中止');
+      async function bkDownload(urls, label) {
+        var px = g('bkProxy').value.trim(),
+          lastErr = null;
+        for (var k = 0; k < urls.length; k++) {
+          var u = urls[k];
+          if (px) u = px.indexOf('{url}') >= 0 ? px.replace('{url}', encodeURIComponent(u)) : px + u;
+          try {
+            var r = await fetch(u);
+            if (!r.ok) throw new Error('HTTP ' + r.status + '(' + label + ')');
+            var tot = +r.headers.get('content-length') || 0,
+              ch = [],
+              n = 0,
+              rd = r.body.getReader();
+            for (;;) {
+              var x = await rd.read();
+              if (x.done) break;
+              if (BKS.cancel) {
+                rd.cancel();
+                throw new Error('中止');
+              }
+              ch.push(x.value);
+              n += x.value.length;
+              bkProg(tot ? n / tot : 0, label + ' ダウンロード中 ' + (n / 1048576).toFixed(0) + 'MB' + (tot ? ' / ' + (tot / 1048576).toFixed(0) + 'MB' : ''), '');
+            }
+            return new Blob(ch);
+          } catch (e) {
+            if (e && e.message === '中止') throw e;
+            lastErr = e;
+            bkProg(0, label + ' 取得元' + (k + 1) + ' が使えませんでした。次を試します…', '');
           }
-          ch.push(x.value);
-          n += x.value.length;
-          bkProg(tot ? n / tot : 0, label + ' ダウンロード中 ' + (n / 1048576).toFixed(0) + 'MB' + (tot ? ' / ' + (tot / 1048576).toFixed(0) + 'MB' : ''), '');
         }
-        return new Blob(ch);
+        throw lastErr || new Error('取得できません');
       }
 
       async function bkGo(local) {
@@ -4846,24 +5054,43 @@
           tag = g('bkTag').value.trim(),
           opt = {
             minRate: +g('bkRate').value || 0,
-            maxPly: Math.max(1, +g('bkPly').value || 40),
+            maxPly: Math.max(1, +g('bkPly').value || 50),
+            minPly: Math.max(0, +g('bkMin').value || 0),
             minCnt: Math.max(1, +g('bkCnt').value || 2),
             names: g('bkNames')
               .value.toLowerCase()
               .split(/\s+/)
               .filter(Boolean),
-            winnerOnly: g('bkWin').checked
-          };
+            pat: null
+          },
+          tid = g('bkTarget').value,
+          tmeta = bkMeta().filter(function (x) {
+            return x.id === tid;
+          })[0];
         bkSetLS('shogiBkRate', String(opt.minRate));
         bkSetLS('shogiBkTag', tag);
         bkSetLS('shogiBkProxy', g('bkProxy').value.trim());
         BKS.cancel = 0;
         BKS.opt = opt;
+        BKS.target = tmeta ? tid : '';
         bkBusy(1);
         try {
+          var pt = g('bkPatT').value;
+          if (pt === 'moves') {
+            var pm = bkParseMoves(g('bkMoves').value);
+            opt.pat = { type: 'moves', hash: pm.hash };
+            opt.maxPly = Math.max(opt.maxPly, pm.n);
+            BKS.cond = '戦法 ' + g('bkMoves').value.trim();
+          } else if (pt === 'form') {
+            opt.pat = { type: 'form', goals: bkParseForm(g('bkForm').value), side: +g('bkFSide').value };
+            BKS.cond = '囲い ' + g('bkForm').value.trim() + '(' + ['先手', '後手', 'どちらでも'][opt.pat.side] + ')';
+          } else BKS.cond = '指定なし';
+          BKS.cond += ' / レート' + opt.minRate + '以上 / 先頭' + opt.maxPly + '手';
+          if (tmeta) opt.base = await idbGet('bk:' + tid);
+          if (tmeta && !opt.base) throw new Error('追加先の定跡を読み込めませんでした');
           if (local) {
-            files = local.map(function (f) {
-              return { name: f.name, blob: f };
+            local.forEach(function (f) {
+              if (!tmeta || bkAskDup(tmeta, f.name, f.size)) files.push({ name: f.name, size: f.size, blob: f });
             });
             BKS.src = local
               .map(function (f) {
@@ -4881,13 +5108,16 @@
             if (!ys.length || !tag) throw new Error('タグと年を指定してください');
             for (var i = 0; i < ys.length; i++) {
               var nm = 'wdoor' + ys[i] + '.7z';
-              files.push({
-                name: nm,
-                blob: await bkDownload(BK_REPO + 'download/' + encodeURIComponent(tag) + '/' + nm, '[' + (i + 1) + '/' + ys.length + '] ' + nm)
-              });
+              if (tmeta && !bkAskDup(tmeta, nm, 0)) continue;
+              var bl = await bkDownload([BK_REPO + 'download/' + encodeURIComponent(tag) + '/' + nm, 'https://wdoor.c.u-tokyo.ac.jp/shogi/x/' + nm], '[' + (i + 1) + '/' + ys.length + '] ' + nm);
+              files.push({ name: nm, size: bl.size, blob: bl });
             }
             BKS.src = tag + ' ' + ys.join(',');
           }
+          if (!files.length) throw new Error('追加するファイルがありません');
+          BKS.files = files.map(function (f) {
+            return { name: f.name, size: f.size };
+          });
           bkProg(0, '解凍を開始します…', '');
           var eng = g('eng').textContent,
             cut = eng.indexOf("if (typeof document === 'undefined')"),
@@ -4897,7 +5127,12 @@
           BKS.w.onerror = function (e) {
             bkFail(new Error(e.message || 'ワーカーエラー'));
           };
-          BKS.w.postMessage({ files: files, opt: opt });
+          BKS.w.postMessage({
+            files: files.map(function (f) {
+              return { name: f.name, blob: f.blob };
+            }),
+            opt: opt
+          });
         } catch (e) {
           bkFail(e);
         }
@@ -4911,7 +5146,7 @@
             (m.fi + m.frac) / m.nf,
             '[' + (m.fi + 1) + '/' + m.nf + '] ' + m.file + ' を解凍・集計中 ' + Math.round(m.frac * 100) + '%' +
               (m.tot ? ' (棋譜 ' + m.n + '/' + m.tot + ')' : ''),
-            '採用 ' + S.games + '局 / 条件に合う ' + S.rated + '局 / 走査 ' + S.scanned + '局 (レート不明 ' + S.norate + ', 不正 ' + S.bad + ') / 局面 ' + m.pos + ' / 経過 ' + Math.round(m.ms / 1000) + '秒'
+            '採用 ' + S.games + '局 / 条件に合う ' + S.rated + '局 / 走査 ' + S.scanned + '局 (レート不明 ' + S.norate + ', 短すぎ ' + S.short + ', 不正 ' + S.bad + ') / 局面 ' + m.pos + ' / 経過 ' + Math.round(m.ms / 1000) + '秒'
           );
         } else if (m.t === 'done') bkDone(m);
         else if (m.t === 'err') bkFail(new Error(m.txt));
@@ -4923,46 +5158,59 @@
           BKS.w = null;
         }
         bkBusy(0);
-        var b = m.book;
+        var b = m.book,
+          ls = bkMeta(),
+          now = new Date().toISOString().slice(0, 16).replace('T', ' '),
+          fl = BKS.files.map(function (f) {
+            return { name: f.name, size: f.size, cond: BKS.cond, date: now };
+          });
         if (!b.keys.length) {
-          bkProg(
-            0,
-            '条件に合う局面がありませんでした(採用 ' + m.S.games + '局)。最低レートや最小出現数を下げてみてください。',
-            ''
-          );
+          bkProg(0, '条件に合う局面がありませんでした(採用 ' + m.S.games + '局)。条件をゆるめてみてください。', '');
           return;
         }
-        var id = 'b' + Date.now(),
-          nm = g('bkName').value.trim() || 'floodgate',
+        var meta = ls.filter(function (x) {
+            return x.id === BKS.target;
+          })[0],
+          id = meta ? meta.id : 'b' + Date.now();
+        if (meta) {
+          meta.games = (meta.games || 0) + m.S.games;
+          meta.pos = b.keys.length;
+          meta.mv = b.mv.length;
+          meta.files = (meta.files || []).concat(fl);
+          b.name = meta.name;
+        } else {
+          var nm = g('bkName').value.trim() || 'floodgate';
           meta = {
             id: id,
             name: nm,
-            made: new Date().toISOString().slice(0, 16).replace('T', ' '),
+            made: now,
             games: m.S.games,
             pos: b.keys.length,
             mv: b.mv.length,
             minRate: BKS.opt.minRate,
             maxPly: BKS.opt.maxPly,
-            src: BKS.src
+            files: fl
           };
-        b.name = nm;
+          b.name = nm;
+          ls.unshift(meta);
+        }
         try {
           await idbPut('bk:' + id, b);
         } catch (e) {
           bkProg(0, '保存に失敗しました: ' + e.message, '');
           return;
         }
-        var ls = bkMeta();
-        ls.unshift(meta);
         bkSetLS('shogiBkMeta', JSON.stringify(ls));
         bkSetLS('shogiBkOn', id);
         bkSetLS('shogiBkUse', '1');
         b.id = id;
         BKA = b;
         bkKey = -1;
+        bkcPaint();
+        bkFillTarget();
         bkProg(
           1,
-          '完成: ' + b.keys.length + '局面 / ' + b.mv.length + '手(元の棋譜 ' + m.S.games + '局, ' + Math.round(m.ms / 1000) + '秒)。VS AIで使います。',
+          (BKS.target ? '追加しました: ' : '完成: ') + b.keys.length + '局面 / ' + b.mv.length + '手(今回採用 ' + m.S.games + '局, ' + Math.round(m.ms / 1000) + '秒)。VS AIで使います。',
           ''
         );
       }
@@ -4985,6 +5233,7 @@
           BKA = null;
           bkKey = -1;
         }
+        bkcPaint();
         bkRenderList();
       }
 
@@ -5036,6 +5285,7 @@
           b.id = id;
           BKA = b;
           bkKey = -1;
+          bkcPaint();
           bkRenderList();
         } catch (e) {
           alert('読み込めませんでした: ' + e.message);
