@@ -5,6 +5,26 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v27 (v26からの変更点)
+      - コードを整形: 1行にまとめていた文を1文ずつの行に展開し、インデントを2スペースにそろえた(動作は変更なし)
+      - エンジンと hao.bin の置き場所の指定を、メインスレッド(UIスクリプト)の先頭の「置き場所の設定」にまとめた
+        HAO_URLS(hao.bin の取得先) / ENGINE_DIRS(やねうら王の置き場) / ENGINE_FILES(ファイル名) / SIZE_HAO・SIZE_WASM(進捗表示用の大きさ)
+
+      v26 (v25からの変更点)
+      - 自陣の形(戦法)の目標を、自作エンジンでも使えるように変更(やねうら王専用ではなくなった)
+      - どのエンジンで動いているかを、候補手欄の先頭に常時表示(「エンジン: やねうら王(WASM) + hao.bin」/「自作エンジン(やねうら王は使えません: 理由)」)
+
+      v25 (v24からの変更点)
+      - 最悪手: 解析が終わったあと、全手を短時間(自分の手番1.5秒/AIの手番0.7秒)だけ評価し直して最悪手を必ず表示
+        (VS AIの上位5手のみの探索では出なかった)。あわせて、上位5手の外の手を指したときも「何位・最善比」を表示
+      - AIの手のばらつき: 最善手以外を選んだ手には ★ を付けて表示(順位・最善比つき)。候補の深度条件を1段ゆるめ、選ばれにくい場面を減らした
+      - 設定「AIの手を自分で決める」を追加。ONのとき、AIの手番でも盤をタップして指せる。候補手(上位5手)をタップしても指せる。
+        「AI推奨で指す」ボタンでAIの選んだ手をそのまま指せる(AIは自動では指さない)
+      - 設定「自陣の形(戦法)の目標」を追加(プリセット+自作)。自作は「駒+マス」(例 P7f R6h K2h)を優先順に空白区切り(先手視点。後手は自動で反転)
+        AIは最善手から150cp以内(形勢が悪いときは60cp)なら、目標に近づく手を優先して指す
+        目指せないときは理由を画面に表示(動かせる駒がない/塞がれている(他の駒を先に動かす場合は「今は動かせない」)/評価が下がるため見送り/駒を取られた・形勢が悪いため断念)
+        (v26で自作エンジンでも有効になった)
+
       v24 (v23からの変更点)
       - 詰みが見つかった局面で、時間制限の探索が深度245(上限)まで空回りする問題を修正
         (時間指定の探索で詰みの評価が出て深度6以上になったら探索を打ち切る。深度表示も99を上限に)
@@ -45,52 +65,339 @@
     -->
     <title>将棋AI (tanuki- HalfKP 256x2-32-32)</title>
     <style>
-      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; position: fixed; inset: 0; overscroll-behavior: none; background: #2b2b2b; color: #eee; font: 14px sans-serif; touch-action: none; }
-      #app { position: fixed; left: 0; top: 0; width: 100%; height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 2px; box-sizing: border-box; gap: 2px; overflow: hidden; --c: 36px; --pw: 100%; }
-      #app.land { flex-direction: row; align-items: stretch; justify-content: center; gap: 6px; }
-      #L, #R { display: contents; }
-      #app.land #L { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: calc(var(--c) * 9 + 4px); flex: none; }
-      #app.land #R { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-      #top { order: 1; } #ev { order: 2; } #h0 { order: 3; } #board { order: 4; } #h1 { order: 5; } #info { order: 6; } #ed { order: 7; } #btns { order: 8; }
-      #top { width: var(--pw); flex: none; display: flex; justify-content: space-between; gap: 6px; height: 22px; font-size: 13px; white-space: nowrap; }
-      #nnB { font-size: 11px; color: #9cf; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: center; }
-      .hand { width: calc(var(--c) * 9); height: calc(var(--c) * 0.85); display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; overflow: hidden; }
-      .hp { background: #e8c27a; color: #000; border-radius: 4px; padding: 0 5px; font-size: calc(var(--c) * 0.55); line-height: calc(var(--c) * 0.8); }
-      .hp.sl { background: #ff8; outline: 2px solid #f60; }
-      #board { display: grid; grid-template-columns: repeat(9, var(--c)); grid-template-rows: repeat(9, var(--c)); background: #e8c27a; border: 2px solid #5a3b10; }
-      .cell { box-shadow: inset 0 0 0 0.5px #5a3b10; display: flex; align-items: center; justify-content: center; font-size: calc(var(--c) * 0.7); color: #000; position: relative; user-select: none; }
-      .cell.w span { transform: rotate(180deg); }
-      .cell.pr span { color: #c00; }
-      .cell.lm { background: #9fd8ff; }
-      .cell.sl { background: #ff8; }
-      .cell.tg::after { content: ""; position: absolute; width: 30%; height: 30%; border-radius: 50%; background: rgba(0, 150, 0, .6); }
-      #ed { width: var(--pw); flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; }
-      #ed button { font-size: 13px; padding: 4px 6px; margin: 1px; }
-      #ed button.on { background: #ff8; }
-      #ev { position: relative; width: var(--pw); flex: none; height: 16px; background: #eee; border-radius: 3px; overflow: hidden; }
-      #ev i { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; background: #111; transition: width .3s; }
-      #ev span { position: absolute; inset: 0; text-align: center; font-size: 12px; line-height: 16px; color: #fff; mix-blend-mode: difference; }
-      #info { width: var(--pw); flex: 1; min-height: 0; overflow: hidden; }
-      .bar { height: 8px; background: #555; border-radius: 4px; overflow: hidden; }
-      .bar i { display: block; height: 100%; width: 0; background: #4c8; }
-      #cand div { white-space: nowrap; font-size: 13px; line-height: 17px; }
-      #btns { width: var(--pw); flex: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; padding-bottom: env(safe-area-inset-bottom, 0px); }
-      button, select, input { font-size: 15px; padding: 5px 9px; }
-      #btns button { font-size: 13px; padding: 5px 7px; }
-      #menu { position: fixed; inset: 0; background: #1d1d1dee; overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; padding: 10px; box-sizing: border-box; z-index: 5; }
-      #menu label { display: block; margin: 6px 0 2px; color: #9cf; }
-      #menu input[type=number] { width: 70px; }
-      #menu input[type=text] { width: 90%; }
-      #ov { position: fixed; left: 6%; right: 6%; top: 38%; background: #000d; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; align-items: center; z-index: 9; font-size: 16px; gap: 10px; pointer-events: none; }
-      #ov .bar { width: 90%; height: 14px; }
-      #res { position: fixed; left: 8%; right: 8%; top: 28%; z-index: 7; text-align: center; padding: 18px 8px; border-radius: 14px; font-size: 9vw; font-weight: bold; background: #000e; border: 4px solid #fff; }
-      #res small { display: block; font-size: 3.6vw; font-weight: normal; margin-top: 8px; color: #ddd; }
-      #res.win { color: #6f6; border-color: #6f6; }
-      #res.lose { color: #f66; border-color: #f66; }
-      #res.draw { color: #fd6; border-color: #fd6; }
-      #ask { position: fixed; inset: 0; background: #000a; display: flex; align-items: center; justify-content: center; gap: 20px; z-index: 8; }
-      #ask button { font-size: 28px; padding: 14px 24px; }
-      [hidden] { display: none !important; }
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        position: fixed;
+        inset: 0;
+        overscroll-behavior: none;
+        background: #2b2b2b;
+        color: #eee;
+        font: 14px sans-serif;
+        touch-action: none;
+      }
+      #app {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2px;
+        box-sizing: border-box;
+        gap: 2px;
+        overflow: hidden;
+        --c: 36px;
+        --pw: 100%;
+      }
+      #app.land {
+        flex-direction: row;
+        align-items: stretch;
+        justify-content: center;
+        gap: 6px;
+      }
+      #L,
+      #R {
+        display: contents;
+      }
+      #app.land #L {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        width: calc(var(--c) * 9 + 4px);
+        flex: none;
+      }
+      #app.land #R {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+      }
+      #top {
+        order: 1;
+      }
+      #ev {
+        order: 2;
+      }
+      #h0 {
+        order: 3;
+      }
+      #board {
+        order: 4;
+      }
+      #h1 {
+        order: 5;
+      }
+      #info {
+        order: 6;
+      }
+      #ed {
+        order: 7;
+      }
+      #btns {
+        order: 8;
+      }
+      #top {
+        width: var(--pw);
+        flex: none;
+        display: flex;
+        justify-content: space-between;
+        gap: 6px;
+        height: 22px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      #nnB {
+        font-size: 11px;
+        color: #9cf;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+        text-align: center;
+      }
+      .hand {
+        width: calc(var(--c) * 9);
+        height: calc(var(--c) * 0.85);
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        flex-wrap: nowrap;
+        overflow: hidden;
+      }
+      .hp {
+        background: #e8c27a;
+        color: #000;
+        border-radius: 4px;
+        padding: 0 5px;
+        font-size: calc(var(--c) * 0.55);
+        line-height: calc(var(--c) * 0.8);
+      }
+      .hp.sl {
+        background: #ff8;
+        outline: 2px solid #f60;
+      }
+      #board {
+        display: grid;
+        grid-template-columns: repeat(9, var(--c));
+        grid-template-rows: repeat(9, var(--c));
+        background: #e8c27a;
+        border: 2px solid #5a3b10;
+      }
+      .cell {
+        box-shadow: inset 0 0 0 0.5px #5a3b10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: calc(var(--c) * 0.7);
+        color: #000;
+        position: relative;
+        user-select: none;
+      }
+      .cell.w span {
+        transform: rotate(180deg);
+      }
+      .cell.pr span {
+        color: #c00;
+      }
+      .cell.lm {
+        background: #9fd8ff;
+      }
+      .cell.sl {
+        background: #ff8;
+      }
+      .cell.tg::after {
+        content: "";
+        position: absolute;
+        width: 30%;
+        height: 30%;
+        border-radius: 50%;
+        background: rgba(0, 150, 0, 0.6);
+      }
+      #ed {
+        width: var(--pw);
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        touch-action: pan-y;
+      }
+      #ed button {
+        font-size: 13px;
+        padding: 4px 6px;
+        margin: 1px;
+      }
+      #ed button.on {
+        background: #ff8;
+      }
+      #ev {
+        position: relative;
+        width: var(--pw);
+        flex: none;
+        height: 16px;
+        background: #eee;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      #ev i {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 50%;
+        background: #111;
+        transition: width 0.3s;
+      }
+      #ev span {
+        position: absolute;
+        inset: 0;
+        text-align: center;
+        font-size: 12px;
+        line-height: 16px;
+        color: #fff;
+        mix-blend-mode: difference;
+      }
+      #info {
+        width: var(--pw);
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .bar {
+        height: 8px;
+        background: #555;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: #4c8;
+      }
+      #cand div {
+        white-space: nowrap;
+        font-size: 13px;
+        line-height: 17px;
+      }
+      #btns {
+        width: var(--pw);
+        flex: none;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 5px;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      button,
+      select,
+      input {
+        font-size: 15px;
+        padding: 5px 9px;
+      }
+      #btns button {
+        font-size: 13px;
+        padding: 5px 7px;
+      }
+      #menu {
+        position: fixed;
+        inset: 0;
+        background: #1d1d1dee;
+        overflow-y: auto;
+        touch-action: pan-y;
+        overscroll-behavior: contain;
+        padding: 10px;
+        box-sizing: border-box;
+        z-index: 5;
+      }
+      #menu label {
+        display: block;
+        margin: 6px 0 2px;
+        color: #9cf;
+      }
+      #menu input[type="number"] {
+        width: 70px;
+      }
+      #menu input[type="text"] {
+        width: 90%;
+      }
+      #ov {
+        position: fixed;
+        left: 6%;
+        right: 6%;
+        top: 38%;
+        background: #000d;
+        border-radius: 10px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 9;
+        font-size: 16px;
+        gap: 10px;
+        pointer-events: none;
+      }
+      #ov .bar {
+        width: 90%;
+        height: 14px;
+      }
+      #res {
+        position: fixed;
+        left: 8%;
+        right: 8%;
+        top: 28%;
+        z-index: 7;
+        text-align: center;
+        padding: 18px 8px;
+        border-radius: 14px;
+        font-size: 9vw;
+        font-weight: bold;
+        background: #000e;
+        border: 4px solid #fff;
+      }
+      #res small {
+        display: block;
+        font-size: 3.6vw;
+        font-weight: normal;
+        margin-top: 8px;
+        color: #ddd;
+      }
+      #res.win {
+        color: #6f6;
+        border-color: #6f6;
+      }
+      #res.lose {
+        color: #f66;
+        border-color: #f66;
+      }
+      #res.draw {
+        color: #fd6;
+        border-color: #fd6;
+      }
+      #ask {
+        position: fixed;
+        inset: 0;
+        background: #000a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        z-index: 8;
+      }
+      #ask button {
+        font-size: 28px;
+        padding: 14px 24px;
+      }
+      [hidden] {
+        display: none !important;
+      }
     </style>
   </head>
 
@@ -125,58 +432,91 @@
 
     <script id="eng">
       /* ===== 将棋エンジン(メインとWorkerで共用) ===== */
-      var DR = [-1, -1, 0, 1, 1, 1, 0, -1], DF = [0, 1, 1, 1, 0, -1, -1, -1], FL = [4, 3, 2, 1, 0, 7, 6, 5];
+      var DR = [-1, -1, 0, 1, 1, 1, 0, -1],
+        DF = [0, 1, 1, 1, 0, -1, -1, -1],
+        FL = [4, 3, 2, 1, 0, 7, 6, 5];
       var STEP = [0, 1, 0, 0, 171, 215, 0, 0, 255, 215, 215, 215, 215, 0, 85, 170];
       var SLD = [0, 0, 1, 0, 0, 0, 170, 85, 0, 0, 0, 0, 0, 0, 170, 85];
       var VAL = [0, 90, 350, 450, 550, 600, 900, 1000, 0, 600, 600, 600, 600, 0, 1100, 1300];
       var KK = [0, 0, 1, 2, 3, 4, 5, 7, 0, 4, 4, 4, 4, 0, 6, 8];
-      var HB = [0, 1, 39, 49, 59, 69, 79, 85], HE = [0, 20, 44, 54, 64, 74, 82, 88];
+      var HB = [0, 1, 39, 49, 59, 69, 79, 85],
+        HE = [0, 20, 44, 54, 64, 74, 82, 88];
+
       function newPos() {
         var P = { b: new Int8Array(81), h: [new Int8Array(8), new Int8Array(8)], side: 0, k: [4 * 9 + 8, 4 * 9] };
         var back = [2, 3, 4, 5, 8, 5, 4, 3, 2];
         for (var f = 0; f < 9; f++) {
-          P.b[f * 9] = back[f] | 16; P.b[f * 9 + 8] = back[f];
-          P.b[f * 9 + 2] = 17; P.b[f * 9 + 6] = 1;
+          P.b[f * 9] = back[f] | 16;
+          P.b[f * 9 + 8] = back[f];
+          P.b[f * 9 + 2] = 17;
+          P.b[f * 9 + 6] = 1;
         }
-        P.b[7 * 9 + 1] = 7 | 16; P.b[1 * 9 + 1] = 6 | 16;
-        P.b[7 * 9 + 7] = 6; P.b[1 * 9 + 7] = 7;
+        P.b[7 * 9 + 1] = 7 | 16;
+        P.b[1 * 9 + 1] = 6 | 16;
+        P.b[7 * 9 + 7] = 6;
+        P.b[1 * 9 + 7] = 7;
         return P;
       }
+
       function fromSt(s) {
-        return { b: Int8Array.from(s.b), h: [Int8Array.from(s.h[0]), Int8Array.from(s.h[1])], side: s.side, k: s.k.slice() };
+        return {
+          b: Int8Array.from(s.b),
+          h: [Int8Array.from(s.h[0]), Int8Array.from(s.h[1])],
+          side: s.side,
+          k: s.k.slice()
+        };
       }
+
       function toSt(P) {
         return { b: Array.from(P.b), h: [Array.from(P.h[0]), Array.from(P.h[1])], side: P.side, k: P.k.slice() };
       }
+
       function gen(P, co) {
-        var b = P.b, c = P.side, o = [], hd = P.h[c], pf = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+        var b = P.b,
+          c = P.side,
+          o = [],
+          hd = P.h[c],
+          pf = [0, 0, 0, 0, 0, 0, 0, 0, 0];
         function ad(s, ts, t) {
           if (co && !b[ts]) return;
-          var r0 = s % 9, r1 = ts % 9, z0 = c ? r0 >= 6 : r0 <= 2, z1 = c ? r1 >= 6 : r1 <= 2, last = c ? 8 - r1 : r1;
+          var r0 = s % 9,
+            r1 = ts % 9,
+            z0 = c ? r0 >= 6 : r0 <= 2,
+            z1 = c ? r1 >= 6 : r1 <= 2,
+            last = c ? 8 - r1 : r1;
           var pr = t <= 7 && t !== 5 && t !== 8 && (z0 || z1);
-          var must = (t === 1 || t === 2) ? last === 0 : (t === 3 ? last <= 1 : 0);
-          if (pr) o.push(s | ts << 7 | 1 << 14);
-          if (!must) o.push(s | ts << 7);
+          var must = t === 1 || t === 2 ? last === 0 : t === 3 ? last <= 1 : 0;
+          if (pr) o.push(s | (ts << 7) | (1 << 14));
+          if (!must) o.push(s | (ts << 7));
         }
         for (var s = 0; s < 81; s++) {
           var p = b[s];
-          if (!p || (p >> 4) !== c) continue;
-          var t = p & 15, f = (s / 9) | 0, r = s % 9;
+          if (!p || p >> 4 !== c) continue;
+          var t = p & 15,
+            f = (s / 9) | 0,
+            r = s % 9;
           if (t === 1) pf[f] = 1;
           if (t === 3) {
             var kr = r + (c ? 2 : -2);
-            if (kr >= 0 && kr < 9) for (var e = -1; e <= 1; e += 2) { var kf = f + e; if (kf >= 0 && kf < 9 && !(b[kf * 9 + kr] && (b[kf * 9 + kr] >> 4) === c)) ad(s, kf * 9 + kr, t); }
+            if (kr >= 0 && kr < 9)
+              for (var e = -1; e <= 1; e += 2) {
+                var kf = f + e;
+                if (kf >= 0 && kf < 9 && !(b[kf * 9 + kr] && b[kf * 9 + kr] >> 4 === c)) ad(s, kf * 9 + kr, t);
+              }
           }
           for (var j = 0; j < 8; j++) {
-            var sl = SLD[t] >> j & 1;
-            if (!(STEP[t] >> j & 1) && !sl) continue;
-            var a = c ? FL[j] : j, nf = f + DF[a], nr = r + DR[a];
+            var sl = (SLD[t] >> j) & 1;
+            if (!((STEP[t] >> j) & 1) && !sl) continue;
+            var a = c ? FL[j] : j,
+              nf = f + DF[a],
+              nr = r + DR[a];
             while (nf >= 0 && nf < 9 && nr >= 0 && nr < 9) {
               var q = b[nf * 9 + nr];
-              if (q && (q >> 4) === c) break;
+              if (q && q >> 4 === c) break;
               ad(s, nf * 9 + nr, t);
               if (q || !sl) break;
-              nf += DF[a]; nr += DR[a];
+              nf += DF[a];
+              nr += DR[a];
             }
           }
         }
@@ -185,119 +525,230 @@
             if (!hd[d]) continue;
             for (var u = 0; u < 81; u++) {
               if (b[u]) continue;
-              var uf = (u / 9) | 0, ur = u % 9, ul = c ? 8 - ur : ur;
+              var uf = (u / 9) | 0,
+                ur = u % 9,
+                ul = c ? 8 - ur : ur;
               if ((d <= 2 && ul === 0) || (d === 3 && ul <= 1) || (d === 1 && pf[uf])) continue;
-              o.push(81 | u << 7 | d << 15);
+              o.push(81 | (u << 7) | (d << 15));
             }
           }
         }
         return o;
       }
+
       function atk(P, s, c) {
-        var b = P.b, f = (s / 9) | 0, r = s % 9, kr = r + (c ? -2 : 2);
+        var b = P.b,
+          f = (s / 9) | 0,
+          r = s % 9,
+          kr = r + (c ? -2 : 2);
         if (kr >= 0 && kr < 9) {
-          for (var e = -1; e <= 1; e += 2) { var kf = f + e; if (kf >= 0 && kf < 9 && b[kf * 9 + kr] === (3 | c << 4)) return 1; }
+          for (var e = -1; e <= 1; e += 2) {
+            var kf = f + e;
+            if (kf >= 0 && kf < 9 && b[kf * 9 + kr] === (3 | (c << 4))) return 1;
+          }
         }
         for (var i = 0; i < 8; i++) {
-          var a = (i + 4) & 7, j = c ? FL[a] : a, nf = f + DF[i], nr = r + DR[i], k = 1;
+          var a = (i + 4) & 7,
+            j = c ? FL[a] : a,
+            nf = f + DF[i],
+            nr = r + DR[i],
+            k = 1;
           while (nf >= 0 && nf < 9 && nr >= 0 && nr < 9) {
             var p = b[nf * 9 + nr];
             if (p) {
-              if ((p >> 4) === c) {
+              if (p >> 4 === c) {
                 var t = p & 15;
-                if (((STEP[t] >> j & 1) && k === 1) || (SLD[t] >> j & 1)) return 1;
+                if (((STEP[t] >> j) & 1 && k === 1) || (SLD[t] >> j) & 1) return 1;
               }
               break;
             }
-            nf += DF[i]; nr += DR[i]; k++;
+            nf += DF[i];
+            nr += DR[i];
+            k++;
           }
         }
         return 0;
       }
+
       function make(P, m) {
-        var f = m & 127, t = (m >> 7) & 127, pr = (m >> 14) & 1, d = m >> 15, c = P.side, b = P.b, cap = b[t];
-        if (f === 81) { b[t] = d | c << 4; P.h[c][d]--; }
-        else {
+        var f = m & 127,
+          t = (m >> 7) & 127,
+          pr = (m >> 14) & 1,
+          d = m >> 15,
+          c = P.side,
+          b = P.b,
+          cap = b[t];
+        if (f === 81) {
+          b[t] = d | (c << 4);
+          P.h[c][d]--;
+        } else {
           var p = b[f];
           b[f] = 0;
           if (pr) p += 8;
           b[t] = p;
           if ((p & 15) === 8) P.k[c] = t;
-          if (cap) { var ct = cap & 15; P.h[c][ct > 8 ? ct - 8 : ct]++; }
+          if (cap) {
+            var ct = cap & 15;
+            P.h[c][ct > 8 ? ct - 8 : ct]++;
+          }
         }
         P.side ^= 1;
         return cap;
       }
+
       function undo(P, m, cap) {
-        var f = m & 127, t = (m >> 7) & 127, pr = (m >> 14) & 1, d = m >> 15, c = P.side ^ 1, b = P.b;
-        if (f === 81) { b[t] = 0; P.h[c][d]++; }
-        else {
+        var f = m & 127,
+          t = (m >> 7) & 127,
+          pr = (m >> 14) & 1,
+          d = m >> 15,
+          c = P.side ^ 1,
+          b = P.b;
+        if (f === 81) {
+          b[t] = 0;
+          P.h[c][d]++;
+        } else {
           var p = b[t];
           if (pr) p -= 8;
           b[f] = p;
           b[t] = cap;
           if ((p & 15) === 8) P.k[c] = f;
-          if (cap) { var ct = cap & 15; P.h[c][ct > 8 ? ct - 8 : ct]--; }
+          if (cap) {
+            var ct = cap & 15;
+            P.h[c][ct > 8 ? ct - 8 : ct]--;
+          }
         }
         P.side = c;
       }
+
       function legal(P) {
-        var ms = gen(P), o = [], c = P.side;
+        var ms = gen(P),
+          o = [],
+          c = P.side;
         for (var i = 0; i < ms.length; i++) {
-          var m = ms[i], cap = make(P, m), ok = !atk(P, P.k[c], c ^ 1);
-          if (ok && (m >> 15) === 1 && atk(P, P.k[c ^ 1], c) && !legal(P).length) ok = false;
+          var m = ms[i],
+            cap = make(P, m),
+            ok = !atk(P, P.k[c], c ^ 1);
+          if (ok && m >> 15 === 1 && atk(P, P.k[c ^ 1], c) && !legal(P).length) ok = false;
           undo(P, m, cap);
           if (ok) o.push(m);
         }
         return o;
       }
+
       /* ----- ハッシュ・千日手 ----- */
-      var Z1 = new Int32Array(3000), Z2 = new Int32Array(3000), PK = [], PC = [], EC = new Map();
+      var Z1 = new Int32Array(3000),
+        Z2 = new Int32Array(3000),
+        PK = [],
+        PC = [],
+        EC = new Map();
       (function () {
         var x = 123456789;
-        function r() { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return x | 0; }
-        for (var i = 0; i < 3000; i++) { Z1[i] = r(); Z2[i] = r(); }
-      })();
-      function hashP(P) {
-        var h1 = P.side ? -1640531527 : 0, h2 = P.side ? 1013904242 : 0, b = P.b, i, p;
-        for (i = 0; i < 81; i++) { p = b[i]; if (p) { h1 ^= Z1[i * 32 + p]; h2 ^= Z2[i * 32 + p]; } }
-        for (var c = 0; c < 2; c++) for (var t = 1; t < 8; t++) {
-          var n = P.h[c][t];
-          if (n) { var k = 2592 + (c * 8 + t) * 19 + n; h1 ^= Z1[k]; h2 ^= Z2[k]; }
+        function r() {
+          x ^= x << 13;
+          x ^= x >>> 17;
+          x ^= x << 5;
+          return x | 0;
         }
+        for (var i = 0; i < 3000; i++) {
+          Z1[i] = r();
+          Z2[i] = r();
+        }
+      })();
+
+      function hashP(P) {
+        var h1 = P.side ? -1640531527 : 0,
+          h2 = P.side ? 1013904242 : 0,
+          b = P.b,
+          i,
+          p;
+        for (i = 0; i < 81; i++) {
+          p = b[i];
+          if (p) {
+            h1 ^= Z1[i * 32 + p];
+            h2 ^= Z2[i * 32 + p];
+          }
+        }
+        for (var c = 0; c < 2; c++)
+          for (var t = 1; t < 8; t++) {
+            var n = P.h[c][t];
+            if (n) {
+              var k = 2592 + (c * 8 + t) * 19 + n;
+              h1 ^= Z1[k];
+              h2 ^= Z2[k];
+            }
+          }
         return (h1 >>> 0) * 2097152 + (h2 >>> 11);
       }
       /* 千日手の周期 j..k のうち、k手目を指した側だけが毎手王手→1、もう一方→2、なし→0 */
       function cyc(pc, k, j) {
-        var a = 1, b = 1, i;
-        for (i = k; i > j; i -= 2) if (!pc[i]) { a = 0; break; }
-        for (i = k - 1; i > j; i -= 2) if (!pc[i]) { b = 0; break; }
+        var a = 1,
+          b = 1,
+          i;
+        for (i = k; i > j; i -= 2)
+          if (!pc[i]) {
+            a = 0;
+            break;
+          }
+        for (i = k - 1; i > j; i -= 2)
+          if (!pc[i]) {
+            b = 0;
+            break;
+          }
         return a ? 1 : b ? 2 : 0;
       }
+
       /* ----- 評価 ----- */
-      var NN = 0, LW = new Float64Array(16), FB, FW, B1, W1, B2, W2, B3, W3;
-      var A0 = new Int32Array(256), A1 = new Int32Array(256), IN = new Int32Array(512), H1 = new Int32Array(32), H2 = new Int32Array(32);
+      var NN = 0,
+        LW = new Float64Array(16),
+        FB,
+        FW,
+        B1,
+        W1,
+        B2,
+        W2,
+        B3,
+        W3;
+      var A0 = new Int32Array(256),
+        A1 = new Int32Array(256),
+        IN = new Int32Array(512),
+        H1 = new Int32Array(32),
+        H2 = new Int32Array(32);
+
       function mat(P, x) {
-        var c = P.side, b = P.b;
+        var c = P.side,
+          b = P.b;
         x.fill(0);
-        for (var s = 0; s < 81; s++) { var p = b[s]; if (p) x[p & 15] += (p >> 4) === c ? 1 : -1; }
+        for (var s = 0; s < 81; s++) {
+          var p = b[s];
+          if (p) x[p & 15] += p >> 4 === c ? 1 : -1;
+        }
         for (var t = 1; t < 8; t++) x[t] += P.h[c][t] - P.h[c ^ 1][t];
         return x;
       }
       var XV = new Float64Array(16);
+
       function nnEval(P) {
-        var b = P.b, W = FW, k0 = P.k[0] * 1548, k1 = (80 - P.k[1]) * 1548;
-        A0.set(FB); A1.set(FB);
+        var b = P.b,
+          W = FW,
+          k0 = P.k[0] * 1548,
+          k1 = (80 - P.k[1]) * 1548;
+        A0.set(FB);
+        A1.set(FB);
         function add(i0, i1) {
-          var o0 = (k0 + i0) * 256, o1 = (k1 + i1) * 256;
-          for (var j = 0; j < 256; j++) { A0[j] += W[o0 + j]; A1[j] += W[o1 + j]; }
+          var o0 = (k0 + i0) * 256,
+            o1 = (k1 + i1) * 256;
+          for (var j = 0; j < 256; j++) {
+            A0[j] += W[o0 + j];
+            A1[j] += W[o1 + j];
+          }
         }
         for (var s = 0; s < 81; s++) {
           var p = b[s];
           if (!p) continue;
           var t = p & 15;
           if (t === 8) continue;
-          var c = p >> 4, kk = 90 + 162 * KK[t];
+          var c = p >> 4,
+            kk = 90 + 162 * KK[t];
           add(kk + (c ? 81 : 0) + s, kk + (c ? 0 : 81) + 80 - s);
         }
         for (var cc = 0; cc < 2; cc++) {
@@ -305,60 +756,99 @@
             for (var i = 0; i < P.h[cc][d]; i++) add((cc ? HE[d] : HB[d]) + i, (cc ? HB[d] : HE[d]) + i);
           }
         }
-        var st = P.side, X0 = st ? A1 : A0, X1 = st ? A0 : A1;
+        var st = P.side,
+          X0 = st ? A1 : A0,
+          X1 = st ? A0 : A1;
         for (var j = 0; j < 256; j++) {
-          var v = X0[j]; IN[j] = v < 0 ? 0 : v > 127 ? 127 : v;
-          v = X1[j]; IN[256 + j] = v < 0 ? 0 : v > 127 ? 127 : v;
+          var v = X0[j];
+          IN[j] = v < 0 ? 0 : v > 127 ? 127 : v;
+          v = X1[j];
+          IN[256 + j] = v < 0 ? 0 : v > 127 ? 127 : v;
         }
         for (var i2 = 0; i2 < 32; i2++) {
-          var sm = B1[i2], o = i2 * 512;
-          for (var j2 = 0; j2 < 512; j2++) { var iv = IN[j2]; if (iv) sm += W1[o + j2] * iv; }
-          sm >>= 6; H1[i2] = sm < 0 ? 0 : sm > 127 ? 127 : sm;
+          var sm = B1[i2],
+            o = i2 * 512;
+          for (var j2 = 0; j2 < 512; j2++) {
+            var iv = IN[j2];
+            if (iv) sm += W1[o + j2] * iv;
+          }
+          sm >>= 6;
+          H1[i2] = sm < 0 ? 0 : sm > 127 ? 127 : sm;
         }
         for (var i3 = 0; i3 < 32; i3++) {
           var s3 = B2[i3];
           for (var j3 = 0; j3 < 32; j3++) s3 += W2[i3 * 32 + j3] * H1[j3];
-          s3 >>= 6; H2[i3] = s3 < 0 ? 0 : s3 > 127 ? 127 : s3;
+          s3 >>= 6;
+          H2[i3] = s3 < 0 ? 0 : s3 > 127 ? 127 : s3;
         }
         var out = B3[0];
         for (var j4 = 0; j4 < 32; j4++) out += W3[j4] * H2[j4];
         return out / 20;
       }
+
       function evalPos(P) {
-        var x = mat(P, XV), e = 0, k;
+        var x = mat(P, XV),
+          e = 0,
+          k;
         if (NN) {
-          var hk = hashP(P), cv = EC.get(hk);
-          if (cv === undefined) { cv = nnEval(P); if (EC.size > 600000) EC.clear(); EC.set(hk, cv); }
+          var hk = hashP(P),
+            cv = EC.get(hk);
+          if (cv === undefined) {
+            cv = nnEval(P);
+            if (EC.size > 600000) EC.clear();
+            EC.set(hk, cv);
+          }
           e = cv;
-        }
-        else for (k = 1; k < 16; k++) e += VAL[k] * x[k];
+        } else for (k = 1; k < 16; k++) e += VAL[k] * x[k];
         for (k = 1; k < 16; k++) e += LW[k] * x[k];
         return Math.round(e);
       }
+
       /* ----- 探索 ----- */
-      var nodes = 0, dl = 1e15, stopF = 0;
-      var TT = new Map(), KL = [], HT = new Int32Array(32768), ttLW = '';
+      var nodes = 0,
+        dl = 1e15,
+        stopF = 0;
+      var TT = new Map(),
+        KL = [],
+        HT = new Int32Array(32768),
+        ttLW = '';
+
       function sortMv(P, ms, tm, ply) {
-        var b = P.b, k1 = KL[ply * 2] | 0, k2 = KL[ply * 2 + 1] | 0;
+        var b = P.b,
+          k1 = KL[ply * 2] | 0,
+          k2 = KL[ply * 2 + 1] | 0;
         var sc = ms.map(function (m) {
-          if (m === tm) return 1e8;
-          var v = b[(m >> 7) & 127] ? VAL[b[(m >> 7) & 127] & 15] * 10 - VAL[b[m & 127] & 15] + 1e6 : 0;
-          if (m >> 14 & 1) v += 5e5;
-          if (!v) v = m === k1 ? 9e5 : m === k2 ? 8e5 : HT[m & 32767];
-          return v;
-        }), idx = ms.map(function (_, i) { return i; });
-        idx.sort(function (x, y) { return sc[y] - sc[x]; });
-        return idx.map(function (i) { return ms[i]; });
+            if (m === tm) return 1e8;
+            var v = b[(m >> 7) & 127] ? VAL[b[(m >> 7) & 127] & 15] * 10 - VAL[b[m & 127] & 15] + 1e6 : 0;
+            if ((m >> 14) & 1) v += 5e5;
+            if (!v) v = m === k1 ? 9e5 : m === k2 ? 8e5 : HT[m & 32767];
+            return v;
+          }),
+          idx = ms.map(function (_, i) {
+            return i;
+          });
+        idx.sort(function (x, y) {
+          return sc[y] - sc[x];
+        });
+        return idx.map(function (i) {
+          return ms[i];
+        });
       }
+
       function qs(P, a, b, ply) {
         var e = evalPos(P);
         if (e >= b) return e;
         if (e > a) a = e;
         if (ply > 6) return e;
-        var c = P.side, ms = sortMv(P, gen(P, 1), 0, 63);
+        var c = P.side,
+          ms = sortMv(P, gen(P, 1), 0, 63);
         for (var i = 0; i < ms.length; i++) {
-          var m = ms[i], cp = make(P, m);
-          if (atk(P, P.k[c], c ^ 1)) { undo(P, m, cp); continue; }
+          var m = ms[i],
+            cp = make(P, m);
+          if (atk(P, P.k[c], c ^ 1)) {
+            undo(P, m, cp);
+            continue;
+          }
           var v = -qs(P, -b, -a, ply + 1);
           undo(P, m, cp);
           if (stopF) return 0;
@@ -367,22 +857,45 @@
         }
         return a;
       }
+
       function sub(P, m, d, a, b, ply, red) {
-        var c = P.side, cp = make(P, m), v;
-        if (atk(P, P.k[c], c ^ 1) || ((m >> 15) === 1 && atk(P, P.k[c ^ 1], c) && !legal(P).length)) { undo(P, m, cp); return 1e9; }
-        var k = hashP(P), n = PK.length, j, f = 0;
-        PK.push(k); PC.push(atk(P, P.k[c ^ 1], c) ? 1 : 0);
-        for (j = n - 4; j >= 0 && j >= n - 60; j -= 2) if (PK[j] === k) { f = 1; break; }
-        if (f) { var r = cyc(PC, n, j); v = r === 1 ? -(29000 - ply) : r === 2 ? 29000 - ply : 0; }
-        else v = -srch(P, d - 1 - (red || 0), -b, -a, ply);
-        PK.pop(); PC.pop(); undo(P, m, cp);
+        var c = P.side,
+          cp = make(P, m),
+          v;
+        if (atk(P, P.k[c], c ^ 1) || (m >> 15 === 1 && atk(P, P.k[c ^ 1], c) && !legal(P).length)) {
+          undo(P, m, cp);
+          return 1e9;
+        }
+        var k = hashP(P),
+          n = PK.length,
+          j,
+          f = 0;
+        PK.push(k);
+        PC.push(atk(P, P.k[c ^ 1], c) ? 1 : 0);
+        for (j = n - 4; j >= 0 && j >= n - 60; j -= 2)
+          if (PK[j] === k) {
+            f = 1;
+            break;
+          }
+        if (f) {
+          var r = cyc(PC, n, j);
+          v = r === 1 ? -(29000 - ply) : r === 2 ? 29000 - ply : 0;
+        } else v = -srch(P, d - 1 - (red || 0), -b, -a, ply);
+        PK.pop();
+        PC.pop();
+        undo(P, m, cp);
         return v;
       }
+
       function srch(P, d, a, b, ply) {
         if ((++nodes & 511) === 0 && Date.now() > dl) stopF = 1;
         if (stopF) return 0;
         if (d <= 0) return qs(P, a, b, ply);
-        var key = PK[PK.length - 1], e = TT.get(key), tm = 0, a0 = a, inChk = PC[PC.length - 1];
+        var key = PK[PK.length - 1],
+          e = TT.get(key),
+          tm = 0,
+          a0 = a,
+          inChk = PC[PC.length - 1];
         if (e) {
           tm = e[3];
           if (e[0] >= d && e[1] < 29000 && e[1] > -29000) {
@@ -391,18 +904,29 @@
             if (e[2] === 2 && e[1] <= a) return e[1];
           }
         }
-        var ms = sortMv(P, gen(P), tm, ply), best = -1e9, n = 0, bm = 0;
+        var ms = sortMv(P, gen(P), tm, ply),
+          best = -1e9,
+          n = 0,
+          bm = 0;
         for (var i = 0; i < ms.length; i++) {
-          var m = ms[i], quiet = !P.b[(m >> 7) & 127] && !(m >> 14 & 1);
+          var m = ms[i],
+            quiet = !P.b[(m >> 7) & 127] && !((m >> 14) & 1);
           var v = sub(P, m, d, a, b, ply + 1, 0);
           if (v === 1e9) continue;
           n++;
           if (stopF) return 0;
           if (v > best) {
-            best = v; bm = m;
+            best = v;
+            bm = m;
             if (v > a) a = v;
             if (a >= b) {
-              if (quiet) { if (KL[ply * 2] !== m) { KL[ply * 2 + 1] = KL[ply * 2]; KL[ply * 2] = m; } HT[m & 32767] += d * d; }
+              if (quiet) {
+                if (KL[ply * 2] !== m) {
+                  KL[ply * 2 + 1] = KL[ply * 2];
+                  KL[ply * 2] = m;
+                }
+                HT[m & 32767] += d * d;
+              }
               break;
             }
           }
@@ -412,40 +936,80 @@
         TT.set(key, [d, best, best <= a0 ? 2 : best >= b ? 1 : 0, bm]);
         return best;
       }
-      function rs(P, m, d) { return sub(P, m, d, -31000, 31000, 1, 0); }
+
+      function rs(P, m, d) {
+        return sub(P, m, d, -31000, 31000, 1, 0);
+      }
+
       /* ----- Worker側 ----- */
       if (typeof document === 'undefined') {
-        var job = 0, loadP = Promise.resolve(), lastGo = null;
-        var tick = function () { return new Promise(function (r) { setTimeout(r, 0); }); };
+        var job = 0,
+          loadP = Promise.resolve(),
+          lastGo = null;
+        var tick = function () {
+          return new Promise(function (r) {
+            setTimeout(r, 0);
+          });
+        };
         var leb = function (u, o, n, out) {
           for (var i = 0; i < n; i++) {
-            var r = 0, sh = 0, x;
-            do { x = u[o++]; r |= (x & 127) << sh; sh += 7; } while (x & 128);
-            if (sh < 32 && (x & 64)) r |= -1 << sh;
+            var r = 0,
+              sh = 0,
+              x;
+            do {
+              x = u[o++];
+              r |= (x & 127) << sh;
+              sh += 7;
+            } while (x & 128);
+            if (sh < 32 && x & 64) r |= -1 << sh;
             out[i] = r;
           }
           return o;
         };
-        var ldMsg = function (txt, pct) { postMessage({ t: 'ld', txt: txt, pct: pct }); };
+        var ldMsg = function (txt, pct) {
+          postMessage({ t: 'ld', txt: txt, pct: pct });
+        };
         var parseNet = async function (buf) {
           try {
-            if (buf.byteLength < 1e6) throw new Error('ファイルが小さすぎます(' + buf.byteLength + 'B / Git LFSポインタの可能性)');
-            var u = new Uint8Array(buf), dv = new DataView(buf), o = 12 + dv.getUint32(8, true) + 4, n = 125388 * 256;
-            var isLeb = function () { var s = ''; for (var i = 0; i < 17; i++) s += String.fromCharCode(u[o + i]); return s === 'COMPRESSED_LEB128'; };
-            var fb = new Int16Array(256), fw = new Int16Array(n);
-            ldMsg('ヘッダ解析', 55); await tick();
+            if (buf.byteLength < 1e6)
+              throw new Error('ファイルが小さすぎます(' + buf.byteLength + 'B / Git LFSポインタの可能性)');
+            var u = new Uint8Array(buf),
+              dv = new DataView(buf),
+              o = 12 + dv.getUint32(8, true) + 4,
+              n = 125388 * 256;
+            var isLeb = function () {
+              var s = '';
+              for (var i = 0; i < 17; i++) s += String.fromCharCode(u[o + i]);
+              return s === 'COMPRESSED_LEB128';
+            };
+            var fb = new Int16Array(256),
+              fw = new Int16Array(n);
+            ldMsg('ヘッダ解析', 55);
+            await tick();
             if (isLeb()) {
-              o += 17; var sz = dv.getUint32(o, true); o += 4; leb(u, o, 256, fb); o += sz;
-              o += 17; sz = dv.getUint32(o, true); o += 4;
-              ldMsg('重み展開(LEB128)', 65); await tick();
-              leb(u, o, n, fw); o += sz;
+              o += 17;
+              var sz = dv.getUint32(o, true);
+              o += 4;
+              leb(u, o, 256, fb);
+              o += sz;
+              o += 17;
+              sz = dv.getUint32(o, true);
+              o += 4;
+              ldMsg('重み展開(LEB128)', 65);
+              await tick();
+              leb(u, o, n, fw);
+              o += sz;
             } else {
-              fb = new Int16Array(buf.slice(o, o + 512)); o += 512;
-              ldMsg('入力層の重みを読込中', 65); await tick();
-              fw = new Int16Array(buf.slice(o, o + n * 2)); o += n * 2;
+              fb = new Int16Array(buf.slice(o, o + 512));
+              o += 512;
+              ldMsg('入力層の重みを読込中', 65);
+              await tick();
+              fw = new Int16Array(buf.slice(o, o + n * 2));
+              o += n * 2;
             }
             o += 4;
-            ldMsg('隠れ層の読込', 90); await tick();
+            ldMsg('隠れ層の読込', 90);
+            await tick();
             var rd = function (cnt, w) {
               var B = new Int32Array(cnt);
               for (var i = 0; i < cnt; i++) B[i] = dv.getInt32(o + 4 * i, true);
@@ -454,17 +1018,36 @@
               o += cnt * w;
               return [B, Wt];
             };
-            var l1 = rd(32, 512), l2 = rd(32, 32), l3 = rd(1, 32);
-            FB = fb; FW = fw; B1 = l1[0]; W1 = l1[1]; B2 = l2[0]; W2 = l2[1]; B3 = l3[0]; W3 = l3[1];
-            NN = 1; EC.clear(); TT.clear();
-            var ev = evalPos(newPos()), nz = 0;
+            var l1 = rd(32, 512),
+              l2 = rd(32, 32),
+              l3 = rd(1, 32);
+            FB = fb;
+            FW = fw;
+            B1 = l1[0];
+            W1 = l1[1];
+            B2 = l2[0];
+            W2 = l2[1];
+            B3 = l3[0];
+            W3 = l3[1];
+            NN = 1;
+            EC.clear();
+            TT.clear();
+            var ev = evalPos(newPos()),
+              nz = 0;
             for (var q = 0; q < 512; q++) if (IN[q]) nz++;
             if (nz < 8) {
               NN = 0;
               ldMsg('評価関数が無効(出力が一定/非ゼロ' + nz + '): 駒得評価で代用', 100);
               postMessage({ t: 'ldDone', ok: 0 });
             } else {
-              ldMsg('読込完了 (初期局面 ' + ev + 'cp' + (o !== buf.byteLength ? ' / サイズ差 ' + (buf.byteLength - o) : '') + ')', 100);
+              ldMsg(
+                '読込完了 (初期局面 ' +
+                  ev +
+                  'cp' +
+                  (o !== buf.byteLength ? ' / サイズ差 ' + (buf.byteLength - o) : '') +
+                  ')',
+                100
+              );
               postMessage({ t: 'ldDone', ok: 1 });
             }
             if (lastGo) run(lastGo, ++job);
@@ -477,55 +1060,110 @@
         self.onmessage = function (e) {
           var m = e.data;
           if (m.cmd === 'net') loadP = parseNet(m.buf);
-          else if (m.cmd === 'stop') { job++; lastGo = null; postMessage({ t: 'ack' }); }
-          else if (m.cmd === 'go') { lastGo = m; run(m, ++job); }
-          else if (m.cmd === 'train') { lastGo = null; train(m, ++job); }
+          else if (m.cmd === 'stop') {
+            job++;
+            lastGo = null;
+            postMessage({ t: 'ack' });
+          } else if (m.cmd === 'go') {
+            lastGo = m;
+            run(m, ++job);
+          } else if (m.cmd === 'train') {
+            lastGo = null;
+            train(m, ++job);
+          }
         };
         var run = function (m, id) {
-          return run2(m, id).catch(function (err) { postMessage({ t: 'err', txt: String(err && err.message) }); });
+          return run2(m, id).catch(function (err) {
+            postMessage({ t: 'err', txt: String(err && err.message) });
+          });
         };
         var run2 = async function (m, id) {
           postMessage({ t: 'ack' });
           await loadP;
           if (id !== job) return;
-          LW = Float64Array.from(m.lw); PK = m.rk.slice(); PC = m.rc.slice();
-          var lwk = m.lw.join(); if (lwk !== ttLW) { TT.clear(); ttLW = lwk; }
-          HT.fill(0); KL.length = 0;
-          var P = fromSt(m.st), ms = legal(P), t0 = Date.now(), end = m.ms ? t0 + m.ms : 1e15;
-          var i, L = ms.map(function (x) { return { m: x, s: 0, d: 0 }; });
-          if (!L.length) { postMessage({ t: 'done', id: m.id, list: [], play: m.play, pct: 100 }); return; }
-          for (i = L.length - 1; i > 0; i--) { var rj = Math.random() * (i + 1) | 0, tt = L[i]; L[i] = L[rj]; L[rj] = tt; }
-          var D = Math.max(1, m.D), dn = 0, tot = L.length * D;
+          LW = Float64Array.from(m.lw);
+          PK = m.rk.slice();
+          PC = m.rc.slice();
+          var lwk = m.lw.join();
+          if (lwk !== ttLW) {
+            TT.clear();
+            ttLW = lwk;
+          }
+          HT.fill(0);
+          KL.length = 0;
+          var P = fromSt(m.st),
+            ms = legal(P),
+            t0 = Date.now(),
+            end = m.ms ? t0 + m.ms : 1e15;
+          var i,
+            L = ms.map(function (x) {
+              return { m: x, s: 0, d: 0 };
+            });
+          if (!L.length) {
+            postMessage({ t: 'done', id: m.id, list: [], play: m.play, pct: 100 });
+            return;
+          }
+          for (i = L.length - 1; i > 0; i--) {
+            var rj = (Math.random() * (i + 1)) | 0,
+              tt = L[i];
+            L[i] = L[rj];
+            L[rj] = tt;
+          }
+          var D = Math.max(1, m.D),
+            dn = 0,
+            tot = L.length * D;
           var post = function (fin) {
-            var pct = Math.min(99, dn * 100 / tot);
-            if (m.ms) pct = Math.max(pct, Math.min(99, (Date.now() - t0) * 100 / m.ms));
+            var pct = Math.min(99, (dn * 100) / tot);
+            if (m.ms) pct = Math.max(pct, Math.min(99, ((Date.now() - t0) * 100) / m.ms));
             var w = L[L.length - 1];
-            postMessage({ t: fin ? 'done' : 'p', id: m.id, play: m.play, pct: fin ? 100 : pct, worst: { m: w.m, s: w.s },
-              list: L.slice(0, L.length > 1 ? L.length - 1 : 1).map(function (x) { return { m: x.m, s: x.s, d: x.d }; }) });
+            postMessage({
+              t: fin ? 'done' : 'p',
+              id: m.id,
+              play: m.play,
+              pct: fin ? 100 : pct,
+              worst: { m: w.m, s: w.s },
+              list: L.slice(0, L.length > 1 ? L.length - 1 : 1).map(function (x) {
+                return { m: x.m, s: x.s, d: x.d };
+              })
+            });
           };
           for (var d = 1; d <= D; d++) {
-            var tmp = [], to = 0, order = L.slice(), bs0 = -1e9;
+            var tmp = [],
+              to = 0,
+              order = L.slice(),
+              bs0 = -1e9;
             for (i = 0; i < order.length; i++) {
-              var s, endD = d === 1 ? 1e15 : end;
+              var s,
+                endD = d === 1 ? 1e15 : end;
               for (;;) {
-                dl = Math.min(endD, Date.now() + 120); stopF = 0;
+                dl = Math.min(endD, Date.now() + 120);
+                stopF = 0;
                 s = sub(P, order[i].m, d, -31000, 31000, 1, 0);
                 if (id !== job) return;
                 if (!stopF) break;
-                if (Date.now() >= endD) { to = 1; break; }
+                if (Date.now() >= endD) {
+                  to = 1;
+                  break;
+                }
                 await tick();
                 if (id !== job) return;
               }
               if (to) break;
               if (s > bs0) bs0 = s;
-              tmp.push(s); dn++;
+              tmp.push(s);
+              dn++;
               if (d > 1 && i % 2 === 1) post();
               await tick();
               if (id !== job) return;
             }
             if (to) break;
-            for (i = 0; i < order.length; i++) { order[i].s = tmp[i]; order[i].d = d; }
-            L.sort(function (a, b) { return b.s - a.s; });
+            for (i = 0; i < order.length; i++) {
+              order[i].s = tmp[i];
+              order[i].d = d;
+            }
+            L.sort(function (a, b) {
+              return b.s - a.s;
+            });
             if (d < D) post();
           }
           post(1);
@@ -533,31 +1171,63 @@
         var train = async function (m, id) {
           postMessage({ t: 'ack' });
           await loadP;
-          var lw = Float64Array.from(m.lw), zero = new Float64Array(16), dep = m.dep || 2, lr = m.lr || 0.5, vms = m.vms || 200, lastV = 0;
-          var g = 0, mw = 0, md = 0, ml = 0;
+          var lw = Float64Array.from(m.lw),
+            zero = new Float64Array(16),
+            dep = m.dep || 2,
+            lr = m.lr || 0.5,
+            vms = m.vms || 200,
+            lastV = 0;
+          var g = 0,
+            mw = 0,
+            md = 0,
+            ml = 0;
           var game = async function (wb, ww, rnd, rec, label) {
-            var P = newPos(), data = [], big = 0, ev = 0;
-            PK = [hashP(P)]; PC = [0];
+            var P = newPos(),
+              data = [],
+              big = 0,
+              ev = 0;
+            PK = [hashP(P)];
+            PC = [0];
             for (var ply = 0; ply < 140; ply++) {
               var ms = legal(P);
               if (!ms.length) return { r: P.side ? 1 : -1, data: data };
-              LW = P.side ? ww : wb; TT.clear();
+              LW = P.side ? ww : wb;
+              TT.clear();
               var mv = ms[0];
-              if (ply < rnd) { mv = ms[Math.random() * ms.length | 0]; big = 0; }
-              else {
-                var bs = -1e9; stopF = 0; dl = 1e15;
-                for (var i = 0; i < ms.length; i++) { var s = rs(P, ms[i], dep); if (s > bs) { bs = s; mv = ms[i]; } }
-                big = Math.abs(bs) > 1200 ? big + 1 : 0; ev = bs * (P.side ? -1 : 1);
+              if (ply < rnd) {
+                mv = ms[(Math.random() * ms.length) | 0];
+                big = 0;
+              } else {
+                var bs = -1e9;
+                stopF = 0;
+                dl = 1e15;
+                for (var i = 0; i < ms.length; i++) {
+                  var s = rs(P, ms[i], dep);
+                  if (s > bs) {
+                    bs = s;
+                    mv = ms[i];
+                  }
+                }
+                big = Math.abs(bs) > 1200 ? big + 1 : 0;
+                ev = bs * (P.side ? -1 : 1);
                 if (big >= 3) return { r: (bs > 0 ? P.side : P.side ^ 1) ? -1 : 1, data: data };
               }
-              if (rec) { LW = lw; data.push({ x: Array.from(mat(P, XV)), e: evalPos(P), c: P.side }); }
+              if (rec) {
+                LW = lw;
+                data.push({ x: Array.from(mat(P, XV)), e: evalPos(P), c: P.side });
+              }
               make(P, mv);
-              var hk = hashP(P), rc = 0;
-              PK.push(hk); PC.push(atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0);
+              var hk = hashP(P),
+                rc = 0;
+              PK.push(hk);
+              PC.push(atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0);
               for (var q = 0; q < PK.length; q++) if (PK[q] === hk) rc++;
               if (rc >= 3) return { r: 0, data: data };
               var now = Date.now();
-              if (now - lastV >= vms) { lastV = now; postMessage({ t: 'tv', id: m.id, st: toSt(P), mv: mv, ply: ply + 1, ev: ev, label: label }); }
+              if (now - lastV >= vms) {
+                lastV = now;
+                postMessage({ t: 'tv', id: m.id, st: toSt(P), mv: mv, ply: ply + 1, ev: ev, label: label });
+              }
               await tick();
               if (id !== job) return null;
             }
@@ -567,20 +1237,36 @@
             var res = await game(lw, lw, 6, 1, '学習対局 第' + (g + 1) + '局');
             if (!res) return;
             res.data.forEach(function (d) {
-              var y = res.r * (d.c ? -1 : 1), p = 1 / (1 + Math.exp(-d.e / 600)), gr = p - (y + 1) / 2;
+              var y = res.r * (d.c ? -1 : 1),
+                p = 1 / (1 + Math.exp(-d.e / 600)),
+                gr = p - (y + 1) / 2;
               for (var k = 1; k < 16; k++) lw[k] = Math.max(-60, Math.min(60, lw[k] - lr * gr * d.x[k]));
             });
             g++;
             {
-              for (var q = g % 2; q < g % 2 + 1; q++) {
+              for (var q = g % 2; q < (g % 2) + 1; q++) {
                 var r2 = await game(q ? zero : lw, q ? lw : zero, 4, 0, '評価対局(学習後 vs 学習前)');
                 if (!r2) return;
                 var rr = q ? -r2.r : r2.r;
-                if (rr > 0) mw++; else if (rr < 0) ml++; else md++;
+                if (rr > 0) mw++;
+                else if (rr < 0) ml++;
+                else md++;
               }
             }
-            var n = mw + md + ml, rate = n ? (mw + md / 2) / n : 0.5, pc = Math.min(0.99, Math.max(0.01, rate));
-            postMessage({ t: 'tr', id: m.id, lw: Array.from(lw), g: g, mw: mw, md: md, ml: ml, rate: rate, elo: Math.round(-400 * Math.log10(1 / pc - 1)) });
+            var n = mw + md + ml,
+              rate = n ? (mw + md / 2) / n : 0.5,
+              pc = Math.min(0.99, Math.max(0.01, rate));
+            postMessage({
+              t: 'tr',
+              id: m.id,
+              lw: Array.from(lw),
+              g: g,
+              mw: mw,
+              md: md,
+              ml: ml,
+              rate: rate,
+              elo: Math.round(-400 * Math.log10(1 / pc - 1))
+            });
             await tick();
           }
         };
@@ -588,23 +1274,104 @@
     </script>
 
     <script>
+      /* ===== 置き場所の設定(ファイルの場所を変えたときは、ここだけ書き換える) =====
+         取得先は上から順に試し、最初に取得できたものを使う。
+         './' や 'statics/...' のように相対パスで書くと、このHTMLと同じ場所を基準にする。 */
+      var HAO_URLS = [
+        'statics/shogi-nn/hao.bin',
+        'https://github.com/MathotaGamma/MathotaGamma.github.io/raw/main/statics/shogi-nn/hao.bin',
+        'https://mathotagamma.github.io/statics/shogi-nn/hao.bin',
+        'https://media.githubusercontent.com/media/MathotaGamma/MathotaGamma.github.io/main/statics/shogi-nn/hao.bin'
+      ];
+      var ENGINE_DIRS = [
+        './',
+        'https://unpkg.com/@mizarjp/yaneuraou.halfkp@7.6.2-alpha.2/lib/',
+        'https://cdn.jsdelivr.net/npm/@mizarjp/yaneuraou.halfkp@7.6.2-alpha.2/lib/'
+      ];
+      var ENGINE_FILES = {
+        js: 'yaneuraou.halfkp.js',
+        worker: 'yaneuraou.halfkp.worker.js',
+        wasm: 'yaneuraou.halfkp.wasm'
+      };
+      var SIZE_HAO = 64217066; /* 進捗表示用: hao.bin のおおよそのバイト数 */
+      var SIZE_WASM = 61754225; /* 進捗表示用: yaneuraou.halfkp.wasm のおおよそのバイト数 */
+
       /* ===== UI ===== */
       var NM = ['', '歩', '香', '桂', '銀', '金', '角', '飛', '玉', 'と', '杏', '圭', '全', '', '馬', '龍'];
-      var FN = '１２３４５６７８９', RN = '一二三四五六七八九';
-      var P = newPos(), hist = [], sel = null, last = null, over = 0, mode = 'vs', human = 0, flip = 0, gid = 0, busy = 0, tm = 0;
-      var W = null, netBuf = null, netName = '', lastMsg = null, trainLog = '';
-      var paused = 0, editing = 0, edBackup = null, startSfen = '', startP = null, edT = 1, edC = 0, edMode = 0, edErase = 0, jsNet = 0, curAn = null, lastInfo = '', nnOk = 0, lastRx = 0, turnT0 = 0, hKeys = [], hChk = [], endKif = '', endTxt = '', LWS = new Float64Array(16), trainOn = 0, trStat = '', trLive = '', evS = 0;
-      try { var sv = JSON.parse(localStorage.getItem('shogiLW') || 'null'); if (sv) LWS = Float64Array.from(sv, function (x) { return Math.max(-60, Math.min(60, x)); }); } catch (e) { }
+      var FN = '１２３４５６７８９',
+        RN = '一二三四五六七八九';
+      var P = newPos(),
+        hist = [],
+        sel = null,
+        last = null,
+        over = 0,
+        mode = 'vs',
+        human = 0,
+        flip = 0,
+        gid = 0,
+        busy = 0,
+        tm = 0;
+      var W = null,
+        netBuf = null,
+        netName = '',
+        lastMsg = null,
+        trainLog = '';
+      var paused = 0,
+        editing = 0,
+        edBackup = null,
+        startSfen = '',
+        startP = null,
+        edT = 1,
+        edC = 0,
+        edMode = 0,
+        edErase = 0,
+        jsNet = 0,
+        curAn = null,
+        lastInfo = '',
+        nnOk = 0,
+        lastRx = 0,
+        turnT0 = 0,
+        hKeys = [],
+        hChk = [],
+        endKif = '',
+        endTxt = '',
+        LWS = new Float64Array(16),
+        trainOn = 0,
+        trStat = '',
+        trLive = '',
+        evS = 0;
+      try {
+        var sv = JSON.parse(localStorage.getItem('shogiLW') || 'null');
+        if (sv)
+          LWS = Float64Array.from(sv, function (x) {
+            return Math.max(-60, Math.min(60, x));
+          });
+      } catch (e) {}
       var clk = { on: 0, left: 0, by: 0, fi: 0, t0: 0 };
-      function g(id) { return document.getElementById(id); }
+      var jsGuide = null,
+        manRec = 0,
+        stratLine = '',
+        stratPick = '',
+        stratOff = 0,
+        stratBase = null;
+
+      function g(id) {
+        return document.getElementById(id);
+      }
 
       /* ===== レイアウト: 実測で盤面サイズを決める(縦配置/横配置を自動選択) ===== */
       var layRaf = 0;
+
       function layout() {
-        var app = g('app'), vv = window.visualViewport;
-        var Wd = Math.floor(vv ? vv.width : window.innerWidth), H = Math.floor(vv ? vv.height : window.innerHeight);
-        app.style.width = Wd + 'px'; app.style.height = H + 'px';
-        var inW = Wd - 4, inH = H - 4, edOn = !g('ed').hidden;
+        var app = g('app'),
+          vv = window.visualViewport;
+        var Wd = Math.floor(vv ? vv.width : window.innerWidth),
+          H = Math.floor(vv ? vv.height : window.innerHeight);
+        app.style.width = Wd + 'px';
+        app.style.height = H + 'px';
+        var inW = Wd - 4,
+          inH = H - 4,
+          edOn = !g('ed').hidden;
         app.classList.remove('land');
         var pw = Math.min(inW, 560);
         app.style.setProperty('--pw', pw + 'px');
@@ -619,139 +1386,337 @@
         app.style.setProperty('--c', c + 'px');
         window.scrollTo(0, 0);
       }
+
       function layoutSoon() {
         if (layRaf) return;
-        layRaf = requestAnimationFrame(function () { layRaf = 0; layout(); });
+        layRaf = requestAnimationFrame(function () {
+          layRaf = 0;
+          layout();
+        });
       }
-      function num(id) { var v = g(id).value; return v === 'c' ? +g(id + 'C').value : +v; }
+
+      function num(id) {
+        var v = g(id).value;
+        return v === 'c' ? +g(id + 'C').value : +v;
+      }
 
       /* --- メニュー生成 --- */
       var SPEC = [
-        ['mode', 'モード', [['vs', 'VS AI'], ['study', '研究(ローカル対戦)'], ['train', 'AI学習(自己対局)']]],
-        ['side', 'あなたの手番', [['0', '先手'], ['1', '後手'], ['r', 'ランダム']]],
-        ['tm', '人間の時間', [['n', '制限なし'], ['s', '切れ負け'], ['b', '持ち時間+秒読み/加算']]],
-        ['base', '持ち時間(分)', [['10', '10'], ['5', '5'], ['3', '3'], ['1', '1'], ['c', '任意']]],
-        ['by', '秒読み(秒)', [['0', 'なし'], ['5', '5'], ['10', '10'], ['20', '20'], ['30', '30'], ['c', '任意']]],
-        ['fi', 'フィッシャー(秒)', [['0', 'なし'], ['3', '+3'], ['5', '+5'], ['c', '任意']]],
-        ['ai', 'AI考慮時間(秒/手)', [['5', '5'], ['10', '10'], ['20', '20'], ['0', '無制限'], ['c', '任意']]]
+        [
+          'mode',
+          'モード',
+          [
+            ['vs', 'VS AI'],
+            ['study', '研究(ローカル対戦)'],
+            ['train', 'AI学習(自己対局)']
+          ]
+        ],
+        [
+          'side',
+          'あなたの手番',
+          [
+            ['0', '先手'],
+            ['1', '後手'],
+            ['r', 'ランダム']
+          ]
+        ],
+        [
+          'tm',
+          '人間の時間',
+          [
+            ['n', '制限なし'],
+            ['s', '切れ負け'],
+            ['b', '持ち時間+秒読み/加算']
+          ]
+        ],
+        [
+          'base',
+          '持ち時間(分)',
+          [
+            ['10', '10'],
+            ['5', '5'],
+            ['3', '3'],
+            ['1', '1'],
+            ['c', '任意']
+          ]
+        ],
+        [
+          'by',
+          '秒読み(秒)',
+          [
+            ['0', 'なし'],
+            ['5', '5'],
+            ['10', '10'],
+            ['20', '20'],
+            ['30', '30'],
+            ['c', '任意']
+          ]
+        ],
+        [
+          'fi',
+          'フィッシャー(秒)',
+          [
+            ['0', 'なし'],
+            ['3', '+3'],
+            ['5', '+5'],
+            ['c', '任意']
+          ]
+        ],
+        [
+          'ai',
+          'AI考慮時間(秒/手)',
+          [
+            ['5', '5'],
+            ['10', '10'],
+            ['20', '20'],
+            ['0', '無制限'],
+            ['c', '任意']
+          ]
+        ]
       ];
+
       function buildMenu() {
-        var h = '<h3>設定</h3><label>評価関数(無くても指せます)</label><div id="nnS">未読込</div>' +
+        var h =
+          '<h3>設定</h3><label>評価関数(無くても指せます)</label><div id="nnS">未読込</div>' +
           '<button id="bHao">hao.bin を読込</button> <input type="file" id="nnF">';
         SPEC.forEach(function (s) {
-          h += '<label>' + s[1] + '</label><select id="' + s[0] + '">' + s[2].map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select>';
-          if (s[2][s[2].length - 1][0] === 'c') h += ' <input type="number" id="' + s[0] + 'C" value="' + (s[0] === 'base' ? 15 : 7) + '">';
+          h +=
+            '<label>' +
+            s[1] +
+            '</label><select id="' +
+            s[0] +
+            '">' +
+            s[2]
+              .map(function (o) {
+                return '<option value="' + o[0] + '">' + o[1] + '</option>';
+              })
+              .join('') +
+            '</select>';
+          if (s[2][s[2].length - 1][0] === 'c')
+            h += ' <input type="number" id="' + s[0] + 'C" value="' + (s[0] === 'base' ? 15 : 7) + '">';
         });
-        h += '<label>読み込む深度 <input type="number" id="D" value="14" min="1"></label>' +
+        h +=
+          '<label>読み込む深度 <input type="number" id="D" value="14" min="1"></label>' +
           '<label>自己対局の読み深さ <input type="number" id="trD" value="2"></label>' +
           '<label>自己対局の盤面更新間隔(ms) <input type="number" id="trV" value="200"></label>' +
           '<label>学習率 <input type="number" step="0.1" id="trL" value="0.5"></label>' +
           '<label>AIの強さ <select id="lv"><option value="1">1 (最弱)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11" selected>無制限</option></select></label>' +
           '<label>AIの手のばらつき(基準値。手数が進むほど滑らかに減衰) <select id="rnd"><option value="0">なし(常に最善手)</option><option value="30">小(30cp)</option><option value="60" selected>中(60cp)</option><option value="120">大(120cp)</option><option value="250">特大(250cp)</option></select></label>' +
+          '<label>自陣の形(戦法)の目標 <select id="strat"><option value="">指定なし</option>' +
+          Object.keys(STRATS)
+            .concat(['自作'])
+            .map(function (k) {
+              return '<option>' + k + '</option>';
+            })
+            .join('') +
+          '</select></label>' +
+          '<input type="text" id="stratC" placeholder="自作: 駒+マスを優先順に 例 P7f R6h K2h S3h"><div style="font-size:12px;color:#aaa">駒: P歩 L香 N桂 S銀 G金 B角 R飛 K玉 / マス: 筋の数字+段のa〜i(a=一段)。先手視点で書く(後手は自動で反転)。どちらのエンジンでも有効</div>' +
+          '<label><input type="checkbox" id="manAI"> AIの手を自分で決める(AIの手番でも盤や候補手をタップして指せる)</label>' +
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="useLW"> 学習成果(駒価値補正)を使う ※効果は小さく、悪化する場合あり</label><br>' +
           '<button id="bEdit">局面編集</button> <button id="bKif">棋譜(.kif)出力</button> <button id="bClose">閉じる</button>';
         g('menu').innerHTML = h;
-        g('nnF').onchange = function (e) { var f = e.target.files[0]; if (f) readFile(f); };
-        g('bHao').textContent = 'hao.bin を再ダウンロード'; g('bHao').onclick = function () { g('menu').hidden = true; loadHao(); };
-        g('bEdit').onclick = function () { g('menu').hidden = true; startEdit(); };
-        g('bKif').onclick = exportKif; g('bClose').onclick = function () { g('menu').hidden = true; };
-        g('mode').onchange = function () { g('menu').hidden = true; newGame(); };
+        g('nnF').onchange = function (e) {
+          var f = e.target.files[0];
+          if (f) readFile(f);
+        };
+        g('bHao').textContent = 'hao.bin を再ダウンロード';
+        g('bHao').onclick = function () {
+          g('menu').hidden = true;
+          loadHao();
+        };
+        g('bEdit').onclick = function () {
+          g('menu').hidden = true;
+          startEdit();
+        };
+        g('bKif').onclick = exportKif;
+        g('bClose').onclick = function () {
+          g('menu').hidden = true;
+        };
+        g('mode').onchange = function () {
+          g('menu').hidden = true;
+          newGame();
+        };
       }
 
       /* --- NN読込 --- */
       function setNN(txt, pct, ov) {
-        g('ovT').textContent = txt; g('ovB').style.width = pct + '%'; g('ov').hidden = !ov;
+        g('ovT').textContent = txt;
+        g('ovB').style.width = pct + '%';
+        g('ov').hidden = !ov;
         g('nnS').textContent = txt;
         g('nnB').textContent = ov && pct < 100 ? 'NN ' + Math.round(pct) + '%' : txt.slice(0, 26);
         g('nnB').style.color = nnOk ? '#9cf' : '#f88';
       }
+
       function newWorker() {
         var url = URL.createObjectURL(new Blob([g('eng').textContent], { type: 'text/javascript' }));
         W = new Worker(url);
-        W.onmessage = onMsg; lastRx = Date.now();
-        W.onerror = function (e) { busy = 0; g('cand').innerHTML = '<div>ワーカーエラー: ' + e.message + '</div>'; };
+        W.onmessage = onMsg;
+        lastRx = Date.now();
+        W.onerror = function (e) {
+          busy = 0;
+          g('cand').innerHTML = '<div>ワーカーエラー: ' + e.message + '</div>';
+        };
         if (netBuf && jsNet) W.postMessage({ cmd: 'net', buf: netBuf });
       }
+
       function ensureJsNet() {
-        if (netBuf && !jsNet) { jsNet = 1; setNN('NN 解析中…', 50, 1); W.postMessage({ cmd: 'net', buf: netBuf }); }
+        if (netBuf && !jsNet) {
+          jsNet = 1;
+          setNN('NN 解析中…', 50, 1);
+          W.postMessage({ cmd: 'net', buf: netBuf });
+        }
       }
+
       function useNet(buf, name) {
-        netBuf = buf; netName = name;
-        if (YO.state === 'ok') { yoApplyNet(); return; }
+        netBuf = buf;
+        netName = name;
+        if (YO.state === 'ok') {
+          yoApplyNet();
+          return;
+        }
         ensureJsNet();
       }
+
       function readFile(f) {
         var r = new FileReader();
-        r.onprogress = function (e) { if (e.total) setNN('NN 読込中 ' + (e.loaded / 1048576).toFixed(0) + 'MB / ' + (e.total / 1048576).toFixed(0) + 'MB', e.loaded * 50 / e.total, 1); };
-        r.onload = function () { idbPut('hao', r.result).catch(function () { }); useNet(r.result, f.name); };
+        r.onprogress = function (e) {
+          if (e.total)
+            setNN(
+              'NN 読込中 ' + (e.loaded / 1048576).toFixed(0) + 'MB / ' + (e.total / 1048576).toFixed(0) + 'MB',
+              (e.loaded * 50) / e.total,
+              1
+            );
+        };
+        r.onload = function () {
+          idbPut('hao', r.result).catch(function () {});
+          useNet(r.result, f.name);
+        };
         r.readAsArrayBuffer(f);
       }
+
       function idb() {
         return new Promise(function (res, rej) {
           var r = indexedDB.open('shogiNN', 1);
-          r.onupgradeneeded = function () { r.result.createObjectStore('f'); };
-          r.onsuccess = function () { res(r.result); };
-          r.onerror = function () { rej(r.error); };
+          r.onupgradeneeded = function () {
+            r.result.createObjectStore('f');
+          };
+          r.onsuccess = function () {
+            res(r.result);
+          };
+          r.onerror = function () {
+            rej(r.error);
+          };
         });
       }
+
       async function idbGet(k) {
         var d = await idb();
         return new Promise(function (res, rej) {
           var q = d.transaction('f').objectStore('f').get(k);
-          q.onsuccess = function () { res(q.result); };
-          q.onerror = function () { rej(q.error); };
+          q.onsuccess = function () {
+            res(q.result);
+          };
+          q.onerror = function () {
+            rej(q.error);
+          };
         });
       }
+
       async function idbPut(k, v) {
         var d = await idb();
         return new Promise(function (res, rej) {
           var t = d.transaction('f', 'readwrite');
           t.objectStore('f').put(v, k);
           t.oncomplete = res;
-          t.onerror = function () { rej(t.error); };
+          t.onerror = function () {
+            rej(t.error);
+          };
         });
       }
-      function to(p, ms) { return Promise.race([p, new Promise(function (r) { setTimeout(function () { r(null); }, ms); })]); }
+
+      function to(p, ms) {
+        return Promise.race([
+          p,
+          new Promise(function (r) {
+            setTimeout(function () {
+              r(null);
+            }, ms);
+          })
+        ]);
+      }
+
       async function autoLoad() {
-        try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
+        try {
+          if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+        } catch (e) {}
         try {
           var c = await to(idbGet('hao'), 2500);
-          if (c && c.byteLength > 1e6) { setNN('保存済みの hao.bin を読込中…', 50, 1); useNet(c, 'hao.bin(保存済み)'); return; }
-        } catch (e) { }
+          if (c && c.byteLength > 1e6) {
+            setNN('保存済みの hao.bin を読込中…', 50, 1);
+            useNet(c, 'hao.bin(保存済み)');
+            return;
+          }
+        } catch (e) {}
         if (navigator.onLine === false) {
           setNN('オフラインで hao.bin が未保存です。☰からファイルを選んでください', 0, 1);
-          setTimeout(function () { g('ov').hidden = true; }, 5000);
+          setTimeout(function () {
+            g('ov').hidden = true;
+          }, 5000);
           return;
         }
         loadHao();
       }
-      var HAO = ['statics/shogi-nn/hao.bin', 'https://github.com/MathotaGamma/MathotaGamma.github.io/raw/main/statics/shogi-nn/hao.bin', 'https://mathotagamma.github.io/statics/shogi-nn/hao.bin',
-        'https://media.githubusercontent.com/media/MathotaGamma/MathotaGamma.github.io/main/statics/shogi-nn/hao.bin'];
+
       async function loadHao() {
         var err = '';
-        for (var k = 0; k < HAO.length; k++) {
+        for (var k = 0; k < HAO_URLS.length; k++) {
           try {
             setNN('hao.bin ダウンロード開始…', 0, 1);
-            var r = await fetch(HAO[k]);
+            var r = await fetch(HAO_URLS[k]);
             if (!r.ok) throw new Error('HTTP ' + r.status);
-            var tot = +r.headers.get('content-length') || 64217066, ch = [], n = 0;
-            if (!r.body || !r.body.getReader) { var ab = await r.arrayBuffer(); ch.push(new Uint8Array(ab)); n = ab.byteLength; }
-            var rd = r.body && r.body.getReader ? r.body.getReader() : { read: function () { return Promise.resolve({ done: 1 }); } };
+            var tot = +r.headers.get('content-length') || SIZE_HAO,
+              ch = [],
+              n = 0;
+            if (!r.body || !r.body.getReader) {
+              var ab = await r.arrayBuffer();
+              ch.push(new Uint8Array(ab));
+              n = ab.byteLength;
+            }
+            var rd =
+              r.body && r.body.getReader
+                ? r.body.getReader()
+                : {
+                    read: function () {
+                      return Promise.resolve({ done: 1 });
+                    }
+                  };
             for (;;) {
               var x = await rd.read();
               if (x.done) break;
-              ch.push(x.value); n += x.value.length;
-              setNN('hao.bin ダウンロード中 ' + (n / 1048576).toFixed(1) + 'MB / ' + (tot / 1048576).toFixed(1) + 'MB', Math.min(50, n * 50 / tot), 1);
+              ch.push(x.value);
+              n += x.value.length;
+              setNN(
+                'hao.bin ダウンロード中 ' + (n / 1048576).toFixed(1) + 'MB / ' + (tot / 1048576).toFixed(1) + 'MB',
+                Math.min(50, (n * 50) / tot),
+                1
+              );
             }
             if (n < 1e6) throw new Error('サイズ不正 ' + n + 'B(LFSポインタ)');
-            var u8 = new Uint8Array(n), o = 0;
-            ch.forEach(function (c) { u8.set(c, o); o += c.length; });
-            idbPut('hao', u8.buffer).catch(function () { });
+            var u8 = new Uint8Array(n),
+              o = 0;
+            ch.forEach(function (c) {
+              u8.set(c, o);
+              o += c.length;
+            });
+            idbPut('hao', u8.buffer).catch(function () {});
             useNet(u8.buffer, 'hao.bin');
             return;
-          } catch (e) { err += (k + 1) + ': ' + e.message + ' '; }
+          } catch (e) {
+            err += k + 1 + ': ' + e.message + ' ';
+          }
         }
         setNN('取得失敗(タップで再試行) ' + err, 0, 0);
         g('nnB').textContent = '⚠取得失敗:タップで再試行';
@@ -760,97 +1725,271 @@
       /* --- Worker通信 --- */
       function send(msg) {
         lastMsg = msg;
-        if (msg.cmd === 'go') { g('bar').firstChild.style.width = '0%'; g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…</div>'; }
+        if (msg.cmd === 'go') {
+          g('bar').firstChild.style.width = '0%';
+          g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…</div>';
+        }
         clearTimeout(tm);
-        if (busy) tm = setTimeout(function () { W.terminate(); newWorker(); W.postMessage(lastMsg); }, 3000);
+        if (busy)
+          tm = setTimeout(function () {
+            W.terminate();
+            newWorker();
+            W.postMessage(lastMsg);
+          }, 3000);
         busy = 1;
         W.postMessage(msg);
       }
+
       function onMsg(e) {
         var m = e.data;
         lastRx = Date.now();
-        if (m.t === 'err') { busy = 0; g('cand').innerHTML = '<div>エラー: ' + m.txt + '</div>'; return; }
-        if (m.t === 'ld') { setNN('NN ' + m.txt + ' (' + Math.round(m.pct) + '%)', m.pct, m.pct < 100); }
-        else if (m.t === 'ldDone') { g('ov').hidden = true; nnOk = m.ok; if (m.ok) setNN('NN読込済: ' + netName, 100, 0); }
-        else if (m.t === 'ack') clearTimeout(tm);
+        if (m.t === 'err') {
+          busy = 0;
+          g('cand').innerHTML = '<div>エラー: ' + m.txt + '</div>';
+          return;
+        }
+        if (m.t === 'ld') {
+          setNN('NN ' + m.txt + ' (' + Math.round(m.pct) + '%)', m.pct, m.pct < 100);
+        } else if (m.t === 'ldDone') {
+          g('ov').hidden = true;
+          nnOk = m.ok;
+          if (m.ok) setNN('NN読込済: ' + netName, 100, 0);
+        } else if (m.t === 'ack') clearTimeout(tm);
         else if (m.id !== gid) return;
         else if (m.t === 'p' || m.t === 'done') {
           showList(m);
-          if (m.t === 'done') { busy = 0; if (m.play && m.list.length && !over) doMove(pickVar(m.list, m.list[0].m)); }
+          if (m.t === 'done') {
+            busy = 0;
+            if (m.play && m.list.length && !over) {
+              var pm = m.list[0].m,
+                gm = 0;
+              if (jsGuide) {
+                var rr = { guide: jsGuide, mv: {} };
+                m.list.forEach(function (x) {
+                  rr.mv[x.m] = x;
+                });
+                if (m.worst) rr.mv[m.worst.m] = { m: m.worst.m, s: m.worst.s, d: 0 };
+                gm = guideChoose(rr, pm);
+              }
+              pm = gm || pickVar(m.list, pm);
+              if (manOn()) {
+                manRec = pm;
+                g('msg').textContent = 'AIの手を選んでください(推奨 ' + (P.side ? '△' : '▲') + mvT(pm) + ')';
+                renderBtns();
+              } else doMove(pm);
+            }
+          }
         } else if (m.t === 'tr') showTrain(m);
         else if (m.t === 'tv' && mode === 'train') {
-          P = fromSt(m.st); last = { f: m.mv & 127, t: (m.mv >> 7) & 127 }; flip = 0;
-          trLive = m.label + ' ' + m.ply + '手目'; setEv(m.ev); g('msg').textContent = m.ply + '手目'; paintTrain(); render();
+          P = fromSt(m.st);
+          last = { f: m.mv & 127, t: (m.mv >> 7) & 127 };
+          flip = 0;
+          trLive = m.label + ' ' + m.ply + '手目';
+          setEv(m.ev);
+          g('msg').textContent = m.ply + '手目';
+          paintTrain();
+          render();
         }
       }
-      function stRaw() { return { cmd: 'go', id: ++gid, st: toSt(P), D: Math.min(Math.max(num('D'), 1), 8), rk: hKeys.slice(), rc: hChk.slice(), lw: Array.from(g('useLW').checked ? LWS : new Float64Array(16)) }; }
+
+      function stRaw() {
+        return {
+          cmd: 'go',
+          id: ++gid,
+          st: toSt(P),
+          D: Math.min(Math.max(num('D'), 1), 8),
+          rk: hKeys.slice(),
+          rc: hChk.slice(),
+          lw: Array.from(g('useLW').checked ? LWS : new Float64Array(16))
+        };
+      }
+
       function think(play) {
-        if (YO.state === 'ok') { yoThink(play); return; }
+        if (YO.state === 'ok') {
+          yoThink(play);
+          return;
+        }
+        jsGuide = play ? stratGuide() : null;
+        if (play) setStratLine(jsGuide);
         var m = stRaw();
-        m.play = play; m.ms = (play || mode === 'vs') ? num('ai') * 1000 : 0;
+        m.play = play;
+        m.ms = play || mode === 'vs' ? num('ai') * 1000 : 0;
         if (play && lvOf().d) m.D = Math.min(m.D, lvOf().d);
         send(m);
       }
 
       /* --- 表記・棋譜 --- */
       function mvT(m, kif) {
-        var f = m & 127, t = (m >> 7) & 127, pr = (m >> 14) & 1, d = m >> 15;
-        var nm = f === 81 ? NM[d] : NM[P.b[f] & 15], dis = '';
+        var f = m & 127,
+          t = (m >> 7) & 127,
+          pr = (m >> 14) & 1,
+          d = m >> 15;
+        var nm = f === 81 ? NM[d] : NM[P.b[f] & 15],
+          dis = '';
         if (f !== 81 && !kif) {
           dis = disamb(f, t);
           if (!pr && legal(P).indexOf(m | 16384) >= 0) dis += '不成';
         }
-        return FN[(t / 9) | 0] + RN[t % 9] + nm + dis + (pr ? '成' : '') + (f === 81 ? '打' : (kif ? '(' + (((f / 9) | 0) + 1) + (f % 9 + 1) + ')' : ''));
+        return (
+          FN[(t / 9) | 0] +
+          RN[t % 9] +
+          nm +
+          dis +
+          (pr ? '成' : '') +
+          (f === 81 ? '打' : kif ? '(' + (((f / 9) | 0) + 1) + ((f % 9) + 1) + ')' : '')
+        );
       }
       /* 同じ種類の駒が複数ある場合の区別: 直・右・左・上・引・寄 (先手後手それぞれ自分から見た向き) */
       function disamb(f, t) {
-        var pc = P.b[f], black = (pc >> 4) === 0, froms = [], tF = (t / 9) | 0, tR = t % 9;
+        var pc = P.b[f],
+          black = pc >> 4 === 0,
+          froms = [],
+          tF = (t / 9) | 0,
+          tR = t % 9;
         legal(P).forEach(function (x) {
           var xf = x & 127;
           if (xf < 81 && ((x >> 7) & 127) === t && P.b[xf] === pc && froms.indexOf(xf) < 0) froms.push(xf);
         });
         if (froms.length < 2) return '';
         var info = froms.map(function (x) {
-          var xF = (x / 9) | 0, xR = x % 9;
+          var xF = (x / 9) | 0,
+            xR = x % 9;
           return { me: x === f, rs: black ? tF - xF : xF - tF, fw: black ? xR - tR : tR - xR };
         });
-        var me = info.filter(function (o) { return o.me; })[0], others = info.filter(function (o) { return !o.me; });
-        if (me.rs === 0 && me.fw > 0 && !others.some(function (o) { return o.rs === 0 && o.fw > 0; }) && others.some(function (o) { return o.rs !== 0; })) return '直';
+        var me = info.filter(function (o) {
+            return o.me;
+          })[0],
+          others = info.filter(function (o) {
+            return !o.me;
+          });
+        if (
+          me.rs === 0 &&
+          me.fw > 0 &&
+          !others.some(function (o) {
+            return o.rs === 0 && o.fw > 0;
+          }) &&
+          others.some(function (o) {
+            return o.rs !== 0;
+          })
+        )
+          return '直';
         var mov = me.fw > 0 ? '上' : me.fw < 0 ? '引' : '寄';
-        var rights = others.filter(function (o) { return o.rs > me.rs; }).length, lefts = others.filter(function (o) { return o.rs < me.rs; }).length;
-        var same = others.filter(function (o) { return o.rs === me.rs; }).length;
+        var rights = others.filter(function (o) {
+            return o.rs > me.rs;
+          }).length,
+          lefts = others.filter(function (o) {
+            return o.rs < me.rs;
+          }).length;
+        var same = others.filter(function (o) {
+          return o.rs === me.rs;
+        }).length;
         var side = rights === 0 && lefts > 0 ? '右' : lefts === 0 && rights > 0 ? '左' : '';
         if (same === 0) return side || mov;
         return side + mov;
       }
-      function fmtS(s) { return Math.abs(s) > 29000 ? (s > 0 ? '詰ませ' : '詰まされ') : (s > 0 ? '+' : '') + s; }
+
+      function engLabel() {
+        if (YO.state === 'ok')
+          return 'やねうら王(WASM)' + (YO.ready ? '' : ' 準備中') + ' + ' + (netBuf ? netName : '内蔵:水匠5');
+        if (YO.state === 'init' || YO.state === 'none') return '自作エンジン(やねうら王を準備中)';
+        return '自作エンジン(やねうら王は使えません: ' + (YO.why || '理由不明') + ')';
+      }
+
+      function fmtS(s) {
+        return Math.abs(s) > 29000 ? (s > 0 ? '詰ませ' : '詰まされ') : (s > 0 ? '+' : '') + s;
+      }
+
       function showList(m) {
         g('bar').firstChild.style.width = m.pct + '%';
         curAn = { list: m.list, worst: m.worst };
-        var pv = (nnOk ? '' : '<div style="color:#f88">⚠評価関数(NN)未使用: 駒得評価で指しています</div>') + (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '');
-        var es = m.ev != null ? m.ev : (m.list.length ? m.list[0].s : null);
+        var pv =
+          (nnOk ? '' : '<div style="color:#f88">⚠評価関数(NN)未使用: 駒得評価で指しています</div>') +
+          '<div style="font-size:11px;color:#9cf">エンジン: ' +
+          engLabel() +
+          '</div>' +
+          (stratLine ? '<div style="color:#fc6">' + stratLine + '</div>' : '') +
+          (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '');
+        var es = m.ev != null ? m.ev : m.list.length ? m.list[0].s : null;
         if (es != null) setEv(es * (P.side ? -1 : 1));
-        if (!g(m.play ? 'showA' : 'showU').checked) { g('cand').innerHTML = pv + '<div>思考 ' + Math.round(m.pct) + '%' + (m.info || '') + '</div>'; return; }
-        var n = 5, h = pv + '<div>思考 ' + Math.round(m.pct) + '%' + (m.info || '') + ' (手番側の評価値)</div>';
+        if (!g(m.play ? 'showA' : 'showU').checked) {
+          g('cand').innerHTML = pv + '<div>思考 ' + Math.round(m.pct) + '%' + (m.info || '') + '</div>';
+          return;
+        }
+        var n = 5,
+          man = manOn() && P.side !== human,
+          h =
+            pv +
+            '<div>思考 ' +
+            Math.round(m.pct) +
+            '%' +
+            (m.info || '') +
+            ' (手番側の評価値)' +
+            (man ? ' ※タップで指す' : '') +
+            '</div>';
         m.list.slice(0, n).forEach(function (x, i) {
-          h += '<div>' + (i + 1) + '. ' + (P.side ? '△' : '▲') + mvT(x.m) + '  ' + fmtS(x.s) + '  (深度' + x.d + ')</div>';
+          h +=
+            '<div' +
+            (man ? ' data-m="' + x.m + '" style="cursor:pointer;text-decoration:underline"' : '') +
+            '>' +
+            (i + 1) +
+            '. ' +
+            (P.side ? '△' : '▲') +
+            mvT(x.m) +
+            '  ' +
+            fmtS(x.s) +
+            '  (深度' +
+            x.d +
+            ')</div>';
         });
         if (m.worst) h += '<div style="color:#f88">最悪手 ' + mvT(m.worst.m) + '  ' + fmtS(m.worst.s) + '</div>';
         g('cand').innerHTML = h;
       }
+
       function setEv(sb) {
         var p = 1 / (1 + Math.exp(-Math.max(-3000, Math.min(3000, sb)) / 600));
-        g('evB').style.width = (p * 100) + '%';
-        g('evT').textContent = (sb >= 0 ? '先手 ' : '後手 ') + Math.round((sb >= 0 ? p : 1 - p) * 100) + '% (' + (sb > 0 ? '+' : '') + Math.round(sb) + ')';
+        g('evB').style.width = p * 100 + '%';
+        g('evT').textContent =
+          (sb >= 0 ? '先手 ' : '後手 ') +
+          Math.round((sb >= 0 ? p : 1 - p) * 100) +
+          '% (' +
+          (sb > 0 ? '+' : '') +
+          Math.round(sb) +
+          ')';
       }
+
       function exportKif() {
-        var tot = [0, 0], f2 = function (n) { return String(n).padStart(2, '0'); };
-        var t = (startSfen ? '手合割：その他\n' : '手合割：平手\n') + '先手：' + (mode === 'vs' && human === 0 ? '人間' : 'AI') + '\n後手：' + (mode === 'vs' && human === 1 ? '人間' : 'AI') +
-          '\n' + (startSfen ? bodText(startP) : '') + '手数----指手---------消費時間--\n';
+        var tot = [0, 0],
+          f2 = function (n) {
+            return String(n).padStart(2, '0');
+          };
+        var t =
+          (startSfen ? '手合割：その他\n' : '手合割：平手\n') +
+          '先手：' +
+          (mode === 'vs' && human === 0 ? '人間' : 'AI') +
+          '\n後手：' +
+          (mode === 'vs' && human === 1 ? '人間' : 'AI') +
+          '\n' +
+          (startSfen ? bodText(startP) : '') +
+          '手数----指手---------消費時間--\n';
         hist.forEach(function (h, i) {
           var sec = Math.round(h.t / 1000);
           tot[h.c] += sec;
-          t += String(i + 1).padStart(4, ' ') + ' ' + h.kif + '   (' + ((sec / 60) | 0) + ':' + f2(sec % 60) + '/' + f2((tot[h.c] / 3600) | 0) + ':' + f2(((tot[h.c] / 60) | 0) % 60) + ':' + f2(tot[h.c] % 60) + ')\n' + (h.inf ? '*' + h.inf + '\n' : '');
+          t +=
+            String(i + 1).padStart(4, ' ') +
+            ' ' +
+            h.kif +
+            '   (' +
+            ((sec / 60) | 0) +
+            ':' +
+            f2(sec % 60) +
+            '/' +
+            f2((tot[h.c] / 3600) | 0) +
+            ':' +
+            f2(((tot[h.c] / 60) | 0) % 60) +
+            ':' +
+            f2(tot[h.c] % 60) +
+            ')\n' +
+            (h.inf ? '*' + h.inf + '\n' : '');
         });
         if (over && endKif) t += String(hist.length + 1).padStart(4, ' ') + ' ' + endKif + '\n' + endTxt + '\n';
         var a = document.createElement('a');
@@ -861,469 +2000,1230 @@
 
       /* --- 対局進行 --- */
       function newGame(sp) {
-        g('res').hidden = true; mode = g('mode').value; sel = null; last = null; over = 0; endKif = ''; hist = []; P = sp || newPos(); startSfen = sp ? toSfen(P) : ''; startP = clonePos(P); gid++; hKeys = [hashP(P)]; hChk = [atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0];
-        lastInfo = ''; curAn = null; paused = 0; editing = 0; g('ed').hidden = true; g('info').hidden = false;
+        g('res').hidden = true;
+        mode = g('mode').value;
+        sel = null;
+        last = null;
+        over = 0;
+        endKif = '';
+        hist = [];
+        P = sp || newPos();
+        startSfen = sp ? toSfen(P) : '';
+        startP = clonePos(P);
+        gid++;
+        hKeys = [hashP(P)];
+        hChk = [atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0];
+        lastInfo = '';
+        curAn = null;
+        manRec = 0;
+        stratLine = '';
+        stratPick = '';
+        stratOff = 0;
+        stratBase = null;
+        paused = 0;
+        editing = 0;
+        g('ed').hidden = true;
+        g('info').hidden = false;
         var hs = g('side').value;
         human = hs === 'r' ? (Math.random() < 0.5 ? 0 : 1) : +hs;
         flip = mode === 'vs' && human === 1 ? 1 : 0;
         var t = g('tm').value;
-        clk.on = mode === 'vs' && t !== 'n'; clk.left = num('base') * 60000;
-        clk.by = t === 'b' ? num('by') * 1000 : 0; clk.fi = t === 'b' ? num('fi') * 1000 : 0;
-        g('cand').innerHTML = ''; g('menu').hidden = true; renderBtns(); g('evB').style.width = '50%'; g('evT').textContent = '形勢'; trainOn = 0;
-        if (mode === 'train') { startTrain(); render(); return; }
+        clk.on = mode === 'vs' && t !== 'n';
+        clk.left = num('base') * 60000;
+        clk.by = t === 'b' ? num('by') * 1000 : 0;
+        clk.fi = t === 'b' ? num('fi') * 1000 : 0;
+        g('cand').innerHTML = '';
+        g('menu').hidden = true;
+        renderBtns();
+        g('evB').style.width = '50%';
+        g('evT').textContent = '形勢';
+        trainOn = 0;
+        if (mode === 'train') {
+          startTrain();
+          render();
+          return;
+        }
         g('msg').textContent = mode === 'vs' ? 'あなたは' + (human ? '後手' : '先手') : '研究';
         next();
       }
-      function sideN(c) { return c ? '後手' : '先手'; }
+
+      function sideN(c) {
+        return c ? '後手' : '先手';
+      }
+
       function finish(msg, winner, kw) {
         if (over) return;
-        over = 1; gid++; endKif = kw;
+        over = 1;
+        gid++;
+        endKif = kw;
         endTxt = 'まで' + hist.length + '手で' + (winner < 0 ? '引き分け' : sideN(winner) + 'の勝ち');
         g('msg').textContent = msg;
-        var vs = mode === 'vs', el = g('res');
+        var vs = mode === 'vs',
+          el = g('res');
         el.className = winner < 0 ? 'draw' : vs ? (winner === human ? 'win' : 'lose') : 'win';
-        el.innerHTML = (winner < 0 ? '引き分け' : vs ? (winner === human ? 'あなたの勝ち' : 'あなたの負け') : sideN(winner) + 'の勝ち') + '<small>' + msg + '(タップで閉じる)</small>';
+        el.innerHTML =
+          (winner < 0
+            ? '引き分け'
+            : vs
+              ? winner === human
+                ? 'あなたの勝ち'
+                : 'あなたの負け'
+              : sideN(winner) + 'の勝ち') +
+          '<small>' +
+          msg +
+          '(タップで閉じる)</small>';
         el.hidden = false;
         renderBtns();
-        if (busy) { W.postMessage({ cmd: 'stop' }); busy = 0; }
+        if (busy) {
+          W.postMessage({ cmd: 'stop' });
+          busy = 0;
+        }
         yoStop();
       }
+
       function canDecl(c) {
-        var b = P.b, kp = P.k[c], kr = kp % 9;
+        var b = P.b,
+          kp = P.k[c],
+          kr = kp % 9;
         if (c ? kr < 6 : kr > 2) return 0;
         if (atk(P, kp, c ^ 1)) return 0;
-        var n = 0, pt = 0, t;
+        var n = 0,
+          pt = 0,
+          t;
         for (var s2 = 0; s2 < 81; s2++) {
           var p = b[s2];
-          if (p && (p >> 4) === c && (p & 15) !== 8 && (c ? s2 % 9 >= 6 : s2 % 9 <= 2)) { n++; t = p & 15; pt += (t === 6 || t === 7 || t === 14 || t === 15) ? 5 : 1; }
+          if (p && p >> 4 === c && (p & 15) !== 8 && (c ? s2 % 9 >= 6 : s2 % 9 <= 2)) {
+            n++;
+            t = p & 15;
+            pt += t === 6 || t === 7 || t === 14 || t === 15 ? 5 : 1;
+          }
         }
         for (t = 1; t < 8; t++) pt += P.h[c][t] * (t === 6 || t === 7 ? 5 : 1);
         return n >= 10 && pt >= (c ? 27 : 28);
       }
+
       function declare() {
         if (!canPlay()) return;
         if (canDecl(P.side)) finish('入玉宣言で' + sideN(P.side) + 'の勝ち', P.side, '入玉勝ち');
         else g('msg').textContent = '入玉宣言の条件を満たしていません';
       }
+
       function judge() {
-        var n = hKeys.length - 1, k = hKeys[n], cnt = 0, j0 = -1;
-        for (var i = 0; i <= n; i++) if (hKeys[i] === k) { cnt++; if (j0 < 0) j0 = i; }
+        var n = hKeys.length - 1,
+          k = hKeys[n],
+          cnt = 0,
+          j0 = -1;
+        for (var i = 0; i <= n; i++)
+          if (hKeys[i] === k) {
+            cnt++;
+            if (j0 < 0) j0 = i;
+          }
         if (cnt >= 4) {
-          var r = cyc(hChk, n, j0), mover = P.side ^ 1;
+          var r = cyc(hChk, n, j0),
+            mover = P.side ^ 1;
           if (r === 1) finish('連続王手の千日手で' + sideN(mover) + 'の反則負け', P.side, '反則負け');
           else if (r === 2) finish('連続王手の千日手で' + sideN(P.side) + 'の反則負け', mover, '反則負け');
           else finish('千日手(引き分け)', -1, '千日手');
           return 1;
         }
-        if (hist.length >= 512) { finish('512手で持将棋(引き分け)', -1, '持将棋'); return 1; }
+        if (hist.length >= 512) {
+          finish('512手で持将棋(引き分け)', -1, '持将棋');
+          return 1;
+        }
         return 0;
       }
+
       function next() {
         render();
         if (paused || editing) return;
-        turnT0 = Date.now(); curAn = null;
-        if (!legal(P).length) { finish('詰み(' + sideN(P.side) + 'の負け)', P.side ^ 1, '詰み'); return; }
-        if (mode === 'vs' && P.side !== human && canDecl(P.side)) { finish('入玉宣言で' + sideN(P.side) + 'の勝ち', P.side, '入玉勝ち'); return; }
+        turnT0 = Date.now();
+        curAn = null;
+        manRec = 0;
+        renderBtns();
+        if (!legal(P).length) {
+          finish('詰み(' + sideN(P.side) + 'の負け)', P.side ^ 1, '詰み');
+          return;
+        }
+        if (mode === 'vs' && P.side !== human && canDecl(P.side)) {
+          finish('入玉宣言で' + sideN(P.side) + 'の勝ち', P.side, '入玉勝ち');
+          return;
+        }
         if (mode === 'vs' && P.side !== human) think(1);
-        else { clk.t0 = Date.now(); think(0); }
+        else {
+          clk.t0 = Date.now();
+          think(0);
+        }
       }
+
       function rankInfo(m) {
         if (!curAn) return '';
-        var all = curAn.list.concat(curAn.worst ? [curAn.worst] : []), ix = -1;
-        for (var i = 0; i < all.length; i++) if (all[i].m === m) { ix = i; break; }
+        var all = curAn.list,
+          ix = -1,
+          i,
+          best,
+          sc;
+        for (i = 0; i < all.length; i++)
+          if (all[i].m === m) {
+            ix = i;
+            break;
+          }
+        if (ix < 0 && curAn.all) {
+          all = curAn.all;
+          for (i = 0; i < all.length; i++)
+            if (all[i].m === m) {
+              ix = i;
+              break;
+            }
+        }
+        if (ix < 0 && curAn.worst && curAn.worst.m === m) return '最悪手';
         if (ix < 0) return '';
-        var best = all[0].s, sc = all[ix].s;
-        return (ix + 1) + '位' + (Math.abs(sc) > 29000 || Math.abs(best) > 29000 ? '' : ' 最善比' + (sc - best) + 'cp');
+        best = all[0].s;
+        sc = all[ix].s;
+        return (
+          ix + 1 + '位' + (Math.abs(sc) > 29000 || Math.abs(best) > 29000 ? '' : ' 最善比' + (sc - best) + 'cp')
+        );
       }
+
       function doMove(m) {
-        var inf = rankInfo(m), txt = (P.side ? '△' : '▲') + mvT(m), kif = mvT(m, 1), pc = P.side, el = Date.now() - turnT0, cap = make(P, m);
+        var inf = rankInfo(m),
+          txt = (P.side ? '△' : '▲') + mvT(m),
+          kif = mvT(m, 1),
+          pc = P.side,
+          el = Date.now() - turnT0,
+          cap = make(P, m);
+        if (inf && mode === 'vs' && pc !== human && inf.indexOf('1位') !== 0) inf = '★' + inf;
         if (clk.on && pc === human) clk.left = Math.max(0, clk.left - (Date.now() - clk.t0)) + clk.fi;
         hist.push({ m: m, cap: cap, kif: kif, txt: txt, c: pc, t: el, inf: inf });
         lastInfo = txt + (inf ? ' ' + inf : '');
-        hKeys.push(hashP(P)); hChk.push(atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0);
-        last = { f: m & 127, t: (m >> 7) & 127 }; sel = null;
+        hKeys.push(hashP(P));
+        hChk.push(atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0);
+        last = { f: m & 127, t: (m >> 7) & 127 };
+        sel = null;
         g('msg').textContent = hist.length + '手目 ' + txt + (inf ? ' ' + inf : '');
         render();
         if (judge()) return;
         next();
       }
+
       function undoFor(c) {
         if (mode === 'train') return;
         var i = hist.length - 1;
         while (i >= 0 && hist[i].c !== c) i--;
         if (i < 0) return;
-        while (hist.length > i) { var h = hist.pop(); undo(P, h.m, h.cap); }
-        hKeys.length = hist.length + 1; hChk.length = hist.length + 1;
+        while (hist.length > i) {
+          var h = hist.pop();
+          undo(P, h.m, h.cap);
+        }
+        hKeys.length = hist.length + 1;
+        hChk.length = hist.length + 1;
         var l = hist[hist.length - 1];
-        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null; over = 0; endKif = ''; sel = null; paused = 0; renderBtns(); g('res').hidden = true; g('msg').textContent = l ? hist.length + '手目 ' + l.txt + (l.inf ? ' ' + l.inf : '') : ''; lastInfo = l ? l.txt + (l.inf ? ' ' + l.inf : '') : '';
+        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null;
+        over = 0;
+        endKif = '';
+        sel = null;
+        paused = 0;
+        renderBtns();
+        g('res').hidden = true;
+        g('msg').textContent = l ? hist.length + '手目 ' + l.txt + (l.inf ? ' ' + l.inf : '') : '';
+        lastInfo = l ? l.txt + (l.inf ? ' ' + l.inf : '') : '';
         next();
       }
+
       function resign(c) {
         if (mode === 'train') return;
         finish(sideN(c) + '投了', c ^ 1, '投了');
       }
+
       function renderBtns() {
-        var h = '<button id="bNew">新規</button>', end = over || paused;
+        var h = '<button id="bNew">新規</button>',
+          end = over || paused;
         if (mode === 'study') {
           [0, 1].forEach(function (c) {
             var m2 = c ? '☖' : '☗';
-            h += '<button data-a="u" data-c="' + c + '">' + m2 + '待った</button><button data-a="r" data-c="' + c + '">' + m2 + '投了</button>';
+            h +=
+              '<button data-a="u" data-c="' +
+              c +
+              '">' +
+              m2 +
+              '待った</button><button data-a="r" data-c="' +
+              c +
+              '">' +
+              m2 +
+              '投了</button>';
           });
           h += '<button data-a="d">宣言</button><button data-a="e">編集</button>';
         } else if (mode === 'vs') {
           h += '<button data-a="u" data-c="' + human + '">待った</button>';
-          if (!end) h += '<button data-a="r" data-c="' + human + '">投了</button><button data-a="d">宣言</button><button data-a="p">中断</button>';
-          else h += (paused ? '<button data-a="c">再開</button>' : '') + '<button data-a="s">研究へ</button><button data-a="e">編集</button>';
+          if (!end) {
+            h +=
+              '<button data-a="r" data-c="' +
+              human +
+              '">投了</button><button data-a="d">宣言</button><button data-a="p">中断</button>';
+            if (manOn() && P.side !== human) h += '<button data-a="b">AI推奨で指す</button>';
+          } else
+            h +=
+              (paused ? '<button data-a="c">再開</button>' : '') +
+              '<button data-a="s">研究へ</button><button data-a="e">編集</button>';
         } else if (mode === 'train') {
-          h += '<button id="bTr">' + (trainOn ? '⏸停止' : '▶再開') + '</button><button id="bTrR">学習リセット</button>';
+          h +=
+            '<button id="bTr">' +
+            (trainOn ? '⏸停止' : '▶再開') +
+            '</button><button id="bTrR">学習リセット</button>';
         }
         h += '<button id="bMenu">☰</button>';
         g('btns').innerHTML = h;
       }
-      function canPlay() { return !over && !paused && !editing && (mode === 'study' || (mode === 'vs' && P.side === human)); }
+
+      function manOn() {
+        return mode === 'vs' && g('manAI') && g('manAI').checked;
+      }
+
+      function canPlay() {
+        return (
+          !over && !paused && !editing && (mode === 'study' || (mode === 'vs' && (P.side === human || manOn())))
+        );
+      }
+
+      function playRec() {
+        if (!canPlay() || P.side === human) return;
+        if (manRec && legal(P).indexOf(manRec) >= 0) doMove(manRec);
+        else g('msg').textContent = '推奨手を計算中です';
+      }
 
       /* --- 盤操作 --- */
       function mk(f, d) {
         var tg = {};
         legal(P).forEach(function (m) {
-          if ((m & 127) === f && (f < 81 || (m >> 15) === d)) { var t = (m >> 7) & 127; (tg[t] = tg[t] || []).push(m); }
+          if ((m & 127) === f && (f < 81 || m >> 15 === d)) {
+            var t = (m >> 7) & 127;
+            (tg[t] = tg[t] || []).push(m);
+          }
         });
         return { f: f, d: d, tg: tg };
       }
+
       function clickSq(s) {
-        if (editing) { editClick(s); return; }
+        if (editing) {
+          editClick(s);
+          return;
+        }
         if (!canPlay()) return;
         var p = P.b[s];
         if (sel && sel.tg[s]) {
           var mm = sel.tg[s];
           if (mm.length > 1) {
             g('ask').hidden = false;
-            g('aY').onclick = function () { g('ask').hidden = true; doMove(mm[0] & 16384 ? mm[0] : mm[1]); };
-            g('aN').onclick = function () { g('ask').hidden = true; doMove(mm[0] & 16384 ? mm[1] : mm[0]); };
+            g('aY').onclick = function () {
+              g('ask').hidden = true;
+              doMove(mm[0] & 16384 ? mm[0] : mm[1]);
+            };
+            g('aN').onclick = function () {
+              g('ask').hidden = true;
+              doMove(mm[0] & 16384 ? mm[1] : mm[0]);
+            };
           } else doMove(mm[0]);
           return;
         }
-        sel = p && (p >> 4) === P.side ? mk(s, 0) : null;
+        sel = p && p >> 4 === P.side ? mk(s, 0) : null;
         render();
       }
+
       function clickHand(c, d) {
-        if (editing) { editHand(c, d); return; }
+        if (editing) {
+          editHand(c, d);
+          return;
+        }
         if (!canPlay() || c !== P.side) return;
-        sel = mk(81, d); render();
+        sel = mk(81, d);
+        render();
       }
+
       function render() {
         var bd = g('board');
         if (!bd.firstChild) {
-          for (var i = 0; i < 81; i++) { var d = document.createElement('div'); d.className = 'cell'; bd.appendChild(d); }
-          bd.onclick = function (e) { var c = e.target.closest('.cell'); if (c) clickSq(+c.dataset.s); };
+          for (var i = 0; i < 81; i++) {
+            var d = document.createElement('div');
+            d.className = 'cell';
+            bd.appendChild(d);
+          }
+          bd.onclick = function (e) {
+            var c = e.target.closest('.cell');
+            if (c) clickSq(+c.dataset.s);
+          };
           ['h0', 'h1'].forEach(function (id) {
             g(id).onclick = function (e) {
-              var s = e.target.closest('.hp'), row = id === 'h0' ? 0 : 1;
-              if (editing) { editHand(flip ? row : 1 - row, s ? +s.dataset.t : 0); return; }
+              var s = e.target.closest('.hp'),
+                row = id === 'h0' ? 0 : 1;
+              if (editing) {
+                editHand(flip ? row : 1 - row, s ? +s.dataset.t : 0);
+                return;
+              }
               if (s) clickHand(+s.dataset.c, +s.dataset.t);
             };
           });
         }
         for (var k = 0; k < 81; k++) {
-          var r = flip ? 8 - ((k / 9) | 0) : ((k / 9) | 0), f = flip ? k % 9 : 8 - (k % 9), s = f * 9 + r, p = P.b[s], el = bd.children[k];
+          var r = flip ? 8 - ((k / 9) | 0) : (k / 9) | 0,
+            f = flip ? k % 9 : 8 - (k % 9),
+            s = f * 9 + r,
+            p = P.b[s],
+            el = bd.children[k];
           el.dataset.s = s;
-          el.className = 'cell' + (p && (p >> 4) ? ' w' : '') + ((p & 15) > 8 ? ' pr' : '') +
-            (last && (last.t === s || last.f === s) ? ' lm' : '') + (sel && sel.f === s ? ' sl' : '') + (sel && sel.tg[s] ? ' tg' : '');
+          el.className =
+            'cell' +
+            (p && p >> 4 ? ' w' : '') +
+            ((p & 15) > 8 ? ' pr' : '') +
+            (last && (last.t === s || last.f === s) ? ' lm' : '') +
+            (sel && sel.f === s ? ' sl' : '') +
+            (sel && sel.tg[s] ? ' tg' : '');
           el.innerHTML = p ? '<span>' + NM[p & 15] + '</span>' : '';
         }
         [0, 1].forEach(function (row) {
-          var c = flip ? row : 1 - row, h = '';
+          var c = flip ? row : 1 - row,
+            h = '';
           for (var t = 7; t >= 1; t--) {
             var n = P.h[c][t];
-            if (n) h += '<span class="hp' + (sel && sel.f === 81 && sel.d === t && c === (editing ? sel.c : P.side) ? ' sl' : '') + '" data-c="' + c + '" data-t="' + t + '">' + NM[t] + (n > 1 ? n : '') + '</span>';
+            if (n)
+              h +=
+                '<span class="hp' +
+                (sel && sel.f === 81 && sel.d === t && c === (editing ? sel.c : P.side) ? ' sl' : '') +
+                '" data-c="' +
+                c +
+                '" data-t="' +
+                t +
+                '">' +
+                NM[t] +
+                (n > 1 ? n : '') +
+                '</span>';
           }
           g('h' + row).innerHTML = (c ? '△' : '▲') + h;
         });
       }
-      function fmtT(ms) { var s = Math.ceil(ms / 1000); return ((s / 60) | 0) + ':' + String(s % 60).padStart(2, '0'); }
+
+      function fmtT(ms) {
+        var s = Math.ceil(ms / 1000);
+        return ((s / 60) | 0) + ':' + String(s % 60).padStart(2, '0');
+      }
       setInterval(function () {
-        if (!clk.on || over || mode !== 'vs') { g('clk').textContent = ''; return; }
-        if (P.side !== human) { g('clk').textContent = '持ち ' + fmtT(clk.left); return; }
+        if (!clk.on || over || mode !== 'vs') {
+          g('clk').textContent = '';
+          return;
+        }
+        if (P.side !== human) {
+          g('clk').textContent = '持ち ' + fmtT(clk.left);
+          return;
+        }
         var rem = clk.left - (Date.now() - clk.t0);
-        if (rem > 0) { g('clk').textContent = '持ち ' + fmtT(rem); return; }
+        if (rem > 0) {
+          g('clk').textContent = '持ち ' + fmtT(rem);
+          return;
+        }
         var b = clk.by + rem;
-        if (b <= 0) { finish('時間切れ', human ^ 1, '切れ負け'); g('clk').textContent = '0:00'; return; }
+        if (b <= 0) {
+          finish('時間切れ', human ^ 1, '切れ負け');
+          g('clk').textContent = '0:00';
+          return;
+        }
         g('clk').textContent = '秒読み ' + Math.ceil(b / 1000);
       }, 100);
 
       /* --- AI学習 --- */
-      function paintTrain() { g('cand').innerHTML = '<div>' + trLive + '</div>' + trStat; }
+      function paintTrain() {
+        g('cand').innerHTML = '<div>' + trLive + '</div>' + trStat;
+      }
+
       function startTrain() {
-        yoStop(); ensureJsNet();
-        trainOn = 1; trStat = ''; trLive = '自己対局を開始します…'; paintTrain(); renderBtns();
+        yoStop();
+        ensureJsNet();
+        trainOn = 1;
+        trStat = '';
+        trLive = '自己対局を開始します…';
+        paintTrain();
+        renderBtns();
         send({ cmd: 'train', id: gid, lw: Array.from(LWS), dep: num('trD'), vms: num('trV'), lr: num('trL') });
       }
+
       function showTrain(m) {
         LWS = Float64Array.from(m.lw);
-        try { localStorage.setItem('shogiLW', JSON.stringify(m.lw)); } catch (e) { }
-        g('bar').firstChild.style.width = (m.rate * 100) + '%';
+        try {
+          localStorage.setItem('shogiLW', JSON.stringify(m.lw));
+        } catch (e) {}
+        g('bar').firstChild.style.width = m.rate * 100 + '%';
         var n = m.mw + m.md + m.ml;
-        trStat = '<div>' + m.g + '局完了 / 対学習前: ' + m.mw + '勝 ' + m.md + '分 ' + m.ml + '敗 (' + n + '局)</div>' +
-          '<div>勝率 ' + Math.round(m.rate * 100) + '% (推定 Elo差 ' + (m.elo > 0 ? '+' : '') + m.elo + ') ※上のバー=勝率</div>';
+        trStat =
+          '<div>' +
+          m.g +
+          '局完了 / 対学習前: ' +
+          m.mw +
+          '勝 ' +
+          m.md +
+          '分 ' +
+          m.ml +
+          '敗 (' +
+          n +
+          '局)</div>' +
+          '<div>勝率 ' +
+          Math.round(m.rate * 100) +
+          '% (推定 Elo差 ' +
+          (m.elo > 0 ? '+' : '') +
+          m.elo +
+          ') ※上のバー=勝率</div>';
         paintTrain();
       }
 
+      /* ===== 自陣の形(戦法)の目標 =====
+               駒(P歩 L香 N桂 S銀 G金 B角 R飛 K玉)+マス(筋の数字+段 a〜i)を、先手から見て優先順に並べる。後手は180度回して反転する。 */
+      var STRATS = {
+        矢倉: 'P7f S7g G7h G6g B7i K8h',
+        美濃囲い: 'K2h S3h G4i G5h',
+        穴熊: 'P7f B7g S8h G7h L9h K9i',
+        四間飛車: 'P7f R6h K2h S3h G5h',
+        三間飛車: 'P7f R7h K2h S3h G5h',
+        中飛車: 'P5f R5h K2h S3h',
+        '振り飛車(おまかせ)': '',
+        棒銀: 'P2e S2f',
+        早石田: 'P7f P7e R7h',
+        嬉野流: 'S6h B7i G7h S4h P3f S3g S2f'
+      };
+      var PTYPE = { P: 1, L: 2, N: 3, S: 4, G: 5, B: 6, R: 7, K: 8 };
+
+      function parseGoals(str, col) {
+        var out = [];
+        str
+          .trim()
+          .split(/\s+/)
+          .forEach(function (tk) {
+            var m = /^([PLNSGBRK])([1-9])([a-i])$/.exec(tk);
+            if (!m) return;
+            var sq = (+m[2] - 1) * 9 + (m[3].charCodeAt(0) - 97);
+            out.push({ t: PTYPE[m[1]], sq: col ? 80 - sq : sq, col: col, lab: tk });
+          });
+        return out;
+      }
+
+      function goalDone(gl) {
+        return P.b[gl.sq] === (gl.t | (gl.col << 4));
+      }
+
+      function cheb(a, b) {
+        return Math.max(Math.abs(((a / 9) | 0) - ((b / 9) | 0)), Math.abs((a % 9) - (b % 9)));
+      }
+
+      function guideMoves(goals) {
+        var out = [],
+          why = [],
+          used = {},
+          ls = legal(P);
+        goals.forEach(function (gl) {
+          if (goalDone(gl)) used[gl.sq] = 1;
+        });
+        goals.forEach(function (gl, gi) {
+          if (goalDone(gl)) return;
+          /* 目標ごとに「いちばん近い同種の駒」を1枚だけ割り当てる(別の駒を動かさない) */
+          var pb = -1,
+            bd = 1e9,
+            q,
+            cnt = 0;
+          for (q = 0; q < 81; q++) {
+            if (used[q] || P.b[q] !== (gl.t | (gl.col << 4))) continue;
+            var d = cheb(q, gl.sq) * 10 + Math.abs(((q / 9) | 0) - ((gl.sq / 9) | 0));
+            if (d < bd) {
+              bd = d;
+              pb = q;
+            }
+          }
+          if (pb < 0) {
+            why.push(gl.lab + '(動かせる駒がない)');
+            return;
+          }
+          used[pb] = 1;
+          ls.forEach(function (m) {
+            var t = (m >> 7) & 127;
+            if ((m & 127) !== pb || (m >> 14) & 1) return;
+            if (t === gl.sq || cheb(t, gl.sq) < cheb(pb, gl.sq)) {
+              out.push({ m: m, gi: gi, hit: t === gl.sq });
+              cnt++;
+            }
+          });
+          if (!cnt) why.push(gl.lab + '(塞がれていて近づけない)');
+        });
+        out.sort(function (a, b) {
+          return a.gi - b.gi || b.hit - a.hit;
+        });
+        return { out: out, why: why };
+      }
+
+      function setStratLine(gd) {
+        stratLine = gd ? '【目標: ' + gd.name + ' ' + gd.prog + (gd.note ? ' / ' + gd.note : '') + '】' : '';
+      }
+
+      function stratGuide() {
+        var name = g('strat').value;
+        if (!name || mode !== 'vs' || P.side === human) return null;
+        var str = name === '自作' ? g('stratC').value : STRATS[name];
+        if (name === '振り飛車(おまかせ)') {
+          if (!stratPick) stratPick = ['四間飛車', '三間飛車', '中飛車'][(Math.random() * 3) | 0];
+          str = STRATS[stratPick];
+          name = '振り飛車→' + stratPick;
+        }
+        /* 崩れたら断念: 銀・金・角・飛を取られた(持駒を含めて数が減った)場合は、この対局では目指さない */
+        var cnt = { 4: 0, 5: 0, 6: 0, 7: 0 },
+          q,
+          c = P.side;
+        for (q = 0; q < 81; q++) {
+          var pc = P.b[q];
+          if (pc && pc >> 4 === c) {
+            var ty = (pc & 15) > 8 ? (pc & 15) - 8 : pc & 15;
+            if (cnt[ty] !== undefined) cnt[ty]++;
+          }
+        }
+        for (q = 4; q < 8; q++) cnt[q] += P.h[c][q];
+        if (!stratBase) stratBase = cnt;
+        else for (q = 4; q < 8; q++) if (cnt[q] < stratBase[q]) stratOff = 1;
+        var goals = parseGoals(str || '', c),
+          done = goals.filter(goalDone).length,
+          prog = done + '/' + goals.length;
+        if (!goals.length)
+          return { cands: [], name: name, prog: prog, note: '目標が書かれていません(例: P7f R6h K2h)' };
+        if (stratOff) return { cands: [], name: name, prog: prog, note: '断念(駒を取られた/形勢が悪い)' };
+        if (done >= goals.length) return { cands: [], name: name, prog: prog, note: '完成' };
+        if (hist.length > 48) return { cands: [], name: name, prog: prog, note: '手数が進んだため終了' };
+        var gm = guideMoves(goals);
+        return {
+          cands: gm.out,
+          name: name,
+          prog: prog,
+          note: gm.why.length
+            ? (gm.out.length ? '今は動かせない(他の駒を先に動かします): ' : '目指せない: ') + gm.why.join(' ')
+            : ''
+        };
+      }
+      /* 戦法の手を採用するか判断する。採用しない場合は理由を表示して 0 を返す */
+      function guideChoose(r, eb) {
+        var gd = r.guide;
+        if (!gd.cands.length) return 0;
+        var bs = -1e9,
+          k;
+        for (k in r.mv) if (r.mv[k].s > bs) bs = r.mv[k].s;
+        var inChk = atk(P, P.k[P.side], P.side ^ 1),
+          cap = P.b[(eb >> 7) & 127] !== 0,
+          tol = bs >= 0 ? 150 : 60;
+        if (bs < -200) {
+          stratOff = 1;
+          gd.note = '断念(形勢が悪い)';
+          setStratLine(gd);
+          return 0;
+        }
+        if (cap || inChk || bs < -100) {
+          gd.note = '今は最善手を優先(取り合い・王手・形勢)';
+          setStratLine(gd);
+          return 0;
+        }
+        for (var gi = 0; gi < gd.cands.length; gi++) {
+          var e = r.mv[gd.cands[gi].m];
+          if (e && e.s >= bs - tol) {
+            return gd.cands[gi].m;
+          }
+        }
+        gd.note = '評価が下がるため見送り(最善手を指します)';
+        setStratLine(gd);
+        return 0;
+      }
+
       /* ===== 中断・研究へ・局面編集 ===== */
-      function clonePos(Q) { return fromSt(toSt(Q)); }
+      function clonePos(Q) {
+        return fromSt(toSt(Q));
+      }
+
       function pauseGame() {
         if (over || paused || mode !== 'vs') return;
-        paused = 1; gid++; yoStop();
-        if (busy) { W.postMessage({ cmd: 'stop' }); busy = 0; }
-        g('msg').textContent = '中断中(' + hist.length + '手目)'; renderBtns();
+        paused = 1;
+        gid++;
+        yoStop();
+        if (busy) {
+          W.postMessage({ cmd: 'stop' });
+          busy = 0;
+        }
+        g('msg').textContent = '中断中(' + hist.length + '手目)';
+        renderBtns();
       }
-      function resumeGame() { paused = 0; renderBtns(); next(); }
+
+      function resumeGame() {
+        paused = 0;
+        renderBtns();
+        next();
+      }
+
       function toStudy() {
-        mode = 'study'; g('mode').value = 'study'; paused = 0; over = 0; endKif = ''; clk.on = 0; flip = 0; sel = null;
-        g('res').hidden = true; g('msg').textContent = '研究 ' + hist.length + '手目'; renderBtns(); next();
+        mode = 'study';
+        g('mode').value = 'study';
+        paused = 0;
+        over = 0;
+        endKif = '';
+        clk.on = 0;
+        flip = 0;
+        sel = null;
+        g('res').hidden = true;
+        g('msg').textContent = '研究 ' + hist.length + '手目';
+        renderBtns();
+        next();
       }
+
       function toSfen(Q) {
-        var L = ['', 'P', 'L', 'N', 'S', 'G', 'B', 'R', 'K'], rows = [], hs = '';
+        var L = ['', 'P', 'L', 'N', 'S', 'G', 'B', 'R', 'K'],
+          rows = [],
+          hs = '';
         for (var r = 0; r < 9; r++) {
-          var row = '', e = 0;
+          var row = '',
+            e = 0;
           for (var f = 8; f >= 0; f--) {
             var p = Q.b[f * 9 + r];
-            if (!p) { e++; continue; }
-            if (e) { row += e; e = 0; }
-            var t = p & 15, pro = t > 8, ch = L[pro ? t - 8 : t];
-            row += (pro ? '+' : '') + ((p >> 4) ? ch.toLowerCase() : ch);
+            if (!p) {
+              e++;
+              continue;
+            }
+            if (e) {
+              row += e;
+              e = 0;
+            }
+            var t = p & 15,
+              pro = t > 8,
+              ch = L[pro ? t - 8 : t];
+            row += (pro ? '+' : '') + (p >> 4 ? ch.toLowerCase() : ch);
           }
           if (e) row += e;
           rows.push(row);
         }
         [0, 1].forEach(function (c) {
-          [7, 6, 5, 4, 3, 2, 1].forEach(function (t) { var n = Q.h[c][t]; if (n) hs += (n > 1 ? n : '') + (c ? L[t].toLowerCase() : L[t]); });
+          [7, 6, 5, 4, 3, 2, 1].forEach(function (t) {
+            var n = Q.h[c][t];
+            if (n) hs += (n > 1 ? n : '') + (c ? L[t].toLowerCase() : L[t]);
+          });
         });
         return rows.join('/') + ' ' + (Q.side ? 'w' : 'b') + ' ' + (hs || '-') + ' 1';
       }
+
       function bodText(Q) {
-        var K = ['', '', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八'];
+        var K = [
+          '',
+          '',
+          '二',
+          '三',
+          '四',
+          '五',
+          '六',
+          '七',
+          '八',
+          '九',
+          '十',
+          '十一',
+          '十二',
+          '十三',
+          '十四',
+          '十五',
+          '十六',
+          '十七',
+          '十八'
+        ];
         var hs = function (c) {
           var x = '';
-          [7, 6, 5, 4, 3, 2, 1].forEach(function (t) { var n = Q.h[c][t]; if (n) x += NM[t] + K[n] + ' '; });
+          [7, 6, 5, 4, 3, 2, 1].forEach(function (t) {
+            var n = Q.h[c][t];
+            if (n) x += NM[t] + K[n] + ' ';
+          });
           return x.trim() || 'なし';
         };
         var t = '後手の持駒：' + hs(1) + '\n  ９ ８ ７ ６ ５ ４ ３ ２ １\n+---------------------------+\n';
         for (var r = 0; r < 9; r++) {
           var row = '|';
-          for (var f = 8; f >= 0; f--) { var p = Q.b[f * 9 + r]; row += p ? ((p >> 4) ? 'v' : ' ') + NM[p & 15] : ' ・'; }
+          for (var f = 8; f >= 0; f--) {
+            var p = Q.b[f * 9 + r];
+            row += p ? (p >> 4 ? 'v' : ' ') + NM[p & 15] : ' ・';
+          }
           t += row + '|' + RN[r] + '\n';
         }
         return t + '+---------------------------+\n先手の持駒：' + hs(0) + '\n' + (Q.side ? '後手番\n' : '');
       }
+
       function startEdit() {
         if (mode === 'train') return;
         yoStop();
-        if (busy) { W.postMessage({ cmd: 'stop' }); busy = 0; }
-        gid++; edBackup = P; P = clonePos(P); editing = 1; sel = null; g('res').hidden = true;
-        g('ed').hidden = false; g('info').hidden = true; g('msg').textContent = '局面編集中';
-        paintEd(); render();
+        if (busy) {
+          W.postMessage({ cmd: 'stop' });
+          busy = 0;
+        }
+        gid++;
+        edBackup = P;
+        P = clonePos(P);
+        editing = 1;
+        sel = null;
+        g('res').hidden = true;
+        g('ed').hidden = false;
+        g('info').hidden = true;
+        g('msg').textContent = '局面編集中';
+        paintEd();
+        render();
       }
+
       function paintEd() {
-        g('ed').innerHTML = '<button data-x="s">' + (P.side ? '後手番' : '先手番') + '</button><button data-x="i">初期配置</button>' +
+        g('ed').innerHTML =
+          '<button data-x="s">' +
+          (P.side ? '後手番' : '先手番') +
+          '</button><button data-x="i">初期配置</button>' +
           '<button data-x="z">全て持駒へ</button><button data-x="x">取消</button><button data-x="k">完了</button>';
       }
+
       function edClick(e) {
-        var b = e.target.closest('button'), x, sd, i, p, bb;
+        var b = e.target.closest('button'),
+          x,
+          sd,
+          i,
+          p,
+          bb;
         if (!b) return;
-        sel = null; x = b.dataset.x;
+        sel = null;
+        x = b.dataset.x;
         if (x === 's') P.side ^= 1;
-        else if (x === 'i') { sd = P.side; P = newPos(); P.side = sd; }
-        else if (x === 'z') {
-          for (i = 0; i < 81; i++) { p = P.b[i]; bb = baseOf(p & 15); if (p && bb) { addHand(0, bb); P.b[i] = 0; } }
-          for (i = 1; i < 8; i++) { P.h[0][i] = Math.min(18, P.h[0][i] + P.h[1][i]); P.h[1][i] = 0; }
+        else if (x === 'i') {
+          sd = P.side;
+          P = newPos();
+          P.side = sd;
+        } else if (x === 'z') {
+          for (i = 0; i < 81; i++) {
+            p = P.b[i];
+            bb = baseOf(p & 15);
+            if (p && bb) {
+              addHand(0, bb);
+              P.b[i] = 0;
+            }
+          }
+          for (i = 1; i < 8; i++) {
+            P.h[0][i] = Math.min(18, P.h[0][i] + P.h[1][i]);
+            P.h[1][i] = 0;
+          }
+        } else if (x === 'x') {
+          cancelEdit();
+          return;
+        } else if (x === 'k') {
+          finishEdit();
+          return;
         }
-        else if (x === 'x') { cancelEdit(); return; }
-        else if (x === 'k') { finishEdit(); return; }
-        paintEd(); render();
+        paintEd();
+        render();
       }
       /* 成駒→元の駒(持駒にできる種類)。玉は 0 */
-      function baseOf(t) { return t === 8 ? 0 : t > 8 ? (t === 14 ? 6 : t === 15 ? 7 : t - 8) : t; }
-      function addHand(c, t) { if (t) P.h[c][t] = Math.min(18, P.h[c][t] + 1); }
+      function baseOf(t) {
+        return t === 8 ? 0 : t > 8 ? (t === 14 ? 6 : t === 15 ? 7 : t - 8) : t;
+      }
+
+      function addHand(c, t) {
+        if (t) P.h[c][t] = Math.min(18, P.h[c][t] + 1);
+      }
+
       function editClick(s) {
-        var p = P.b[s], q, c, t, b, pr, seq, cur, nx;
-        if (sel && sel.f !== s && p && (p & 15) === 8) { g('msg').textContent = '玉の上には置けません'; return; }
+        var p = P.b[s],
+          q,
+          c,
+          t,
+          b,
+          pr,
+          seq,
+          cur,
+          nx;
+        if (sel && sel.f !== s && p && (p & 15) === 8) {
+          g('msg').textContent = '玉の上には置けません';
+          return;
+        }
         if (sel && sel.f === 81) {
           /* 持駒 → 盤 */
-          c = sel.c; t = sel.d;
+          c = sel.c;
+          t = sel.d;
           if (p) addHand(c, baseOf(p & 15));
-          P.h[c][t]--; P.b[s] = t | (c << 4); sel = null;
+          P.h[c][t]--;
+          P.b[s] = t | (c << 4);
+          sel = null;
         } else if (sel) {
           if (sel.f === s) {
             /* 種類切替: 自歩→自と→相歩→相と */
-            c = p >> 4; t = p & 15; b = baseOf(t) || 8;
-            pr = (b === 8 || b === 5) ? 0 : b === 6 ? 14 : b === 7 ? 15 : b + 8;
-            seq = [[0, b], [0, pr], [1, b], [1, pr]].filter(function (x) { return x[1]; });
+            c = p >> 4;
+            t = p & 15;
+            b = baseOf(t) || 8;
+            pr = b === 8 || b === 5 ? 0 : b === 6 ? 14 : b === 7 ? 15 : b + 8;
+            seq = [
+              [0, b],
+              [0, pr],
+              [1, b],
+              [1, pr]
+            ].filter(function (x) {
+              return x[1];
+            });
             cur = 0;
-            seq.forEach(function (x, i) { if (x[0] === c && x[1] === t) cur = i; });
+            seq.forEach(function (x, i) {
+              if (x[0] === c && x[1] === t) cur = i;
+            });
             nx = seq[(cur + 1) % seq.length];
-            P.b[s] = nx[1] | (nx[0] << 4); sel = null;
+            P.b[s] = nx[1] | (nx[0] << 4);
+            sel = null;
           } else {
             /* 盤 → 盤(先にある駒は、動かした駒の持ち主の持駒へ) */
             q = P.b[sel.f];
             if (p) addHand(q >> 4, baseOf(p & 15));
-            P.b[s] = q; P.b[sel.f] = 0; sel = null;
+            P.b[s] = q;
+            P.b[sel.f] = 0;
+            sel = null;
           }
         } else if (p) sel = { f: s, tg: {} };
         render();
       }
+
       function editHand(c, t) {
         var p, b;
         if (sel && sel.f < 81) {
           /* 盤の駒 → その側の持駒 */
-          p = P.b[sel.f]; b = baseOf(p & 15);
-          if (!b) { g('msg').textContent = '玉は持駒にできません'; sel = null; render(); return; }
-          addHand(c, b); P.b[sel.f] = 0; sel = null;
+          p = P.b[sel.f];
+          b = baseOf(p & 15);
+          if (!b) {
+            g('msg').textContent = '玉は持駒にできません';
+            sel = null;
+            render();
+            return;
+          }
+          addHand(c, b);
+          P.b[sel.f] = 0;
+          sel = null;
         } else if (sel && sel.f === 81) {
           if (t && c === sel.c) {
-            if (t === sel.d) { P.h[c][t]--; sel = null; } else sel = { f: 81, d: t, c: c, tg: {} };
+            if (t === sel.d) {
+              P.h[c][t]--;
+              sel = null;
+            } else sel = { f: 81, d: t, c: c, tg: {} };
           } else {
-            if (c !== sel.c) { P.h[sel.c][sel.d]--; addHand(c, sel.d); }
+            if (c !== sel.c) {
+              P.h[sel.c][sel.d]--;
+              addHand(c, sel.d);
+            }
             sel = null;
           }
         } else if (t) sel = { f: 81, d: t, c: c, tg: {} };
         render();
       }
+
       function cancelEdit() {
-        P = edBackup; editing = 0; sel = null; g('ed').hidden = true; g('info').hidden = false; g('msg').textContent = '';
-        if (over || paused) render(); else next();
+        P = edBackup;
+        editing = 0;
+        sel = null;
+        g('ed').hidden = true;
+        g('info').hidden = false;
+        g('msg').textContent = '';
+        if (over || paused) render();
+        else next();
       }
+
       function finishEdit() {
         var kc = [0, 0];
-        for (var i = 0; i < 81; i++) { var p = P.b[i]; if (p && (p & 15) === 8) { kc[p >> 4]++; P.k[p >> 4] = i; } }
-        if (kc[0] !== 1 || kc[1] !== 1) { g('msg').textContent = '玉は先手・後手1枚ずつ必要です'; return; }
-        if (atk(P, P.k[P.side ^ 1], P.side)) { g('msg').textContent = '手番でない側の玉に王手がかかっています'; return; }
+        for (var i = 0; i < 81; i++) {
+          var p = P.b[i];
+          if (p && (p & 15) === 8) {
+            kc[p >> 4]++;
+            P.k[p >> 4] = i;
+          }
+        }
+        if (kc[0] !== 1 || kc[1] !== 1) {
+          g('msg').textContent = '玉は先手・後手1枚ずつ必要です';
+          return;
+        }
+        if (atk(P, P.k[P.side ^ 1], P.side)) {
+          g('msg').textContent = '手番でない側の玉に王手がかかっています';
+          return;
+        }
         var sp = P;
         newGame(sp);
       }
 
       /* ===== YaneuraOu (WASM) ===== */
-      var YO = { state: 'none', mod: null, ready: false, running: false, pending: false, req: null, cur: null, send: function () { } };
-      var YO_VER = '@mizarjp/yaneuraou.halfkp@7.6.2-alpha.2/lib/';
+      var YO = {
+        state: 'none',
+        mod: null,
+        ready: false,
+        running: false,
+        pending: false,
+        req: null,
+        cur: null,
+        send: function () {}
+      };
+
       function m2u(m) {
-        var f = m & 127, t = (m >> 7) & 127, sq = function (x) { return (((x / 9) | 0) + 1) + 'abcdefghi'[x % 9]; };
+        var f = m & 127,
+          t = (m >> 7) & 127,
+          sq = function (x) {
+            return ((x / 9) | 0) + 1 + 'abcdefghi'[x % 9];
+          };
         return (f === 81 ? 'PLNSGBR'[(m >> 15) - 1] + '*' : sq(f)) + sq(t) + ((m >> 14) & 1 ? '+' : '');
       }
+
       function u2m(u) {
-        var sq = function (i) { return (u.charCodeAt(i) - 49) * 9 + (u.charCodeAt(i + 1) - 97); };
-        if (u[1] === '*') return 81 | sq(2) << 7 | ('PLNSGBR'.indexOf(u[0]) + 1) << 15;
-        return sq(0) | sq(2) << 7 | (u.length > 4 ? 16384 : 0);
+        var sq = function (i) {
+          return (u.charCodeAt(i) - 49) * 9 + (u.charCodeAt(i + 1) - 97);
+        };
+        if (u[1] === '*') return 81 | (sq(2) << 7) | (('PLNSGBR'.indexOf(u[0]) + 1) << 15);
+        return sq(0) | (sq(2) << 7) | (u.length > 4 ? 16384 : 0);
       }
+
       async function yoFetch(key, name, asText, label) {
-        try { var c = await to(idbGet(key), 2500); if (c) return c; } catch (e) { }
-        var err = '', urls = ['./' + name, 'https://unpkg.com/' + YO_VER + name, 'https://cdn.jsdelivr.net/npm/' + YO_VER + name];
+        try {
+          var c = await to(idbGet(key), 2500);
+          if (c) return c;
+        } catch (e) {}
+        var err = '',
+          urls = ENGINE_DIRS.map(function (d) {
+            return d + name;
+          });
         for (var k = 0; k < urls.length; k++) {
           try {
             var r = await fetch(urls[k]);
             if (!r.ok) throw new Error('HTTP ' + r.status);
-            var tot = +r.headers.get('content-length') || (asText ? 0 : 61754225), ch = [], n = 0, rd = r.body.getReader();
+            var tot = +r.headers.get('content-length') || (asText ? 0 : SIZE_WASM),
+              ch = [],
+              n = 0,
+              rd = r.body.getReader();
             for (;;) {
               var x = await rd.read();
               if (x.done) break;
-              ch.push(x.value); n += x.value.length;
-              if (!asText) setNN(label + ' ' + (n / 1048576).toFixed(0) + 'MB', Math.min(95, n * 95 / tot), 1);
+              ch.push(x.value);
+              n += x.value.length;
+              if (!asText) setNN(label + ' ' + (n / 1048576).toFixed(0) + 'MB', Math.min(95, (n * 95) / tot), 1);
             }
-            var u8 = new Uint8Array(n), o = 0;
-            ch.forEach(function (q) { u8.set(q, o); o += q.length; });
+            var u8 = new Uint8Array(n),
+              o = 0;
+            ch.forEach(function (q) {
+              u8.set(q, o);
+              o += q.length;
+            });
             var val = asText ? new TextDecoder().decode(u8) : u8.buffer;
             if (!asText && n < 1e6) throw new Error('サイズ不正');
-            idbPut(key, val).catch(function () { });
+            idbPut(key, val).catch(function () {});
             return val;
-          } catch (e) { err += e.message + ' '; }
+          } catch (e) {
+            err += e.message + ' ';
+          }
         }
         throw new Error(name + ' 取得失敗: ' + err);
       }
+
       async function yoInit() {
-        if (!self.crossOriginIsolated) { YO.state = 'fail'; g('nnB').title = 'WASM不可'; ensureJsNet(); return; }
+        if (!self.crossOriginIsolated) {
+          YO.state = 'fail';
+          YO.why =
+            'このページが cross-origin isolated ではない(coi-serviceworker.js が読めていない/初回アクセス直後は再読込が必要/ファイルとして開いている)';
+          g('nnB').title = 'WASM不可';
+          ensureJsNet();
+          return;
+        }
         YO.state = 'init';
         try {
-          var glue = await yoFetch('yoJs', 'yaneuraou.halfkp.js', 1), wk = await yoFetch('yoWk', 'yaneuraou.halfkp.worker.js', 1);
-          var wasm = await yoFetch('yoWasm', 'yaneuraou.halfkp.wasm', 0, 'やねうら王WASM取得中');
+          var glue = await yoFetch('yoJs', ENGINE_FILES.js, 1),
+            wk = await yoFetch('yoWk', ENGINE_FILES.worker, 1);
+          var wasm = await yoFetch('yoWasm', ENGINE_FILES.wasm, 0, 'やねうら王WASM取得中');
           setNN('やねうら王を起動中…', 97, 1);
-          var jsUrl = URL.createObjectURL(new Blob([glue], { type: 'text/javascript' })), wkUrl = URL.createObjectURL(new Blob([wk], { type: 'text/javascript' }));
+          var jsUrl = URL.createObjectURL(new Blob([glue], { type: 'text/javascript' })),
+            wkUrl = URL.createObjectURL(new Blob([wk], { type: 'text/javascript' }));
           await new Promise(function (res, rej) {
             var sc = document.createElement('script');
-            sc.src = jsUrl; sc.onload = res; sc.onerror = function () { rej(new Error('エンジンJS読込失敗')); };
+            sc.src = jsUrl;
+            sc.onload = res;
+            sc.onerror = function () {
+              rej(new Error('エンジンJS読込失敗'));
+            };
             document.head.appendChild(sc);
           });
-          var mod = await YaneuraOu_HalfKP({ wasmBinary: wasm, locateFile: function (n) { return /worker/.test(n) ? wkUrl : n; }, mainScriptUrlOrBlob: jsUrl });
-          YO.mod = mod; YO.send = function (c) { mod.postMessage(c); };
+          var mod = await YaneuraOu_HalfKP({
+            wasmBinary: wasm,
+            locateFile: function (n) {
+              return /worker/.test(n) ? wkUrl : n;
+            },
+            mainScriptUrlOrBlob: jsUrl
+          });
+          YO.mod = mod;
+          YO.send = function (c) {
+            mod.postMessage(c);
+          };
           mod.addMessageListener(yoLine);
           var T = Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2));
           YO.send('usi');
-          YO.send('setoption name Threads value ' + T); YO.send('setoption name USI_Hash value 128');
-          YO.send('setoption name NetworkDelay value 0'); YO.send('setoption name NetworkDelay2 value 0');
+          YO.send('setoption name Threads value ' + T);
+          YO.send('setoption name USI_Hash value 128');
+          YO.send('setoption name NetworkDelay value 0');
+          YO.send('setoption name NetworkDelay2 value 0');
           YO.state = 'ok';
-          if (busy) { W.postMessage({ cmd: 'stop' }); busy = 0; }
-          if (netBuf) yoApplyNet(); else YO.send('isready');
+          if (busy) {
+            W.postMessage({ cmd: 'stop' });
+            busy = 0;
+          }
+          if (netBuf) yoApplyNet();
+          else YO.send('isready');
         } catch (e) {
-          YO.state = 'fail'; g('ov').hidden = true; g('nnB').textContent = 'WASM失敗:' + String(e.message).slice(0, 20);
+          YO.state = 'fail';
+          YO.why = String(e.message);
+          g('ov').hidden = true;
+          g('nnB').textContent = 'WASM失敗:' + String(e.message).slice(0, 20);
           ensureJsNet();
         }
       }
+
       function yoApplyNet() {
-        YO.ready = false; yoStop();
+        YO.ready = false;
+        yoStop();
         YO.mod.FS.writeFile('/hao.bin', new Uint8Array(netBuf));
-        YO.send('setoption name EvalDir value .'); YO.send('setoption name EvalFile value hao.bin'); YO.send('setoption name FV_SCALE value 20');
+        YO.send('setoption name EvalDir value .');
+        YO.send('setoption name EvalFile value hao.bin');
+        YO.send('setoption name FV_SCALE value 20');
         YO.send('isready');
       }
-      function yoStop() { YO.pending = false; if (YO.running) YO.send('stop'); }
+
+      function yoStop() {
+        YO.pending = false;
+        if (YO.running) YO.send('stop');
+      }
+
       function yoThink(play) {
-        var vsU = !play && mode === 'vs', n = play ? (g('showA').checked || +g('rnd').value ? 5 : 1) : (vsU ? (g('showU').checked ? 5 : 1) : Math.max(1, Math.min(legal(P).length, 300)));
-        YO.req = { id: ++gid, play: play, t0: Date.now(), ms: (play || vsU) ? num('ai') * 1000 : 0, dcap: play ? lvOf().d : 0, mpv: n, mv: {}, dt: {}, depth: 0, cdepth: 0, pm: 0, ui: 0 };
+        var vsU = !play && mode === 'vs',
+          gd = play ? stratGuide() : null;
+        var n = play
+          ? g('showA').checked || +g('rnd').value || manOn()
+            ? 5
+            : 1
+          : vsU
+            ? g('showU').checked
+              ? 5
+              : 1
+            : Math.max(1, Math.min(legal(P).length, 300));
+        if (gd && gd.cands.length) n = Math.min(legal(P).length, 40);
+        if (play) setStratLine(gd);
+        YO.req = {
+          id: ++gid,
+          play: play,
+          t0: Date.now(),
+          ms: play || vsU ? num('ai') * 1000 : 0,
+          dcap: play ? lvOf().d : 0,
+          mpv: n,
+          mv: {},
+          dt: {},
+          depth: 0,
+          cdepth: 0,
+          pm: 0,
+          ui: 0,
+          guide: gd
+        };
         YO.pending = true;
         g('bar').firstChild.style.width = '0%';
-        g('cand').innerHTML = (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…(やねうら王)</div>';
+        g('cand').innerHTML =
+          (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') + '<div>思考中…(やねうら王)</div>';
         yoKick();
       }
+
       function yoKick() {
         if (!YO.pending || !YO.ready) return;
-        if (YO.running) { YO.stopAt = Date.now(); YO.stopN = 0; YO.send('stop'); return; }
-        YO.pending = false; YO.running = true; YO.stopAt = 0;
-        var r = YO.cur = YO.req, D = Math.max(1, num('D'));
+        if (YO.running) {
+          YO.stopAt = Date.now();
+          YO.stopN = 0;
+          YO.send('stop');
+          return;
+        }
+        YO.pending = false;
+        YO.running = true;
+        YO.stopAt = 0;
+        var r = (YO.cur = YO.req),
+          D = Math.max(1, num('D'));
         r.t0 = Date.now();
         YO.send('setoption name MultiPV value ' + r.mpv);
-        YO.send('position ' + (startSfen ? 'sfen ' + startSfen : 'startpos') + (hist.length ? ' moves ' + hist.map(function (h) { return m2u(h.m); }).join(' ') : ''));
-        YO.send(r.ms ? 'go movetime ' + r.ms + (r.dcap ? ' depth ' + r.dcap : '') : 'go depth ' + (r.dcap ? Math.min(D, r.dcap) : D));
+        YO.send(
+          'position ' +
+            (startSfen ? 'sfen ' + startSfen : 'startpos') +
+            (hist.length
+              ? ' moves ' +
+                hist
+                  .map(function (h) {
+                    return m2u(h.m);
+                  })
+                  .join(' ')
+              : '')
+        );
+        YO.send(
+          r.ms
+            ? 'go movetime ' + r.ms + (r.dcap ? ' depth ' + r.dcap : '')
+            : 'go depth ' + (r.dcap ? Math.min(D, r.dcap) : D)
+        );
         clearTimeout(YO.gt);
-        if (r.play) YO.gt = setTimeout(function () {
-          if (YO.cur !== r || !YO.running) return;
-          YO.send('stop');
-          YO.gt = setTimeout(function () { if (YO.cur === r && YO.running) yoFail(); }, 5000);
-        }, (r.ms || 120000) + 5000);
+        if (r.play)
+          YO.gt = setTimeout(
+            function () {
+              if (YO.cur !== r || !YO.running) return;
+              YO.send('stop');
+              YO.gt = setTimeout(function () {
+                if (YO.cur === r && YO.running) yoFail();
+              }, 5000);
+            },
+            (r.ms || 120000) + 5000
+          );
       }
       /* 進捗: 深さごとの所要時間は約 1.5〜2.5 倍ずつ増えるので、実測の増加率から終了までの時間を見積もる */
       /* 進捗: 各深さの最初の行が出た時刻から反復1回分の所要時間を測り、増加率で「深さDの反復が終わる時刻」を見積もる */
       function yoProg(r, D) {
-        var el = Date.now() - r.t0, p;
-        if (r.ms) return Math.min(99, el * 100 / r.ms);
-        var ds = Object.keys(r.dt).map(Number).sort(function (x, y) { return x - y; }), n = ds.length;
-        if (n < 4) p = Math.min(8, r.depth * 100 / D / 3);
+        var el = Date.now() - r.t0,
+          p;
+        if (r.ms) return Math.min(99, (el * 100) / r.ms);
+        var ds = Object.keys(r.dt)
+            .map(Number)
+            .sort(function (x, y) {
+              return x - y;
+            }),
+          n = ds.length;
+        if (n < 4) p = Math.min(8, (r.depth * 100) / D / 3);
         else {
-          var du = [], q;
+          var du = [],
+            q;
           for (q = n - 4; q < n - 1; q++) du.push(Math.max(1, r.dt[ds[q + 1]] - r.dt[ds[q]]));
-          var ratio = Math.max(1.9, Math.min(3, ((du[1] / du[0]) + (du[2] / du[1])) / 2)), est = r.dt[ds[n - 1]], d = du[2];
-          for (var j = ds[n - 1] + 1; j <= D + 1; j++) { d *= ratio; est += d; }
+          var ratio = Math.max(1.9, Math.min(3, (du[1] / du[0] + du[2] / du[1]) / 2)),
+            est = r.dt[ds[n - 1]],
+            d = du[2];
+          for (var j = ds[n - 1] + 1; j <= D + 1; j++) {
+            d *= ratio;
+            est += d;
+          }
           if (el > est) est = el * 1.25;
-          p = Math.min(95, el * 100 / est);
+          p = Math.min(95, (el * 100) / est);
         }
         r.pm = Math.max(r.pm, p);
         return r.pm;
       }
+
       function yoPaint(r, done) {
-        var arr = Object.keys(r.mv).map(function (k) { return r.mv[k]; });
-        arr.sort(function (a, b) { return ((b.d === r.depth) - (a.d === r.depth)) || (a.k - b.k); });
-        var D = Math.max(1, num('D')), el = ((Date.now() - r.t0) / 1000).toFixed(1);
-        showList({ t: 'p', id: r.id, play: r.play, ev: r.ev, pct: done ? 100 : yoProg(r, D), worst: r.mpv > 5 && arr.length > 1 ? arr[arr.length - 1] : null, list: arr,
-          info: ' 深度' + (r.ms ? Math.min(r.depth, 99) : r.depth + '/' + D) + ' ' + el + '秒' + (done ? ' 完了' : '') });
+        var arr = Object.keys(r.mv).map(function (k) {
+          return r.mv[k];
+        });
+        arr.sort(function (a, b) {
+          return (b.d === r.depth) - (a.d === r.depth) || a.k - b.k;
+        });
+        var D = Math.max(1, num('D')),
+          el = ((Date.now() - r.t0) / 1000).toFixed(1);
+        r.shown = {
+          t: 'p',
+          id: r.id,
+          play: r.play,
+          ev: r.ev,
+          pct: done ? 100 : yoProg(r, D),
+          worst: r.mpv > 5 && arr.length > 1 ? arr[arr.length - 1] : null,
+          list: arr,
+          info:
+            ' 深度' + (r.ms ? Math.min(r.depth, 99) : r.depth + '/' + D) + ' ' + el + '秒' + (done ? ' 完了' : '')
+        };
+        showList(r.shown);
       }
+
       function yoLine(l) {
         if (l === 'readyok') {
-          YO.ready = true; nnOk = 1;
+          YO.ready = true;
+          nnOk = 1;
           setNN(netBuf ? 'やねうら王 + ' + netName : 'やねうら王(内蔵:水匠5)', 100, 0);
           if (YO.pending) yoKick();
           return;
@@ -1333,62 +3233,200 @@
         var r = YO.cur;
         if (!r || r.id !== gid) return;
         if (l.indexOf(' lowerbound') > 0 || l.indexOf(' upperbound') > 0) return;
-        var mp = /multipv (\d+)/.exec(l), sc = /score (cp|mate) (-?\d+)/.exec(l), pv = / pv (\S+)/.exec(l), dp = /depth (\d+)/.exec(l);
+        var mp = /multipv (\d+)/.exec(l),
+          sc = /score (cp|mate) (-?\d+)/.exec(l),
+          pv = / pv (\S+)/.exec(l),
+          dp = /depth (\d+)/.exec(l);
         if (!sc || !pv || !dp) return;
-        var v = +sc[2], s = sc[1] === 'cp' ? v : (v > 0 ? 30000 - v : -30000 - v);
+        var v = +sc[2],
+          s = sc[1] === 'cp' ? v : v > 0 ? 30000 - v : -30000 - v;
         var mv = u2m(pv[1]);
         r.mv[mv] = { m: mv, s: s, d: +dp[1], k: mp ? +mp[1] : 1 };
         if (!mp || +mp[1] === 1) r.ev = s;
         r.depth = Math.max(r.depth, +dp[1]);
         /* 詰みが見つかったら、時間いっぱい深度だけ増やし続けないよう打ち切る(時間指定の探索のみ) */
-        if (r.ms && !r.stopped && (!mp || +mp[1] === 1) && Math.abs(s) > 29000 && +dp[1] >= 6 && YO.cur === r && YO.running) { r.stopped = 1; YO.send('stop'); }
+        if (
+          r.ms &&
+          !r.scan &&
+          !r.stopped &&
+          (!mp || +mp[1] === 1) &&
+          Math.abs(s) > 29000 &&
+          +dp[1] >= 6 &&
+          YO.cur === r &&
+          YO.running
+        ) {
+          r.stopped = 1;
+          YO.send('stop');
+        }
         if (!r.dt[+dp[1]]) r.dt[+dp[1]] = Date.now() - r.t0;
-        if (Date.now() - r.ui > 150) { r.ui = Date.now(); yoPaint(r, 0); }
+        if (r.scan) return;
+        if (Date.now() - r.ui > 150) {
+          r.ui = Date.now();
+          yoPaint(r, 0);
+        }
       }
+
       function yoFail() {
-        YO.state = 'fail'; YO.running = false; YO.cur = null; YO.pending = false;
-        g('nnB').textContent = 'WASM応答なし→自作エンジン'; ensureJsNet();
+        YO.state = 'fail';
+        YO.why = 'やねうら王が応答しなくなった';
+        YO.running = false;
+        YO.cur = null;
+        YO.pending = false;
+        g('nnB').textContent = 'WASM応答なし→自作エンジン';
+        ensureJsNet();
         if (!over && !paused && !editing) next();
       }
       /* 最善手との評価差が許容内の候補から、評価差で重み付けしてランダムに選ぶ */
       var MAXDROP = 150;
-      var LVS = [null, { d: 1, k: 3 }, { d: 2, k: 2.5 }, { d: 3, k: 2 }, { d: 4, k: 1.6 }, { d: 6, k: 1.3 }, { d: 8, k: 1.1 }, { d: 10, k: 1 }, { d: 12, k: 1 }, { d: 16, k: 1 }, { d: 20, k: 1 }, { d: 0, k: 1 }];
-      function lvOf() { return LVS[+g('lv').value] || LVS[11]; }
+      var LVS = [
+        null,
+        { d: 1, k: 3 },
+        { d: 2, k: 2.5 },
+        { d: 3, k: 2 },
+        { d: 4, k: 1.6 },
+        { d: 6, k: 1.3 },
+        { d: 8, k: 1.1 },
+        { d: 10, k: 1 },
+        { d: 12, k: 1 },
+        { d: 16, k: 1 },
+        { d: 20, k: 1 },
+        { d: 0, k: 1 }
+      ];
+
+      function lvOf() {
+        return LVS[+g('lv').value] || LVS[11];
+      }
+
       function pickVar(arr, bm) {
-        var T = +g('rnd').value, best = null, i, j;
+        var T = +g('rnd').value,
+          best = null,
+          i,
+          j;
         if (!T || arr.length < 2) return bm;
-        T *= 4 / (1 + Math.exp((hist.length - 15) / 5)) * lvOf().k;
+        T *= (4 / (1 + Math.exp((hist.length - 15) / 5))) * lvOf().k;
         T = Math.min(T, MAXDROP);
         if (T < 1) return bm;
         for (i = 0; i < arr.length; i++) if (arr[i].m === bm) best = arr[i];
         if (!best || Math.abs(best.s) > 29000) return bm;
-        var c = arr.filter(function (x) { return x.d >= best.d - 1 && Math.abs(x.s) < 29000 && x.s >= best.s - T && (best.s <= MAXDROP || x.s > 0); });
+        var c = arr.filter(function (x) {
+          return x.d >= best.d - 2 && Math.abs(x.s) < 29000 && x.s >= best.s - T && (best.s <= MAXDROP || x.s > 0);
+        });
         if (c.length < 2) return bm;
-        var w = c.map(function (x) { return Math.exp(-(best.s - x.s) / (T / 2)); }), tot = 0, rv;
+        var w = c.map(function (x) {
+            return Math.exp(-(best.s - x.s) / (T / 2));
+          }),
+          tot = 0,
+          rv;
         for (j = 0; j < w.length; j++) tot += w[j];
         rv = Math.random() * tot;
-        for (j = 0; j < c.length; j++) { rv -= w[j]; if (rv <= 0) return c[j].m; }
+        for (j = 0; j < c.length; j++) {
+          rv -= w[j];
+          if (rv <= 0) return c[j].m;
+        }
         return bm;
       }
+      /* 全手を短時間だけ評価し直す(最悪手と、上位5手の外の手の順位・最善比を出すため) */
+      function yoScanStart(r, fin) {
+        var n = legal(P).length;
+        if (mode === 'train' || n < 6 || n <= r.mpv) {
+          if (fin) fin();
+          return;
+        }
+        YO.req = {
+          id: gid,
+          scan: 1,
+          parent: r,
+          fin: fin,
+          play: false,
+          ms: r.play ? 700 : 1500,
+          dcap: 0,
+          mpv: Math.min(n, 300),
+          mv: {},
+          dt: {},
+          depth: 0,
+          cdepth: 0,
+          pm: 0,
+          ui: 0
+        };
+        YO.pending = true;
+        yoKick();
+      }
+
+      function yoScanDone(r) {
+        var arr = Object.keys(r.mv).map(function (k) {
+          return r.mv[k];
+        });
+        arr.sort(function (a, b) {
+          return (b.d === r.depth) - (a.d === r.depth) || a.k - b.k;
+        });
+        if (arr.length > 1) {
+          var sm = Object.assign(
+            { t: 'p', id: gid, play: r.parent.play, list: [], ev: r.parent.ev, info: '' },
+            r.parent.shown || {}
+          );
+          sm.worst = arr[arr.length - 1];
+          sm.pct = 100;
+          showList(sm);
+          if (curAn) curAn.all = arr;
+        }
+        if (r.fin) r.fin();
+      }
+
       function yoBest(l) {
         clearTimeout(YO.gt);
-        var r = YO.cur; YO.running = false; YO.cur = null;
-        if (YO.pending) { yoKick(); return; }
+        var r = YO.cur;
+        YO.running = false;
+        YO.cur = null;
+        if (YO.pending) {
+          yoKick();
+          return;
+        }
         if (!r || r.id !== gid || over) return;
+        if (r.scan) {
+          yoScanDone(r);
+          return;
+        }
         yoPaint(r, 1);
-        if (!r.play) return;
+        if (!r.play) {
+          yoScanStart(r, null);
+          return;
+        }
         var u = l.split(/\s+/)[1];
-        if (u === 'resign') { finish(sideN(P.side) + '投了', P.side ^ 1, '投了'); return; }
-        if (u === 'win') { finish('入玉宣言で' + sideN(P.side) + 'の勝ち', P.side, '入玉勝ち'); return; }
-        var m = u2m(u), ls = legal(P);
+        if (u === 'resign') {
+          finish(sideN(P.side) + '投了', P.side ^ 1, '投了');
+          return;
+        }
+        if (u === 'win') {
+          finish('入玉宣言で' + sideN(P.side) + 'の勝ち', P.side, '入玉勝ち');
+          return;
+        }
+        var m = u2m(u),
+          ls = legal(P);
         if (ls.indexOf(m) < 0) m = ls[0];
-        m = pickVar(Object.keys(r.mv).map(function (k) { return r.mv[k]; }), m);
+        var gm = r.guide ? guideChoose(r, m) : 0;
+        m =
+          gm ||
+          pickVar(
+            Object.keys(r.mv).map(function (k) {
+              return r.mv[k];
+            }),
+            m
+          );
         if (ls.indexOf(m) < 0) m = ls[0];
-        doMove(m);
+        var fin = function () {
+          if (manOn()) {
+            manRec = m;
+            g('msg').textContent = 'AIの手を選んでください(推奨 ' + (P.side ? '△' : '▲') + mvT(m) + ')';
+            renderBtns();
+          } else doMove(m);
+        };
+        if (g('showA').checked) yoScanStart(r, fin);
+        else fin();
       }
 
       /* --- 初期化 --- */
       buildMenu();
+
       function syncCustom() {
         SPEC.forEach(function (sp) {
           var c = g(sp[0] + 'C');
@@ -1397,12 +3435,19 @@
       }
       document.addEventListener('change', syncCustom);
       syncCustom();
-      g('nnB').onclick = function () { if (!nnOk) loadHao(); };
-      g('res').onclick = function () { this.hidden = true; };
+      g('nnB').onclick = function () {
+        if (!nnOk) loadHao();
+      };
+      g('res').onclick = function () {
+        this.hidden = true;
+      };
       g('ed').onclick = edClick;
       setInterval(function () {
         if (busy && !over && mode !== 'train' && lastMsg && lastMsg.id === gid && Date.now() - lastRx > 25000) {
-          lastRx = Date.now(); W.terminate(); newWorker(); W.postMessage(lastMsg);
+          lastRx = Date.now();
+          W.terminate();
+          newWorker();
+          W.postMessage(lastMsg);
         }
       }, 3000);
       newWorker();
@@ -1412,9 +3457,24 @@
         var b = e.target.closest('button');
         if (!b) return;
         if (b.id === 'bNew') newGame();
-        else if (b.id === 'bTr') { if (trainOn) { trainOn = 0; busy = 0; W.postMessage({ cmd: 'stop' }); renderBtns(); } else startTrain(); }
-        else if (b.id === 'bTrR') { LWS = new Float64Array(16); try { localStorage.removeItem('shogiLW'); } catch (e) { } if (trainOn) startTrain(); else { trStat = '学習をリセットしました'; paintTrain(); } }
-        else if (b.id === 'bMenu') g('menu').hidden = !g('menu').hidden;
+        else if (b.id === 'bTr') {
+          if (trainOn) {
+            trainOn = 0;
+            busy = 0;
+            W.postMessage({ cmd: 'stop' });
+            renderBtns();
+          } else startTrain();
+        } else if (b.id === 'bTrR') {
+          LWS = new Float64Array(16);
+          try {
+            localStorage.removeItem('shogiLW');
+          } catch (e) {}
+          if (trainOn) startTrain();
+          else {
+            trStat = '学習をリセットしました';
+            paintTrain();
+          }
+        } else if (b.id === 'bMenu') g('menu').hidden = !g('menu').hidden;
         else if (b.dataset.a === 'u') undoFor(+b.dataset.c);
         else if (b.dataset.a === 'r') resign(+b.dataset.c);
         else if (b.dataset.a === 'd') declare();
@@ -1422,26 +3482,43 @@
         else if (b.dataset.a === 'c') resumeGame();
         else if (b.dataset.a === 's') toStudy();
         else if (b.dataset.a === 'e') startEdit();
+        else if (b.dataset.a === 'b') playRec();
+      };
+      g('cand').onclick = function (e) {
+        var d = e.target.closest('[data-m]');
+        if (!d || !manOn() || !canPlay() || P.side === human) return;
+        var m = +d.dataset.m;
+        if (legal(P).indexOf(m) >= 0) doMove(m);
       };
       window.addEventListener('resize', layoutSoon);
       window.addEventListener('orientationchange', layoutSoon);
-      window.addEventListener('scroll', function () { window.scrollTo(0, 0); });
+      window.addEventListener('scroll', function () {
+        window.scrollTo(0, 0);
+      });
       if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', layoutSoon);
         window.visualViewport.addEventListener('scroll', layoutSoon);
       }
       if (window.ResizeObserver) new ResizeObserver(layoutSoon).observe(g('btns'));
-      new MutationObserver(layoutSoon).observe(g('app'), { attributes: true, attributeFilter: ['hidden'], subtree: true });
+      new MutationObserver(layoutSoon).observe(g('app'), {
+        attributes: true,
+        attributeFilter: ['hidden'],
+        subtree: true
+      });
       /* やねうら王への停止要求が失われても止まらないようにする */
       setInterval(function () {
         if (YO.state !== 'ok' || !YO.pending || !YO.running || !YO.stopAt) return;
         if (Date.now() - YO.stopAt < 3000) return;
         YO.stopAt = Date.now();
-        if (++YO.stopN >= 2) { clearTimeout(YO.gt); YO.running = false; YO.cur = null; yoKick(); }
-        else YO.send('stop');
+        if (++YO.stopN >= 2) {
+          clearTimeout(YO.gt);
+          YO.running = false;
+          YO.cur = null;
+          yoKick();
+        } else YO.send('stop');
       }, 1000);
       layout();
       newGame();
     </script>
   </body>
-</html>
+  </html>
