@@ -5,6 +5,12 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v32 (v31からの変更点)
+      - 戦法の検索を修正: 「自分の手だけ」は、標準で自分の1手目から連続して入力どおりの棋譜だけを拾う(今までは、順番さえ合えば途中に別の手が挟まっていてもよい作りで、初手が違う棋譜も大量に拾っていた)
+        従来の拾い方は「間に別の自分の手が挟まってもよい」のチェックで選べる
+      - 「両者の手を順に」も、標準で1手目から手順どおりの棋譜だけを拾う。手順が前後して同じ局面になる棋譜(合流)は「合流も含める」のチェックで選べる
+      - これにより、戦法を指定した定跡は、最初の手も入力した手になる(定跡の木の根元に別の初手が混ざらない)
+
       v31 (v30からの変更点)
       - 取得元の最優先に https://mathotagamma.github.io/wdoor-getter/wdoorYYYY.7z を追加(CORS対応のミラー)。年ごとに取得できなかった場合は飛ばして続ける。年の既定を2025に変更
       - 書き方の説明を追加: 定跡の作成タブに折りたたみ説明(全体の流れ・筋と段の見方・戦法2種類・囲い・各欄の意味)、☰の自作指定にも詳しい説明
@@ -2103,7 +2109,7 @@
         return false;
       }
 
-      /* 1局を調べる。pat: null(指定なし) / {type:'moves', hash} 両者の手の列でできる局面を通る棋譜 / {type:'own', side, seq} 自分の手だけ(相手は問わない) / {type:'form', goals, side} 囲いができる棋譜 */
+      /* 1局を調べる。pat: null(指定なし) / {type:'moves', seq, exact, hash} 両者の手の列(exactなら1手目から手順どおり、でなければ同じ局面を通る棋譜) / {type:'own', side, seq, loose} 自分の手だけ(相手は問わない。looseでなければ自分の1手目から連続) / {type:'form', goals, side} 囲いができる棋譜 */
       function bkwGame(text, opt, S, book) {
         S.scanned++;
         var head = text.substr(0, 3000),
@@ -2142,6 +2148,8 @@
           pat = opt.pat,
           cut = -1,
           pk = 0,
+          oi = 0,
+          miss = false,
           sides = pat && pat.type === 'form' ? (pat.side === 2 ? [0, 1] : [pat.side]) : null;
         for (i = 0; i < lines.length; i++) {
           var ln = lines[i];
@@ -2208,15 +2216,36 @@
           ply++;
           if (pat && cut < 0) {
             if (pat.type === 'moves') {
-              if (hashP(P) === pat.hash) cut = ply;
+              if (pat.exact) {
+                /* 手順どおり: 1手目から入力と同じ手を指した棋譜だけ */
+                if (m !== pat.seq[ply - 1]) {
+                  miss = true;
+                  break;
+                }
+                if (ply === pat.seq.length) cut = ply;
+              } else if (hashP(P) === pat.hash) cut = ply;
             } else if (pat.type === 'form') {
               if (bkwForm(P, pat.goals, sides)) cut = ply;
-            } else if (sd === pat.side && m === pat.seq[pk]) {
-              pk++;
-              if (pk === pat.seq.length) cut = ply;
+            } else if (sd === pat.side) {
+              oi++;
+              if (pat.loose) {
+                /* 順番だけ守る: 間に別の自分の手が挟まってもよい */
+                if (m === pat.seq[pk]) {
+                  pk++;
+                  if (pk === pat.seq.length) cut = ply;
+                }
+              } else {
+                /* 自分の1手目から順に連続して、入力と同じ手を指した棋譜だけ(相手の手は問わない) */
+                if (m !== pat.seq[oi - 1]) {
+                  miss = true;
+                  break;
+                }
+                if (oi === pat.seq.length) cut = ply;
+              }
             }
           }
         }
+        if (miss) return;
         if (bad || !ks.length) {
           S.bad++;
           return;
@@ -4823,11 +4852,11 @@
           '<div>先手の1手目、後手の1手目、先手の2手目…と、<b>先手と後手の手を交互に全部</b>、スペース区切りで入れます。</div>' +
           '<div>1手の書き方(USI形式): <span style="' + c + '">移動元のマス+移動先のマス</span>。7g7f は「7七の駒を7六へ」。成るときは最後に + を付けます(例 8h2b+)。駒を打つときは「駒の大文字+*+マス」(例 P*5e は5五に歩を打つ)。駒は P=歩 L=香 N=桂 S=銀 G=金 B=角 R=飛。CSA形式(7776FU のような書き方)も使えます。</div>' +
           '<div>例(どれも先手の出だし):<br>・四間飛車: <span style="' + c + '">7g7f 3c3d 6g6f 8c8d 2h6h</span><br>・三間飛車: <span style="' + c + '">7g7f 3c3d 2h7h</span><br>・中飛車: <span style="' + c + '">7g7f 3c3d 5g5f 8c8d 2h5h</span></div>' +
-          '<div>動き: 入力した手順を最後まで指した棋譜だけでなく、手順が前後して同じ局面になる棋譜も拾います。その局面に「序盤の手数」までに着いた棋譜が対象で、着いた後も序盤の手数まで定跡に入ります。入力した手がその順で指せない手のときは、何手目かを表示してやり直しになります。</div></details>' +
+          '<div>動き: 標準では、1手目から入力と同じ手順で指した棋譜だけを拾います(定跡の最初の手も、入力した手になります)。「合流も含める」にチェックすると、手順が前後して同じ局面になる棋譜も拾います(その場合、最初の手は入力と違ってもよくなります)。手順を指し終えた後も、序盤の手数まで定跡に入ります。入力した手がその順で指せない手のときは、何手目かを表示してやり直しになります。</div></details>' +
           '<details style="' + st + '"><summary>戦法: 自分の手だけ入れる(相手の手は問わない)</summary>' +
           '<div><b>自分の指し手だけ</b>を、指す順に入れます。相手が何を指していてもかまいません。「自分は先手/後手」を選びます。書き方は上と同じ(USI形式)。</div>' +
           '<div>例(先手の四間飛車): <span style="' + c + '">7g7f 6g6f 2h6h</span></div>' +
-          '<div>動き: その手を、その順番で指した棋譜を拾います。途中に自分の別の手が挟まっていてもよく、順番だけ守られていれば一致です。</div></details>' +
+          '<div>動き: 標準では、<b>自分の1手目が1つ目の手、2手目が2つ目の手、…</b>と連続して一致した棋譜だけを拾います(相手の手は何でもよい)。例えば「7i6h 8h7i」なら、先手が初手に7i6h、2手目に8h7iを指した棋譜です。そのため、定跡の最初の手も7i6hになります。「間に別の自分の手が挟まってもよい」にチェックすると、順番だけ守られていれば一致にします(その場合、最初の手は入力と違ってもよくなります)。</div></details>' +
           '<details style="' + st + '"><summary>囲い: 駒とマスを入れる</summary>' +
           '<div>「駒+マス」を、スペース区切りで並べます。<b>先手から見た位置</b>で書きます(後手の囲いを探すときは「後手」を選ぶと、180度回して判定します)。</div>' +
           '<div>駒: <span style="' + c + '">P=歩 L=香 N=桂 S=銀 G=金 B=角 R=飛 K=玉</span>(小文字も可)。成り駒は前に + を付けます: +P=と +L=成香 +N=成桂 +S=成銀 +B=馬 +R=龍。漢字でも書けます: 歩 香 桂 銀 金 角 飛 玉(王) と 成香(杏) 成桂(圭) 成銀(全) 馬 龍(竜)。</div>' +
@@ -4863,8 +4892,8 @@
           '</div>' +
           '<label>追加先(既存の定跡に、.7zの内容を追加できます)</label><select id="bkTarget"></select>' +
           '<label>検索条件(どんな棋譜を探すか)</label><select id="bkPatT"><option value="none">指定なし(高レートの対局すべて)</option><option value="moves">戦法: 両者の手を順に入れる(相手の手も含む)</option><option value="own">戦法: 自分の手だけ入れる(相手の手は問わない)</option><option value="form">囲い: 駒とマスを入れる</option></select>' +
-          '<div id="bkPatMoves" hidden><label>両者の指し手を、先手・後手の順に交互に(USI形式をスペース区切り 例: 7g7f 3c3d 6g6f 8c8d。CSA形式の7776FUも可。手順が前後しても同じ局面になる棋譜も拾います)</label><input type="text" id="bkMoves" placeholder="7g7f 3c3d 6g6f 8c8d"></div>' +
-          '<div id="bkPatOwn" hidden><label>自分の指し手だけを順に(USI形式 例: 7g7f 6g6f 8h7g。相手が何を指していても、この順にこの手を指した棋譜を拾います)</label><input type="text" id="bkOwn" placeholder="7g7f 6g6f"><label>自分は</label><select id="bkOSide"><option value="0">先手</option><option value="1">後手</option></select></div>' +
+          '<div id="bkPatMoves" hidden><label>両者の指し手を、先手・後手の順に交互に(USI形式をスペース区切り 例: 7g7f 3c3d 6g6f 8c8d。CSA形式の7776FUも可。手順が前後しても同じ局面になる棋譜も拾います)</label><input type="text" id="bkMoves" placeholder="7g7f 3c3d 6g6f 8c8d"><label style="color:#eee"><input type="checkbox" id="bkMMerge"> 手順が前後して同じ局面になる棋譜(合流)も含める(外すと、1手目から手順どおりの棋譜だけ)</label></div>' +
+          '<div id="bkPatOwn" hidden><label>自分の指し手だけを1手目から順に(USI形式 例: 7g7f 6g6f 8h7g。自分の1手目・2手目・3手目がこの手で、相手が何を指していてもよい棋譜を拾います)</label><input type="text" id="bkOwn" placeholder="7g7f 6g6f"><label>自分は</label><select id="bkOSide"><option value="0">先手</option><option value="1">後手</option></select><label style="color:#eee"><input type="checkbox" id="bkOLoose"> 自分の手の間に、別の自分の手が挟まってもよい(順番だけ守る。外すと、自分の1手目から連続した棋譜だけ)</label></div>' +
           '<div id="bkPatForm" hidden><label>囲いの形(駒+マス、先手視点 例: K2h S3h G4i G5h / 歩76 / 成香1d / +B22。大文字・小文字どちらでも可)</label><input type="text" id="bkForm" placeholder="K2h S3h G4i G5h"><label>どちらの囲いか</label><select id="bkFSide"><option value="2">どちらでも</option><option value="0">先手</option><option value="1">後手</option></select></div>' +
           '<label>最低レート(対局した2人とも、この値以上の対局だけ使う)</label><input type="number" id="bkRate" value="3800">' +
           '<label>序盤の手数(各対局の先頭から何手目まで使うか。囲いの検索では、囲いができるまでの手を使い、この手数までに囲いができた棋譜だけ拾う)</label><input type="number" id="bkPly" value="50" min="1">' +
@@ -5093,14 +5122,16 @@
 
       function bkParseMoves(str) {
         var Q = newPos(),
+          seq = [],
           ts = str.trim().split(/[\s,、]+/).filter(Boolean);
         if (!ts.length) throw new Error('指し手が入力されていません');
         ts.forEach(function (tk, i) {
           var m = bkTokMove(tk, Q);
           if (m < 0) throw new Error((i + 1) + '手目「' + tk + '」は解釈できないか、その局面で指せない手です');
           make(Q, m);
+          seq.push(m);
         });
-        return { hash: hashP(Q), n: ts.length };
+        return { hash: hashP(Q), n: ts.length, seq: seq };
       }
 
       function bkParseForm(str) {
@@ -5318,14 +5349,14 @@
           var pt = g('bkPatT').value;
           if (pt === 'moves') {
             var pm = bkParseMoves(g('bkMoves').value);
-            opt.pat = { type: 'moves', hash: pm.hash };
+            opt.pat = { type: 'moves', hash: pm.hash, seq: pm.seq, exact: !g('bkMMerge').checked };
             opt.maxPly = Math.max(opt.maxPly, pm.n);
-            BKS.cond = '戦法 ' + g('bkMoves').value.trim();
+            BKS.cond = '戦法(両者の手' + (opt.pat.exact ? '・手順どおり' : '・同じ局面を含む') + ') ' + g('bkMoves').value.trim();
           } else if (pt === 'own') {
             var sq = bkParseOwn(g('bkOwn').value);
-            opt.pat = { type: 'own', side: +g('bkOSide').value, seq: sq };
+            opt.pat = { type: 'own', side: +g('bkOSide').value, seq: sq, loose: g('bkOLoose').checked };
             opt.maxPly = Math.max(opt.maxPly, sq.length * 2);
-            BKS.cond = '戦法(' + ['先手', '後手'][opt.pat.side] + 'の手だけ) ' + g('bkOwn').value.trim();
+            BKS.cond = '戦法(' + ['先手', '後手'][opt.pat.side] + 'の手だけ・' + (opt.pat.loose ? '順番だけ守る' : '1手目から連続') + ') ' + g('bkOwn').value.trim();
           } else if (pt === 'form') {
             opt.pat = { type: 'form', goals: bkParseForm(g('bkForm').value), side: +g('bkFSide').value };
             BKS.cond = '囲い ' + g('bkForm').value.trim() + '(' + ['先手', '後手', 'どちらでも'][opt.pat.side] + ')';
@@ -5465,7 +5496,7 @@
         bkFillTarget();
         bkProg(
           1,
-          (BKS.target ? '追加しました: ' : '完成: ') + b.keys.length + '局面 / ' + b.mv.length + '手(今回採用 ' + m.S.games + '局, ' + Math.round(m.ms / 1000) + '秒)。VS AIで使います。' + (BKS.fails && BKS.fails.length ? ' 取得できなかった年: ' + BKS.fails.join(', ') : ''),
+          (BKS.target ? '追加しました: ' : '完成: ') + b.keys.length + '局面 / ' + b.mv.length + '手(今回採用 ' + m.S.games + '局, ' + Math.round(m.ms / 1000) + '秒)。VS AIで使います。' + (m.S.games < 20 ? ' ※採用した棋譜が少ないです。年を増やす・最低レートを下げる・入力の手数を減らすと増えます。' : '') + (BKS.fails && BKS.fails.length ? ' 取得できなかった年: ' + BKS.fails.join(', ') : ''),
           ''
         );
       }
