@@ -5,6 +5,12 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v31 (v30からの変更点)
+      - 取得元の最優先に https://mathotagamma.github.io/wdoor-getter/wdoorYYYY.7z を追加(CORS対応のミラー)。年ごとに取得できなかった場合は飛ばして続ける。年の既定を2025に変更
+      - 書き方の説明を追加: 定跡の作成タブに折りたたみ説明(全体の流れ・筋と段の見方・戦法2種類・囲い・各欄の意味)、☰の自作指定にも詳しい説明
+      - 定跡コンテナに診断を追加: 今の局面でAIが定跡で指すかエンジンで考えるか、定跡の外に出た手数
+      - 最小出現数の既定を条件で切替(指定なし=2、戦法・囲い=1)
+
       v30 (v29からの変更点)
       - 囲いの完成や戦法の完了で記録を打ち切らず、完成・完了した後も「序盤の手数」まで定跡に入れる(囲い・戦法どちらも)
       - 戦法の検索を2種類に: 「両者の手を順に」(相手の手も入れる、手順前後の合流も拾う)/「自分の手だけ」(相手の手は問わず、その順に指した棋譜を拾う)
@@ -2605,7 +2611,7 @@
             })
             .join('') +
           '</select></label>' +
-          '<input type="text" id="stratC" placeholder="自作: 駒+マスを優先順に 例 P7f R6h K2h 銀38 成香1d"><div style="font-size:12px;color:#aaa">駒: P歩 L香 N桂 S銀 G金 B角 R飛 K玉(小文字も可)。成り駒: +P(と) +L(杏) +N(圭) +S(全) +B(馬) +R(龍)。漢字も可: 歩 香 桂 銀 金 角 飛 玉 と 成香 成桂 成銀 馬 龍 / マス: 筋の数字+段(a〜i または 1〜9。a=一段)。例: P7f P76 歩76 成香1d +B22。先手視点で書く(後手は自動で反転)。どちらのエンジンでも有効</div>' +
+          '<input type="text" id="stratC" placeholder="自作: 駒+マスを優先順に 例 P7f R6h K2h 銀38 成香1d"><div style="font-size:12px;color:#aaa">駒: P歩 L香 N桂 S銀 G金 B角 R飛 K玉(小文字も可)。成り駒: +P(と) +L(杏) +N(圭) +S(全) +B(馬) +R(龍)。漢字も可: 歩 香 桂 銀 金 角 飛 玉 と 成香 成桂 成銀 馬 龍 / マス: 筋の数字+段(a〜i または 1〜9。a=一段)。例: P7f P76 歩76 成香1d +B22。先手視点で書く(後手は自動で反転)。どちらのエンジンでも有効</div><details style="font-size:12px;color:#aaa"><summary>書き方の詳しい説明</summary><div>自陣の形(戦法・囲い)の目標は、<b>自分の駒だけ</b>で指定します(相手の駒や相手の手は指定しません)。「駒+マス」を、優先したい順にスペース区切りで並べます。先手から見た位置で書き、後手のときは自動で反転します。<br>・駒: P歩 L香 N桂 S銀 G金 B角 R飛 K玉(小文字も可)。成り駒は前に+を付けます(+P=と +L=成香 +N=成桂 +S=成銀 +B=馬 +R=龍)。漢字でも書けます(歩 香 桂 銀 金 角 飛 玉 と 成香 成桂 成銀 馬 龍)。<br>・マス: 筋(右端が1、左端が9)+段(上から a〜i、または1〜9)。P7f=P76=歩76 は同じ意味です。<br>・例: 美濃囲い K2h S3h G4i G5h / 矢倉 K8h S7g G7h G6g / 四間飛車 P7f R6h K2h<br>・解釈できない指定は、目標の表示欄に「解釈できない指定」として出ます。</div></details>' +
           '<label><input type="checkbox" id="manAI"> AIの手を自分で指せる(AIが考えている間に盤をタップして、AI側の駒を動かせる。動かさなければAIが指す)</label><label><input type="checkbox" id="bkUseM"> AIの手番で定跡を使う(外すと定跡を無視して、常にエンジンで考える)</label>' +
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
@@ -4596,7 +4602,8 @@
         bkKey = -1,
         bkVal = '';
       var BK_YEARS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011];
-      var BK_REPO = 'https://github.com/shogi-server/shogi-server/releases/';
+      var BK_REPO = 'https://github.com/shogi-server/shogi-server/releases/',
+        BK_MIRROR = 'https://mathotagamma.github.io/wdoor-getter/wdoor{year}.7z';
 
       function bkLS(k, d) {
         try {
@@ -4710,7 +4717,8 @@
 
       /* 評価値リストの右の定跡コンテナ(採用数順が標準。勝率順に切り替え可) */
       var bkSort = 'c',
-        bkcKey = '';
+        bkcKey = '',
+        bkOff = -1;
 
       function bkcPaint() {
         var el = g('bkc');
@@ -4732,9 +4740,20 @@
         ls.sort(function (a, b) {
           return bkSort === 'w' ? b.w / b.c - a.w / a.c || b.c - a.c : b.c - a.c || b.w - a.w;
         });
+        if (!hist.length) bkOff = -1;
+        else if (ls.length) {
+          if (bkOff > hist.length) bkOff = -1;
+        } else if (bkOff < 0 || bkOff > hist.length) bkOff = hist.length;
         var h =
           '<div style="color:#9cf">定跡「' + bkEsc(BKA.name || '') + '」 <button data-s="c"' + (bkSort === 'c' ? ' class="on"' : '') + '>採用数順</button><button data-s="w"' + (bkSort === 'w' ? ' class="on"' : '') + '>勝率順</button></div>' +
           '<div><button data-s="u"' + (on ? ' class="on"' : '') + '>AIは定跡を' + (on ? '使う' : '無視') + '(押して切替)</button></div>';
+        if (mode === 'vs' && P.side !== human)
+          h += on
+            ? ls.length
+              ? '<div style="color:#8f8">→ AIはこの中から選んで、定跡で指します</div>'
+              : '<div style="color:#fa8">→ この局面は定跡にないので、AIはエンジンで考えます</div>'
+            : '<div style="color:#fa8">→ 設定が「無視」なので、AIはエンジンで考えます</div>';
+        if (bkOff >= 0) h += '<div style="color:#fa8">定跡の外に出たのは ' + bkOff + '手指した局面からです</div>';
         if (last && last.inf && last.inf.indexOf('定跡') === 0) h += '<div style="color:#8f8">直前の手は定跡(' + bkEsc(last.inf.replace(/^定跡 ?/, '')) + ')</div>';
         if (!ls.length) h += '<div style="color:#aaa">この局面は定跡にありません</div>';
         else {
@@ -4790,13 +4809,43 @@
       }
 
       /* --- 画面 --- */
+      function bkHelp() {
+        var st = 'font-size:12px;color:#ccc;line-height:1.55;margin:4px 0;border:1px solid #444;border-radius:6px;padding:4px 8px',
+          c = 'color:#fc6';
+        return (
+          '<details open style="' + st + '"><summary>はじめに(全体の流れ)</summary>' +
+          '<div>Floodgate(wdoor)の過去の棋譜から、探したい戦法や囲いが出てくる対局だけを集めて、定跡ファイルを作ります。1つの定跡ファイルに、たくさんの局面と、その局面での指し手(出現数・勝率つき)が入ります。局面で管理するので、手順が前後して同じ局面になる場合は1つにまとまります。</div>' +
+          '<ol style="margin:4px 0;padding-left:20px"><li>下の「検索条件」で、探したい戦法か囲いを入力する(「指定なし」ならレートの高い対局すべて)。</li><li>年を選んで「ダウンロードして作成」。取得できないときは、端末に保存した .7z を「ファイルを選んで作成(.7z)」で選ぶ。</li><li>完成すると、その定跡が自動で選ばれ、VS AIでAIの手番に使われます。</li><li>対局画面の右側(評価値リストの右)に、今の局面の次の手が採用数順で出ます。「枝の探索」タブでは、定跡の木を盤面つきで1手ずつたどれます。</li></ol></details>' +
+          '<details style="' + st + '"><summary>盤の座標(筋と段)の見方</summary>' +
+          '<div>マスは「筋(1〜9)+段(a〜i)」で書きます。筋は盤の上に出ている数字で、右端が1、左端が9。段は上から a(一段)・b(二段)…i(九段)で、数字の1〜9や漢数字で書いてもかまいません(c=3=三)。</div>' +
+          '<div>先手の初期位置: 玉 5i、金 4i と 6i、銀 3i と 7i、桂 2i と 8i、香 1i と 9i、飛 2h、角 8h、歩 1g〜9g。後手は上下左右を逆にした位置(玉 5a、飛 8b、角 2b、歩 1c〜9c)。</div></details>' +
+          '<details style="' + st + '"><summary>戦法: 両者の手を順に入れる(相手の手も含める)</summary>' +
+          '<div>先手の1手目、後手の1手目、先手の2手目…と、<b>先手と後手の手を交互に全部</b>、スペース区切りで入れます。</div>' +
+          '<div>1手の書き方(USI形式): <span style="' + c + '">移動元のマス+移動先のマス</span>。7g7f は「7七の駒を7六へ」。成るときは最後に + を付けます(例 8h2b+)。駒を打つときは「駒の大文字+*+マス」(例 P*5e は5五に歩を打つ)。駒は P=歩 L=香 N=桂 S=銀 G=金 B=角 R=飛。CSA形式(7776FU のような書き方)も使えます。</div>' +
+          '<div>例(どれも先手の出だし):<br>・四間飛車: <span style="' + c + '">7g7f 3c3d 6g6f 8c8d 2h6h</span><br>・三間飛車: <span style="' + c + '">7g7f 3c3d 2h7h</span><br>・中飛車: <span style="' + c + '">7g7f 3c3d 5g5f 8c8d 2h5h</span></div>' +
+          '<div>動き: 入力した手順を最後まで指した棋譜だけでなく、手順が前後して同じ局面になる棋譜も拾います。その局面に「序盤の手数」までに着いた棋譜が対象で、着いた後も序盤の手数まで定跡に入ります。入力した手がその順で指せない手のときは、何手目かを表示してやり直しになります。</div></details>' +
+          '<details style="' + st + '"><summary>戦法: 自分の手だけ入れる(相手の手は問わない)</summary>' +
+          '<div><b>自分の指し手だけ</b>を、指す順に入れます。相手が何を指していてもかまいません。「自分は先手/後手」を選びます。書き方は上と同じ(USI形式)。</div>' +
+          '<div>例(先手の四間飛車): <span style="' + c + '">7g7f 6g6f 2h6h</span></div>' +
+          '<div>動き: その手を、その順番で指した棋譜を拾います。途中に自分の別の手が挟まっていてもよく、順番だけ守られていれば一致です。</div></details>' +
+          '<details style="' + st + '"><summary>囲い: 駒とマスを入れる</summary>' +
+          '<div>「駒+マス」を、スペース区切りで並べます。<b>先手から見た位置</b>で書きます(後手の囲いを探すときは「後手」を選ぶと、180度回して判定します)。</div>' +
+          '<div>駒: <span style="' + c + '">P=歩 L=香 N=桂 S=銀 G=金 B=角 R=飛 K=玉</span>(小文字も可)。成り駒は前に + を付けます: +P=と +L=成香 +N=成桂 +S=成銀 +B=馬 +R=龍。漢字でも書けます: 歩 香 桂 銀 金 角 飛 玉(王) と 成香(杏) 成桂(圭) 成銀(全) 馬 龍(竜)。</div>' +
+          '<div>マス: P7f でも P76 でも 歩76 でも同じ意味です(7筋6段)。</div>' +
+          '<div>例:<br>・美濃囲い: <span style="' + c + '">K2h S3h G4i G5h</span><br>・矢倉: <span style="' + c + '">K8h S7g G7h G6g</span><br>・2三にと金がいる形: <span style="' + c + '">と2c</span></div>' +
+          '<div>動き: 書いた駒が、すべて指定のマスに揃った局面が一度でもある棋譜を拾います(他の駒は何でもよい)。「序盤の手数」までに揃った棋譜が対象で、揃った後も序盤の手数まで定跡に入ります。</div></details>' +
+          '<details style="' + st + '"><summary>そのほかの欄の意味</summary>' +
+          '<div>・最低レート: 対局した2人とも、この値以上の対局だけ使う。大きいほど強い者同士の棋譜になるが、数は減ります。<br>・序盤の手数: 各対局の先頭から何手目まで定跡に入れるか。<br>・使う棋譜の最小手数: これより短い対局(早い投了・時間切れなど)は使わない。<br>・最小出現数: この回数未満しか出ない手は捨てる。1だと全部残るので、戦法・囲いを指定したときは1がおすすめ。「指定なし」は容量を抑えるため2。<br>・対局者名: 部分一致で、空白区切りならどれか。空欄なら絞らない(例: suisho dlshogi)。<br>・追加先: 既存の定跡に今回の.7zの内容を足す。同じ.7zを足したことがあると確認が出ます。</div></details>'
+        );
+      }
+
       function buildBook() {
         var yrs = BK_YEARS.map(function (y) {
           return (
             '<label style="display:inline-block;margin:2px 10px 2px 0;color:#eee"><input type="checkbox" class="bkY" value="' +
             y +
             '"' +
-            (y === 2026 ? ' checked' : '') +
+            (y === 2025 ? ' checked' : '') +
             '> ' +
             y +
             '</label>'
@@ -4806,7 +4855,7 @@
           '<div><h3 style="display:inline-block;margin:0 10px 6px 0">定跡ブック</h3><button data-a="x">閉じる</button></div>' +
           '<div><button data-t="make" class="on">作成</button> <button data-t="list">保存済み・使用設定</button> <button data-t="explore">枝の探索</button></div>' +
           '<div id="bkMake">' +
-          '<div style="font-size:12px;color:#aaa;margin-top:6px">Floodgate(wdoor)の過去の棋譜から、レートの高い対局の序盤を集めて定跡ファイルを作ります。1つの定跡ファイルに、たくさんの局面とその指し手(出現数・勝率つき)が入ります。作成した定跡は、VS AIでAIの手番に使われます。</div>' +
+          bkHelp() +
           '<label>定跡の名前</label><input type="text" id="bkName" value="floodgate高レート">' +
           '<label>取得元のタグ(GitHub Releases / shogi-server)</label><input type="text" id="bkTag" value="2026-04-10">' +
           '<label>年(複数選べます。1年あたり約100〜220MB)</label><div>' +
@@ -4822,7 +4871,7 @@
           '<label>使う棋譜の最小手数(これより短い対局は使わない)</label><input type="number" id="bkMin" value="0" min="0">' +
           '<label>最小出現数(これ未満の手は捨てる)</label><input type="number" id="bkCnt" value="2" min="1">' +
           '<label>対局者名で絞る(部分一致・空白区切り・どれか。空欄なら絞らない。例: suisho dlshogi)</label><input type="text" id="bkNames">' +
-          '<label>取得元URL(任意。{year}が年に置き換わる 例: https://自分のサイト/wdoor/wdoor{year}.7z)。空欄でも、このページと同じ場所の wdoor/ フォルダ → GitHub → 東大wdoor の順に自動で試します</label><input type="text" id="bkUrl">' +
+          '<label>取得元URL(任意。{year}が年に置き換わる 例: https://自分のサイト/wdoor/wdoor{year}.7z)。空欄でも、①mathotagamma.github.io/wdoor-getter ②このページと同じ場所の wdoor/ フォルダ ③GitHub ④東大wdoor の順に自動で試します</label><input type="text" id="bkUrl">' +
           '<label>CORSプロキシ(任意。空欄なら直接取得。{url} を含めるとその部分にURLが入る)</label><input type="text" id="bkProxy" placeholder="例: https://プロキシ/?url={url}">' +
           '<div style="margin-top:8px"><button data-a="go">ダウンロードして作成</button> <button data-a="pick">ファイルを選んで作成(.7z)</button> <button data-a="stop" hidden>中止</button>' +
           '<input type="file" id="bkFile" accept=".7z" multiple hidden></div>' +
@@ -4884,7 +4933,10 @@
           } else if (t.id === 'bkImp') {
             if (t.files[0]) bkImport(t.files[0]);
             t.value = '';
+          } else if (t.id === 'bkCnt') {
+            BKS.cntDirty = 1;
           } else if (t.id === 'bkPatT') {
+            if (!BKS.cntDirty) g('bkCnt').value = t.value === 'none' ? 2 : 1;
             g('bkPatMoves').hidden = t.value !== 'moves';
             g('bkPatOwn').hidden = t.value !== 'own';
             g('bkPatForm').hidden = t.value !== 'form';
@@ -5071,6 +5123,7 @@
         var us = [],
           cu = g('bkUrl').value.trim();
         if (cu) us.push(cu.replace(/\{year\}/g, year));
+        us.push(BK_MIRROR.replace('{year}', year));
         us.push(new URL('wdoor/' + nm, location.href).href);
         us.push(BK_REPO + 'download/' + encodeURIComponent(tag) + '/' + nm);
         us.push('https://wdoor.c.u-tokyo.ac.jp/shogi/x/' + nm);
@@ -5191,7 +5244,7 @@
           ) +
           '</span>' +
           (cors
-            ? '<div style="margin-top:6px">対処1: 自分のGitHub Pagesに wdoor/wdoorYYYY.7z を置く(付属の wdoor-pages.yml を使うと自動で置けます)。このページと同じ場所のファイルは、何の制限もなく取得できます。<br>対処2: リリースページから wdoorYYYY.7z を端末に保存し、「ファイルを選んで作成(.7z)」で選ぶ(通信は不要)。<br><a style="color:#9cf" target="_blank" rel="noopener" href="' +
+            ? '<div style="margin-top:6px">対処1: 取得元URLに、自分のGitHub Pagesなど(CORSを許可しているサイト)に置いた wdoorYYYY.7z のURLを指定する(例 https://mathotagamma.github.io/wdoor-getter/wdoor{year}.7z。そのサイトに無い年は取得できません)。<br>対処2: リリースページから wdoorYYYY.7z を端末に保存し、「ファイルを選んで作成(.7z)」で選ぶ(通信は不要)。<br><a style="color:#9cf" target="_blank" rel="noopener" href="' +
               BK_REPO +
               'tag/' +
               encodeURIComponent(g('bkTag').value.trim()) +
@@ -5257,6 +5310,7 @@
         bkSetLS('shogiBkProxy', g('bkProxy').value.trim());
         bkSetLS('shogiBkUrl', g('bkUrl').value.trim());
         BKS.cancel = 0;
+        BKS.fails = [];
         BKS.opt = opt;
         BKS.target = tmeta ? tid : '';
         bkBusy(1);
@@ -5297,12 +5351,22 @@
                 return c.value;
               });
             if (!ys.length || !tag) throw new Error('タグと年を指定してください');
+            var fails = [],
+              lastErr = null;
             for (var i = 0; i < ys.length; i++) {
               var nm = 'wdoor' + ys[i] + '.7z';
               if (tmeta && !bkAskDup(tmeta, nm, 0)) continue;
-              var bl = await bkDownload(bkUrls(nm, ys[i], tag), '[' + (i + 1) + '/' + ys.length + '] ' + nm);
-              files.push({ name: nm, size: bl.size, blob: bl });
+              try {
+                var bl = await bkDownload(bkUrls(nm, ys[i], tag), '[' + (i + 1) + '/' + ys.length + '] ' + nm);
+                files.push({ name: nm, size: bl.size, blob: bl });
+              } catch (e) {
+                if (e && e.message === '中止') throw e;
+                fails.push(nm);
+                lastErr = e;
+              }
             }
+            BKS.fails = fails;
+            if (!files.length) throw lastErr || new Error('取得できませんでした');
             BKS.src = tag + ' ' + ys.join(',');
           }
           if (!files.length) throw new Error('追加するファイルがありません');
@@ -5401,7 +5465,7 @@
         bkFillTarget();
         bkProg(
           1,
-          (BKS.target ? '追加しました: ' : '完成: ') + b.keys.length + '局面 / ' + b.mv.length + '手(今回採用 ' + m.S.games + '局, ' + Math.round(m.ms / 1000) + '秒)。VS AIで使います。',
+          (BKS.target ? '追加しました: ' : '完成: ') + b.keys.length + '局面 / ' + b.mv.length + '手(今回採用 ' + m.S.games + '局, ' + Math.round(m.ms / 1000) + '秒)。VS AIで使います。' + (BKS.fails && BKS.fails.length ? ' 取得できなかった年: ' + BKS.fails.join(', ') : ''),
           ''
         );
       }
