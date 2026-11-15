@@ -5218,8 +5218,8 @@
         if (mode === 'vs' && P.side !== human)
           h += on
             ? ls.length
-              ? '<div style="color:#8f8">→ AIはこの中から選んで、定跡で指します</div>'
-              : '<div style="color:#fa8">→ この局面は定跡にないので、AIはエンジンで考えます</div>'
+              ? '<div style="color:#8f8">→ AI : 定跡で指す</div>'
+              : '<div style="color:#fa8">→ AI : エンジンで考慮</div>'
             : '<div style="color:#fa8">→ 設定が「無視」なので、AIはエンジンで考えます</div>';
         if (bkOff >= 0) h += '<div style="color:#fa8">定跡の外に出たのは ' + bkOff + '手指した局面からです</div>';
         if (last && last.inf && last.inf.indexOf('定跡') === 0) h += '<div style="color:#8f8">直前の手は定跡(' + bkEsc(last.inf.replace(/^定跡 ?/, '')) + ')</div>';
@@ -5332,7 +5332,7 @@
           '<label>検索条件(どんな棋譜を探すか)</label><select id="bkPatT"><option value="none">指定なし(高レートの対局すべて)</option><option value="moves">戦法: 両者の手を順に入れる(相手の手も含む)</option><option value="own">戦法: 自分の手だけ入れる(相手の手は問わない)</option><option value="form">囲い: 駒とマスを入れる</option></select>' +
           '<div id="bkPatMoves" hidden><label>両者の指し手を、先手・後手の順に交互に(USI形式をスペース区切り 例: 7g7f 3c3d 6g6f 8c8d。CSA形式の7776FUも可。手順が前後しても同じ局面になる棋譜も拾います)</label><input type="text" id="bkMoves" placeholder="7g7f 3c3d 6g6f 8c8d"><label style="color:#eee"><input type="checkbox" id="bkMMerge"> 手順が前後して同じ局面になる棋譜(合流)も含める(外すと、1手目から手順どおりの棋譜だけ)</label></div>' +
           '<div id="bkPatOwn" hidden><label>自分の指し手だけを1手目から順に(USI形式 例: 7g7f 6g6f 8h7g。自分の1手目・2手目・3手目がこの手で、相手が何を指していてもよい棋譜を拾います)</label><input type="text" id="bkOwn" placeholder="7g7f 6g6f"><label>自分は</label><select id="bkOSide"><option value="0">先手</option><option value="1">後手</option></select><label style="color:#eee"><input type="checkbox" id="bkOLoose"> 自分の手の間に、別の自分の手が挟まってもよい(順番だけ守る。外すと、自分の1手目から連続した棋譜だけ)</label></div>' +
-          '<div id="bkPatForm" hidden><label>囲いの形(駒+マス、先手視点 例: K2h S3h G4i G5h / 歩76 / 成香1d / +B22。大文字・小文字どちらでも可)</label><input type="text" id="bkForm" placeholder="K2h S3h G4i G5h"><label>どちらの囲いか</label><select id="bkFSide"><option value="2">どちらでも</option><option value="0">先手</option><option value="1">後手</option></select></div>' +
+          '<div id="bkPatForm" hidden><label>囲いの形(駒+マス、先手視点 例: K2h S3h G4i G5h / 歩76 / 成香1d / p76 / +B22。大文字・小文字どちらでも可。歩:P / 香:L / 桂:N / 銀:S / 金:G / 角:B / 飛:R / 玉・王:K)</label><input type="text" id="bkForm" placeholder="K2h S3h G4i G5h"><label>どちらの囲いか</label><select id="bkFSide"><option value="2">どちらでも</option><option value="0">先手</option><option value="1">後手</option></select></div>' +
           '<label>最低レート(対局した2人とも、この値以上の対局だけ使う)</label><input type="number" id="bkRate" value="3800">' +
           '<label>序盤の手数(各対局の先頭から何手目まで使うか。囲いの検索では、囲いができるまでの手を使い、この手数までに囲いができた棋譜だけ拾う)</label><input type="number" id="bkPly" value="50" min="1">' +
           '<label>使う棋譜の最小手数(これより短い対局は使わない)</label><input type="number" id="bkMin" value="0" min="0">' +
