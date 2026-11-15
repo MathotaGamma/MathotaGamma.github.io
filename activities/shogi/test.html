@@ -5,6 +5,18 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v33 (v32からの変更点)
+      - 「枝の探索」を作り直し: サブ盤面で駒を動かすと(動かす駒→行き先の順にタップ。持ち駒も可)、AI(やねうら王。使えなければ自作エンジン)がその局面から先の変化を探索し、
+        候補手と評価値を出す。候補(AI・定跡)をタップするとその手を指す。解析時間・候補数を指定でき、「AIの最善手順を自動で展開」もできる
+        探索タブを開いている間は本局の思考を止め、閉じたら本局を再開する。定跡があれば定跡の次の手(採用数順/勝率順)も同じ画面に出す
+      - 定跡作成: 「最小手数に足りない棋譜(他の条件はすべて満たすもの)」の局数を進捗と完了時に表示
+      - 定跡作成の実行管理を作り直し: 中止・完了のあとでも、必ず次の開始ができるようにした(開始時に「準備中…」を表示)
+      - 取得元はミラー(mathotagamma.github.io/wdoor-getter)と取得元URL欄だけにした。GitHub・東大・同じ場所のwdoor/は廃止
+      - 高速化: LZMAの解凍を約2倍に(デコーダを書き直し)。複数年は最大3本のワーカーで並行して解析し、ダウンロードと解析も重ねて進める。
+        ダウンロードは8MBずつ6本並行(Range)で取得し、取得した.7zは端末に保存して次回から再利用できる(オプション。削除ボタンあり)
+      - 局面編集: 完了ボタンを「完了→研究」「完了→VS AI」に分け、編集後のモードを選べるようにした。
+        盤面を変えずに完了したときは、盤面も棋譜もそのまま続ける(対局が新しく始まらない)
+
       v32 (v31からの変更点)
       - 戦法の検索を修正: 「自分の手だけ」は、標準で自分の1手目から連続して入力どおりの棋譜だけを拾う(今までは、順番さえ合えば途中に別の手が挟まっていてもよい作りで、初手が違う棋譜も大量に拾っていた)
         従来の拾い方は「間に別の自分の手が挟まってもよい」のチェックで選べる
@@ -1561,13 +1573,11 @@
             total += n;
           },
           decode: function (s, sp, n) {
-            src = s;
-            ip = sp;
-            if (src[ip++] !== 0) throw new Error('LZMA: 先頭バイトが不正');
-            code = src[ip] * 16777216 + ((src[ip + 1] << 16) | (src[ip + 2] << 8) | src[ip + 3]);
-            ip += 4;
-            range = 4294967295;
-            var d = dict,
+            var src = s,
+              ip = sp,
+              range = -1,
+              code,
+              d = dict,
               ds = dictSize,
               dp = dpos,
               tot = total,
@@ -1576,34 +1586,121 @@
               r1 = rep1,
               r2 = rep2,
               r3 = rep3,
-              end = tot + n,
+              end = total + n,
+              lit_ = lit,
+              isMatch_ = isMatch,
+              isRep_ = isRep,
+              isRepG0_ = isRepG0,
+              isRepG1_ = isRepG1,
+              isRepG2_ = isRepG2,
+              isRep0Long_ = isRep0Long,
+              posSlot_ = posSlot,
+              posSpec_ = posSpec,
+              align_ = align,
+              lenP_ = lenP,
+              repLenP_ = repLenP,
+              pr,
+              bound,
+              ix_,
+              b_,
+              m_,
+              k_,
               len,
               ps,
               di,
               from,
-              k;
+              lp_,
+              isrep_,
+              prev,
+              base,
+              sym,
+              slot,
+              nd,
+              dist,
+              t_,
+              mb,
+              offs,
+              mbit,
+              dd,
+              lm = lpMask,
+              pm = pbMask,
+              lcc = lc;
+            if (src[ip++] !== 0) throw new Error('LZMA: 先頭バイトが不正');
+            code = (src[ip] << 24) | (src[ip + 1] << 16) | (src[ip + 2] << 8) | src[ip + 3];
+            ip += 4;
             while (tot < end) {
-              ps = tot & pbMask;
-              if (!bit(isMatch, (st << 4) + ps)) {
-                var prev = tot > 0 ? d[dp === 0 ? ds - 1 : dp - 1] : 0;
-                var base = 0x300 * (((tot & lpMask) << lc) + (prev >> (8 - lc)));
-                var sym = 1;
+              ps = tot & pm;
+              ix_ = (st << 4) + ps;
+              pr = isMatch_[ix_];
+              bound = ((range >>> 11) * pr) | 0;
+              if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                range = bound;
+                isMatch_[ix_] = pr + ((2048 - pr) >>> 5);
+                b_ = 0;
+              } else {
+                range = (range - bound) | 0;
+                code = (code - bound) | 0;
+                isMatch_[ix_] = pr - (pr >>> 5);
+                b_ = 1;
+              }
+              if ((range & -16777216) === 0) {
+                range <<= 8;
+                code = (code << 8) | src[ip++];
+              }
+              if (b_ === 0) {
+                prev = tot > 0 ? d[dp === 0 ? ds - 1 : dp - 1] : 0;
+                base = 0x300 * (((tot & lm) << lcc) + (prev >> (8 - lcc)));
+                sym = 1;
                 if (st >= 7) {
                   di = dp - r0 - 1;
                   if (di < 0) di += ds;
-                  var mb = d[di],
-                    offs = 0x100;
+                  mb = d[di];
+                  offs = 0x100;
                   do {
                     mb <<= 1;
-                    var mbit = mb & offs,
-                      b = bit(lit, base + offs + mbit + sym);
-                    sym = (sym << 1) | b;
-                    if (b) offs &= mbit;
+                    mbit = mb & offs;
+                    ix_ = base + offs + mbit + sym;
+                    pr = lit_[ix_];
+                    bound = ((range >>> 11) * pr) | 0;
+                    if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                      range = bound;
+                      lit_[ix_] = pr + ((2048 - pr) >>> 5);
+                      b_ = 0;
+                    } else {
+                      range = (range - bound) | 0;
+                      code = (code - bound) | 0;
+                      lit_[ix_] = pr - (pr >>> 5);
+                      b_ = 1;
+                    }
+                    if ((range & -16777216) === 0) {
+                      range <<= 8;
+                      code = (code << 8) | src[ip++];
+                    }
+                    sym = (sym << 1) | b_;
+                    if (b_) offs &= mbit;
                     else offs &= ~mbit;
                   } while (sym < 0x100);
                 } else {
-                  do sym = (sym << 1) | bit(lit, base + sym);
-                  while (sym < 0x100);
+                  do {
+                    ix_ = base + sym;
+                    pr = lit_[ix_];
+                    bound = ((range >>> 11) * pr) | 0;
+                    if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                      range = bound;
+                      lit_[ix_] = pr + ((2048 - pr) >>> 5);
+                      b_ = 0;
+                    } else {
+                      range = (range - bound) | 0;
+                      code = (code - bound) | 0;
+                      lit_[ix_] = pr - (pr >>> 5);
+                      b_ = 1;
+                    }
+                    if ((range & -16777216) === 0) {
+                      range <<= 8;
+                      code = (code << 8) | src[ip++];
+                    }
+                    sym = (sym << 1) | b_;
+                  } while (sym < 0x100);
                 }
                 d[dp] = sym & 255;
                 if (++dp === ds) dp = 0;
@@ -1611,10 +1708,61 @@
                 st = st < 4 ? 0 : st < 10 ? st - 3 : st - 6;
                 continue;
               }
-              if (bit(isRep, st)) {
+              ix_ = st;
+              pr = isRep_[ix_];
+              bound = ((range >>> 11) * pr) | 0;
+              if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                range = bound;
+                isRep_[ix_] = pr + ((2048 - pr) >>> 5);
+                isrep_ = 0;
+              } else {
+                range = (range - bound) | 0;
+                code = (code - bound) | 0;
+                isRep_[ix_] = pr - (pr >>> 5);
+                isrep_ = 1;
+              }
+              if ((range & -16777216) === 0) {
+                range <<= 8;
+                code = (code << 8) | src[ip++];
+              }
+              if (isrep_) {
                 if (tot === 0) throw new Error('LZMA: 不正なrep');
-                if (!bit(isRepG0, st)) {
-                  if (!bit(isRep0Long, (st << 4) + ps)) {
+                ix_ = st;
+                pr = isRepG0_[ix_];
+                bound = ((range >>> 11) * pr) | 0;
+                if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                  range = bound;
+                  isRepG0_[ix_] = pr + ((2048 - pr) >>> 5);
+                  b_ = 0;
+                } else {
+                  range = (range - bound) | 0;
+                  code = (code - bound) | 0;
+                  isRepG0_[ix_] = pr - (pr >>> 5);
+                  b_ = 1;
+                }
+                if ((range & -16777216) === 0) {
+                  range <<= 8;
+                  code = (code << 8) | src[ip++];
+                }
+                if (b_ === 0) {
+                  ix_ = (st << 4) + ps;
+                  pr = isRep0Long_[ix_];
+                  bound = ((range >>> 11) * pr) | 0;
+                  if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                    range = bound;
+                    isRep0Long_[ix_] = pr + ((2048 - pr) >>> 5);
+                    b_ = 0;
+                  } else {
+                    range = (range - bound) | 0;
+                    code = (code - bound) | 0;
+                    isRep0Long_[ix_] = pr - (pr >>> 5);
+                    b_ = 1;
+                  }
+                  if ((range & -16777216) === 0) {
+                    range <<= 8;
+                    code = (code << 8) | src[ip++];
+                  }
+                  if (b_ === 0) {
                     st = st < 7 ? 9 : 11;
                     di = dp - r0 - 1;
                     if (di < 0) di += ds;
@@ -1624,10 +1772,43 @@
                     continue;
                   }
                 } else {
-                  var dd;
-                  if (!bit(isRepG1, st)) dd = r1;
+                  ix_ = st;
+                  pr = isRepG1_[ix_];
+                  bound = ((range >>> 11) * pr) | 0;
+                  if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                    range = bound;
+                    isRepG1_[ix_] = pr + ((2048 - pr) >>> 5);
+                    b_ = 0;
+                  } else {
+                    range = (range - bound) | 0;
+                    code = (code - bound) | 0;
+                    isRepG1_[ix_] = pr - (pr >>> 5);
+                    b_ = 1;
+                  }
+                  if ((range & -16777216) === 0) {
+                    range <<= 8;
+                    code = (code << 8) | src[ip++];
+                  }
+                  if (b_ === 0) dd = r1;
                   else {
-                    if (!bit(isRepG2, st)) dd = r2;
+                    ix_ = st;
+                    pr = isRepG2_[ix_];
+                    bound = ((range >>> 11) * pr) | 0;
+                    if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                      range = bound;
+                      isRepG2_[ix_] = pr + ((2048 - pr) >>> 5);
+                      b_ = 0;
+                    } else {
+                      range = (range - bound) | 0;
+                      code = (code - bound) | 0;
+                      isRepG2_[ix_] = pr - (pr >>> 5);
+                      b_ = 1;
+                    }
+                    if ((range & -16777216) === 0) {
+                      range <<= 8;
+                      code = (code << 8) | src[ip++];
+                    }
+                    if (b_ === 0) dd = r2;
                     else {
                       dd = r3;
                       r3 = r2;
@@ -1637,37 +1818,235 @@
                   r1 = r0;
                   r0 = dd;
                 }
-                len = dlen(repLenP, ps);
+                lp_ = repLenP_;
                 st = st < 7 ? 8 : 11;
               } else {
                 r3 = r2;
                 r2 = r1;
                 r1 = r0;
-                len = dlen(lenP, ps);
+                lp_ = lenP_;
                 st = st < 7 ? 7 : 10;
-                var slot = tree(posSlot, (len < 4 ? len : 3) << 6, 6);
+              }
+              /* 長さ */
+              ix_ = 0;
+              pr = lp_[ix_];
+              bound = ((range >>> 11) * pr) | 0;
+              if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                range = bound;
+                lp_[ix_] = pr + ((2048 - pr) >>> 5);
+                b_ = 0;
+              } else {
+                range = (range - bound) | 0;
+                code = (code - bound) | 0;
+                lp_[ix_] = pr - (pr >>> 5);
+                b_ = 1;
+              }
+              if ((range & -16777216) === 0) {
+                range <<= 8;
+                code = (code << 8) | src[ip++];
+              }
+              if (b_ === 0) {
+                m_ = 1;
+                for (k_ = 0; k_ < 3; k_++) {
+                  ix_ = (2 + (ps << 3)) + m_;
+                  pr = lp_[ix_];
+                  bound = ((range >>> 11) * pr) | 0;
+                  if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                    range = bound;
+                    lp_[ix_] = pr + ((2048 - pr) >>> 5);
+                    b_ = 0;
+                  } else {
+                    range = (range - bound) | 0;
+                    code = (code - bound) | 0;
+                    lp_[ix_] = pr - (pr >>> 5);
+                    b_ = 1;
+                  }
+                  if ((range & -16777216) === 0) {
+                    range <<= 8;
+                    code = (code << 8) | src[ip++];
+                  }
+                  m_ = (m_ << 1) + b_;
+                }
+                len = m_ - (1 << 3);
+              } else {
+                ix_ = 1;
+                pr = lp_[ix_];
+                bound = ((range >>> 11) * pr) | 0;
+                if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                  range = bound;
+                  lp_[ix_] = pr + ((2048 - pr) >>> 5);
+                  b_ = 0;
+                } else {
+                  range = (range - bound) | 0;
+                  code = (code - bound) | 0;
+                  lp_[ix_] = pr - (pr >>> 5);
+                  b_ = 1;
+                }
+                if ((range & -16777216) === 0) {
+                  range <<= 8;
+                  code = (code << 8) | src[ip++];
+                }
+                if (b_ === 0) {
+                  m_ = 1;
+                  for (k_ = 0; k_ < 3; k_++) {
+                    ix_ = (130 + (ps << 3)) + m_;
+                    pr = lp_[ix_];
+                    bound = ((range >>> 11) * pr) | 0;
+                    if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                      range = bound;
+                      lp_[ix_] = pr + ((2048 - pr) >>> 5);
+                      b_ = 0;
+                    } else {
+                      range = (range - bound) | 0;
+                      code = (code - bound) | 0;
+                      lp_[ix_] = pr - (pr >>> 5);
+                      b_ = 1;
+                    }
+                    if ((range & -16777216) === 0) {
+                      range <<= 8;
+                      code = (code << 8) | src[ip++];
+                    }
+                    m_ = (m_ << 1) + b_;
+                  }
+                  len = m_ - (1 << 3);
+                  len += 8;
+                } else {
+                  m_ = 1;
+                  for (k_ = 0; k_ < 8; k_++) {
+                    ix_ = (258) + m_;
+                    pr = lp_[ix_];
+                    bound = ((range >>> 11) * pr) | 0;
+                    if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                      range = bound;
+                      lp_[ix_] = pr + ((2048 - pr) >>> 5);
+                      b_ = 0;
+                    } else {
+                      range = (range - bound) | 0;
+                      code = (code - bound) | 0;
+                      lp_[ix_] = pr - (pr >>> 5);
+                      b_ = 1;
+                    }
+                    if ((range & -16777216) === 0) {
+                      range <<= 8;
+                      code = (code << 8) | src[ip++];
+                    }
+                    m_ = (m_ << 1) + b_;
+                  }
+                  len = m_ - (1 << 8);
+                  len += 16;
+                }
+              }
+              if (!isrep_) {
+                /* 距離 */
+                m_ = 1;
+                for (k_ = 0; k_ < 6; k_++) {
+                  ix_ = ((len < 4 ? len : 3) << 6) + m_;
+                  pr = posSlot_[ix_];
+                  bound = ((range >>> 11) * pr) | 0;
+                  if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                    range = bound;
+                    posSlot_[ix_] = pr + ((2048 - pr) >>> 5);
+                    b_ = 0;
+                  } else {
+                    range = (range - bound) | 0;
+                    code = (code - bound) | 0;
+                    posSlot_[ix_] = pr - (pr >>> 5);
+                    b_ = 1;
+                  }
+                  if ((range & -16777216) === 0) {
+                    range <<= 8;
+                    code = (code << 8) | src[ip++];
+                  }
+                  m_ = (m_ << 1) + b_;
+                }
+                slot = m_ - (1 << 6);
                 if (slot < 4) r0 = slot;
                 else {
-                  var nd = (slot >> 1) - 1,
-                    dist = (2 | (slot & 1)) * (1 << nd);
-                  if (slot < 14) dist += rtree(posSpec, dist - slot - 1, nd);
-                  else {
-                    dist += direct(nd - 4) * 16;
-                    dist += rtree(align, 0, 4);
+                  nd = (slot >> 1) - 1;
+                  dist = (2 | (slot & 1)) << nd;
+                  if (slot < 14) {
+                    m_ = 1;
+                    t_ = 0;
+                    for (k_ = 0; k_ < nd; k_++) {
+                      ix_ = (dist - slot - 1) + m_;
+                      pr = posSpec_[ix_];
+                      bound = ((range >>> 11) * pr) | 0;
+                      if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                        range = bound;
+                        posSpec_[ix_] = pr + ((2048 - pr) >>> 5);
+                        b_ = 0;
+                      } else {
+                        range = (range - bound) | 0;
+                        code = (code - bound) | 0;
+                        posSpec_[ix_] = pr - (pr >>> 5);
+                        b_ = 1;
+                      }
+                      if ((range & -16777216) === 0) {
+                        range <<= 8;
+                        code = (code << 8) | src[ip++];
+                      }
+                      m_ = (m_ << 1) + b_;
+                      t_ |= b_ << k_;
+                    }
+                    dist += t_;
+                  } else {
+                    dd = 0;
+                    for (k_ = nd - 4; k_ > 0; k_--) {
+                      range = range >>> 1;
+                      code = (code - range) | 0;
+                      t_ = code >> 31;
+                      code = (code + (range & t_)) | 0;
+                      dd = (dd << 1) + (t_ + 1);
+                      if ((range & -16777216) === 0) {
+                        range <<= 8;
+                        code = (code << 8) | src[ip++];
+                      }
+                    }
+                    dist += dd << 4;
+                    m_ = 1;
+                    t_ = 0;
+                    for (k_ = 0; k_ < 4; k_++) {
+                      ix_ = (0) + m_;
+                      pr = align_[ix_];
+                      bound = ((range >>> 11) * pr) | 0;
+                      if ((code ^ -2147483648) < (bound ^ -2147483648)) {
+                        range = bound;
+                        align_[ix_] = pr + ((2048 - pr) >>> 5);
+                        b_ = 0;
+                      } else {
+                        range = (range - bound) | 0;
+                        code = (code - bound) | 0;
+                        align_[ix_] = pr - (pr >>> 5);
+                        b_ = 1;
+                      }
+                      if ((range & -16777216) === 0) {
+                        range <<= 8;
+                        code = (code << 8) | src[ip++];
+                      }
+                      m_ = (m_ << 1) + b_;
+                      t_ |= b_ << k_;
+                    }
+                    dist += t_;
                   }
                   r0 = dist;
                 }
-                if (r0 === 4294967295) break;
+                if (r0 === -1) break;
               }
               len += 2;
-              if (r0 >= tot || r0 >= ds) throw new Error('LZMA: 距離が不正');
+              if (r0 >= tot || r0 >= ds || r0 < 0) throw new Error('LZMA: 距離が不正');
               if (tot + len > end) throw new Error('LZMA: 長さが範囲外');
               from = dp - r0 - 1;
               if (from < 0) from += ds;
-              for (k = 0; k < len; k++) {
-                d[dp] = d[from];
-                if (++from === ds) from = 0;
-                if (++dp === ds) dp = 0;
+              if (len >= 48 && dp + len <= ds && from + len <= ds && r0 + 1 >= len) {
+                d.copyWithin(dp, from, from + len);
+                dp += len;
+                if (dp === ds) dp = 0;
+              } else {
+                for (k_ = 0; k_ < len; k_++) {
+                  d[dp] = d[from];
+                  if (++from === ds) from = 0;
+                  if (++dp === ds) dp = 0;
+                }
               }
               tot += len;
             }
@@ -1678,6 +2057,7 @@
             rep1 = r1;
             rep2 = r2;
             rep3 = r3;
+
           }
         };
         return api;
@@ -2110,9 +2490,9 @@
       }
 
       /* 1局を調べる。pat: null(指定なし) / {type:'moves', seq, exact, hash} 両者の手の列(exactなら1手目から手順どおり、でなければ同じ局面を通る棋譜) / {type:'own', side, seq, loose} 自分の手だけ(相手は問わない。looseでなければ自分の1手目から連続) / {type:'form', goals, side} 囲いができる棋譜 */
-      function bkwGame(text, opt, S, book) {
+      function bkwGame(bytes, opt, S, book, dec) {
         S.scanned++;
-        var head = text.substr(0, 3000),
+        var head = dec.decode(bytes.subarray(0, 3000)),
           mb = /^'black_rate:.*:([0-9.]+)\s*$/m.exec(head),
           mw = /^'white_rate:.*:([0-9.]+)\s*$/m.exec(head);
         if (!mb || !mw) {
@@ -2133,7 +2513,8 @@
             return;
           }
         }
-        var lines = text.split('\n'),
+        var text = dec.decode(bytes),
+          lines = text.split('\n'),
           pl = [],
           P = newPos(),
           ks = [],
@@ -2250,13 +2631,14 @@
           S.bad++;
           return;
         }
+        /* 戦法・囲いが見つかった棋譜は、完成した後も序盤の手数(maxPly)まで使う */
+        if (pat && cut < 0) return;
+        /* 最小手数に足りない棋譜(他の条件はすべて満たしているもの)は数だけ数えて使わない */
         if (total < opt.minPly) {
           S.short++;
           return;
         }
         S.rated++;
-        /* 戦法・囲いが見つかった棋譜は、完成した後も序盤の手数(maxPly)まで使う */
-        if (pat && cut < 0) return;
         /* 勝敗: 'summary:理由:先手名 win:後手名 lose */
         var sm = /^'summary:[^:]*:[^:\n]* (win|lose|draw):[^:\n]* (win|lose|draw)/m.exec(text),
           win = -1;
@@ -2324,6 +2706,36 @@
         return { keys: K, off: O, mv: M, cnt: C, win: W };
       }
 
+      /* 複数の定跡(型付き配列)を1つにまとめる */
+      function bkwMerge(books, minCnt) {
+        var map = new Map();
+        books.forEach(function (B) {
+          for (var i = 0; i < B.keys.length; i++) {
+            var k = B.keys[i],
+              arr = map.get(k);
+            if (!arr) {
+              arr = [];
+              map.set(k, arr);
+            }
+            for (var j = B.off[i]; j < B.off[i + 1]; j++) {
+              var f = -1;
+              for (var q = 0; q < arr.length; q += 3)
+                if (arr[q] === B.mv[j]) {
+                  f = q;
+                  break;
+                }
+              if (f < 0) {
+                arr.push(B.mv[j], 0, 0);
+                f = arr.length - 3;
+              }
+              arr[f + 1] += B.cnt[j];
+              arr[f + 2] += B.win[j];
+            }
+          }
+        });
+        return bkwFinish(map, minCnt);
+      }
+
       /* 複数の7zをまとめて処理 */
       function bkwBuild(io, files, opt, post) {
         var book = new Map(),
@@ -2347,7 +2759,7 @@
             function (name, bytes, n, tot) {
               if (!/\.csa$/i.test(name)) return;
               try {
-                bkwGame(dec.decode(bytes), opt, S, book);
+                bkwGame(bytes, opt, S, book, dec);
               } catch (e) {
                 S.bad++;
               }
@@ -2387,6 +2799,11 @@
       self.onmessage = function (e) {
         var m = e.data;
         try {
+          if (m.merge) {
+            var mg = bkwMerge(m.merge.books, m.merge.minCnt);
+            postMessage({ t: 'merged', book: mg }, [mg.keys.buffer, mg.off.buffer, mg.mv.buffer, mg.cnt.buffer, mg.win.buffer]);
+            return;
+          }
           var r = bkwBuild(bkIo, m.files, m.opt, function (x) {
             postMessage(x);
           });
@@ -2886,6 +3303,7 @@
           nnOk = m.ok;
           if (m.ok) setNN('NN読込済: ' + netName, 100, 0);
         } else if (m.t === 'ack') clearTimeout(tm);
+        else if (m.id < 0) bkxOnMsg(m);
         else if (m.id !== gid) return;
         else if (m.t === 'p' || m.t === 'done') {
           showList(m);
@@ -3973,7 +4391,7 @@
           '<button data-x="s">' +
           (P.side ? '後手番' : '先手番') +
           '</button><button data-x="i">初期配置</button>' +
-          '<button data-x="z">全て持駒へ</button><button data-x="x">取消</button><button data-x="k">完了</button>';
+          '<button data-x="z">全て持駒へ</button><button data-x="x">取消</button><button data-x="k1">完了→研究</button><button data-x="k2">完了→VS AI</button>';
       }
 
       function edClick(e) {
@@ -4007,8 +4425,8 @@
         } else if (x === 'x') {
           cancelEdit();
           return;
-        } else if (x === 'k') {
-          finishEdit();
+        } else if (x === 'k1' || x === 'k2') {
+          finishEdit(x === 'k1' ? 'study' : 'vs');
           return;
         }
         paintEd();
@@ -4122,7 +4540,7 @@
         else next();
       }
 
-      function finishEdit() {
+      function finishEdit(md) {
         var kc = [0, 0];
         for (var i = 0; i < 81; i++) {
           var p = P.b[i];
@@ -4140,6 +4558,20 @@
           return;
         }
         var sp = P;
+        md = md || g('mode').value;
+        if (edBackup && toSfen(sp) === toSfen(edBackup) && md === mode) {
+          /* 変更なし: 盤面も棋譜もそのまま、編集だけ終える */
+          P = edBackup;
+          editing = 0;
+          sel = null;
+          g('ed').hidden = true;
+          g('info').hidden = false;
+          g('msg').textContent = '';
+          if (over || paused) render();
+          else next();
+          return;
+        }
+        g('mode').value = md;
         newGame(sp);
       }
 
@@ -4341,8 +4773,8 @@
         YO.send('setoption name MultiPV value ' + r.mpv);
         YO.send(
           'position ' +
-            (startSfen ? 'sfen ' + startSfen : 'startpos') +
-            (hist.length
+            (r.sfen ? 'sfen ' + r.sfen : startSfen ? 'sfen ' + startSfen : 'startpos') +
+            (!r.sfen && hist.length
               ? ' moves ' +
                 hist
                   .map(function (h) {
@@ -4401,6 +4833,10 @@
       }
 
       function yoPaint(r, done) {
+        if (r.ex) {
+          r.ex(r, done);
+          return;
+        }
         var arr = Object.keys(r.mv).map(function (k) {
           return r.mv[k];
         });
@@ -4444,7 +4880,7 @@
         var v = +sc[2],
           s = sc[1] === 'cp' ? v : v > 0 ? 30000 - v : -30000 - v;
         var mv = u2m(pv[1]);
-        if (legal(P).indexOf(mv) < 0) return;
+        if (legal(r.Q || P).indexOf(mv) < 0) return;
         r.mv[mv] = { m: mv, s: s, d: +dp[1], k: mp ? +mp[1] : 1 };
         if (!mp || +mp[1] === 1) r.ev = s;
         r.depth = Math.max(r.depth, +dp[1]);
@@ -4585,6 +5021,10 @@
           yoKick();
           return;
         }
+        if (r && r.ex) {
+          if (r.id === gid) r.ex(r, 1);
+          return;
+        }
         if (!r || r.id !== gid || over) return;
         if (r.scan) {
           yoScanDone(r);
@@ -4631,8 +5071,7 @@
         bkKey = -1,
         bkVal = '';
       var BK_YEARS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011];
-      var BK_REPO = 'https://github.com/shogi-server/shogi-server/releases/',
-        BK_MIRROR = 'https://mathotagamma.github.io/wdoor-getter/wdoor{year}.7z';
+      var BK_MIRROR = 'https://mathotagamma.github.io/wdoor-getter/wdoor{year}.7z';
 
       function bkLS(k, d) {
         try {
@@ -4886,7 +5325,6 @@
           '<div id="bkMake">' +
           bkHelp() +
           '<label>定跡の名前</label><input type="text" id="bkName" value="floodgate高レート">' +
-          '<label>取得元のタグ(GitHub Releases / shogi-server)</label><input type="text" id="bkTag" value="2026-04-10">' +
           '<label>年(複数選べます。1年あたり約100〜220MB)</label><div>' +
           yrs +
           '</div>' +
@@ -4900,16 +5338,23 @@
           '<label>使う棋譜の最小手数(これより短い対局は使わない)</label><input type="number" id="bkMin" value="0" min="0">' +
           '<label>最小出現数(これ未満の手は捨てる)</label><input type="number" id="bkCnt" value="2" min="1">' +
           '<label>対局者名で絞る(部分一致・空白区切り・どれか。空欄なら絞らない。例: suisho dlshogi)</label><input type="text" id="bkNames">' +
-          '<label>取得元URL(任意。{year}が年に置き換わる 例: https://自分のサイト/wdoor/wdoor{year}.7z)。空欄でも、①mathotagamma.github.io/wdoor-getter ②このページと同じ場所の wdoor/ フォルダ ③GitHub ④東大wdoor の順に自動で試します</label><input type="text" id="bkUrl">' +
-          '<label>CORSプロキシ(任意。空欄なら直接取得。{url} を含めるとその部分にURLが入る)</label><input type="text" id="bkProxy" placeholder="例: https://プロキシ/?url={url}">' +
+          '<label>取得元URL(任意。{year}が年に置き換わる 例: https://自分のサイト/wdoor{year}.7z)。空欄なら https://mathotagamma.github.io/wdoor-getter/wdoor{年}.7z から取得します</label><input type="text" id="bkUrl">' +
+          '<label style="color:#eee"><input type="checkbox" id="bkSave" checked> ダウンロードした.7zを端末に保存して、次回から再利用する(再ダウンロード不要) <button data-a="clr">保存した.7zを削除</button></label>' +
           '<div style="margin-top:8px"><button data-a="go">ダウンロードして作成</button> <button data-a="pick">ファイルを選んで作成(.7z)</button> <button data-a="stop" hidden>中止</button>' +
           '<input type="file" id="bkFile" accept=".7z" multiple hidden></div>' +
           '<div class="bar" style="margin-top:8px"><i id="bkB"></i></div><div id="bkP" style="margin-top:4px"></div><div id="bkS" style="font-size:12px;color:#aaa"></div>' +
           '</div>' +
-          '<div id="bkList" hidden></div><div id="bkExp" hidden></div>';
+          '<div id="bkList" hidden></div>' +
+          '<div id="bkExp" hidden>' +
+          '<div style="margin-top:6px;color:#9cf;font-size:13px">サブ盤面で駒を動かすと、AI(やねうら王。使えなければ自作エンジン)がその局面から先の変化を探索します。定跡があれば、定跡の次の手も出します。AI・定跡の候補をタップすると、その手を指します。</div>' +
+          '<div id="bkxPath" style="margin:6px 0;word-break:break-all"></div>' +
+          '<div id="bkxBd"></div>' +
+          '<div style="margin:6px 0"><button data-a="xb">1手戻る</button> <button data-a="xr">最初から</button> <button data-a="xc">今の対局の局面から</button> <button data-a="xp">この局面から対局</button></div>' +
+          '<div style="margin:6px 0;font-size:13px">AI解析の時間 <input type="number" id="bkxSec" value="3" min="1" style="width:60px">秒 候補数 <select id="bkxMpv"><option>3</option><option selected>5</option><option>8</option><option>12</option></select> <button data-a="xa">再解析</button></div>' +
+          '<div style="margin:6px 0;font-size:13px">AIの最善手順を <input type="number" id="bkxN" value="6" min="1" style="width:60px">手 <button data-a="xauto">自動で展開</button> <button data-a="xstop">止める</button></div>' +
+          '<div id="bkxBook"></div><div id="bkxAna"></div>' +
+          '</div>';
         g('bkRate').value = bkLS('shogiBkRate', '3800');
-        g('bkTag').value = bkLS('shogiBkTag', '2026-04-10');
-        g('bkProxy').value = bkLS('shogiBkProxy', '');
         g('bkUrl').value = bkLS('shogiBkUrl', '');
         g('bkc').onclick = function (e) {
           var b = e.target.closest('[data-s]');
@@ -4921,14 +5366,20 @@
           }
         };
         g('bk').onclick = function (e) {
+          var qd = e.target.closest('[data-q]');
+          if (qd) {
+            bkxTap(+qd.dataset.q);
+            return;
+          }
+          var hd = e.target.closest('[data-hq]');
+          if (hd) {
+            bkxTapHand(+hd.dataset.hq);
+            return;
+          }
           var xd = e.target.closest('[data-x]');
           if (xd) {
             var xm = +xd.dataset.x;
-            if (legal(BKX.Q).indexOf(xm) >= 0) {
-              make(BKX.Q, xm);
-              BKX.path.push(xm);
-              bkxPaint();
-            }
+            bkxApply(xm);
             return;
           }
           var b = e.target.closest('button');
@@ -4936,19 +5387,39 @@
           if (b.dataset.t) {
             BKS.tab = b.dataset.t;
             bkTab();
-          } else if (b.dataset.a === 'x') g('bk').hidden = true;
+          } else if (b.dataset.a === 'x') {
+            g('bk').hidden = true;
+            if (BKS.wasEx) {
+              BKS.wasEx = false;
+              bkxLeave();
+            }
+          }
           else if (b.dataset.a === 'go') bkGo(0);
           else if (b.dataset.a === 'pick') g('bkFile').click();
           else if (b.dataset.a === 'stop') bkStop();
           else if (b.dataset.a === 'exp') bkExport(b.dataset.id);
+          else if (b.dataset.a === 'clr') bkCacheClear();
           else if (b.dataset.a === 'xb') bkxBack();
           else if (b.dataset.a === 'xr') bkxReset(0);
           else if (b.dataset.a === 'xc') bkxReset(1);
-          else if (b.dataset.a === 'xs') {
+          else if (b.dataset.a === 'xa') bkxAnalyze();
+          else if (b.dataset.a === 'xauto') {
+            BKX.auto = Math.max(1, +g('bkxN').value || 6);
+            if (BKX.ana && BKX.ana.done && BKX.ana.list.length) {
+              BKX.auto--;
+              bkxApply(BKX.ana.list[0].m);
+            } else bkxPaintAna();
+          } else if (b.dataset.a === 'xstop') {
+            BKX.auto = 0;
+            bkxPaintAna();
+          } else if (b.dataset.a === 'xs') {
             BKX.sort = b.dataset.v;
-            bkxPaint();
+            bkxPaintBook();
           } else if (b.dataset.a === 'xp') {
             g('bk').hidden = true;
+            BKS.wasEx = false;
+            bkxStopEng();
+            BKX.auto = 0;
             newGame(clonePos(BKX.Q));
           }
           else if (b.dataset.a === 'del') bkDelete(b.dataset.id);
@@ -4962,6 +5433,11 @@
           } else if (t.id === 'bkImp') {
             if (t.files[0]) bkImport(t.files[0]);
             t.value = '';
+          } else if (t.id === 'bkxSec') {
+            BKX.sec = Math.max(1, +t.value || 3);
+          } else if (t.id === 'bkxMpv') {
+            BKX.mpv = +t.value || 5;
+            bkxAnalyze();
           } else if (t.id === 'bkCnt') {
             BKS.cntDirty = 1;
           } else if (t.id === 'bkPatT') {
@@ -4987,14 +5463,15 @@
         Array.prototype.forEach.call(g('bk').querySelectorAll('[data-t]'), function (b) {
           b.classList.toggle('on', b.dataset.t === BKS.tab);
         });
+        if (BKS.tab !== 'explore' && BKS.wasEx) bkxLeave();
+        BKS.wasEx = BKS.tab === 'explore';
         if (BKS.tab === 'list') bkRenderList();
         else if (BKS.tab === 'make') bkFillTarget();
-        else if (BKX.Q) bkxPaint();
-        else bkxReset(0);
+        else bkxEnter();
       }
 
-      /* --- 枝の探索(使っている定跡の木をたどる) --- */
-      var BKX = { B: null, Q: null, path: [], sort: 'c' };
+      /* --- 枝の探索(サブ盤面で駒を動かすと、AIがその局面から先の変化を探索する。定跡があれば定跡も出す) --- */
+      var BKX = { B: null, Q: null, path: [], sort: 'c', sel: null, tg: null, seq: 0, ana: null, sec: 3, mpv: 5, auto: 0, jsId: 0, jid: 0, last: null };
 
       function bkxLabel(Q, m) {
         var save = P;
@@ -5006,17 +5483,45 @@
         }
       }
 
+      function bkxStopEng() {
+        BKX.seq++;
+        YO.pending = false;
+        if (YO.running) YO.send('stop');
+        if (BKX.jsId) {
+          W.postMessage({ cmd: 'stop' });
+          BKX.jsId = 0;
+          busy = 0;
+        }
+      }
+
+      /* 探索タブを開いた・閉じたとき。開いている間は本局の思考を止め、閉じたら本局を再開する */
+      function bkxEnter() {
+        if (!BKX.Q) bkxReset(0);
+        else bkxGo();
+      }
+
+      function bkxLeave() {
+        bkxStopEng();
+        BKX.auto = 0;
+        if (!over && !editing && !paused && (mode === 'vs' || mode === 'study')) {
+          gid++;
+          next();
+        }
+      }
+
       function bkxReset(fromBoard) {
         var base = fromBoard && startSfen ? clonePos(startP) : newPos();
         BKX.B = base;
         BKX.Q = clonePos(base);
         BKX.path = [];
+        BKX.sel = BKX.tg = null;
+        BKX.auto = 0;
         if (fromBoard)
           hist.forEach(function (h) {
             make(BKX.Q, h.m);
             BKX.path.push(h.m);
           });
-        bkxPaint();
+        bkxGo();
       }
 
       function bkxBack() {
@@ -5026,16 +5531,123 @@
         BKX.path.forEach(function (m) {
           make(BKX.Q, m);
         });
-        bkxPaint();
+        BKX.sel = BKX.tg = null;
+        BKX.auto = 0;
+        bkxGo();
       }
 
-      function bkxPaint() {
-        var el = g('bkExp'),
-          Q = BKX.Q;
-        if (!BKA) {
-          el.innerHTML = '<div style="margin-top:8px">先に「保存済み・使用設定」で、探索する定跡を選んでください。</div>';
+      function bkxApply(m) {
+        if (legal(BKX.Q).indexOf(m) < 0) return;
+        BKX.last = bkxLabel(BKX.Q, m);
+        make(BKX.Q, m);
+        BKX.path.push(m);
+        BKX.sel = BKX.tg = null;
+        bkxGo();
+      }
+
+      function bkxGo() {
+        bkxPaintPath();
+        bkxPaintBoard();
+        bkxPaintBook();
+        bkxAnalyze();
+      }
+
+      /* AI(やねうら王。使えなければ自作エンジン)で、サブ盤面の局面を解析する */
+      function bkxAnalyze() {
+        bkxStopEng();
+        var Q = BKX.Q,
+          my = BKX.seq;
+        BKX.ana = { list: [], depth: 0, ev: null, done: 0 };
+        if (!legal(Q).length) {
+          BKX.ana.done = 1;
+          bkxPaintAna();
           return;
         }
+        var ms = Math.max(1, BKX.sec) * 1000;
+        if (busy) {
+          W.postMessage({ cmd: 'stop' });
+          busy = 0;
+        }
+        gid++;
+        if (YO.state === 'ok') {
+          YO.req = {
+            id: gid,
+            play: 0,
+            t0: Date.now(),
+            ms: ms,
+            dcap: 0,
+            mpv: BKX.mpv,
+            mv: {},
+            dt: {},
+            depth: 0,
+            cdepth: 0,
+            pm: 0,
+            ui: 0,
+            guide: null,
+            Q: Q,
+            sfen: toSfen(Q),
+            ex: function (r, done) {
+              if (my !== BKX.seq) return;
+              bkxUpdate(
+                Object.keys(r.mv).map(function (k) {
+                  return r.mv[k];
+                }),
+                r.depth,
+                r.ev,
+                done
+              );
+            }
+          };
+          YO.pending = true;
+          yoKick();
+        } else {
+          var id = -(++BKX.jid);
+          BKX.jsId = id;
+          busy = 1;
+          W.postMessage({
+            cmd: 'go',
+            id: id,
+            st: toSt(Q),
+            D: Math.min(Math.max(num('D'), 1), 8),
+            rk: [hashP(Q)],
+            rc: [atk(Q, Q.k[Q.side], Q.side ^ 1) ? 1 : 0],
+            lw: Array.from(g('useLW').checked ? LWS : new Float64Array(16)),
+            play: 0,
+            ms: ms
+          });
+        }
+        bkxPaintAna();
+      }
+
+      /* 自作エンジン(Worker)からの結果 */
+      function bkxOnMsg(m) {
+        if (m.id !== BKX.jsId || !m.list) return;
+        var dp = 0;
+        m.list.forEach(function (x) {
+          dp = Math.max(dp, x.d || 0);
+        });
+        if (m.t === 'done') {
+          BKX.jsId = 0;
+          busy = 0;
+        }
+        bkxUpdate(m.list.slice(0, Math.max(BKX.mpv, 1)), dp, m.ev, m.t === 'done');
+      }
+
+      function bkxUpdate(list, depth, ev, done) {
+        var arr = list.slice();
+        arr.sort(function (a, b) {
+          return (b.d === depth) - (a.d === depth) || (a.k || 0) - (b.k || 0) || b.s - a.s;
+        });
+        BKX.ana = { list: arr.slice(0, BKX.mpv), depth: depth, ev: ev, done: done ? 1 : 0 };
+        bkxPaintAna();
+        if (done && BKX.auto > 0 && arr.length) {
+          BKX.auto--;
+          bkxApply(arr[0].m);
+        }
+      }
+
+      /* --- 表示 --- */
+      function bkxPaintPath() {
         var names = [],
           R = clonePos(BKX.B),
           save = P;
@@ -5048,38 +5660,118 @@
         } finally {
           P = save;
         }
-        var ls = bkMoves(Q).slice(),
-          tot = 0,
-          h = '<div style="margin-top:6px;color:#9cf">定跡「' + bkEsc(BKA.name || '') + '」の枝をたどる</div>';
-        ls.forEach(function (x) {
-          tot += x.c;
-        });
-        ls.sort(function (a, b) {
-          return BKX.sort === 'w' ? b.w / b.c - a.w / a.c || b.c - a.c : b.c - a.c || b.w - a.w;
-        });
-        h += '<div style="margin:4px 0;word-break:break-all">' + (names.length ? names.map(function (t, i) { return (i + 1) + '.' + t; }).join(' ') : '(初期局面)') + '</div>';
-        h += '<table class="bkxb">';
+        g('bkxPath').innerHTML = names.length
+          ? names.map(function (t, i) { return (i + 1) + '.' + t; }).join(' ')
+          : '(初期局面)';
+      }
+
+      function bkxPaintBoard() {
+        var Q = BKX.Q,
+          lm = BKX.path.length ? BKX.path[BKX.path.length - 1] : -1,
+          h = '<table class="bkxb">';
         for (var r = 0; r < 9; r++) {
           h += '<tr>';
           for (var f = 8; f >= 0; f--) {
-            var p = Q.b[f * 9 + r];
-            h += '<td' + (p >> 4 ? ' class="w"' : '') + '>' + (p ? '<span>' + NM[p & 15] + '</span>' : '') + '</td>';
+            var s = f * 9 + r,
+              p = Q.b[s],
+              cl = (p >> 4 ? 'w ' : '') + (BKX.sel && BKX.sel.from === s ? 'sel ' : '') + (BKX.tg && BKX.tg[s] ? 'tg ' : '') + (lm >= 0 && ((lm >> 7) & 127) === s ? 'lm' : '');
+            h += '<td data-q="' + s + '" class="' + cl + '">' + (p ? '<span>' + NM[p & 15] + '</span>' : '') + '</td>';
           }
           h += '</tr>';
         }
         h += '</table>';
         [1, 0].forEach(function (sd) {
           var t = '';
-          for (var k = 7; k >= 1; k--) if (Q.h[sd][k]) t += NM[k] + (Q.h[sd][k] > 1 ? Q.h[sd][k] : '');
-          h += '<div style="font-size:12px;color:#aaa">' + (sd ? '△後手' : '▲先手') + 'の持ち駒: ' + (t || 'なし') + '</div>';
+          for (var k = 7; k >= 1; k--)
+            if (Q.h[sd][k]) {
+              var mine = sd === Q.side;
+              t += '<span' + (mine ? ' data-hq="' + k + '" class="hq' + (BKX.sel && BKX.sel.drop === k ? ' sel' : '') + '"' : '') + '>' + NM[k] + (Q.h[sd][k] > 1 ? Q.h[sd][k] : '') + '</span> ';
+            }
+          h += '<div style="font-size:13px;color:#ccc">' + (sd ? '△後手' : '▲先手') + '(' + (sd === Q.side ? '手番' : '') + ')の持ち駒: ' + (t || 'なし') + '</div>';
         });
-        h += '<div style="margin:6px 0"><button data-a="xb">1手戻る</button> <button data-a="xr">最初から</button> <button data-a="xc">今の対局の局面から</button> <button data-a="xp">この局面から対局</button></div>';
-        h += '<div>次の手(' + ls.length + '通り / 合計' + tot + '局) 並び: <button data-a="xs" data-v="c"' + (BKX.sort === 'c' ? ' class="on"' : '') + '>採用数順</button> <button data-a="xs" data-v="w"' + (BKX.sort === 'w' ? ' class="on"' : '') + '>勝率順</button></div>';
-        if (!ls.length) h += '<div style="color:#aaa;margin-top:4px">この局面は定跡にありません(行き止まり)</div>';
+        h += '<div style="font-size:12px;color:#aaa">動かす駒→行き先の順にタップ。持ち駒は手番側のものをタップしてから行き先をタップ。</div>';
+        g('bkxBd').innerHTML = h;
+      }
+
+      function bkxRows(ls, withEval) {
+        var Q = BKX.Q,
+          h = '';
         ls.forEach(function (x) {
-          h += '<div data-x="' + x.m + '" style="cursor:pointer;border:1px solid #555;border-radius:4px;padding:5px;margin:3px 0">' + bkxLabel(Q, x.m) + ' <b>' + x.c + '</b>局 勝率' + Math.round((x.w * 100) / x.c) + '%</div>';
+          h +=
+            '<div data-x="' + x.m + '" style="cursor:pointer;border:1px solid #555;border-radius:4px;padding:5px;margin:3px 0">' +
+            bkxLabel(Q, x.m) +
+            (withEval ? ' <b>' + fmtS(x.s) + '</b> <span style="color:#aaa">深さ' + (x.d || '') + '</span>' : ' <b>' + x.c + '</b>局 勝率' + Math.round((x.w * 100) / x.c) + '%') +
+            '</div>';
         });
-        el.innerHTML = h;
+        return h;
+      }
+
+      function bkxPaintBook() {
+        var el = g('bkxBook');
+        if (!BKA) {
+          el.innerHTML = '<div style="color:#aaa;margin:6px 0">定跡: 使う定跡が選ばれていません(「保存済み・使用設定」で選べます)。</div>';
+          return;
+        }
+        var ls = bkMoves(BKX.Q).slice(),
+          tot = 0;
+        ls.forEach(function (x) {
+          tot += x.c;
+        });
+        ls.sort(function (a, b) {
+          return BKX.sort === 'w' ? b.w / b.c - a.w / a.c || b.c - a.c : b.c - a.c || b.w - a.w;
+        });
+        el.innerHTML =
+          '<div style="margin-top:8px;color:#8f8">定跡「' + bkEsc(BKA.name || '') + '」の次の手(' + ls.length + '通り / 合計' + tot + '局) 並び: <button data-a="xs" data-v="c"' + (BKX.sort === 'c' ? ' class="on"' : '') + '>採用数順</button> <button data-a="xs" data-v="w"' + (BKX.sort === 'w' ? ' class="on"' : '') + '>勝率順</button></div>' +
+          (ls.length ? bkxRows(ls, 0) : '<div style="color:#aaa">この局面は定跡にありません(行き止まり)</div>');
+      }
+
+      function bkxPaintAna() {
+        var a = BKX.ana,
+          el = g('bkxAna');
+        if (!a) return;
+        var st = a.done
+          ? '解析完了(深さ' + a.depth + ')'
+          : '解析中…' + (a.depth ? ' 深さ' + a.depth : '') + (BKX.auto > 0 ? ' / 自動展開あと' + BKX.auto + '手' : '');
+        el.innerHTML =
+          '<div style="margin-top:8px;color:#fc6">AIの候補(評価値は手番側から見た値)・' + st + (a.ev != null && a.list.length ? ' / 局面の評価値 ' + fmtS(a.ev) : '') + '</div>' +
+          (a.list.length ? bkxRows(a.list, 1) : '<div style="color:#aaa">' + (a.done ? '指せる手がありません(詰み)' : '待っています…') + '</div>');
+      }
+
+      function bkxTap(s) {
+        var Q = BKX.Q;
+        if (BKX.tg && BKX.tg[s]) {
+          var c = BKX.tg[s],
+            m = c[0];
+          if (c.length > 1) {
+            var yes = confirm('成りますか?(OK=成る / キャンセル=成らない)');
+            m = c.filter(function (x) {
+              return !!((x >> 14) & 1) === yes;
+            })[0];
+          }
+          bkxApply(m);
+          return;
+        }
+        var p = Q.b[s];
+        BKX.sel = BKX.tg = null;
+        if (p && p >> 4 === Q.side) {
+          var tg = {};
+          legal(Q).forEach(function (m2) {
+            if ((m2 & 127) === s) (tg[(m2 >> 7) & 127] = tg[(m2 >> 7) & 127] || []).push(m2);
+          });
+          BKX.sel = { from: s };
+          BKX.tg = tg;
+        }
+        bkxPaintBoard();
+      }
+
+      function bkxTapHand(t) {
+        var tg = {};
+        legal(BKX.Q).forEach(function (m) {
+          if ((m & 127) === 81 && m >> 15 === t) (tg[(m >> 7) & 127] = tg[(m >> 7) & 127] || []).push(m);
+        });
+        BKX.sel = { drop: t };
+        BKX.tg = tg;
+        bkxPaintBoard();
       }
 
       function bkFillTarget() {
@@ -5149,15 +5841,12 @@
         return gs;
       }
 
-      /* 取得元の候補(上から順に試す) */
-      function bkUrls(nm, year, tag) {
+      /* 取得元の候補(上から順に試す): 指定したURL → ミラー */
+      function bkUrls(nm, year) {
         var us = [],
           cu = g('bkUrl').value.trim();
         if (cu) us.push(cu.replace(/\{year\}/g, year));
         us.push(BK_MIRROR.replace('{year}', year));
-        us.push(new URL('wdoor/' + nm, location.href).href);
-        us.push(BK_REPO + 'download/' + encodeURIComponent(tag) + '/' + nm);
-        us.push('https://wdoor.c.u-tokyo.ac.jp/shogi/x/' + nm);
         return us;
       }
 
@@ -5228,7 +5917,9 @@
         g('bkList').innerHTML = h;
       }
 
-      /* --- 作成 --- */
+      /* --- 作成の実行(取得→解凍・集計を複数のワーカーで並行→結合) --- */
+      var BKR = null; /* 実行中の1回分。なければ null */
+
       function bkProg(frac, txt, stat) {
         g('bkB').style.width = Math.max(0, Math.min(1, frac)) * 100 + '%';
         g('bkP').textContent = txt;
@@ -5244,239 +5935,424 @@
         });
       }
 
-      function bkStop() {
-        BKS.cancel = 1;
-        if (BKS.w) {
-          BKS.w.terminate();
-          BKS.w = null;
-        }
+      /* 後片付け(取得の中断・ワーカー停止・状態のリセット)。何があっても次の開始ができる状態に戻す */
+      function bkRunEnd(run, msg) {
+        run.dead = true;
+        try {
+          run.ctl.abort();
+        } catch (e) {}
+        run.workers.forEach(function (w) {
+          try {
+            w.terminate();
+          } catch (e) {}
+        });
+        run.workers = [];
+        if (BKR === run) BKR = null;
         bkBusy(0);
-        bkProg(0, '中止しました');
+        if (msg) bkProg(0, msg, '');
       }
 
-      function bkFail(e) {
-        bkBusy(0);
-        if (BKS.w) {
-          BKS.w.terminate();
-          BKS.w = null;
-        }
-        if (e && e.message === '中止') {
-          bkProg(0, '中止しました');
-          return;
-        }
-        var cors = e instanceof TypeError;
+      function bkStop() {
+        if (BKR) bkRunEnd(BKR, '中止しました');
+        else bkBusy(0);
+      }
+
+      function bkFail(run, e) {
+        if (!run || run.dead) return;
+        bkRunEnd(run, '');
+        var net = e instanceof TypeError || (e && /HTTP|range|Failed to fetch|NetworkError/i.test(e.message || ''));
         g('bkB').style.width = '0%';
         g('bkP').innerHTML =
           '<span style="color:#f88">' +
-          bkEsc(
-            cors
-              ? 'ダウンロードできませんでした。GitHubの配信サーバーが、ブラウザからの直接ダウンロード(CORS)を許可していない可能性が高いです。'
-              : '失敗: ' + (e && e.message ? e.message : e)
-          ) +
+          bkEsc('失敗: ' + (e && e.message ? e.message : e)) +
           '</span>' +
-          (cors
-            ? '<div style="margin-top:6px">対処1: 取得元URLに、自分のGitHub Pagesなど(CORSを許可しているサイト)に置いた wdoorYYYY.7z のURLを指定する(例 https://mathotagamma.github.io/wdoor-getter/wdoor{year}.7z。そのサイトに無い年は取得できません)。<br>対処2: リリースページから wdoorYYYY.7z を端末に保存し、「ファイルを選んで作成(.7z)」で選ぶ(通信は不要)。<br><a style="color:#9cf" target="_blank" rel="noopener" href="' +
-              BK_REPO +
-              'tag/' +
-              encodeURIComponent(g('bkTag').value.trim()) +
-              '">リリースページを開く</a></div>'
+          (net
+            ? '<div style="margin-top:6px">ダウンロードできませんでした。「取得元URL」欄を確認するか、端末に保存した wdoorYYYY.7z を「ファイルを選んで作成(.7z)」で選んでください(通信は不要です)。</div>'
             : '');
       }
 
-      async function bkDownload(urls, label) {
-        var px = g('bkProxy').value.trim(),
-          lastErr = null;
-        for (var k = 0; k < urls.length; k++) {
-          var u = urls[k];
-          if (px && u.indexOf(location.origin) !== 0) u = px.indexOf('{url}') >= 0 ? px.replace('{url}', encodeURIComponent(u)) : px + u;
-          try {
-            var r = await fetch(u);
-            if (!r.ok) throw new Error('HTTP ' + r.status + '(' + label + ')');
-            var tot = +r.headers.get('content-length') || 0,
-              ch = [],
-              n = 0,
-              rd = r.body.getReader();
-            for (;;) {
-              var x = await rd.read();
-              if (x.done) break;
-              if (BKS.cancel) {
-                rd.cancel();
-                throw new Error('中止');
-              }
-              ch.push(x.value);
-              n += x.value.length;
-              bkProg(tot ? n / tot : 0, label + ' ダウンロード中 ' + (n / 1048576).toFixed(0) + 'MB' + (tot ? ' / ' + (tot / 1048576).toFixed(0) + 'MB' : ''), '');
-            }
-            return new Blob(ch);
-          } catch (e) {
-            if (e && e.message === '中止') throw e;
-            lastErr = e;
-            bkProg(0, label + ' 取得元' + (k + 1) + '(' + urls[k].replace(/^https?:\/\//, '').split('/')[0] + ')で失敗: ' + (e && e.message ? e.message : e) + (k + 1 < urls.length ? ' → 次を試します…' : ''), '');
+      async function bkIs7z(blob) {
+        try {
+          var u = new Uint8Array(await blob.slice(0, 6).arrayBuffer());
+          return u[0] === 0x37 && u[1] === 0x7a && u[2] === 0xbc && u[3] === 0xaf && u[4] === 0x27 && u[5] === 0x1c;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      async function bkCacheGet(url) {
+        try {
+          if (!window.caches) return null;
+          var c = await caches.open('wdoor7z-v1'),
+            r = await c.match(url);
+          return r ? await r.blob() : null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      async function bkCachePut(url, blob) {
+        try {
+          if (!window.caches || !g('bkSave').checked) return;
+          var c = await caches.open('wdoor7z-v1');
+          await c.put(url, new Response(blob, { headers: { 'content-type': 'application/octet-stream' } }));
+        } catch (e) {}
+      }
+
+      async function bkCacheClear() {
+        try {
+          await caches.delete('wdoor7z-v1');
+          bkProg(0, '保存した.7zを削除しました', '');
+        } catch (e) {
+          bkProg(0, '削除できませんでした: ' + e.message, '');
+        }
+      }
+
+      /* 分割(Range)取得: 8MBずつ6本並行で取得して、通常の1本取得より速くする */
+      async function bkRanged(url, onProg, signal) {
+        var h = await fetch(url, { method: 'HEAD', signal: signal });
+        if (!h.ok) throw new Error('HTTP ' + h.status);
+        var total = +h.headers.get('content-length');
+        if (!total) throw new Error('サイズ不明');
+        var CH = 8 * 1048576,
+          n = Math.ceil(total / CH),
+          parts = new Array(n),
+          next = 0,
+          got = 0;
+        async function lane() {
+          while (next < n) {
+            var i = next++,
+              a = i * CH,
+              b = Math.min(total, a + CH) - 1,
+              r = await fetch(url, { headers: { Range: 'bytes=' + a + '-' + b }, signal: signal });
+            if (r.status !== 206) throw new Error('range未対応(' + r.status + ')');
+            var buf = await r.arrayBuffer();
+            if (buf.byteLength !== b - a + 1) throw new Error('range長さ不一致');
+            parts[i] = buf;
+            got += buf.byteLength;
+            onProg(got / total);
           }
         }
-        throw lastErr || new Error('取得できません');
+        var lanes = [];
+        for (var k = 0; k < Math.min(6, n); k++) lanes.push(lane());
+        await Promise.all(lanes);
+        return new Blob(parts);
+      }
+
+      async function bkStream(url, onProg, signal) {
+        var r = await fetch(url, { signal: signal });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var tot = +r.headers.get('content-length') || 0,
+          ch = [],
+          n = 0,
+          rd = r.body.getReader();
+        for (;;) {
+          var x = await rd.read();
+          if (x.done) break;
+          ch.push(x.value);
+          n += x.value.length;
+          if (tot) onProg(n / tot);
+        }
+        return new Blob(ch);
+      }
+
+      async function bkGet(run, j) {
+        var urls = bkUrls(j.name, j.year),
+          last = null;
+        for (var k = 0; k < urls.length; k++) {
+          var url = urls[k],
+            hit = await bkCacheGet(url);
+          if (hit && (await bkIs7z(hit))) {
+            j.dlFrac = 1;
+            j.st = '保存済みを再利用';
+            return hit;
+          }
+          try {
+            var blob,
+              onP = function (f) {
+                j.dlFrac = f;
+                bkRunPaint(run);
+              };
+            try {
+              blob = await bkRanged(url, onP, run.ctl.signal);
+            } catch (e1) {
+              if (run.dead || (e1 && e1.name === 'AbortError')) throw e1;
+              blob = await bkStream(url, onP, run.ctl.signal);
+            }
+            if (!(await bkIs7z(blob))) throw new Error('7zファイルではありません(' + url.replace(/^https?:\/\//, '').split('/')[0] + ')');
+            await bkCachePut(url, blob);
+            return blob;
+          } catch (e) {
+            if (run.dead || (e && e.name === 'AbortError')) throw e;
+            last = e;
+          }
+        }
+        throw last || new Error('取得できません');
+      }
+
+      function bkSumS(run) {
+        var S = { games: 0, rated: 0, scanned: 0, norate: 0, short: 0, bad: 0 },
+          pos = 0;
+        run.jobs.forEach(function (j) {
+          if (j.S)
+            Object.keys(S).forEach(function (k) {
+              S[k] += j.S[k] || 0;
+            });
+          pos += j.pos || 0;
+        });
+        S.pos = pos;
+        return S;
+      }
+
+      function bkRunPaint(run, force) {
+        if (run.dead) return;
+        var now = Date.now();
+        if (!force && now - (run.lp || 0) < 120) return;
+        run.lp = now;
+        var sum = 0,
+          lines = [];
+        run.jobs.forEach(function (j) {
+          sum += 0.2 * (j.dl ? 1 : j.dlFrac || 0) + 0.8 * (j.frac || 0);
+          lines.push(
+            j.name + ': ' +
+              (j.st === '解析中'
+                ? '解析 ' + Math.round((j.frac || 0) * 100) + '%' + (j.tot ? '(棋譜 ' + j.n + '/' + j.tot + ')' : '')
+                : j.st === 'ダウンロード'
+                  ? 'ダウンロード ' + Math.round((j.dlFrac || 0) * 100) + '%'
+                  : j.st)
+          );
+        });
+        var S = bkSumS(run);
+        bkProg(
+          sum / run.jobs.length,
+          lines.join(' / '),
+          '採用 ' + S.games + '局 / 条件に合う ' + S.rated + '局 / 走査 ' + S.scanned + '局 (レート不明 ' + S.norate + ', 最小手数に足りない[他の条件はOK] ' + S.short + ', 不正 ' + S.bad + ') / 局面 ' + S.pos + ' / 経過 ' + Math.round((now - run.t0) / 1000) + '秒'
+        );
+      }
+
+      function bkPump(run) {
+        while (!run.dead && run.queue.length && run.active < run.cap) {
+          run.active++;
+          bkSpawn(run, run.queue.shift());
+        }
+      }
+
+      function bkSpawn(run, j) {
+        var w = new Worker(run.url);
+        run.workers.push(w);
+        j.st = '解析中';
+        w.onmessage = function (e) {
+          var m = e.data;
+          if (run.dead) return;
+          if (m.t === 'prog') {
+            j.frac = m.frac;
+            j.n = m.n;
+            j.tot = m.tot;
+            j.S = m.S;
+            j.pos = m.pos;
+            bkRunPaint(run);
+          } else if (m.t === 'done') {
+            j.book = m.book;
+            j.S = m.S;
+            j.frac = 1;
+            j.st = '完了';
+            try {
+              w.terminate();
+            } catch (x) {}
+            run.workers = run.workers.filter(function (x) {
+              return x !== w;
+            });
+            run.active--;
+            bkRunPaint(run, true);
+            bkPump(run);
+            bkCheck(run);
+          } else if (m.t === 'err') bkFail(run, new Error(m.txt));
+        };
+        w.onerror = function (e) {
+          bkFail(run, new Error(e.message || 'ワーカーエラー'));
+        };
+        w.postMessage({ files: [{ name: j.name, blob: j.blob }], opt: Object.assign({}, run.opt, { minCnt: run.perMin, base: null }) });
+      }
+
+      function bkEnqueue(run, j) {
+        j.st = '待機';
+        run.queue.push(j);
+        bkPump(run);
+      }
+
+      /* すべて取得・解析が終わったら、結果を1つの定跡に結合する */
+      function bkCheck(run) {
+        if (run.dead || run.merging || !run.dlDone || run.queue.length || run.active) return;
+        var rs = run.jobs.filter(function (j) {
+          return j.book;
+        });
+        if (!rs.length) {
+          bkFail(run, run.lastErr || new Error('取得できませんでした'));
+          return;
+        }
+        run.merging = true;
+        g('bkP').textContent = '結合中…';
+        var w = new Worker(run.url);
+        run.workers.push(w);
+        w.onmessage = function (e) {
+          if (e.data.t === 'merged') bkDone(run, e.data.book);
+          else if (e.data.t === 'err') bkFail(run, new Error(e.data.txt));
+        };
+        w.onerror = function (e) {
+          bkFail(run, new Error(e.message || 'ワーカーエラー'));
+        };
+        w.postMessage({
+          merge: {
+            books: (run.base ? [run.base] : []).concat(
+              rs.map(function (j) {
+                return j.book;
+              })
+            ),
+            minCnt: run.base ? 1 : run.opt.minCnt
+          }
+        });
+      }
+
+      async function bkDownloadAll(run) {
+        for (var i = 0; i < run.jobs.length; i++) {
+          var j = run.jobs[i];
+          if (j.blob) continue;
+          if (run.dead) return;
+          j.st = 'ダウンロード';
+          try {
+            j.blob = await bkGet(run, j);
+            j.size = j.blob.size;
+            j.dl = 1;
+            bkEnqueue(run, j);
+          } catch (e) {
+            if (run.dead) return;
+            j.st = '取得失敗';
+            j.frac = 1;
+            j.dl = 1;
+            run.fails.push(j.name);
+            run.lastErr = e;
+          }
+          bkRunPaint(run, true);
+        }
+        run.dlDone = true;
+        bkCheck(run);
       }
 
       async function bkGo(local) {
-        if (BKS.busy) return;
-        var files = [],
-          tag = g('bkTag').value.trim(),
-          opt = {
-            minRate: +g('bkRate').value || 0,
-            maxPly: Math.max(1, +g('bkPly').value || 50),
-            minPly: Math.max(0, +g('bkMin').value || 0),
-            minCnt: Math.max(1, +g('bkCnt').value || 2),
-            names: g('bkNames')
-              .value.toLowerCase()
-              .split(/\s+/)
-              .filter(Boolean),
-            pat: null
-          },
-          tid = g('bkTarget').value,
-          tmeta = bkMeta().filter(function (x) {
-            return x.id === tid;
-          })[0];
-        bkSetLS('shogiBkRate', String(opt.minRate));
-        bkSetLS('shogiBkTag', tag);
-        bkSetLS('shogiBkProxy', g('bkProxy').value.trim());
-        bkSetLS('shogiBkUrl', g('bkUrl').value.trim());
-        BKS.cancel = 0;
-        BKS.fails = [];
-        BKS.opt = opt;
-        BKS.target = tmeta ? tid : '';
+        if (BKR) return;
+        var run = (BKR = { ctl: new AbortController(), workers: [], dead: false, jobs: [], queue: [], active: 0, t0: Date.now(), dlDone: false, fails: [], merging: false });
         bkBusy(1);
+        bkProg(0, '準備中… (' + new Date().toLocaleTimeString() + ')', '');
         try {
+          var opt = {
+              minRate: +g('bkRate').value || 0,
+              maxPly: Math.max(1, +g('bkPly').value || 50),
+              minPly: Math.max(0, +g('bkMin').value || 0),
+              minCnt: Math.max(1, +g('bkCnt').value || 2),
+              names: g('bkNames')
+                .value.toLowerCase()
+                .split(/\s+/)
+                .filter(Boolean),
+              pat: null
+            },
+            tid = g('bkTarget').value,
+            tmeta = bkMeta().filter(function (x) {
+              return x.id === tid;
+            })[0];
+          bkSetLS('shogiBkRate', String(opt.minRate));
+          bkSetLS('shogiBkUrl', g('bkUrl').value.trim());
           var pt = g('bkPatT').value;
           if (pt === 'moves') {
             var pm = bkParseMoves(g('bkMoves').value);
             opt.pat = { type: 'moves', hash: pm.hash, seq: pm.seq, exact: !g('bkMMerge').checked };
             opt.maxPly = Math.max(opt.maxPly, pm.n);
-            BKS.cond = '戦法(両者の手' + (opt.pat.exact ? '・手順どおり' : '・同じ局面を含む') + ') ' + g('bkMoves').value.trim();
+            run.cond = '戦法(両者の手' + (opt.pat.exact ? '・手順どおり' : '・同じ局面を含む') + ') ' + g('bkMoves').value.trim();
           } else if (pt === 'own') {
             var sq = bkParseOwn(g('bkOwn').value);
             opt.pat = { type: 'own', side: +g('bkOSide').value, seq: sq, loose: g('bkOLoose').checked };
             opt.maxPly = Math.max(opt.maxPly, sq.length * 2);
-            BKS.cond = '戦法(' + ['先手', '後手'][opt.pat.side] + 'の手だけ・' + (opt.pat.loose ? '順番だけ守る' : '1手目から連続') + ') ' + g('bkOwn').value.trim();
+            run.cond = '戦法(' + ['先手', '後手'][opt.pat.side] + 'の手だけ・' + (opt.pat.loose ? '順番だけ守る' : '1手目から連続') + ') ' + g('bkOwn').value.trim();
           } else if (pt === 'form') {
             opt.pat = { type: 'form', goals: bkParseForm(g('bkForm').value), side: +g('bkFSide').value };
-            BKS.cond = '囲い ' + g('bkForm').value.trim() + '(' + ['先手', '後手', 'どちらでも'][opt.pat.side] + ')';
-          } else BKS.cond = '指定なし';
-          BKS.cond += ' / レート' + opt.minRate + '以上 / 先頭' + opt.maxPly + '手';
-          if (tmeta) opt.base = await idbGet('bk:' + tid);
-          if (tmeta && !opt.base) throw new Error('追加先の定跡を読み込めませんでした');
-          if (local) {
+            run.cond = '囲い ' + g('bkForm').value.trim() + '(' + ['先手', '後手', 'どちらでも'][opt.pat.side] + ')';
+          } else run.cond = '指定なし';
+          run.cond += ' / レート' + opt.minRate + '以上 / 先頭' + opt.maxPly + '手';
+          run.opt = opt;
+          run.tmeta = tmeta;
+          if (tmeta) {
+            run.base = await idbGet('bk:' + tid);
+            if (!run.base) throw new Error('追加先の定跡を読み込めませんでした');
+          }
+          var items = [];
+          if (local)
             local.forEach(function (f) {
-              if (!tmeta || bkAskDup(tmeta, f.name, f.size)) files.push({ name: f.name, size: f.size, blob: f });
+              if (!tmeta || bkAskDup(tmeta, f.name, f.size)) items.push({ name: f.name, size: f.size, blob: f });
             });
-            BKS.src = local
-              .map(function (f) {
-                return f.name;
-              })
-              .join(', ');
-          } else {
-            var ys = Array.from(g('bk').querySelectorAll('.bkY'))
+          else {
+            Array.from(g('bk').querySelectorAll('.bkY'))
               .filter(function (c) {
                 return c.checked;
               })
-              .map(function (c) {
-                return c.value;
+              .forEach(function (c) {
+                var nm = 'wdoor' + c.value + '.7z';
+                if (!tmeta || bkAskDup(tmeta, nm, 0)) items.push({ name: nm, year: c.value });
               });
-            if (!ys.length || !tag) throw new Error('タグと年を指定してください');
-            var fails = [],
-              lastErr = null;
-            for (var i = 0; i < ys.length; i++) {
-              var nm = 'wdoor' + ys[i] + '.7z';
-              if (tmeta && !bkAskDup(tmeta, nm, 0)) continue;
-              try {
-                var bl = await bkDownload(bkUrls(nm, ys[i], tag), '[' + (i + 1) + '/' + ys.length + '] ' + nm);
-                files.push({ name: nm, size: bl.size, blob: bl });
-              } catch (e) {
-                if (e && e.message === '中止') throw e;
-                fails.push(nm);
-                lastErr = e;
-              }
-            }
-            BKS.fails = fails;
-            if (!files.length) throw lastErr || new Error('取得できませんでした');
-            BKS.src = tag + ' ' + ys.join(',');
+            if (!items.length && !g('bk').querySelectorAll('.bkY:checked').length) throw new Error('年を選んでください');
           }
-          if (!files.length) throw new Error('追加するファイルがありません');
-          BKS.files = files.map(function (f) {
-            return { name: f.name, size: f.size };
+          if (!items.length) throw new Error('追加するファイルがありません');
+          run.jobs = items.map(function (it, i) {
+            return { i: i, name: it.name, year: it.year, size: it.size, blob: it.blob || null, dl: it.blob ? 1 : 0, dlFrac: 0, frac: 0, st: it.blob ? '待機' : '取得待ち', book: null };
           });
-          bkProg(0, '解凍を開始します…', '');
+          run.perMin = opt.pat ? 1 : Math.max(1, Math.floor(opt.minCnt / run.jobs.length));
+          run.cap = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 2) - 1));
           var eng = g('eng').textContent,
-            cut = eng.indexOf("if (typeof document === 'undefined')"),
-            src = (cut > 0 ? eng.slice(0, cut) : eng) + '\n' + g('bkw').textContent;
-          BKS.w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
-          BKS.w.onmessage = bkMsg;
-          BKS.w.onerror = function (e) {
-            bkFail(new Error(e.message || 'ワーカーエラー'));
-          };
-          BKS.w.postMessage({
-            files: files.map(function (f) {
-              return { name: f.name, blob: f.blob };
-            }),
-            opt: opt
+            cut = eng.indexOf("if (typeof document === 'undefined')");
+          run.url = URL.createObjectURL(new Blob([(cut > 0 ? eng.slice(0, cut) : eng) + '\n' + g('bkw').textContent], { type: 'text/javascript' }));
+          run.jobs.forEach(function (j) {
+            if (j.blob) bkEnqueue(run, j);
           });
+          bkRunPaint(run, true);
+          if (local) run.dlDone = true;
+          else bkDownloadAll(run).catch(function (e) {
+            bkFail(run, e);
+          });
+          bkCheck(run);
         } catch (e) {
-          bkFail(e);
+          bkFail(run, e);
         }
       }
 
-      function bkMsg(e) {
-        var m = e.data;
-        if (m.t === 'prog') {
-          var S = m.S;
-          bkProg(
-            (m.fi + m.frac) / m.nf,
-            '[' + (m.fi + 1) + '/' + m.nf + '] ' + m.file + ' を解凍・集計中 ' + Math.round(m.frac * 100) + '%' +
-              (m.tot ? ' (棋譜 ' + m.n + '/' + m.tot + ')' : ''),
-            '採用 ' + S.games + '局 / 条件に合う ' + S.rated + '局 / 走査 ' + S.scanned + '局 (レート不明 ' + S.norate + ', 短すぎ ' + S.short + ', 不正 ' + S.bad + ') / 局面 ' + m.pos + ' / 経過 ' + Math.round(m.ms / 1000) + '秒'
-          );
-        } else if (m.t === 'done') bkDone(m);
-        else if (m.t === 'err') bkFail(new Error(m.txt));
-      }
-
-      async function bkDone(m) {
-        if (BKS.w) {
-          BKS.w.terminate();
-          BKS.w = null;
-        }
-        bkBusy(0);
-        var b = m.book,
+      async function bkDone(run, b) {
+        if (run.dead) return;
+        var S = bkSumS(run),
+          ms = Date.now() - run.t0,
           ls = bkMeta(),
           now = new Date().toISOString().slice(0, 16).replace('T', ' '),
-          fl = BKS.files.map(function (f) {
-            return { name: f.name, size: f.size, cond: BKS.cond, date: now };
-          });
+          jobs = run.jobs.filter(function (j) {
+            return j.book;
+          }),
+          fl = jobs.map(function (j) {
+            return { name: j.name, size: j.size, cond: run.cond, date: now };
+          }),
+          fails = run.fails.slice(),
+          tmeta = run.tmeta,
+          opt = run.opt;
+        bkRunEnd(run, '');
         if (!b.keys.length) {
-          bkProg(0, '条件に合う局面がありませんでした(採用 ' + m.S.games + '局)。条件をゆるめてみてください。', '');
+          bkProg(0, '条件に合う局面がありませんでした(採用 ' + S.games + '局)。条件をゆるめてみてください。', '');
           return;
         }
-        var meta = ls.filter(function (x) {
-            return x.id === BKS.target;
-          })[0],
+        var meta = tmeta ? ls.filter(function (x) { return x.id === tmeta.id; })[0] : null,
           id = meta ? meta.id : 'b' + Date.now();
         if (meta) {
-          meta.games = (meta.games || 0) + m.S.games;
+          meta.games = (meta.games || 0) + S.games;
           meta.pos = b.keys.length;
           meta.mv = b.mv.length;
           meta.files = (meta.files || []).concat(fl);
           b.name = meta.name;
         } else {
           var nm = g('bkName').value.trim() || 'floodgate';
-          meta = {
-            id: id,
-            name: nm,
-            made: now,
-            games: m.S.games,
-            pos: b.keys.length,
-            mv: b.mv.length,
-            minRate: BKS.opt.minRate,
-            maxPly: BKS.opt.maxPly,
-            files: fl
-          };
+          meta = { id: id, name: nm, made: now, games: S.games, pos: b.keys.length, mv: b.mv.length, minRate: opt.minRate, maxPly: opt.maxPly, files: fl };
           b.name = nm;
           ls.unshift(meta);
         }
@@ -5492,11 +6368,15 @@
         b.id = id;
         BKA = b;
         bkKey = -1;
+        BKX.Q = null;
         bkcPaint();
         bkFillTarget();
         bkProg(
           1,
-          (BKS.target ? '追加しました: ' : '完成: ') + b.keys.length + '局面 / ' + b.mv.length + '手(今回採用 ' + m.S.games + '局, ' + Math.round(m.ms / 1000) + '秒)。VS AIで使います。' + (m.S.games < 20 ? ' ※採用した棋譜が少ないです。年を増やす・最低レートを下げる・入力の手数を減らすと増えます。' : '') + (BKS.fails && BKS.fails.length ? ' 取得できなかった年: ' + BKS.fails.join(', ') : ''),
+          (tmeta ? '追加しました: ' : '完成: ') + b.keys.length + '局面 / ' + b.mv.length + '手(今回採用 ' + S.games + '局, ' + Math.round(ms / 1000) + '秒)。VS AIで使います。' +
+            (opt.minPly > 0 ? ' 最小手数(' + opt.minPly + '手)に足りなくて除いた棋譜: ' + S.short + '局(他の条件はすべて満たしていました)。' : '') +
+            (S.games < 20 ? ' ※採用した棋譜が少ないです。年を増やす・最低レートを下げる・入力の手数を減らすと増えます。' : '') +
+            (fails.length ? ' 取得できなかった年: ' + fails.join(', ') : ''),
           ''
         );
       }
