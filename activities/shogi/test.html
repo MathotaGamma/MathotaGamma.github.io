@@ -5,86 +5,12 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
-      v35 (v34からの変更点)
-      - 先手と後手に分けた定跡の呼び名を「先手がする定跡」「後手がする定跡」に統一し、使い方を作り直した
-        「使う定跡(先手がする/後手がする)」と「その手番をやるのは(自分/AI)」の2つを、☰メニュー・定跡パネル・対局画面の定跡欄のどこからでも切り替えられる
-        「区別しない」(両方を混ぜて使う)は廃止。標準は「先手がする定跡」+「自分」。新しい対局では、設定に合わせて自分の手番も決まる(オフにもできる)
-        まだ1手も指していない対局で設定を変えると、新しい設定の手番で始め直す
-      - 定跡作成の進捗バーを、ダウンロードと解析の2本に分けた。それぞれ、実際のサイズ(MB)・速度・実測にもとづく残り時間を表示し、バーの長さと表示の%が一致する
-      - メイン画面下部のボタンを、対局に使うものだけにした(「定跡」「編集」を除外。どちらも ☰ メニューから)
-
-      v34 (v33からの変更点)
-      - 定跡を「先手が囲う」「後手が囲う」に分けて、同じ定跡ファイルの中に保存(囲いの検索で「どちらでも」を選んだとき。「自分の手だけ」の戦法も、その手番のパートになる)
-        使うときは「保存済み・使用設定」で「囲うのは 先手番/後手番/区別しない」「それをやるのは 自分/AI」を選ぶ。選んだ側の定跡だけを使う
-        「新しい対局では、この設定に合わせて自分の手番を決める」にチェックすると、新しい対局の手番(先手/後手)も設定に合わせる
-      - 定跡の作成完了時に、先手が囲う/後手が囲うそれぞれの局面数と採用局数を表示。進捗にも局数を表示。保存済み一覧にも表示
-      - 戦法・囲いを指定した定跡は、最小出現数で枝を切らない(切ると、出現数が少ない手の先が行き止まりになり、数手で定跡の外に出てしまっていた)
-        定跡の外に出たとき、定跡が出現数で絞ってあれば、その旨を表示
-      - 囲いの形の入力欄の説明を、駒の記号の一覧つきに変更
-      - 後手番で自分の駒が逆さまに見える不具合を修正(自分が後手のとき、盤を回して表示するが、後手の駒の向きも回してしまっていた)
-      - 枝の探索の盤: 選択中の駒・行き先・直前の手が色で分かるようにし、盤の向きを反転するボタンを追加
-      - 定跡ファイルの書き出し形式を2に変更(先手/後手のパートつき。形式1の読み込みも可)
-
-      v33 (v32からの変更点)
-      - 「枝の探索」を作り直し: サブ盤面で駒を動かすと(動かす駒→行き先の順にタップ。持ち駒も可)、AI(やねうら王。使えなければ自作エンジン)がその局面から先の変化を探索し、
-        候補手と評価値を出す。候補(AI・定跡)をタップするとその手を指す。解析時間・候補数を指定でき、「AIの最善手順を自動で展開」もできる
-        探索タブを開いている間は本局の思考を止め、閉じたら本局を再開する。定跡があれば定跡の次の手(採用数順/勝率順)も同じ画面に出す
-      - 定跡作成: 「最小手数に足りない棋譜(他の条件はすべて満たすもの)」の局数を進捗と完了時に表示
-      - 定跡作成の実行管理を作り直し: 中止・完了のあとでも、必ず次の開始ができるようにした(開始時に「準備中…」を表示)
-      - 取得元はミラー(mathotagamma.github.io/wdoor-getter)と取得元URL欄だけにした。GitHub・東大・同じ場所のwdoor/は廃止
-      - 高速化: LZMAの解凍を約2倍に(デコーダを書き直し)。複数年は最大3本のワーカーで並行して解析し、ダウンロードと解析も重ねて進める。
-        ダウンロードは8MBずつ6本並行(Range)で取得し、取得した.7zは端末に保存して次回から再利用できる(オプション。削除ボタンあり)
-      - 局面編集: 完了ボタンを「完了→研究」「完了→VS AI」に分け、編集後のモードを選べるようにした。
-        盤面を変えずに完了したときは、盤面も棋譜もそのまま続ける(対局が新しく始まらない)
-
-      v32 (v31からの変更点)
-      - 戦法の検索を修正: 「自分の手だけ」は、標準で自分の1手目から連続して入力どおりの棋譜だけを拾う(今までは、順番さえ合えば途中に別の手が挟まっていてもよい作りで、初手が違う棋譜も大量に拾っていた)
-        従来の拾い方は「間に別の自分の手が挟まってもよい」のチェックで選べる
-      - 「両者の手を順に」も、標準で1手目から手順どおりの棋譜だけを拾う。手順が前後して同じ局面になる棋譜(合流)は「合流も含める」のチェックで選べる
-      - これにより、戦法を指定した定跡は、最初の手も入力した手になる(定跡の木の根元に別の初手が混ざらない)
-
-      v31 (v30からの変更点)
-      - 取得元の最優先に https://mathotagamma.github.io/wdoor-getter/wdoorYYYY.7z を追加(CORS対応のミラー)。年ごとに取得できなかった場合は飛ばして続ける。年の既定を2025に変更
-      - 書き方の説明を追加: 定跡の作成タブに折りたたみ説明(全体の流れ・筋と段の見方・戦法2種類・囲い・各欄の意味)、☰の自作指定にも詳しい説明
-      - 定跡コンテナに診断を追加: 今の局面でAIが定跡で指すかエンジンで考えるか、定跡の外に出た手数
-      - 最小出現数の既定を条件で切替(指定なし=2、戦法・囲い=1)
-
-      v30 (v29からの変更点)
-      - 囲いの完成や戦法の完了で記録を打ち切らず、完成・完了した後も「序盤の手数」まで定跡に入れる(囲い・戦法どちらも)
-      - 戦法の検索を2種類に: 「両者の手を順に」(相手の手も入れる、手順前後の合流も拾う)/「自分の手だけ」(相手の手は問わず、その順に指した棋譜を拾う)
-      - 「枝の探索」タブを追加: 使っている定跡の木を、盤面つきで1手ずつたどる(戻る・最初から・今の対局の局面から・採用数順/勝率順・この局面から対局)
-      - AIが定跡を指さないことがある件の対策: 定跡を使う/無視の設定を ☰ メニューと定跡コンテナに追加。定跡を使う最大手数の既定を30手から制限なしに変更。定跡の読み込み前に最初のAIの手が始まっていた場合はやり直す
-      - 自作指定の表記: 駒は大文字 P L N S G B R K が正(小文字も可)。表示や例を大文字に戻した
-      - 取得元: 取得元URL(任意)を追加。このページと同じ場所の wdoor/ フォルダを最優先で試す(同じ場所なら制限なし。付属の wdoor-pages.yml で自動配置できる)
-
-      v29 (v28からの変更点)
-      - 定跡の作り方を変更: 「検索条件」を入力して、それが出てくる棋譜だけから定跡を作る
-        戦法 = 指し手を何手か入力(USI形式 7g7f 3c3d …、CSA形式も可)。その手順または手順前後で同じ局面になる棋譜を拾う
-        囲い = 駒とマスを入力(k2h s3h g4i g5h など。先手/後手/どちらでも)。その形ができる棋譜を拾い、できるまでの手を使う
-        指定なし = 高レートの対局すべて
-      - 既存の定跡に.7zを追加できる(追加先を選択)。追加済みの.7z(名前とサイズで判定)を入れると、追加日と条件を出して確認する
-      - 使う棋譜の最小手数を指定できる
-      - 「勝った側の手だけを使う」を廃止(局面ごとの出現数が親の手の出現数と合わなくなる原因になるため)
-      - 次の手の定跡リストを、評価値リストの右側の専用コンテナに表示(採用数順が標準、勝率順に切替可、縦スクロール)。定跡を指したら「直前の手は定跡」と表示し、KIFにも「*定跡 ○局 勝率○%」を書く
-      - 評価値リストに、現在の局面で指せない手(前の探索の遅れて届いた結果)が混ざらないよう除外
-      - 取得先: GitHub Releases のほか、wdoor(東大)のアーカイブも自動で順に試す
-
-      v28 (v27からの変更点)
-      - 設定「AIの手を自分で指せる」の動作を変更: AIが考えている間に、盤をタップしてAI側の駒を直接動かせる
-        (候補手のタップ・「AI推奨で指す」ボタン・AIの手の選択待ちは廃止。動かさなければAIが自動で指す)
-      - 自陣の形(戦法)の目標の指定方法を拡張
-        駒は P L N S G B R K(小文字も可)。成り駒は +P(と) +L(杏) +N(圭) +S(全) +B(馬) +R(龍)
-        マスは P7f のほか P76 のように数字2桁でも可。漢字も可(歩76 銀38 成香1d 馬22 龍28 と1c / 成香 成桂 成銀 杏 圭 全 竜 王)
-        解釈できない指定は、目標の表示欄に出す(今までは黙って無視していた)
-        成り駒を目標にしたときは、成る手を選べるようにした
-      - AIの手に付けていた ★ を廃止(最善手以外を指した印だった。順位・最善比の表示は今までどおり)
-      - 定跡ブックを追加(下のボタン「定跡」または ☰ から開く。タブ: 作成 / 保存済み・使用設定)
-        Floodgate(wdoor)の過去の棋譜(shogi-server の Releases にある wdoorYYYY.7z)から、レートの高い対局の序盤を集めて定跡ファイルを作る
-        最低レート(対局した2人とも)・序盤の手数・最小出現数・対局者名・勝った側のみ を指定できる。作成中は進捗(%・棋譜数・採用局数・局面数)を表示
-        定跡ファイルには多数の局面とその指し手(出現数・勝率つき)が入り、複数保存(IndexedDB)・選択・.json書き出し/読み込みができる
-        VS AIでは、AIの手番で定跡に手があればそれを(出現数と勝率で重み付けして)指す。候補手欄にも定跡の手を表示
-        7zはブラウザ内で順に解凍する(LZMA2のみ対応)。GitHubの配信サーバーはブラウザからの直接ダウンロード(CORS)を許可していない場合があり、
-        その場合は保存した .7z を「ファイルを選んで作成」で読み込む(任意でCORSプロキシも指定可)
+      v36 (v35からの変更点)
+      - 自陣の形(戦法)の目標を廃止(メニューの設定と処理)
+      - 定跡の設定を「定跡を行うのは 自分/AI」だけにした。自分が先手なら先手の定跡、後手なら後手の定跡を使う(AIなら、AIの手番側)
+        研究・枝の探索では、先手・後手の定跡を合わせて表示する。以前の形式の定跡の対応は廃止
+      - 定跡の作成: 「定跡を作るのは どちらも/先手/後手」を、囲いと「自分の手だけ」の戦法で共通にした(自分の手は先手視点で書き、後手は反転して探す)
+      - 定跡パネルの文言を大幅に短くした(書き方は折りたたみ)
 
       v27 (v26からの変更点)
       - コードを整形: 1行にまとめていた文を1文ずつの行に展開し、インデントを2スペースにそろえた(動作は変更なし)
@@ -2528,6 +2454,15 @@
         return (f - 1) * 9 + (r - 1);
       }
 
+      /* 手を180度回す(後手視点→先手視点、またはその逆) */
+      function bkwMirror(m) {
+        var f = m & 127,
+          t = (m >> 7) & 127,
+          pr = (m >> 14) & 1,
+          d = m >> 15;
+        return (f === 81 ? 81 : 80 - f) | ((80 - t) << 7) | (pr << 14) | (d << 15);
+      }
+
       function bkwForm(P, goals, sides) {
         for (var k = 0; k < sides.length; k++) {
           var sd = sides[k],
@@ -2581,11 +2516,19 @@
           bad = false,
           pat = opt.pat,
           cut = -1,
-          pk = 0,
           chan = 0,
-          oi = 0,
           miss = false,
+          ownSides = pat && pat.type === 'own' ? (pat.side === 2 ? [0, 1] : [pat.side]) : null,
+          oi2 = [0, 0],
+          pk2 = [0, 0],
+          dead = [false, false],
+          sq2 = null,
           sides = pat && pat.type === 'form' ? (pat.side === 2 ? [0, 1] : [pat.side]) : null;
+        if (ownSides) {
+          if (!pat.seqW) pat.seqW = pat.seq.map(bkwMirror);
+          sq2 = [pat.seq, pat.seqW];
+          dead = [ownSides.indexOf(0) < 0, ownSides.indexOf(1) < 0];
+        }
         for (i = 0; i < lines.length; i++) {
           var ln = lines[i];
           if (ln.charCodeAt(ln.length - 1) === 13) ln = ln.slice(0, -1);
@@ -2665,21 +2608,27 @@
                 cut = ply;
                 chan = fs;
               }
-            } else if (sd === pat.side) {
-              oi++;
+            } else if (!dead[sd]) {
+              /* 自分の手だけ: 先手視点で書いた手を、後手は180度回して比べる */
+              var sqs = sq2[sd];
+              oi2[sd]++;
               if (pat.loose) {
-                /* 順番だけ守る: 間に別の自分の手が挟まってもよい */
-                if (m === pat.seq[pk]) {
-                  pk++;
-                  if (pk === pat.seq.length) cut = ply;
+                if (m === sqs[pk2[sd]]) {
+                  pk2[sd]++;
+                  if (pk2[sd] === sqs.length) {
+                    cut = ply;
+                    chan = sd;
+                  }
                 }
-              } else {
-                /* 自分の1手目から順に連続して、入力と同じ手を指した棋譜だけ(相手の手は問わない) */
-                if (m !== pat.seq[oi - 1]) {
+              } else if (m !== sqs[oi2[sd] - 1]) {
+                dead[sd] = true;
+                if (dead[0] && dead[1]) {
                   miss = true;
                   break;
                 }
-                if (oi === pat.seq.length) cut = ply;
+              } else if (oi2[sd] === sqs.length) {
+                cut = ply;
+                chan = sd;
               }
             }
           }
@@ -2691,7 +2640,6 @@
         }
         /* 戦法・囲いが見つかった棋譜は、完成した後も序盤の手数(maxPly)まで使う */
         if (pat && cut < 0) return;
-        if (pat && pat.type === 'own') chan = pat.side;
         /* 最小手数に足りない棋譜(他の条件はすべて満たしているもの)は数だけ数えて使わない */
         if (total < opt.minPly) {
           S.short++;
@@ -2769,7 +2717,7 @@
 
       /* 定跡のパート一覧(古い形式の定跡は、タグなし1パートとして扱う) */
       function bkwParts(B) {
-        return B.parts || [{ tag: -1, keys: B.keys, off: B.off, mv: B.mv, cnt: B.cnt, win: B.win }];
+        return B.parts;
       }
 
       /* 複数の定跡(パートつき)を1つにまとめる。同じタグのパートどうしを足す */
@@ -3130,16 +3078,7 @@
           '<label>学習率 <input type="number" step="0.1" id="trL" value="0.5"></label>' +
           '<label>AIの強さ <select id="lv"><option value="1">1 (最弱)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11" selected>無制限</option></select></label>' +
           '<label>AIの手のばらつき(基準値。手数が進むほど滑らかに減衰) <select id="rnd"><option value="0">なし(常に最善手)</option><option value="30">小(30cp)</option><option value="60" selected>中(60cp)</option><option value="120">大(120cp)</option><option value="250">特大(250cp)</option></select></label>' +
-          '<label>自陣の形(戦法)の目標 <select id="strat"><option value="">指定なし</option>' +
-          Object.keys(STRATS)
-            .concat(['自作'])
-            .map(function (k) {
-              return '<option>' + k + '</option>';
-            })
-            .join('') +
-          '</select></label>' +
-          '<input type="text" id="stratC" placeholder="自作: 駒+マスを優先順に 例 P7f R6h K2h 銀38 成香1d"><div style="font-size:12px;color:#aaa">駒: P歩 L香 N桂 S銀 G金 B角 R飛 K玉(小文字も可)。成り駒: +P(と) +L(杏) +N(圭) +S(全) +B(馬) +R(龍)。漢字も可: 歩 香 桂 銀 金 角 飛 玉 と 成香 成桂 成銀 馬 龍 / マス: 筋の数字+段(a〜i または 1〜9。a=一段)。例: P7f P76 歩76 成香1d +B22。先手視点で書く(後手は自動で反転)。どちらのエンジンでも有効</div><details style="font-size:12px;color:#aaa"><summary>書き方の詳しい説明</summary><div>自陣の形(戦法・囲い)の目標は、<b>自分の駒だけ</b>で指定します(相手の駒や相手の手は指定しません)。「駒+マス」を、優先したい順にスペース区切りで並べます。先手から見た位置で書き、後手のときは自動で反転します。<br>・駒: P歩 L香 N桂 S銀 G金 B角 R飛 K玉(小文字も可)。成り駒は前に+を付けます(+P=と +L=成香 +N=成桂 +S=成銀 +B=馬 +R=龍)。漢字でも書けます(歩 香 桂 銀 金 角 飛 玉 と 成香 成桂 成銀 馬 龍)。<br>・マス: 筋(右端が1、左端が9)+段(上から a〜i、または1〜9)。P7f=P76=歩76 は同じ意味です。<br>・例: 美濃囲い K2h S3h G4i G5h / 矢倉 K8h S7g G7h G6g / 四間飛車 P7f R6h K2h<br>・解釈できない指定は、目標の表示欄に「解釈できない指定」として出ます。</div></details>' +
-          '<label><input type="checkbox" id="manAI"> AIの手を自分で指せる(AIが考えている間に盤をタップして、AI側の駒を動かせる。動かさなければAIが指す)</label><label><input type="checkbox" id="bkUseM"> AIの手番で定跡を使う(外すと定跡を無視して、常にエンジンで考える)</label><div style="font-size:12px;color:#aaa">先手と後手に分けた定跡(囲い・戦法を指定して作ったもの)の使い方</div><label>使う定跡 <select id="bkSideM"><option value="0">先手がする定跡</option><option value="1">後手がする定跡</option></select></label><label>その手番をやるのは <select id="bkWhoM"><option value="me">自分</option><option value="ai">AI</option></select></label>' +
+          '<label><input type="checkbox" id="manAI"> AIの手を自分で指せる(AIの思考中に盤をタップ)</label><label><input type="checkbox" id="bkUseM"> AIの手番で定跡を使う</label><label>定跡を行うのは <select id="bkWhoM"><option value="me">自分</option><option value="ai">AI</option></select></label>' +
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="useLW"> 学習成果(駒価値補正)を使う ※効果は小さく、悪化する場合あり</label><br>' +
@@ -3650,8 +3589,6 @@
         g('info').hidden = false;
         var hs = g('side').value;
         human = hs === 'r' ? (Math.random() < 0.5 ? 0 : 1) : +hs;
-        var bho = mode === 'vs' && typeof bkHumanOverride === 'function' ? bkHumanOverride() : null;
-        if (bho !== null) human = bho;
         flip = mode === 'vs' && human === 1 ? 1 : 0;
         var t = g('tm').value;
         clk.on = mode === 'vs' && t !== 'n';
@@ -4095,21 +4032,7 @@
         paintTrain();
       }
 
-      /* ===== 自陣の形(戦法)の目標 =====
-               駒+マスを、先手から見て優先順に並べる。後手は180度回して反転する。
-               書き方: P7f P76 歩76 +B22 馬22 成香1d (駒は P L N S G B R K(小文字も可)または漢字、成り駒は +P +L +N +S +B +R または と 成香 成桂 成銀 馬 龍) */
-      var STRATS = {
-        矢倉: 'P7f S7g G7h G6g B7i K8h',
-        美濃囲い: 'K2h S3h G4i G5h',
-        穴熊: 'P7f B7g S8h G7h L9h K9i',
-        四間飛車: 'P7f R6h K2h S3h G5h',
-        三間飛車: 'P7f R7h K2h S3h G5h',
-        中飛車: 'P5f R5h K2h S3h',
-        '振り飛車(おまかせ)': '',
-        棒銀: 'P2e S2f',
-        早石田: 'P7f P7e R7h',
-        嬉野流: 'S6h B7i G7h S4h P3f S3g S2f'
-      };
+      /* 駒+マスの指定(P7f / P76 / 歩76 / 成香1d / +B22)の解釈。定跡の囲い検索で使う */
       var PTYPE = { p: 1, l: 2, n: 3, s: 4, g: 5, b: 6, r: 7, k: 8 };
       var PPROM = { p: 9, l: 10, n: 11, s: 12, b: 14, r: 15 };
       var PKANJI = [
@@ -4146,7 +4069,7 @@
         if (i < 0) i = '一二三四五六七八九'.indexOf(ch);
         return i;
       }
-      /* 1つの指定(例 p7f / p76 / 歩76 / +b22 / 成香1d)を { t: 駒の種類, sq: マス } に変換。解釈できなければ null */
+
       function parseGoalTok(tk) {
         var t = 0,
           rest = tk,
@@ -4171,166 +4094,14 @@
         return { t: t, sq: f * 9 + r };
       }
 
-      function parseGoals(str, col) {
-        var out = [],
-          bad = [];
-        str
-          .trim()
-          .split(/[\s,、]+/)
-          .forEach(function (tk) {
-            if (!tk) return;
-            var o = parseGoalTok(tk);
-            if (!o) {
-              bad.push(tk);
-              return;
-            }
-            out.push({ t: o.t, bt: o.t > 8 ? o.t - 8 : o.t, sq: col ? 80 - o.sq : o.sq, col: col, lab: tk });
-          });
-        out.bad = bad;
-        return out;
-      }
-
-      function goalDone(gl) {
-        return P.b[gl.sq] === (gl.t | (gl.col << 4));
-      }
-
-      function cheb(a, b) {
-        return Math.max(Math.abs(((a / 9) | 0) - ((b / 9) | 0)), Math.abs((a % 9) - (b % 9)));
-      }
-
-      function guideMoves(goals) {
-        var out = [],
-          why = [],
-          used = {},
-          ls = legal(P);
-        goals.forEach(function (gl) {
-          if (goalDone(gl)) used[gl.sq] = 1;
-        });
-        goals.forEach(function (gl, gi) {
-          if (goalDone(gl)) return;
-          /* 目標ごとに「いちばん近い同種の駒」を1枚だけ割り当てる(別の駒を動かさない)。成り駒が目標のときは、成る前の駒も対象 */
-          var pb = -1,
-            bd = 1e9,
-            q,
-            cnt = 0;
-          for (q = 0; q < 81; q++) {
-            var pq = P.b[q];
-            if (used[q] || !pq || pq >> 4 !== gl.col) continue;
-            var tq = pq & 15;
-            if (tq !== gl.t && !(gl.t > 8 && tq === gl.bt)) continue;
-            var d = cheb(q, gl.sq) * 10 + Math.abs(((q / 9) | 0) - ((gl.sq / 9) | 0));
-            if (d < bd) {
-              bd = d;
-              pb = q;
-            }
-          }
-          if (pb < 0) {
-            why.push(gl.lab + '(動かせる駒がない)');
-            return;
-          }
-          used[pb] = 1;
-          var already = (P.b[pb] & 15) > 8;
-          ls.forEach(function (m) {
-            var t = (m >> 7) & 127,
-              pr = (m >> 14) & 1;
-            if ((m & 127) !== pb) return;
-            /* 成る手は、成り駒が目標で、まだ成っていない駒のときだけ使う */
-            if (pr && !(gl.t > 8 && !already)) return;
-            if (!pr && gl.t > 8 && !already && t === gl.sq && ls.indexOf(m | 16384) >= 0) return;
-            if (t === gl.sq || cheb(t, gl.sq) < cheb(pb, gl.sq)) {
-              out.push({ m: m, gi: gi, hit: t === gl.sq });
-              cnt++;
-            }
-          });
-          if (!cnt) why.push(gl.lab + '(塞がれていて近づけない)');
-        });
-        out.sort(function (a, b) {
-          return a.gi - b.gi || b.hit - a.hit;
-        });
-        return { out: out, why: why };
-      }
-
-      function setStratLine(gd) {
-        stratLine = gd ? '【目標: ' + gd.name + ' ' + gd.prog + (gd.note ? ' / ' + gd.note : '') + '】' : '';
-      }
-
+      /* 戦法の目標機能は廃止。呼び出し側を残すための空の関数 */
       function stratGuide() {
-        var name = g('strat').value;
-        if (!name || mode !== 'vs' || P.side === human) return null;
-        var str = name === '自作' ? g('stratC').value : STRATS[name];
-        if (name === '振り飛車(おまかせ)') {
-          if (!stratPick) stratPick = ['四間飛車', '三間飛車', '中飛車'][(Math.random() * 3) | 0];
-          str = STRATS[stratPick];
-          name = '振り飛車→' + stratPick;
-        }
-        /* 崩れたら断念: 銀・金・角・飛を取られた(持駒を含めて数が減った)場合は、この対局では目指さない */
-        var cnt = { 4: 0, 5: 0, 6: 0, 7: 0 },
-          q,
-          c = P.side;
-        for (q = 0; q < 81; q++) {
-          var pc = P.b[q];
-          if (pc && pc >> 4 === c) {
-            var ty = (pc & 15) > 8 ? (pc & 15) - 8 : pc & 15;
-            if (cnt[ty] !== undefined) cnt[ty]++;
-          }
-        }
-        for (q = 4; q < 8; q++) cnt[q] += P.h[c][q];
-        if (!stratBase) stratBase = cnt;
-        else for (q = 4; q < 8; q++) if (cnt[q] < stratBase[q]) stratOff = 1;
-        var goals = parseGoals(str || '', c),
-          done = goals.filter(goalDone).length,
-          prog = done + '/' + goals.length,
-          badTxt = goals.bad.length ? ' 解釈できない指定: ' + goals.bad.join(' ') : '';
-        if (!goals.length)
-          return {
-            cands: [],
-            name: name,
-            prog: prog,
-            note: '目標が書かれていません(例: P7f R6h K2h / 歩76 / 成香1d)' + badTxt
-          };
-        if (stratOff) return { cands: [], name: name, prog: prog, note: '断念(駒を取られた/形勢が悪い)' };
-        if (done >= goals.length) return { cands: [], name: name, prog: prog, note: '完成' };
-        if (hist.length > 48) return { cands: [], name: name, prog: prog, note: '手数が進んだため終了' };
-        var gm = guideMoves(goals);
-        return {
-          cands: gm.out,
-          name: name,
-          prog: prog,
-          note:
-            (gm.why.length
-              ? (gm.out.length ? '今は動かせない(他の駒を先に動かします): ' : '目指せない: ') + gm.why.join(' ')
-              : '') + badTxt
-        };
+        return null;
       }
-      /* 戦法の手を採用するか判断する。採用しない場合は理由を表示して 0 を返す */
-      function guideChoose(r, eb) {
-        var gd = r.guide;
-        if (!gd.cands.length) return 0;
-        var bs = -1e9,
-          k;
-        for (k in r.mv) if (r.mv[k].s > bs) bs = r.mv[k].s;
-        var inChk = atk(P, P.k[P.side], P.side ^ 1),
-          cap = P.b[(eb >> 7) & 127] !== 0,
-          tol = bs >= 0 ? 150 : 60;
-        if (bs < -200) {
-          stratOff = 1;
-          gd.note = '断念(形勢が悪い)';
-          setStratLine(gd);
-          return 0;
-        }
-        if (cap || inChk || bs < -100) {
-          gd.note = '今は最善手を優先(取り合い・王手・形勢)';
-          setStratLine(gd);
-          return 0;
-        }
-        for (var gi = 0; gi < gd.cands.length; gi++) {
-          var e = r.mv[gd.cands[gi].m];
-          if (e && e.s >= bs - tol) {
-            return gd.cands[gi].m;
-          }
-        }
-        gd.note = '評価が下がるため見送り(最善手を指します)';
-        setStratLine(gd);
+
+      function setStratLine() {}
+
+      function guideChoose() {
         return 0;
       }
 
@@ -5189,11 +4960,9 @@
         return !!BKA && bkLS('shogiBkUse', '1') === '1';
       }
 
-      /* 定跡のパート(先手がする定跡=タグ0 / 後手がする定跡=タグ1 / 区別なし=タグ-1)。古い形式の定跡は1パートとして扱う */
+      /* 定跡のパート: 先手がする定跡=タグ0 / 後手がする定跡=タグ1 / 区別なし=タグ-1 */
       function bkPartsOf(B) {
-        if (!B) return [];
-        if (!B._p) B._p = B.parts || [{ tag: -1, keys: B.keys, off: B.off, mv: B.mv, cnt: B.cnt, win: B.win }];
-        return B._p;
+        return B ? B.parts : [];
       }
 
       function bkTagged(B) {
@@ -5202,73 +4971,37 @@
         });
       }
 
-      /* どちらの側がする定跡を使うか(0=先手がする定跡 / 1=後手がする定跡)。標準は先手 */
-      function bkSideSel() {
-        return bkLS('shogiBkSide', '0') === '1' ? 1 : 0;
-      }
-
-      /* その手番をやるのは 'me'(自分) か 'ai'(AI) */
+      /* 定跡を行うのは 'me'(自分) か 'ai'(AI) */
       function bkWho() {
         return bkLS('shogiBkWho', 'me') === 'ai' ? 'ai' : 'me';
       }
 
-      /* 使うパート: 選んだ側のパートと、先手後手の区別がないパート */
-      function bkActiveParts() {
-        var s = bkSideSel();
+      /* 対局(VS AI)でその定跡を行う側の手番: 自分がやるなら自分の手番、AIがやるならAIの手番 */
+      function bkDoer() {
+        return bkWho() === 'ai' ? 1 - human : human;
+      }
+
+      /* 使うパート。対局(VS AI)では行う側のパート、研究・探索では全部 */
+      function bkActiveParts(all) {
+        var s = !all && mode === 'vs' ? bkDoer() : -1;
         return bkPartsOf(BKA).filter(function (p) {
-          return p.tag === s || p.tag < 0;
+          return s < 0 || p.tag === s || p.tag < 0;
         });
-      }
-
-      function bkSideName() {
-        return (bkSideSel() ? '後手' : '先手') + 'がする定跡';
-      }
-
-      /* 設定から決まる、自分の手番(自分がやるなら選んだ側、AIがやるならその反対) */
-      function bkWantHuman() {
-        var s = bkSideSel();
-        return bkWho() === 'ai' ? 1 - s : s;
-      }
-
-      /* 新しい対局で、設定に合わせて決める自分の手番(決めないときは null) */
-      function bkHumanOverride() {
-        if (!BKA || !bkTagged(BKA) || bkLS('shogiBkAuto', '1') !== '1') return null;
-        return bkWantHuman();
-      }
-
-      /* 設定を変える(☰メニュー・定跡パネル・定跡コンテナのどれからでも同じ処理) */
-      function bkSetSide(v) {
-        bkSetLS('shogiBkSide', v === 1 || v === '1' ? '1' : '0');
-        bkSettingsChanged();
       }
 
       function bkSetWho(v) {
         bkSetLS('shogiBkWho', v === 'ai' ? 'ai' : 'me');
-        bkSettingsChanged();
-      }
-
-      function bkSettingsChangedUI() {
-        ['bkSide', 'bkSideM'].forEach(function (id) {
-          if (g(id)) g(id).value = String(bkSideSel());
-        });
-        ['bkWho', 'bkWhoM'].forEach(function (id) {
-          if (g(id)) g(id).value = bkWho();
-        });
-      }
-
-      function bkSettingsChanged() {
+        bkSyncWho();
         bkKey = -1;
         bkcKey = '';
-        ['bkSide', 'bkSideM'].forEach(function (id) {
-          if (g(id)) g(id).value = String(bkSideSel());
-        });
+        if (BKX.Q && g('bkxBook')) bkxPaintBook();
+        bkcPaint();
+      }
+
+      function bkSyncWho() {
         ['bkWho', 'bkWhoM'].forEach(function (id) {
           if (g(id)) g(id).value = bkWho();
         });
-        if (BKX.Q && g('bkxBook')) bkxPaintBook();
-        /* まだ1手も指していない対局なら、新しい設定の手番で始め直す */
-        if (BKA && bkTagged(BKA) && bkLS('shogiBkAuto', '1') === '1' && mode === 'vs' && !hist.length && !editing && human !== bkWantHuman()) newGame();
-        else bkcPaint();
       }
 
       function bkMax() {
@@ -5314,14 +5047,14 @@
         bkcPaint();
       }
 
-      /* 現在の局面の定跡手(出現数の多い順、合法手のみ)。「囲う側」の設定に合うパートだけを使う */
-      function bkMoves(Q) {
+      /* 現在の局面の定跡手(出現数の多い順、合法手のみ) */
+      function bkMoves(Q, all) {
         Q = Q || P;
         if (!BKA) return [];
         var h = hashP(Q),
           acc = {},
           order = [];
-        bkActiveParts().forEach(function (Pt) {
+        bkActiveParts(all).forEach(function (Pt) {
           var K = Pt.keys,
             lo = 0,
             hi = K.length - 1,
@@ -5378,12 +5111,14 @@
         }
         el.hidden = false;
         var on = bkLS('shogiBkUse', '1') === '1',
-          key = hashP(P) + '|' + bkSort + '|' + hist.length + '|' + BKA.id + '|' + on + '|' + bkSideSel() + bkWho() + human;
+          key = hashP(P) + '|' + bkSort + '|' + hist.length + '|' + BKA.id + '|' + on + '|' + bkWho() + human + mode;
         if (key === bkcKey) return;
         bkcKey = key;
         var ls = bkMoves().slice(),
           tot = 0,
-          last = hist.length ? hist[hist.length - 1] : null;
+          last = hist.length ? hist[hist.length - 1] : null,
+          vs = mode === 'vs',
+          tagged = bkTagged(BKA);
         ls.forEach(function (x) {
           tot += x.c;
         });
@@ -5395,24 +5130,21 @@
           if (bkOff > hist.length) bkOff = -1;
         } else if (bkOff < 0 || bkOff > hist.length) bkOff = hist.length;
         var h =
-          '<div style="color:#9cf">定跡「' + bkEsc(BKA.name || '') + '」 <button data-s="c"' + (bkSort === 'c' ? ' class="on"' : '') + '>採用数順</button><button data-s="w"' + (bkSort === 'w' ? ' class="on"' : '') + '>勝率順</button></div>' +
-          '<div><button data-s="u"' + (on ? ' class="on"' : '') + '>AIは定跡を' + (on ? '使う' : '無視') + '(押して切替)</button></div>';
-        if (mode === 'vs' && P.side !== human)
+          '<div style="color:#9cf">' + bkEsc(BKA.name || '') + ' <button data-s="c"' + (bkSort === 'c' ? ' class="on"' : '') + '>採用数</button><button data-s="w"' + (bkSort === 'w' ? ' class="on"' : '') + '>勝率</button></div>' +
+          '<div><button data-s="u"' + (on ? ' class="on"' : '') + '>AI定跡 ' + (on ? '使う' : '無視') + '</button>' +
+          (tagged && vs ? '<button data-s="wh">行うのは ' + (bkWho() === 'ai' ? 'AI' : '自分') + '</button>' : '') + '</div>';
+        if (tagged && vs) h += '<div style="color:#fc6">' + (bkDoer() ? '後手' : '先手') + 'の定跡(' + (bkWho() === 'ai' ? 'AI' : '自分') + ')</div>';
+        if (vs && P.side !== human)
           h += on
             ? ls.length
-              ? '<div style="color:#8f8">→ AIはこの中から選んで、定跡で指します</div>'
-              : '<div style="color:#fa8">→ この局面は定跡にないので、AIはエンジンで考えます</div>'
-            : '<div style="color:#fa8">→ 設定が「無視」なので、AIはエンジンで考えます</div>';
-        if (bkTagged(BKA)) {
-          h += '<div style="color:#fc6">使用中: ' + bkSideName() + ' / ' + (bkWho() === 'ai' ? 'AIがその手番' : '自分がその手番') + (human === bkWantHuman() ? '' : '(今の対局の手番とは違います)') + '</div>' +
-            '<div><button data-s="sd">' + (bkSideSel() ? '「先手がする定跡」に切替' : '「後手がする定跡」に切替') + '</button><button data-s="wh">' + (bkWho() === 'ai' ? '「自分がやる」に切替' : '「AIがやる」に切替') + '</button></div>';
-        }
-        if (bkOff >= 0)
-          h += '<div style="color:#fa8">定跡の外に出たのは ' + bkOff + '手指した局面からです' + (BKA.minCnt > 1 ? '(この定跡は、出現数が' + BKA.minCnt + '局未満の手を含みません)' : '') + '</div>';
-        if (last && last.inf && last.inf.indexOf('定跡') === 0) h += '<div style="color:#8f8">直前の手は定跡(' + bkEsc(last.inf.replace(/^定跡 ?/, '')) + ')</div>';
-        if (!ls.length) h += '<div style="color:#aaa">この局面は定跡にありません</div>';
+              ? '<div style="color:#8f8">→ 定跡で指します</div>'
+              : '<div style="color:#fa8">→ 定跡外。エンジンで指します</div>'
+            : '<div style="color:#fa8">→ 無視設定。エンジンで指します</div>';
+        if (bkOff >= 0) h += '<div style="color:#fa8">' + bkOff + '手目から定跡外' + (BKA.minCnt > 1 ? '(出現' + BKA.minCnt + '局未満は除外)' : '') + '</div>';
+        if (last && last.inf && last.inf.indexOf('定跡') === 0) h += '<div style="color:#8f8">直前は' + bkEsc(last.inf) + '</div>';
+        if (!ls.length) h += '<div style="color:#aaa">この局面は定跡なし</div>';
         else {
-          h += '<div style="color:#aaa">' + ls.length + '通り / 合計' + tot + '局</div>';
+          h += '<div style="color:#aaa">' + ls.length + '通り・計' + tot + '局</div>';
           ls.forEach(function (x) {
             h += '<div>' + (P.side ? '△' : '▲') + mvT(x.m) + ' <b>' + x.c + '</b>局 ' + Math.round((x.w * 100) / x.c) + '%</div>';
           });
@@ -5449,7 +5181,7 @@
         g('bar').firstChild.style.width = '100%';
         g('cand').innerHTML =
           (lastInfo ? '<div>直前: ' + lastInfo + '</div>' : '') +
-          '<div style="color:#8f8">定跡で指します(「' + bkEsc(BKA.name || '') + '」)</div><div>' + bkText(ls.slice(0, 5)) + '</div>';
+          '<div style="color:#8f8">定跡で指します</div><div>' + bkText(ls.slice(0, 5)) + '</div>';
         g('msg').textContent = '定跡で指します';
         setTimeout(
           function () {
@@ -5465,33 +5197,15 @@
 
       /* --- 画面 --- */
       function bkHelp() {
-        var st = 'font-size:12px;color:#ccc;line-height:1.55;margin:4px 0;border:1px solid #444;border-radius:6px;padding:4px 8px',
-          c = 'color:#fc6';
         return (
-          '<details open style="' + st + '"><summary>はじめに(全体の流れ)</summary>' +
-          '<div>Floodgate(wdoor)の過去の棋譜から、探したい戦法や囲いが出てくる対局だけを集めて、定跡ファイルを作ります。1つの定跡ファイルに、たくさんの局面と、その局面での指し手(出現数・勝率つき)が入ります。局面で管理するので、手順が前後して同じ局面になる場合は1つにまとまります。</div>' +
-          '<ol style="margin:4px 0;padding-left:20px"><li>下の「検索条件」で、探したい戦法か囲いを入力する(「指定なし」ならレートの高い対局すべて)。</li><li>年を選んで「ダウンロードして作成」。取得できないときは、端末に保存した .7z を「ファイルを選んで作成(.7z)」で選ぶ。</li><li>完成すると、その定跡が自動で選ばれ、VS AIでAIの手番に使われます。</li><li>対局画面の右側(評価値リストの右)に、今の局面の次の手が採用数順で出ます。「枝の探索」タブでは、定跡の木を盤面つきで1手ずつたどれます。</li></ol></details>' +
-          '<details style="' + st + '"><summary>盤の座標(筋と段)の見方</summary>' +
-          '<div>マスは「筋(1〜9)+段(a〜i)」で書きます。筋は盤の上に出ている数字で、右端が1、左端が9。段は上から a(一段)・b(二段)…i(九段)で、数字の1〜9や漢数字で書いてもかまいません(c=3=三)。</div>' +
-          '<div>先手の初期位置: 玉 5i、金 4i と 6i、銀 3i と 7i、桂 2i と 8i、香 1i と 9i、飛 2h、角 8h、歩 1g〜9g。後手は上下左右を逆にした位置(玉 5a、飛 8b、角 2b、歩 1c〜9c)。</div></details>' +
-          '<details style="' + st + '"><summary>戦法: 両者の手を順に入れる(相手の手も含める)</summary>' +
-          '<div>先手の1手目、後手の1手目、先手の2手目…と、<b>先手と後手の手を交互に全部</b>、スペース区切りで入れます。</div>' +
-          '<div>1手の書き方(USI形式): <span style="' + c + '">移動元のマス+移動先のマス</span>。7g7f は「7七の駒を7六へ」。成るときは最後に + を付けます(例 8h2b+)。駒を打つときは「駒の大文字+*+マス」(例 P*5e は5五に歩を打つ)。駒は P=歩 L=香 N=桂 S=銀 G=金 B=角 R=飛。CSA形式(7776FU のような書き方)も使えます。</div>' +
-          '<div>例(どれも先手の出だし):<br>・四間飛車: <span style="' + c + '">7g7f 3c3d 6g6f 8c8d 2h6h</span><br>・三間飛車: <span style="' + c + '">7g7f 3c3d 2h7h</span><br>・中飛車: <span style="' + c + '">7g7f 3c3d 5g5f 8c8d 2h5h</span></div>' +
-          '<div>動き: 標準では、1手目から入力と同じ手順で指した棋譜だけを拾います(定跡の最初の手も、入力した手になります)。「合流も含める」にチェックすると、手順が前後して同じ局面になる棋譜も拾います(その場合、最初の手は入力と違ってもよくなります)。手順を指し終えた後も、序盤の手数まで定跡に入ります。入力した手がその順で指せない手のときは、何手目かを表示してやり直しになります。</div></details>' +
-          '<details style="' + st + '"><summary>戦法: 自分の手だけ入れる(相手の手は問わない)</summary>' +
-          '<div><b>自分の指し手だけ</b>を、指す順に入れます。相手が何を指していてもかまいません。「自分は先手/後手」を選びます。書き方は上と同じ(USI形式)。</div>' +
-          '<div>例(先手の四間飛車): <span style="' + c + '">7g7f 6g6f 2h6h</span></div>' +
-          '<div>動き: 標準では、<b>自分の1手目が1つ目の手、2手目が2つ目の手、…</b>と連続して一致した棋譜だけを拾います(相手の手は何でもよい)。例えば「7i6h 8h7i」なら、先手が初手に7i6h、2手目に8h7iを指した棋譜です。そのため、定跡の最初の手も7i6hになります。「間に別の自分の手が挟まってもよい」にチェックすると、順番だけ守られていれば一致にします(その場合、最初の手は入力と違ってもよくなります)。</div></details>' +
-          '<details style="' + st + '"><summary>囲い: 駒とマスを入れる</summary>' +
-          '<div>「駒+マス」を、スペース区切りで並べます。<b>先手から見た位置</b>で書きます(後手の囲いを探すときは「後手」を選ぶと、180度回して判定します)。</div>' +
-          '<div>駒: <span style="' + c + '">P=歩 L=香 N=桂 S=銀 G=金 B=角 R=飛 K=玉</span>(小文字も可)。成り駒は前に + を付けます: +P=と +L=成香 +N=成桂 +S=成銀 +B=馬 +R=龍。漢字でも書けます: 歩 香 桂 銀 金 角 飛 玉(王) と 成香(杏) 成桂(圭) 成銀(全) 馬 龍(竜)。</div>' +
-          '<div>マス: P7f でも P76 でも 歩76 でも同じ意味です(7筋6段)。</div>' +
-          '<div>例:<br>・美濃囲い: <span style="' + c + '">K2h S3h G4i G5h</span><br>・矢倉: <span style="' + c + '">K8h S7g G7h G6g</span><br>・2三にと金がいる形: <span style="' + c + '">と2c</span></div>' +
-          '<div>動き: 書いた駒が、すべて指定のマスに揃った局面が一度でもある棋譜を拾います(他の駒は何でもよい)。「序盤の手数」までに揃った棋譜が対象で、揃った後も序盤の手数まで定跡に入ります。</div>' +
-          '<div>先手と後手: 先手が囲いを作った棋譜と、後手が囲いを作った棋譜は、同じ定跡ファイルの中で「先手がする定跡」「後手がする定跡」に分けて保存されます(後手の囲いは、180度回した形で判定)。完成時に、それぞれの局面数と採用局数を表示します。使うときは、☰メニュー・「保存済み・使用設定」・対局画面の定跡欄のどこからでも、「使う定跡(先手がする/後手がする)」と「その手番をやるのは(自分/AI)」を選べます。</div></details>' +
-          '<details style="' + st + '"><summary>そのほかの欄の意味</summary>' +
-          '<div>・最低レート: 対局した2人とも、この値以上の対局だけ使う。大きいほど強い者同士の棋譜になるが、数は減ります。<br>・序盤の手数: 各対局の先頭から何手目まで定跡に入れるか。<br>・使う棋譜の最小手数: これより短い対局(早い投了・時間切れなど)は使わない。<br>・最小出現数: この回数未満しか出ない手は捨てる(「指定なし」のときだけ効く。標準は容量を抑えるため2)。戦法・囲いを指定したときは、棋譜が少なく、捨てると定跡が途中で行き止まりになるので、常に全部残します。<br>・対局者名: 部分一致で、空白区切りならどれか。空欄なら絞らない(例: suisho dlshogi)。<br>・追加先: 既存の定跡に今回の.7zの内容を足す。同じ.7zを足したことがあると確認が出ます。</div></details>'
+          '<details style="font-size:12px;color:#ccc;line-height:1.6;border:1px solid #444;border-radius:6px;padding:4px 8px;margin:4px 0"><summary>書き方</summary>' +
+          '・マス: 筋1〜9+段a〜i(a=一段)。先手の玉は5i、飛は2h、角は8h<br>' +
+          '・手(USI): 7g7f=7七の駒を7六へ。成る=末尾に+(8h2b+)。打つ=P*5e<br>' +
+          '・駒: P歩 L香 N桂 S銀 G金 B角 R飛 K玉。成り駒は+P(と) +L +N +S +B(馬) +R(龍)。漢字も可(歩76 成香1d)<br>' +
+          '・戦法(両者の手): 先手から交互に全部。例 7g7f 3c3d 6g6f 8c8d 2h6h(四間飛車)<br>' +
+          '・戦法(自分の手だけ): 先手視点で自分の手だけ、1手目から連続。例 7g7f 6g6f 2h6h<br>' +
+          '・囲い: 駒+マスが全部そろう局面がある棋譜。例 K2h S3h G4i G5h(美濃)<br>' +
+          '・「どちらも」: 先手がする棋譜と後手がする棋譜を分けて保存(後手は反転して探す)</details>'
         );
       }
 
@@ -5508,27 +5222,26 @@
           );
         }).join('');
         g('bk').innerHTML =
-          '<div><h3 style="display:inline-block;margin:0 10px 6px 0">定跡ブック</h3><button data-a="x">閉じる</button></div>' +
-          '<div><button data-t="make" class="on">作成</button> <button data-t="list">保存済み・使用設定</button> <button data-t="explore">枝の探索</button></div>' +
+          '<div><b>定跡ブック</b> <button data-a="x">閉じる</button></div>' +
+          '<div><button data-t="make" class="on">作成</button> <button data-t="list">保存済み・設定</button> <button data-t="explore">枝の探索</button></div>' +
           '<div id="bkMake">' +
           bkHelp() +
-          '<label>定跡の名前</label><input type="text" id="bkName" value="floodgate高レート">' +
-          '<label>年(複数選べます。1年あたり約100〜220MB)</label><div>' +
-          yrs +
-          '</div>' +
-          '<label>追加先(既存の定跡に、.7zの内容を追加できます)</label><select id="bkTarget"></select>' +
-          '<label>検索条件(どんな棋譜を探すか)</label><select id="bkPatT"><option value="none">指定なし(高レートの対局すべて)</option><option value="moves">戦法: 両者の手を順に入れる(相手の手も含む)</option><option value="own">戦法: 自分の手だけ入れる(相手の手は問わない)</option><option value="form">囲い: 駒とマスを入れる</option></select>' +
-          '<div id="bkPatMoves" hidden><label>両者の指し手を、先手・後手の順に交互に(USI形式をスペース区切り 例: 7g7f 3c3d 6g6f 8c8d。CSA形式の7776FUも可。手順が前後しても同じ局面になる棋譜も拾います)</label><input type="text" id="bkMoves" placeholder="7g7f 3c3d 6g6f 8c8d"><label style="color:#eee"><input type="checkbox" id="bkMMerge"> 手順が前後して同じ局面になる棋譜(合流)も含める(外すと、1手目から手順どおりの棋譜だけ)</label></div>' +
-          '<div id="bkPatOwn" hidden><label>自分の指し手だけを1手目から順に(USI形式 例: 7g7f 6g6f 8h7g。自分の1手目・2手目・3手目がこの手で、相手が何を指していてもよい棋譜を拾います)</label><input type="text" id="bkOwn" placeholder="7g7f 6g6f"><label>自分は</label><select id="bkOSide"><option value="0">先手</option><option value="1">後手</option></select><label style="color:#eee"><input type="checkbox" id="bkOLoose"> 自分の手の間に、別の自分の手が挟まってもよい(順番だけ守る。外すと、自分の1手目から連続した棋譜だけ)</label></div>' +
-          '<div id="bkPatForm" hidden><label>囲いの形(駒+マス、先手視点 例: K2h S3h G4i G5h / 歩76 / 成香1d / p76 / +B22。大文字・小文字どちらでも可。歩:P / 香:L / 桂:N / 銀:S / 金:G / 角:B / 飛:R / 玉・王:K)</label><input type="text" id="bkForm" placeholder="K2h S3h G4i G5h"><label>どちらの囲いか(「どちらでも」にすると、先手が囲う棋譜と後手が囲う棋譜を、同じ定跡ファイルの中で「先手がする定跡」「後手がする定跡」に分けて保存します)</label><select id="bkFSide"><option value="2">どちらでも(先手・後手を分けて保存)</option><option value="0">先手</option><option value="1">後手</option></select></div>' +
-          '<label>最低レート(対局した2人とも、この値以上の対局だけ使う)</label><input type="number" id="bkRate" value="3800">' +
-          '<label>序盤の手数(各対局の先頭から何手目まで使うか。囲いの検索では、囲いができるまでの手を使い、この手数までに囲いができた棋譜だけ拾う)</label><input type="number" id="bkPly" value="50" min="1">' +
-          '<label>使う棋譜の最小手数(これより短い対局は使わない)</label><input type="number" id="bkMin" value="0" min="0">' +
-          '<label>最小出現数(これ未満の手は捨てる)</label><input type="number" id="bkCnt" value="2" min="1">' +
-          '<label>対局者名で絞る(部分一致・空白区切り・どれか。空欄なら絞らない。例: suisho dlshogi)</label><input type="text" id="bkNames">' +
-          '<label>取得元URL(任意。{year}が年に置き換わる 例: https://自分のサイト/wdoor{year}.7z)。空欄なら https://mathotagamma.github.io/wdoor-getter/wdoor{年}.7z から取得します</label><input type="text" id="bkUrl">' +
-          '<label style="color:#eee"><input type="checkbox" id="bkSave" checked> ダウンロードした.7zを端末に保存して、次回から再利用する(再ダウンロード不要) <button data-a="clr">保存した.7zを削除</button></label>' +
-          '<div style="margin-top:8px"><button data-a="go">ダウンロードして作成</button> <button data-a="pick">ファイルを選んで作成(.7z)</button> <button data-a="stop" hidden>中止</button>' +
+          '<label>名前</label><input type="text" id="bkName" value="floodgate">' +
+          '<label>年</label><div>' + yrs + '</div>' +
+          '<label>追加先</label><select id="bkTarget"></select>' +
+          '<label>検索条件</label><select id="bkPatT"><option value="none">指定なし</option><option value="moves">戦法(両者の手を順に)</option><option value="own">戦法(自分の手だけ)</option><option value="form">囲い</option></select>' +
+          '<div id="bkPatMoves" hidden><label>手順(USI形式、先手から交互)</label><input type="text" id="bkMoves" placeholder="7g7f 3c3d 6g6f 8c8d"><label style="color:#eee"><input type="checkbox" id="bkMMerge"> 手順前後で同じ局面になる棋譜も含める</label></div>' +
+          '<div id="bkPatOwn" hidden><label>自分の手(USI形式、先手視点)</label><input type="text" id="bkOwn" placeholder="7g7f 6g6f"><label style="color:#eee"><input type="checkbox" id="bkOLoose"> 間に別の手が入ってもよい</label></div>' +
+          '<div id="bkPatForm" hidden><label>囲いの形(駒+マス、先手視点 例: K2h S3h G4i G5h / 歩76 / 成香1d / p76 / +B22。大文字・小文字どちらでも可。歩:P / 香:L / 桂:N / 銀:S / 金:G / 角:B / 飛:R / 玉・王:K)</label><input type="text" id="bkForm" placeholder="K2h S3h G4i G5h"></div>' +
+          '<div id="bkPatWho" hidden><label>定跡を作るのは</label><select id="bkWhoB"><option value="2">どちらも</option><option value="0">先手</option><option value="1">後手</option></select></div>' +
+          '<label>最低レート</label><input type="number" id="bkRate" value="3800">' +
+          '<label>序盤の手数</label><input type="number" id="bkPly" value="50" min="1">' +
+          '<label>最小手数</label><input type="number" id="bkMin" value="0" min="0">' +
+          '<label>最小出現数(指定なしのみ)</label><input type="number" id="bkCnt" value="2" min="1">' +
+          '<label>対局者名(部分一致・空白区切り)</label><input type="text" id="bkNames" placeholder="suisho dlshogi">' +
+          '<label>取得元URL(空欄=標準)</label><input type="text" id="bkUrl" placeholder="https://…/wdoor{year}.7z">' +
+          '<label style="color:#eee"><input type="checkbox" id="bkSave" checked> 取得した.7zを端末に保存 <button data-a="clr">保存を削除</button></label>' +
+          '<div style="margin-top:8px"><button data-a="go">ダウンロードして作成</button> <button data-a="pick">.7zから作成</button> <button data-a="stop" hidden>中止</button>' +
           '<input type="file" id="bkFile" accept=".7z" multiple hidden></div>' +
           '<div style="margin-top:8px;font-size:13px;color:#ccc">ダウンロード <span id="bkT1">-</span></div><div class="bar"><i id="bkB1"></i></div>' +
           '<div style="margin-top:6px;font-size:13px;color:#ccc">解析 <span id="bkT2">-</span></div><div class="bar"><i id="bkB"></i></div>' +
@@ -5536,12 +5249,10 @@
           '</div>' +
           '<div id="bkList" hidden></div>' +
           '<div id="bkExp" hidden>' +
-          '<div style="margin-top:6px;color:#9cf;font-size:13px">サブ盤面で駒を動かすと、AI(やねうら王。使えなければ自作エンジン)がその局面から先の変化を探索します。定跡があれば、定跡の次の手も出します。AI・定跡の候補をタップすると、その手を指します。</div>' +
           '<div id="bkxPath" style="margin:6px 0;word-break:break-all"></div>' +
           '<div id="bkxBd"></div>' +
-          '<div style="margin:6px 0"><button data-a="xb">1手戻る</button> <button data-a="xr">最初から</button> <button data-a="xc">今の対局の局面から</button> <button data-a="xp">この局面から対局</button> <button data-a="xf">盤の向きを反転</button></div>' +
-          '<div style="margin:6px 0;font-size:13px">AI解析の時間 <input type="number" id="bkxSec" value="3" min="1" style="width:60px">秒 候補数 <select id="bkxMpv"><option>3</option><option selected>5</option><option>8</option><option>12</option></select> <button data-a="xa">再解析</button></div>' +
-          '<div style="margin:6px 0;font-size:13px">AIの最善手順を <input type="number" id="bkxN" value="6" min="1" style="width:60px">手 <button data-a="xauto">自動で展開</button> <button data-a="xstop">止める</button></div>' +
+          '<div style="margin:6px 0"><button data-a="xb">戻る</button> <button data-a="xr">最初から</button> <button data-a="xc">対局の局面から</button> <button data-a="xp">この局面から対局</button> <button data-a="xf">反転</button></div>' +
+          '<div style="margin:6px 0;font-size:13px">AI <input type="number" id="bkxSec" value="3" min="1" style="width:50px">秒 <select id="bkxMpv"><option>3</option><option selected>5</option><option>8</option><option>12</option></select>候補 <button data-a="xa">再解析</button> / 自動展開 <input type="number" id="bkxN" value="6" min="1" style="width:50px">手 <button data-a="xauto">開始</button> <button data-a="xstop">止める</button></div>' +
           '<div id="bkxBook"></div><div id="bkxAna"></div>' +
           '</div>';
         g('bkRate').value = bkLS('shogiBkRate', '3800');
@@ -5550,7 +5261,6 @@
           var b = e.target.closest('[data-s]');
           if (!b) return;
           if (b.dataset.s === 'u') bkSetUse(bkLS('shogiBkUse', '1') !== '1');
-          else if (b.dataset.s === 'sd') bkSetSide(bkSideSel() ? 0 : 1);
           else if (b.dataset.s === 'wh') bkSetWho(bkWho() === 'ai' ? 'me' : 'ai');
           else {
             bkSort = b.dataset.s;
@@ -5629,12 +5339,8 @@
           } else if (t.id === 'bkImp') {
             if (t.files[0]) bkImport(t.files[0]);
             t.value = '';
-          } else if (t.id === 'bkSide') {
-            bkSetSide(t.value);
           } else if (t.id === 'bkWho') {
             bkSetWho(t.value);
-          } else if (t.id === 'bkAuto') {
-            bkSetLS('shogiBkAuto', t.checked ? '1' : '0');
           } else if (t.id === 'bkxSec') {
             BKX.sec = Math.max(1, +t.value || 3);
           } else if (t.id === 'bkxMpv') {
@@ -5646,6 +5352,7 @@
             if (!BKS.cntDirty) g('bkCnt').value = t.value === 'none' ? 2 : 1;
             g('bkPatMoves').hidden = t.value !== 'moves';
             g('bkPatOwn').hidden = t.value !== 'own';
+            g('bkPatWho').hidden = t.value !== 'own' && t.value !== 'form';
             g('bkPatForm').hidden = t.value !== 'form';
           } else if (t.id === 'bkUse') {
             bkSetUse(t.checked);
@@ -5891,9 +5598,8 @@
               var mine = sd === Q.side;
               t += '<span' + (mine ? ' data-hq="' + k + '" class="hq' + (BKX.sel && BKX.sel.drop === k ? ' sel' : '') + '"' : '') + '>' + NM[k] + (Q.h[sd][k] > 1 ? Q.h[sd][k] : '') + '</span> ';
             }
-          h += '<div style="font-size:13px;color:#ccc">' + (sd ? '△後手' : '▲先手') + '(' + (sd === Q.side ? '手番' : '') + ')の持ち駒: ' + (t || 'なし') + '</div>';
+          h += '<div style="font-size:13px;color:#ccc">' + (sd ? '△後手' : '▲先手') + 'の持ち駒: ' + (t || 'なし') + '</div>';
         });
-        h += '<div style="font-size:12px;color:#aaa">動かす駒→行き先の順にタップ。持ち駒は手番側のものをタップしてから行き先をタップ。</div>';
         g('bkxBd').innerHTML = h;
       }
 
@@ -5913,10 +5619,10 @@
       function bkxPaintBook() {
         var el = g('bkxBook');
         if (!BKA) {
-          el.innerHTML = '<div style="color:#aaa;margin:6px 0">定跡: 使う定跡が選ばれていません(「保存済み・使用設定」で選べます)。</div>';
+          el.innerHTML = '<div style="color:#aaa;margin:6px 0">定跡が選ばれていません</div>';
           return;
         }
-        var ls = bkMoves(BKX.Q).slice(),
+        var ls = bkMoves(BKX.Q, 1).slice(),
           tot = 0;
         ls.forEach(function (x) {
           tot += x.c;
@@ -5925,8 +5631,8 @@
           return BKX.sort === 'w' ? b.w / b.c - a.w / a.c || b.c - a.c : b.c - a.c || b.w - a.w;
         });
         el.innerHTML =
-          '<div style="margin-top:8px;color:#8f8">定跡「' + bkEsc(BKA.name || '') + '」の次の手(' + ls.length + '通り / 合計' + tot + '局) 並び: <button data-a="xs" data-v="c"' + (BKX.sort === 'c' ? ' class="on"' : '') + '>採用数順</button> <button data-a="xs" data-v="w"' + (BKX.sort === 'w' ? ' class="on"' : '') + '>勝率順</button></div>' +
-          (ls.length ? bkxRows(ls, 0) : '<div style="color:#aaa">この局面は定跡にありません(行き止まり)</div>');
+          '<div style="margin-top:8px;color:#8f8">定跡 ' + ls.length + '通り・計' + tot + '局 <button data-a="xs" data-v="c"' + (BKX.sort === 'c' ? ' class="on"' : '') + '>採用数</button><button data-a="xs" data-v="w"' + (BKX.sort === 'w' ? ' class="on"' : '') + '>勝率</button></div>' +
+          (ls.length ? bkxRows(ls, 0) : '<div style="color:#aaa">定跡なし</div>');
       }
 
       function bkxPaintAna() {
@@ -5934,11 +5640,11 @@
           el = g('bkxAna');
         if (!a) return;
         var st = a.done
-          ? '解析完了(深さ' + a.depth + ')'
-          : '解析中…' + (a.depth ? ' 深さ' + a.depth : '') + (BKX.auto > 0 ? ' / 自動展開あと' + BKX.auto + '手' : '');
+          ? '完了(深さ' + a.depth + ')'
+          : '解析中' + (a.depth ? ' 深さ' + a.depth : '') + (BKX.auto > 0 ? ' / 自動あと' + BKX.auto + '手' : '');
         el.innerHTML =
-          '<div style="margin-top:8px;color:#fc6">AIの候補(評価値は手番側から見た値)・' + st + (a.ev != null && a.list.length ? ' / 局面の評価値 ' + fmtS(a.ev) : '') + '</div>' +
-          (a.list.length ? bkxRows(a.list, 1) : '<div style="color:#aaa">' + (a.done ? '指せる手がありません(詰み)' : '待っています…') + '</div>');
+          '<div style="margin-top:8px;color:#fc6">AI ' + st + (a.ev != null && a.list.length ? ' / 評価値 ' + fmtS(a.ev) : '') + '</div>' +
+          (a.list.length ? bkxRows(a.list, 1) : '<div style="color:#aaa">' + (a.done ? '指せる手なし' : '待機中…') + '</div>');
       }
 
       function bkxTap(s) {
@@ -6079,55 +5785,23 @@
         var ms = bkMeta(),
           on = bkLS('shogiBkOn', ''),
           h =
-            '<label style="color:#eee"><input type="checkbox" id="bkUse"' +
-            (bkLS('shogiBkUse', '1') === '1' ? ' checked' : '') +
-            '> VS AIで、AIの手番に定跡を使う(外すと定跡を無視して、常にエンジンで考える)</label>' +
-            '<div style="margin-top:8px;border:1px solid #555;border-radius:6px;padding:6px"><div style="color:#fc6">先手と後手に分かれた定跡(囲い・戦法を指定して作ったもの)の使い方</div>' +
-            '<label>使う定跡</label><select id="bkSide"><option value="0">先手がする定跡</option><option value="1">後手がする定跡</option></select>' +
-            '<label>その手番をやるのは</label><select id="bkWho"><option value="me">自分</option><option value="ai">AI</option></select>' +
-            '<label style="color:#eee"><input type="checkbox" id="bkAuto"> 新しい対局では、この設定に合わせて自分の手番(先手/後手)を決める</label>' +
-            '<div style="font-size:12px;color:#aaa;line-height:1.5">「先手がする定跡」は、先手が囲い・戦法をやった棋譜の、先手・後手両方の手が入っています。例: 「先手がする定跡」+「自分」なら、自分が先手になり、AIは後手としてその棋譜の後手の手を指します。「先手がする定跡」+「AI」なら、AIが先手になり、定跡の先手の手を指します。☰メニューと、対局画面の定跡欄からも切り替えられます。</div></div>' +
-            '<div style="margin-top:8px"><label style="color:#eee"><input type="radio" name="bkSel" value=""' +
-            (on ? '' : ' checked') +
-            '> 使わない</label></div>';
+            '<label style="color:#eee"><input type="checkbox" id="bkUse"' + (bkLS('shogiBkUse', '1') === '1' ? ' checked' : '') + '> AIの手番で定跡を使う</label>' +
+            '<label>定跡を行うのは</label><select id="bkWho"><option value="me">自分</option><option value="ai">AI</option></select>' +
+            '<div style="font-size:12px;color:#aaa">自分が先手なら先手の定跡、後手なら後手の定跡を使います(AIにすると、AIの手番側)。</div>' +
+            '<label>使う最大手数</label><input type="number" id="bkMax" min="1" value="' + bkMax() + '">' +
+            '<div style="margin-top:8px"><label style="color:#eee"><input type="radio" name="bkSel" value=""' + (on ? '' : ' checked') + '> 使わない</label></div>';
         ms.forEach(function (x) {
+          var sd = x.sides ? ' 先手 ' + ((x.sides[0] || {}).pos || 0) + '局面/' + ((x.gamesBy || {})[0] || 0) + '局, 後手 ' + ((x.sides[1] || {}).pos || 0) + '局面/' + ((x.gamesBy || {})[1] || 0) + '局' : '';
           h +=
-            '<div style="border:1px solid #555;border-radius:6px;padding:6px;margin:6px 0"><label style="margin:0;color:#eee"><input type="radio" name="bkSel" value="' +
-            x.id +
-            '"' +
-            (x.id === on ? ' checked' : '') +
-            '> ' +
-            bkEsc(x.name) +
-            '</label><div style="font-size:12px;color:#aaa">' +
-            x.pos +
-            '局面 / ' +
-            x.mv +
-            '手 / 元の棋譜 ' +
-            x.games +
-            '局' +
-            (x.sides
-              ? ' (先手がする定跡 ' + ((x.sides[0] || {}).pos || 0) + '局面・' + ((x.gamesBy || {})[0] || 0) + '局 / 後手がする定跡 ' + ((x.sides[1] || {}).pos || 0) + '局面・' + ((x.gamesBy || {})[1] || 0) + '局)'
-              : '') +
-            ' / 最低レート' +
-            x.minRate +
-            ' / 先頭' +
-            x.maxPly +
-            '手 / ' +
-            bkEsc((x.files || []).map(function (f) { return f.name; }).join(', ') || x.src || '') +
-            ' / ' +
-            bkEsc(x.made || '') +
-            '</div><button data-a="exp" data-id="' +
-            x.id +
-            '">書き出し(.json)</button> <button data-a="del" data-id="' +
-            x.id +
-            '">削除</button></div>';
+            '<div style="border:1px solid #555;border-radius:6px;padding:6px;margin:6px 0"><label style="margin:0;color:#eee"><input type="radio" name="bkSel" value="' + x.id + '"' + (x.id === on ? ' checked' : '') + '> ' + bkEsc(x.name) + '</label>' +
+            '<div style="font-size:12px;color:#aaa">' + x.pos + '局面 / ' + x.games + '局' + sd + '</div>' +
+            '<div style="font-size:11px;color:#888">' + bkEsc((x.files || []).map(function (f) { return f.name; }).join(', ')) + ' ' + bkEsc(x.made || '') + '</div>' +
+            '<button data-a="exp" data-id="' + x.id + '">書き出し</button> <button data-a="del" data-id="' + x.id + '">削除</button></div>';
         });
-        if (!ms.length) h += '<div style="margin:8px 0">保存済みの定跡はありません。「作成」タブで作れます。</div>';
-        h += '<label>定跡ファイル(.json)を読み込む</label><input type="file" id="bkImp" accept=".json,application/json">';
+        if (!ms.length) h += '<div style="margin:8px 0">定跡がありません</div>';
+        h += '<label>読み込み(.json)</label><input type="file" id="bkImp" accept=".json,application/json">';
         g('bkList').innerHTML = h;
-        g('bkSide').value = String(bkSideSel());
-        g('bkWho').value = bkWho();
-        g('bkAuto').checked = bkLS('shogiBkAuto', '1') === '1';
+        bkSyncWho();
       }
 
       /* --- 作成の実行(取得→解凍・集計を複数のワーカーで並行→結合) --- */
@@ -6194,9 +5868,7 @@
           '<span style="color:#f88">' +
           bkEsc('失敗: ' + (e && e.message ? e.message : e)) +
           '</span>' +
-          (net
-            ? '<div style="margin-top:6px">ダウンロードできませんでした。「取得元URL」欄を確認するか、端末に保存した wdoorYYYY.7z を「ファイルを選んで作成(.7z)」で選んでください(通信は不要です)。</div>'
-            : '');
+          (net ? '<div style="margin-top:6px">取得できません。取得元URLを確認するか、保存した.7zを「.7zから作成」で選んでください。</div>' : '');
       }
 
       async function bkIs7z(blob) {
@@ -6389,7 +6061,7 @@
         if (anF >= 1) anTxt = '完了';
         else if (run.anT0 && anF > 0.03) {
           var waitDl = !run.dlDone;
-          anTxt += waitDl ? '(ダウンロード待ちを含むため残り時間は出せません)' : ' 残り約' + bkSec(((now - run.anT0) / 1000) * (1 - anF) / anF);
+          if (!waitDl) anTxt += ' 残り約' + bkSec(((now - run.anT0) / 1000) * (1 - anF) / anF);
         }
         g('bkB1').style.width = bkPct(dlF);
         g('bkT1').textContent = dlTxt;
@@ -6398,9 +6070,9 @@
         var S = bkSumS(run);
         g('bkP').textContent = lines.join(' / ');
         g('bkS').textContent =
-          '採用 ' + S.games + '局 / 条件に合う ' + S.rated + '局 / 走査 ' + S.scanned + '局 (レート不明 ' + S.norate + ', 最小手数に足りない[他の条件はOK] ' + S.short + ', 不正 ' + S.bad + ')' +
-          (run.opt.pat && (run.opt.pat.type === 'form' || run.opt.pat.type === 'own') ? ' / 先手がする定跡 ' + S.g0 + '局・後手がする定跡 ' + S.g1 + '局' : '') +
-          ' / 局面 ' + S.pos + ' / 経過 ' + bkSec(el);
+          '採用 ' + S.games + ' / 走査 ' + S.scanned + ' / 手数不足(他はOK) ' + S.short +
+          (run.opt.pat && (run.opt.pat.type === 'form' || run.opt.pat.type === 'own') ? ' / 先手 ' + S.g0 + '局・後手 ' + S.g1 + '局' : '') +
+          ' / 局面 ' + S.pos + ' / ' + bkSec(el);
       }
 
       function bkPump(run) {
@@ -6464,7 +6136,7 @@
           return;
         }
         run.merging = true;
-        g('bkP').textContent = '結合中…(先手・後手の定跡をまとめています)';
+        g('bkP').textContent = '結合中…';
         g('bkT2').textContent = '結合中';
         var w = new Worker(run.url);
         run.workers.push(w);
@@ -6540,15 +6212,15 @@
             var pm = bkParseMoves(g('bkMoves').value);
             opt.pat = { type: 'moves', hash: pm.hash, seq: pm.seq, exact: !g('bkMMerge').checked };
             opt.maxPly = Math.max(opt.maxPly, pm.n);
-            run.cond = '戦法(両者の手' + (opt.pat.exact ? '・手順どおり' : '・同じ局面を含む') + ') ' + g('bkMoves').value.trim();
+            run.cond = '戦法(両者' + (opt.pat.exact ? '' : '・合流') + ') ' + g('bkMoves').value.trim();
           } else if (pt === 'own') {
             var sq = bkParseOwn(g('bkOwn').value);
-            opt.pat = { type: 'own', side: +g('bkOSide').value, seq: sq, loose: g('bkOLoose').checked };
+            opt.pat = { type: 'own', side: +g('bkWhoB').value, seq: sq, loose: g('bkOLoose').checked };
             opt.maxPly = Math.max(opt.maxPly, sq.length * 2);
-            run.cond = '戦法(' + ['先手', '後手'][opt.pat.side] + 'の手だけ・' + (opt.pat.loose ? '順番だけ守る' : '1手目から連続') + ') ' + g('bkOwn').value.trim();
+            run.cond = '戦法(自分の手・' + ['先手', '後手', '先手後手'][opt.pat.side] + ') ' + g('bkOwn').value.trim();
           } else if (pt === 'form') {
-            opt.pat = { type: 'form', goals: bkParseForm(g('bkForm').value), side: +g('bkFSide').value };
-            run.cond = '囲い ' + g('bkForm').value.trim() + '(' + ['先手', '後手', 'どちらでも'][opt.pat.side] + ')';
+            opt.pat = { type: 'form', goals: bkParseForm(g('bkForm').value), side: +g('bkWhoB').value };
+            run.cond = '囲い ' + g('bkForm').value.trim() + '(' + ['先手', '後手', '先手後手'][opt.pat.side] + ')';
           } else run.cond = '指定なし';
           if (opt.pat) opt.minCnt = 1; /* 棋譜が少ないので、出現数で枝を切らない(切ると、定跡が途中で行き止まりになる) */
           run.cond += ' / レート' + opt.minRate + '以上 / 先頭' + opt.maxPly + '手';
@@ -6665,14 +6337,14 @@
         bkcPaint();
         bkFillTarget();
         var sideTxt = hasSides
-          ? ' 先手がする定跡: ' + ((sides[0] || {}).pos || 0) + '局面(今回の採用 ' + S.g0 + '局) / 後手がする定跡: ' + ((sides[1] || {}).pos || 0) + '局面(今回の採用 ' + S.g1 + '局)。'
+          ? ' 先手 ' + ((sides[0] || {}).pos || 0) + '局面(' + S.g0 + '局) / 後手 ' + ((sides[1] || {}).pos || 0) + '局面(' + S.g1 + '局)'
           : '';
         bkProg(
           1,
-          (tmeta ? '追加しました: ' : '完成: ') + pos + '局面 / ' + mvs + '手(今回採用 ' + S.games + '局, ' + Math.round(ms / 1000) + '秒)。' + sideTxt + 'VS AIで使います。' +
-            (opt.minPly > 0 ? ' 最小手数(' + opt.minPly + '手)に足りなくて除いた棋譜: ' + S.short + '局(他の条件はすべて満たしていました)。' : '') +
-            (S.games < 20 ? ' ※採用した棋譜が少ないです。年を増やす・最低レートを下げる・入力の手数を減らすと増えます。' : '') +
-            (fails.length ? ' 取得できなかった年: ' + fails.join(', ') : ''),
+          (tmeta ? '追加: ' : '完成: ') + pos + '局面 / ' + S.games + '局 / ' + bkSec(ms / 1000) + sideTxt +
+            (opt.minPly > 0 ? ' / 手数不足(他はOK)で除外 ' + S.short + '局' : '') +
+            (S.games < 20 ? ' / 棋譜が少ないです' : '') +
+            (fails.length ? ' / 取得失敗: ' + fails.join(', ') : ''),
           ''
         );
       }
@@ -6725,7 +6397,6 @@
           var o = JSON.parse(await f.text()),
             parts;
           if (o.format === 'shogi-book-2' && o.parts) parts = o.parts;
-          else if (o.format === 'shogi-book-1' && o.keys && o.off && o.mv) parts = [{ tag: -1, keys: o.keys, off: o.off, mv: o.mv, cnt: o.cnt, win: o.win }];
           else throw new Error('定跡ファイルの形式が違います');
           var b = {
               parts: parts.map(function (p) {
@@ -6771,13 +6442,11 @@
             bkSetUse(mu.checked);
           };
         }
-        [['bkSideM', bkSetSide], ['bkWhoM', bkSetWho]].forEach(function (x) {
-          var el = g(x[0]);
-          if (el) el.onchange = function () {
-            x[1](el.value);
+        if (g('bkWhoM'))
+          g('bkWhoM').onchange = function () {
+            bkSetWho(g('bkWhoM').value);
           };
-        });
-        bkSettingsChangedUI();
+        bkSyncWho();
         var id = bkLS('shogiBkOn', '');
         if (id)
           bkLoad(id).then(function () {
