@@ -5,8 +5,8 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
-      v37 (v36からの変更点)
-      - ページを開き直すと保存した定跡が読み込まれず、定跡欄が出ない不具合を修正(読み込みの判定が古い形式のままだった)
+      v38 (v37からの変更点)
+      - 評価値グラフを追加(終局画面と、☰メニューの「評価値グラフ」)。各手の評価値は解析結果から記録し、先手から見た勝率換算で表示。グラフをタップするとその手の評価値が出る
 
       v27 (v26からの変更点)
       - コードを整形: 1行にまとめていた文を1文ずつの行に展開し、インデントを2スペースにそろえた(動作は変更なし)
@@ -455,6 +455,26 @@
         display: inline-block;
         transform: rotate(180deg);
       }
+      #evg {
+        position: fixed;
+        inset: 0;
+        background: #1d1d1df5;
+        overflow-y: auto;
+        padding: 10px;
+        box-sizing: border-box;
+        z-index: 6;
+        touch-action: pan-y;
+      }
+      #evg svg,
+      #res svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      #res svg {
+        max-width: 360px;
+        margin: 8px auto 0;
+      }
       .bkxb td.sel {
         background: #ffe680;
       }
@@ -546,6 +566,7 @@
     </div>
     <div id="menu" hidden></div>
     <div id="bk" hidden></div>
+    <div id="evg" hidden></div>
     <div id="ask" hidden>
       <button id="aY">成</button>
       <button id="aN">不成</button>
@@ -3078,7 +3099,7 @@
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="useLW"> 学習成果(駒価値補正)を使う ※効果は小さく、悪化する場合あり</label><br>' +
-          '<button id="bEdit">局面編集</button> <button id="bKif">棋譜(.kif)出力</button> <button id="bBook">定跡ブック</button> <button id="bClose">閉じる</button>';
+          '<button id="bEdit">局面編集</button> <button id="bKif">棋譜(.kif)出力</button> <button id="bBook">定跡ブック</button> <button id="bEvg">評価値グラフ</button> <button id="bClose">閉じる</button>';
         g('menu').innerHTML = h;
         g('nnF').onchange = function (e) {
           var f = e.target.files[0];
@@ -3095,6 +3116,7 @@
         };
         g('bKif').onclick = exportKif;
         g('bBook').onclick = openBook;
+        g('bEvg').onclick = evOpen;
         g('bClose').onclick = function () {
           g('menu').hidden = true;
         };
@@ -3463,7 +3485,7 @@
 
       function showList(m) {
         g('bar').firstChild.style.width = m.pct + '%';
-        curAn = { list: m.list, worst: m.worst };
+        curAn = { list: m.list, worst: m.worst, ev: m.ev != null ? m.ev : m.list.length ? m.list[0].s : null };
         var pv =
           (nnOk ? '' : '<div style="color:#f88">⚠評価関数(NN)未使用: 駒得評価で指しています</div>') +
           '<div style="font-size:11px;color:#9cf">エンジン: ' +
@@ -3564,6 +3586,7 @@
         last = null;
         over = 0;
         endKif = '';
+        evEnd = null;
         hist = [];
         P = sp || newPos();
         startSfen = sp ? toSfen(P) : '';
@@ -3614,6 +3637,7 @@
         if (over) return;
         over = 1;
         gid++;
+        evEnd = curAn && curAn.ev != null ? curAn.ev * (P.side ? -1 : 1) : null;
         endKif = kw;
         endTxt = 'まで' + hist.length + '手で' + (winner < 0 ? '引き分け' : sideN(winner) + 'の勝ち');
         g('msg').textContent = msg;
@@ -3630,7 +3654,8 @@
               : sideN(winner) + 'の勝ち') +
           '<small>' +
           msg +
-          '(タップで閉じる)</small>';
+          '(タップで閉じる)</small>' +
+          evSvg(300, 120);
         el.hidden = false;
         renderBtns();
         if (busy) {
@@ -3745,6 +3770,7 @@
 
       function doMove(m) {
         var inf = rankInfo(m),
+          evb = curAn && curAn.ev != null ? curAn.ev * (P.side ? -1 : 1) : null,
           txt = (P.side ? '△' : '▲') + mvT(m),
           kif = mvT(m, 1),
           pc = P.side,
@@ -3755,7 +3781,7 @@
           bkNote = '';
         }
         if (clk.on && pc === human) clk.left = Math.max(0, clk.left - (Date.now() - clk.t0)) + clk.fi;
-        hist.push({ m: m, cap: cap, kif: kif, txt: txt, c: pc, t: el, inf: inf });
+        hist.push({ m: m, cap: cap, kif: kif, txt: txt, c: pc, t: el, inf: inf, ev: evb });
         lastInfo = txt + (inf ? ' ' + inf : '');
         hKeys.push(hashP(P));
         hChk.push(atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0);
@@ -6451,6 +6477,87 @@
               if (BKA && mode === 'vs' && !over && !paused && !editing && P.side !== human && hist.length < 2 && bkUse() && bkMoves().length) think(1);
             } catch (e) {}
           });
+      }
+      /* ===== 評価値グラフ(先手から見た評価値の推移。縦軸は既存の評価値バーと同じ勝率換算) ===== */
+      var evEnd = null;
+
+      /* 0手目〜最終局面の、先手から見た評価値(ないところは null) */
+      function evPts() {
+        var a = hist.map(function (h) {
+          return h.ev == null ? null : h.ev;
+        });
+        a.push(over ? evEnd : curAn && curAn.ev != null ? curAn.ev * (P.side ? -1 : 1) : null);
+        return a;
+      }
+
+      function evSvg(w, h) {
+        var a = evPts(),
+          n = a.length - 1,
+          pl = 30,
+          pr = 10,
+          pt = 10,
+          pb = 18,
+          iw = w - pl - pr,
+          ih = h - pt - pb,
+          i,
+          s;
+        function X(k) {
+          return pl + (n ? (k / n) * iw : 0);
+        }
+        function Y(v) {
+          v = Math.abs(v) > 29000 ? (v > 0 ? 3000 : -3000) : Math.max(-3000, Math.min(3000, v));
+          return pt + ih * (1 - 1 / (1 + Math.exp(-v / 600)));
+        }
+        s = '<svg viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="background:#222;border-radius:6px"><g font-size="9" fill="#999">';
+        [0.75, 0.5, 0.25].forEach(function (q) {
+          var y = pt + ih * (1 - q);
+          s += '<line x1="' + pl + '" x2="' + (w - pr) + '" y1="' + y + '" y2="' + y + '" stroke="' + (q === 0.5 ? '#777' : '#444') + '"' + (q === 0.5 ? '' : ' stroke-dasharray="3 3"') + '/><text x="2" y="' + (y + 3) + '">' + q * 100 + '%</text>';
+        });
+        var step = n > 150 ? 50 : n > 60 ? 20 : 10;
+        for (i = 0; i <= n; i += step) s += '<text x="' + X(i) + '" y="' + (h - 4) + '" text-anchor="middle">' + i + '</text>';
+        var d = '',
+          dots = '',
+          pen = 0,
+          cnt = 0;
+        for (i = 0; i <= n; i++) {
+          if (a[i] == null) {
+            pen = 0;
+            continue;
+          }
+          cnt++;
+          d += (pen ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(a[i]).toFixed(1);
+          pen = 1;
+          if (n <= 80) dots += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(a[i]).toFixed(1) + '" r="2" fill="#fc6"/>';
+        }
+        s += '</g><text x="' + (pl + 3) + '" y="' + (pt + 9) + '" font-size="9" fill="#9cf">先手有利</text><text x="' + (pl + 3) + '" y="' + (pt + ih - 3) + '" font-size="9" fill="#f99">後手有利</text>';
+        s += cnt ? '<path d="' + d + '" fill="none" stroke="#fc6" stroke-width="1.8"/>' + dots : '<text x="' + w / 2 + '" y="' + h / 2 + '" font-size="11" fill="#aaa" text-anchor="middle">評価値のデータがありません</text>';
+        return s + '</svg>';
+      }
+
+      function evOpen() {
+        g('menu').hidden = true;
+        var el = g('evg'),
+          w = Math.min(window.innerWidth - 24, 640);
+        el.innerHTML =
+          '<div><b>評価値グラフ</b> <span style="font-size:12px;color:#aaa">先手から見た勝率換算</span> <button data-e="x">閉じる</button></div>' +
+          '<div style="margin:6px 0">' + evSvg(w, Math.round(w * 0.55)) + '</div>' +
+          '<div id="evgT" style="font-size:13px;color:#ccc">グラフをタップすると、その手の評価値が出ます</div>';
+        el.hidden = false;
+        el.onclick = function (e) {
+          if (e.target.closest('[data-e="x"]')) {
+            el.hidden = true;
+            return;
+          }
+          var sv = e.target.closest('svg');
+          if (!sv) return;
+          var r = sv.getBoundingClientRect(),
+            a = evPts(),
+            n = a.length - 1,
+            vw = +sv.getAttribute('viewBox').split(' ')[2],
+            x = ((e.clientX - r.left) / (r.width || 1)) * vw,
+            i = Math.max(0, Math.min(n, Math.round(((x - 30) / (vw - 40)) * n)));
+          g('evgT').textContent = i + '手目' + (i ? ' ' + hist[i - 1].txt : '(開始局面)') + ' 評価値 ' + (a[i] == null ? 'なし' : fmtS(Math.round(a[i]))) + '(先手から見て)';
+        };
       }
 
       /* --- 初期化 --- */
