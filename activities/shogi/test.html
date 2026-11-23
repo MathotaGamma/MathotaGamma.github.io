@@ -5,8 +5,9 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
-      v38 (v37からの変更点)
-      - 評価値グラフを追加(終局画面と、☰メニューの「評価値グラフ」)。各手の評価値は解析結果から記録し、先手から見た勝率換算で表示。グラフをタップするとその手の評価値が出る
+      v40 (v39からの変更点)
+      - 自己対局(AI学習)をすべて削除(モード・設定・ボタン・学習の処理・学習成果の保存)
+      - 学習しない「AI vs AI」モードを追加。画面はVS AIと同じで、AIの考慮中に駒をタッチすると、その手を指せる(先手・後手どちらの番でも)
 
       v27 (v26からの変更点)
       - コードを整形: 1行にまとめていた文を1文ずつの行に展開し、インデントを2スペースにそろえた(動作は変更なし)
@@ -474,6 +475,64 @@
       #res svg {
         max-width: 360px;
         margin: 8px auto 0;
+      }
+      #info #bkc {
+        width: 48%;
+        font-size: 13px;
+        line-height: 20px;
+        background: #262626;
+        border: 1px solid #555;
+        border-radius: 6px;
+        padding: 4px 6px;
+      }
+      #bkc .bkh {
+        color: #9cf;
+        font-weight: bold;
+      }
+      #bkc .bkh small {
+        font-weight: normal;
+        color: #aaa;
+        margin-left: 4px;
+      }
+      #bkc .bkn,
+      #bkc .bks div {
+        white-space: normal;
+      }
+      #bkc .bkn {
+        color: #bbb;
+        font-size: 12px;
+      }
+      #bkc .r {
+        display: flex;
+        gap: 6px;
+        padding: 1px 4px;
+        margin: 1px 0;
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      #bkc .r span {
+        flex: 1;
+        overflow: hidden;
+      }
+      #bkc .r b {
+        width: 42px;
+        text-align: right;
+        font-weight: normal;
+      }
+      #bkc .seg button {
+        padding: 2px 8px;
+        font-size: 12px;
+        margin: 0;
+        border-radius: 0;
+      }
+      #bkc .seg button.on {
+        background: #ff8;
+        color: #000;
+      }
+      #bkc .bks {
+        margin-top: 8px;
+        border-top: 1px solid #555;
+        padding-top: 4px;
       }
       .bkxb td.sel {
         background: #ffe680;
@@ -1214,9 +1273,6 @@
           } else if (m.cmd === 'go') {
             lastGo = m;
             run(m, ++job);
-          } else if (m.cmd === 'train') {
-            lastGo = null;
-            train(m, ++job);
           }
         };
         var run = function (m, id) {
@@ -1314,108 +1370,6 @@
             if (d < D) post();
           }
           post(1);
-        };
-        var train = async function (m, id) {
-          postMessage({ t: 'ack' });
-          await loadP;
-          var lw = Float64Array.from(m.lw),
-            zero = new Float64Array(16),
-            dep = m.dep || 2,
-            lr = m.lr || 0.5,
-            vms = m.vms || 200,
-            lastV = 0;
-          var g = 0,
-            mw = 0,
-            md = 0,
-            ml = 0;
-          var game = async function (wb, ww, rnd, rec, label) {
-            var P = newPos(),
-              data = [],
-              big = 0,
-              ev = 0;
-            PK = [hashP(P)];
-            PC = [0];
-            for (var ply = 0; ply < 140; ply++) {
-              var ms = legal(P);
-              if (!ms.length) return { r: P.side ? 1 : -1, data: data };
-              LW = P.side ? ww : wb;
-              TT.clear();
-              var mv = ms[0];
-              if (ply < rnd) {
-                mv = ms[(Math.random() * ms.length) | 0];
-                big = 0;
-              } else {
-                var bs = -1e9;
-                stopF = 0;
-                dl = 1e15;
-                for (var i = 0; i < ms.length; i++) {
-                  var s = rs(P, ms[i], dep);
-                  if (s > bs) {
-                    bs = s;
-                    mv = ms[i];
-                  }
-                }
-                big = Math.abs(bs) > 1200 ? big + 1 : 0;
-                ev = bs * (P.side ? -1 : 1);
-                if (big >= 3) return { r: (bs > 0 ? P.side : P.side ^ 1) ? -1 : 1, data: data };
-              }
-              if (rec) {
-                LW = lw;
-                data.push({ x: Array.from(mat(P, XV)), e: evalPos(P), c: P.side });
-              }
-              make(P, mv);
-              var hk = hashP(P),
-                rc = 0;
-              PK.push(hk);
-              PC.push(atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0);
-              for (var q = 0; q < PK.length; q++) if (PK[q] === hk) rc++;
-              if (rc >= 3) return { r: 0, data: data };
-              var now = Date.now();
-              if (now - lastV >= vms) {
-                lastV = now;
-                postMessage({ t: 'tv', id: m.id, st: toSt(P), mv: mv, ply: ply + 1, ev: ev, label: label });
-              }
-              await tick();
-              if (id !== job) return null;
-            }
-            return { r: 0, data: data };
-          };
-          while (id === job) {
-            var res = await game(lw, lw, 6, 1, '学習対局 第' + (g + 1) + '局');
-            if (!res) return;
-            res.data.forEach(function (d) {
-              var y = res.r * (d.c ? -1 : 1),
-                p = 1 / (1 + Math.exp(-d.e / 600)),
-                gr = p - (y + 1) / 2;
-              for (var k = 1; k < 16; k++) lw[k] = Math.max(-60, Math.min(60, lw[k] - lr * gr * d.x[k]));
-            });
-            g++;
-            {
-              for (var q = g % 2; q < (g % 2) + 1; q++) {
-                var r2 = await game(q ? zero : lw, q ? lw : zero, 4, 0, '評価対局(学習後 vs 学習前)');
-                if (!r2) return;
-                var rr = q ? -r2.r : r2.r;
-                if (rr > 0) mw++;
-                else if (rr < 0) ml++;
-                else md++;
-              }
-            }
-            var n = mw + md + ml,
-              rate = n ? (mw + md / 2) / n : 0.5,
-              pc = Math.min(0.99, Math.max(0.01, rate));
-            postMessage({
-              t: 'tr',
-              id: m.id,
-              lw: Array.from(lw),
-              g: g,
-              mw: mw,
-              md: md,
-              ml: ml,
-              rate: rate,
-              elo: Math.round(-400 * Math.log10(1 / pc - 1))
-            });
-            await tick();
-          }
         };
       }
     </script>
@@ -2907,8 +2861,7 @@
       var W = null,
         netBuf = null,
         netName = '',
-        lastMsg = null,
-        trainLog = '';
+        lastMsg = null;
       var paused = 0,
         editing = 0,
         edBackup = null,
@@ -2928,18 +2881,8 @@
         hChk = [],
         endKif = '',
         endTxt = '',
-        LWS = new Float64Array(16),
-        trainOn = 0,
-        trStat = '',
-        trLive = '',
+        aiAI = 0,
         evS = 0;
-      try {
-        var sv = JSON.parse(localStorage.getItem('shogiLW') || 'null');
-        if (sv)
-          LWS = Float64Array.from(sv, function (x) {
-            return Math.max(-60, Math.min(60, x));
-          });
-      } catch (e) {}
       var clk = { on: 0, left: 0, by: 0, fi: 0, t0: 0 };
       var jsGuide = null,
         manRec = 0,
@@ -3001,7 +2944,7 @@
           [
             ['vs', 'VS AI'],
             ['study', '研究(ローカル対戦)'],
-            ['train', 'AI学習(自己対局)']
+            ['aivai', 'AI vs AI(学習なし)']
           ]
         ],
         [
@@ -3090,15 +3033,12 @@
         });
         h +=
           '<label>読み込む深度 <input type="number" id="D" value="14" min="1"></label>' +
-          '<label>自己対局の読み深さ <input type="number" id="trD" value="2"></label>' +
-          '<label>自己対局の盤面更新間隔(ms) <input type="number" id="trV" value="200"></label>' +
-          '<label>学習率 <input type="number" step="0.1" id="trL" value="0.5"></label>' +
           '<label>AIの強さ <select id="lv"><option value="1">1 (最弱)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11" selected>無制限</option></select></label>' +
           '<label>AIの手のばらつき(基準値。手数が進むほど滑らかに減衰) <select id="rnd"><option value="0">なし(常に最善手)</option><option value="30">小(30cp)</option><option value="60" selected>中(60cp)</option><option value="120">大(120cp)</option><option value="250">特大(250cp)</option></select></label>' +
-          '<label><input type="checkbox" id="manAI"> AIの手を自分で指せる(AIの思考中に盤をタップ)</label><label><input type="checkbox" id="bkUseM"> AIの手番で定跡を使う</label><label>定跡を行うのは <select id="bkWhoM"><option value="me">自分</option><option value="ai">AI</option></select></label>' +
+          '<label><input type="checkbox" id="manAI"> AIの手を自分で指せる(AIの思考中に盤をタップ)</label><label><input type="checkbox" id="bkUseM"> AIの手番で定跡を使う</label><label>定跡を行うのは <select id="bkWhoM"><option value="me">自分</option><option value="ai">AI</option></select></label><div style="font-size:12px;color:#aaa">自分=自分の手番側の定跡 / AI=AIの手番側の定跡</div>' +
           '<label><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
-          '<label><input type="checkbox" id="useLW"> 学習成果(駒価値補正)を使う ※効果は小さく、悪化する場合あり</label><br>' +
+          '<br>' +
           '<button id="bEdit">局面編集</button> <button id="bKif">棋譜(.kif)出力</button> <button id="bBook">定跡ブック</button> <button id="bEvg">評価値グラフ</button> <button id="bClose">閉じる</button>';
         g('menu').innerHTML = h;
         g('nnF').onchange = function (e) {
@@ -3362,16 +3302,6 @@
               doMove(pm);
             }
           }
-        } else if (m.t === 'tr') showTrain(m);
-        else if (m.t === 'tv' && mode === 'train') {
-          P = fromSt(m.st);
-          last = { f: m.mv & 127, t: (m.mv >> 7) & 127 };
-          flip = 0;
-          trLive = m.label + ' ' + m.ply + '手目';
-          setEv(m.ev);
-          g('msg').textContent = m.ply + '手目';
-          paintTrain();
-          render();
         }
       }
 
@@ -3383,7 +3313,7 @@
           D: Math.min(Math.max(num('D'), 1), 8),
           rk: hKeys.slice(),
           rc: hChk.slice(),
-          lw: Array.from(g('useLW').checked ? LWS : new Float64Array(16))
+          lw: Array.from(new Float64Array(16))
         };
       }
 
@@ -3485,7 +3415,13 @@
 
       function showList(m) {
         g('bar').firstChild.style.width = m.pct + '%';
-        curAn = { list: m.list, worst: m.worst, ev: m.ev != null ? m.ev : m.list.length ? m.list[0].s : null };
+        curAn = { list: m.list, worst: m.worst, ev: m.ev != null ? m.ev : m.list.length ? m.list[0].s : null, aim: '', bm: '' };
+        if (m.list.length) {
+          try {
+            curAn.aim = aimText(m.list[0].m, m.list[0].pv, m.list[0].s);
+            curAn.bm = (P.side ? '△' : '▲') + mvT(m.list[0].m);
+          } catch (e) {}
+        }
         var pv =
           (nnOk ? '' : '<div style="color:#f88">⚠評価関数(NN)未使用: 駒得評価で指しています</div>') +
           '<div style="font-size:11px;color:#9cf">エンジン: ' +
@@ -3508,15 +3444,17 @@
             (m.info || '') +
             ' (手番側の評価値)' +
             '</div>';
+        if (curAn.aim) h += '<div style="color:#8cf">最善手の狙い: ' + curAn.aim + '</div>';
         m.list.slice(0, n).forEach(function (x, i) {
           h +=
             '<div>' +
             (i + 1) +
-            '. ' +
+            '位 ' +
             (P.side ? '△' : '▲') +
             mvT(x.m) +
             '  ' +
             fmtS(x.s) +
+            (i && Math.abs(x.s) < 29000 && Math.abs(m.list[0].s) < 29000 ? '  最善比' + (x.s - m.list[0].s) + 'cp' : '') +
             '  (深度' +
             x.d +
             ')</div>';
@@ -3581,7 +3519,8 @@
       /* --- 対局進行 --- */
       function newGame(sp) {
         g('res').hidden = true;
-        mode = g('mode').value;
+        aiAI = g('mode').value === 'aivai' ? 1 : 0;
+        mode = aiAI ? 'vs' : g('mode').value;
         sel = null;
         last = null;
         over = 0;
@@ -3607,10 +3546,10 @@
         g('ed').hidden = true;
         g('info').hidden = false;
         var hs = g('side').value;
-        human = hs === 'r' ? (Math.random() < 0.5 ? 0 : 1) : +hs;
+        human = aiAI ? 2 : hs === 'r' ? (Math.random() < 0.5 ? 0 : 1) : +hs;
         flip = mode === 'vs' && human === 1 ? 1 : 0;
         var t = g('tm').value;
-        clk.on = mode === 'vs' && t !== 'n';
+        clk.on = mode === 'vs' && !aiAI && t !== 'n';
         clk.left = num('base') * 60000;
         clk.by = t === 'b' ? num('by') * 1000 : 0;
         clk.fi = t === 'b' ? num('fi') * 1000 : 0;
@@ -3619,13 +3558,7 @@
         renderBtns();
         g('evB').style.width = '50%';
         g('evT').textContent = '形勢';
-        trainOn = 0;
-        if (mode === 'train') {
-          startTrain();
-          render();
-          return;
-        }
-        g('msg').textContent = mode === 'vs' ? 'あなたは' + (human ? '後手' : '先手') : '研究';
+        g('msg').textContent = aiAI ? 'AI vs AI(AIの考慮中に駒をタッチすると、その手を指せます)' : mode === 'vs' ? 'あなたは' + (human ? '後手' : '先手') : '研究';
         next();
       }
 
@@ -3641,7 +3574,7 @@
         endKif = kw;
         endTxt = 'まで' + hist.length + '手で' + (winner < 0 ? '引き分け' : sideN(winner) + 'の勝ち');
         g('msg').textContent = msg;
-        var vs = mode === 'vs',
+        var vs = mode === 'vs' && !aiAI,
           el = g('res');
         el.className = winner < 0 ? 'draw' : vs ? (winner === human ? 'win' : 'lose') : 'win';
         el.innerHTML =
@@ -3781,7 +3714,7 @@
           bkNote = '';
         }
         if (clk.on && pc === human) clk.left = Math.max(0, clk.left - (Date.now() - clk.t0)) + clk.fi;
-        hist.push({ m: m, cap: cap, kif: kif, txt: txt, c: pc, t: el, inf: inf, ev: evb });
+        hist.push({ m: m, cap: cap, kif: kif, txt: txt, c: pc, t: el, inf: inf, ev: evb, bm: curAn ? curAn.bm : '', aim: curAn ? curAn.aim : '' });
         lastInfo = txt + (inf ? ' ' + inf : '');
         hKeys.push(hashP(P));
         hChk.push(atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0);
@@ -3794,7 +3727,6 @@
       }
 
       function undoFor(c) {
-        if (mode === 'train') return;
         var i = hist.length - 1;
         while (i >= 0 && hist[i].c !== c) i--;
         if (i < 0) return;
@@ -3818,7 +3750,6 @@
       }
 
       function resign(c) {
-        if (mode === 'train') return;
         finish(sideN(c) + '投了', c ^ 1, '投了');
       }
 
@@ -3840,6 +3771,10 @@
               '投了</button>';
           });
           h += '<button data-a="d">宣言</button>';
+        } else if (mode === 'vs' && aiAI) {
+          h +=
+            '<button data-a="u" data-c="' + (hist.length ? hist[hist.length - 1].c : 0) + '">待った</button>' +
+            (over ? '<button data-a="s">研究へ</button>' : paused ? '<button data-a="c">再開</button>' : '<button data-a="p">中断</button>');
         } else if (mode === 'vs') {
           h += '<button data-a="u" data-c="' + human + '">待った</button>';
           if (!end) {
@@ -3851,18 +3786,13 @@
             h +=
               (paused ? '<button data-a="c">再開</button>' : '') +
               '<button data-a="s">研究へ</button>';
-        } else if (mode === 'train') {
-          h +=
-            '<button id="bTr">' +
-            (trainOn ? '⏸停止' : '▶再開') +
-            '</button><button id="bTrR">学習リセット</button>';
         }
         h += '<button id="bMenu">☰</button>';
         g('btns').innerHTML = h;
       }
 
       function manOn() {
-        return mode === 'vs' && g('manAI') && g('manAI').checked;
+        return mode === 'vs' && (aiAI || (g('manAI') && g('manAI').checked));
       }
 
       function canPlay() {
@@ -4009,50 +3939,6 @@
         }
         g('clk').textContent = '秒読み ' + Math.ceil(b / 1000);
       }, 100);
-
-      /* --- AI学習 --- */
-      function paintTrain() {
-        g('cand').innerHTML = '<div>' + trLive + '</div>' + trStat;
-      }
-
-      function startTrain() {
-        yoStop();
-        ensureJsNet();
-        trainOn = 1;
-        trStat = '';
-        trLive = '自己対局を開始します…';
-        paintTrain();
-        renderBtns();
-        send({ cmd: 'train', id: gid, lw: Array.from(LWS), dep: num('trD'), vms: num('trV'), lr: num('trL') });
-      }
-
-      function showTrain(m) {
-        LWS = Float64Array.from(m.lw);
-        try {
-          localStorage.setItem('shogiLW', JSON.stringify(m.lw));
-        } catch (e) {}
-        g('bar').firstChild.style.width = m.rate * 100 + '%';
-        var n = m.mw + m.md + m.ml;
-        trStat =
-          '<div>' +
-          m.g +
-          '局完了 / 対学習前: ' +
-          m.mw +
-          '勝 ' +
-          m.md +
-          '分 ' +
-          m.ml +
-          '敗 (' +
-          n +
-          '局)</div>' +
-          '<div>勝率 ' +
-          Math.round(m.rate * 100) +
-          '% (推定 Elo差 ' +
-          (m.elo > 0 ? '+' : '') +
-          m.elo +
-          ') ※上のバー=勝率</div>';
-        paintTrain();
-      }
 
       /* 駒+マスの指定(P7f / P76 / 歩76 / 成香1d / +B22)の解釈。定跡の囲い検索で使う */
       var PTYPE = { p: 1, l: 2, n: 3, s: 4, g: 5, b: 6, r: 7, k: 8 };
@@ -4243,7 +4129,6 @@
       }
 
       function startEdit() {
-        if (mode === 'train') return;
         yoStop();
         if (busy) {
           W.postMessage({ cmd: 'stop' });
@@ -4751,13 +4636,14 @@
         var mp = /multipv (\d+)/.exec(l),
           sc = /score (cp|mate) (-?\d+)/.exec(l),
           pv = / pv (\S+)/.exec(l),
+          pvA = / pv (.+)$/.exec(l),
           dp = /depth (\d+)/.exec(l);
         if (!sc || !pv || !dp) return;
         var v = +sc[2],
           s = sc[1] === 'cp' ? v : v > 0 ? 30000 - v : -30000 - v;
         var mv = u2m(pv[1]);
         if (legal(r.Q || P).indexOf(mv) < 0) return;
-        r.mv[mv] = { m: mv, s: s, d: +dp[1], k: mp ? +mp[1] : 1 };
+        r.mv[mv] = { m: mv, s: s, d: +dp[1], k: mp ? +mp[1] : 1, pv: pvA ? pvA[1].trim().split(/\s+/) : [pv[1]] };
         if (!mp || +mp[1] === 1) r.ev = s;
         r.depth = Math.max(r.depth, +dp[1]);
         /* 詰みが見つかったら、時間いっぱい深度だけ増やし続けないよう打ち切る(時間指定の探索のみ) */
@@ -4844,7 +4730,7 @@
       /* 全手を短時間だけ評価し直す(最悪手と、上位5手の外の手の順位・最善比を出すため) */
       function yoScanStart(r, fin) {
         var n = legal(P).length;
-        if (mode === 'train' || n < 6 || n <= r.mpv) {
+        if (n < 6 || n <= r.mpv) {
           if (fin) fin();
           return;
         }
@@ -5005,7 +4891,7 @@
 
       /* 使うパート。対局(VS AI)では行う側のパート、研究・探索では全部 */
       function bkActiveParts(all) {
-        var s = !all && mode === 'vs' ? bkDoer() : -1;
+        var s = !all && mode === 'vs' && !aiAI ? bkDoer() : -1;
         return bkPartsOf(BKA).filter(function (p) {
           return s < 0 || p.tag === s || p.tag < 0;
         });
@@ -5138,11 +5024,13 @@
         bkcKey = key;
         var ls = bkMoves().slice(),
           tot = 0,
+          mx = 1,
           last = hist.length ? hist[hist.length - 1] : null,
           vs = mode === 'vs',
           tagged = bkTagged(BKA);
         ls.forEach(function (x) {
           tot += x.c;
+          if (x.c > mx) mx = x.c;
         });
         ls.sort(function (a, b) {
           return bkSort === 'w' ? b.w / b.c - a.w / a.c || b.c - a.c : b.c - a.c || b.w - a.w;
@@ -5151,27 +5039,46 @@
         else if (ls.length) {
           if (bkOff > hist.length) bkOff = -1;
         } else if (bkOff < 0 || bkOff > hist.length) bkOff = hist.length;
-        var h =
-          '<div style="color:#9cf">' + bkEsc(BKA.name || '') + ' <button data-s="c"' + (bkSort === 'c' ? ' class="on"' : '') + '>採用数</button><button data-s="w"' + (bkSort === 'w' ? ' class="on"' : '') + '>勝率</button></div>' +
-          '<div><button data-s="u"' + (on ? ' class="on"' : '') + '>AI定跡 ' + (on ? '使う' : '無視') + '</button>' +
-          (tagged && vs ? '<button data-s="wh">行うのは ' + (bkWho() === 'ai' ? 'AI' : '自分') + '</button>' : '') + '</div>';
-        if (tagged && vs) h += '<div style="color:#fc6">' + (bkDoer() ? '後手' : '先手') + 'の定跡(' + (bkWho() === 'ai' ? 'AI' : '自分') + ')</div>';
+        var seg = function (cur, items) {
+          return (
+            '<span class="seg">' +
+            items
+              .map(function (x) {
+                return '<button data-s="' + x[0] + '"' + (cur === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>';
+              })
+              .join('') +
+            '</span>'
+          );
+        };
+        var h = '<div class="bkh">定跡 <small>' + bkEsc(BKA.name || '') + '</small></div>';
+        /* いまの状況 */
         if (vs && P.side !== human)
           h += on
             ? ls.length
-              ? '<div style="color:#8f8">→ 定跡で指します</div>'
-              : '<div style="color:#fa8">→ 定跡外。エンジンで指します</div>'
-            : '<div style="color:#fa8">→ 無視設定。エンジンで指します</div>';
-        if (bkOff >= 0) h += '<div style="color:#fa8">' + bkOff + '手目から定跡外' + (BKA.minCnt > 1 ? '(出現' + BKA.minCnt + '局未満は除外)' : '') + '</div>';
-        if (last && last.inf && last.inf.indexOf('定跡') === 0) h += '<div style="color:#8f8">直前は' + bkEsc(last.inf) + '</div>';
+              ? '<div class="bkn" style="color:#8f8">→ AIは定跡で指します</div>'
+              : '<div class="bkn" style="color:#fa8">→ 定跡外。AIはエンジンで指します</div>'
+            : '<div class="bkn" style="color:#fa8">→ 無視設定。AIはエンジンで指します</div>';
+        if (bkOff >= 0) h += '<div class="bkn" style="color:#fa8">' + bkOff + '手目から定跡外' + (BKA.minCnt > 1 ? '(出現' + BKA.minCnt + '局未満は除外)' : '') + '</div>';
+        if (last && last.inf && last.inf.indexOf('定跡') === 0) h += '<div class="bkn" style="color:#8f8">直前は' + bkEsc(last.inf) + '</div>';
+        /* 次の手の一覧 */
+        h += '<div class="bkn">次の手 ' + ls.length + '通り・計' + tot + '局 ' + seg(bkSort, [['c', '採用数順'], ['w', '勝率順']]) + '</div>';
         if (!ls.length) h += '<div style="color:#aaa">この局面は定跡なし</div>';
         else {
-          h += '<div style="color:#aaa">' + ls.length + '通り・計' + tot + '局</div>';
+          h += '<div class="r bkn"><span>手</span><b>採用</b><b>勝率</b></div>';
           ls.forEach(function (x) {
-            h += '<div>' + (P.side ? '△' : '▲') + mvT(x.m) + ' <b>' + x.c + '</b>局 ' + Math.round((x.w * 100) / x.c) + '%</div>';
+            var pc = Math.round((x.c / mx) * 100);
+            h += '<div class="r" style="background:linear-gradient(90deg,#355a35 ' + pc + '%,transparent ' + pc + '%)"><span>' + (P.side ? '△' : '▲') + mvT(x.m) + '</span><b>' + x.c + '局</b><b>' + Math.round((x.w * 100) / x.c) + '%</b></div>';
           });
         }
-        el.innerHTML = h;
+        /* 設定 */
+        h += '<div class="bks"><div>AIの手番 ' + seg(on ? 'u1' : 'u0', [['u1', '定跡を使う'], ['u0', '無視する']]) + '</div>';
+        if (tagged && vs && !aiAI) {
+          var dsd = bkDoer(),
+            who = bkWho();
+          h += '<div>定跡を行うのは ' + seg(who === 'ai' ? 'wa' : 'wm', [['wm', '自分'], ['wa', 'AI']]) + '</div>' +
+            '<div class="bkn" style="color:#fc6">' + (who === 'ai' ? 'AIは' + (1 - human ? '後手' : '先手') : '自分は' + (human ? '後手' : '先手')) + 'なので、' + (dsd ? '後手' : '先手') + 'の定跡を使用中</div>';
+        } else if (tagged) h += '<div class="bkn">' + (aiAI ? 'AI vs AI' : '研究') + ': 先手・後手の定跡を合わせて使用</div>';
+        el.innerHTML = h + '</div>';
       }
 
       /* AIの手番で定跡の手があれば、それを指す(指したら true) */
@@ -5282,8 +5189,10 @@
         g('bkc').onclick = function (e) {
           var b = e.target.closest('[data-s]');
           if (!b) return;
-          if (b.dataset.s === 'u') bkSetUse(bkLS('shogiBkUse', '1') !== '1');
-          else if (b.dataset.s === 'wh') bkSetWho(bkWho() === 'ai' ? 'me' : 'ai');
+          if (b.dataset.s === 'u1') bkSetUse(true);
+          else if (b.dataset.s === 'u0') bkSetUse(false);
+          else if (b.dataset.s === 'wm') bkSetWho('me');
+          else if (b.dataset.s === 'wa') bkSetWho('ai');
           else {
             bkSort = b.dataset.s;
             bkcPaint();
@@ -5542,7 +5451,7 @@
             D: Math.min(Math.max(num('D'), 1), 8),
             rk: [hashP(Q)],
             rc: [atk(Q, Q.k[Q.side], Q.side ^ 1) ? 1 : 0],
-            lw: Array.from(g('useLW').checked ? LWS : new Float64Array(16)),
+            lw: Array.from(new Float64Array(16)),
             play: 0,
             ms: ms
           });
@@ -5809,7 +5718,7 @@
           h =
             '<label style="color:#eee"><input type="checkbox" id="bkUse"' + (bkLS('shogiBkUse', '1') === '1' ? ' checked' : '') + '> AIの手番で定跡を使う</label>' +
             '<label>定跡を行うのは</label><select id="bkWho"><option value="me">自分</option><option value="ai">AI</option></select>' +
-            '<div style="font-size:12px;color:#aaa">自分が先手なら先手の定跡、後手なら後手の定跡を使います(AIにすると、AIの手番側)。</div>' +
+            '<div style="font-size:12px;color:#aaa">自分=自分の手番側の定跡 / AI=AIの手番側の定跡(自分が先手なら先手の定跡)</div>' +
             '<label>使う最大手数</label><input type="number" id="bkMax" min="1" value="' + bkMax() + '">' +
             '<div style="margin-top:8px"><label style="color:#eee"><input type="radio" name="bkSel" value=""' + (on ? '' : ' checked') + '> 使わない</label></div>';
         ms.forEach(function (x) {
@@ -6541,7 +6450,7 @@
         el.innerHTML =
           '<div><b>評価値グラフ</b> <span style="font-size:12px;color:#aaa">先手から見た勝率換算</span> <button data-e="x">閉じる</button></div>' +
           '<div style="margin:6px 0">' + evSvg(w, Math.round(w * 0.55)) + '</div>' +
-          '<div id="evgT" style="font-size:13px;color:#ccc">グラフをタップすると、その手の評価値が出ます</div>';
+          '<div id="evgT" style="font-size:13px;color:#ccc;white-space:pre-line">グラフをタップすると、その手の評価値・順位・最善手の狙いが出ます</div>';
         el.hidden = false;
         el.onclick = function (e) {
           if (e.target.closest('[data-e="x"]')) {
@@ -6553,11 +6462,113 @@
           var r = sv.getBoundingClientRect(),
             a = evPts(),
             n = a.length - 1,
-            vw = +sv.getAttribute('viewBox').split(' ')[2],
+            vb = sv.getAttribute('viewBox').split(' '),
+            vw = +vb[2],
+            vh = +vb[3],
             x = ((e.clientX - r.left) / (r.width || 1)) * vw,
-            i = Math.max(0, Math.min(n, Math.round(((x - 30) / (vw - 40)) * n)));
-          g('evgT').textContent = i + '手目' + (i ? ' ' + hist[i - 1].txt : '(開始局面)') + ' 評価値 ' + (a[i] == null ? 'なし' : fmtS(Math.round(a[i]))) + '(先手から見て)';
+            i = Math.max(0, Math.min(n, Math.round(((x - 30) / (vw - 40)) * n))),
+            old = sv.querySelector('#evSel');
+          /* タップした手の位置に緑の線 */
+          if (old) old.parentNode.removeChild(old);
+          var ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          ln.setAttribute('id', 'evSel');
+          ln.setAttribute('x1', 30 + (n ? (i / n) * (vw - 40) : 0));
+          ln.setAttribute('x2', 30 + (n ? (i / n) * (vw - 40) : 0));
+          ln.setAttribute('y1', 10);
+          ln.setAttribute('y2', vh - 18);
+          ln.setAttribute('stroke', '#4f4');
+          ln.setAttribute('stroke-width', 2);
+          sv.appendChild(ln);
+          var hh = i ? hist[i - 1] : null,
+            t = i + '手目' + (hh ? ' ' + hh.txt : '(開始局面)') + '\n指した後の評価値 ' + (a[i] == null ? 'なし' : fmtS(Math.round(a[i])) + '(先手から見て)');
+          if (hh && hh.inf) t += '\n' + hh.inf;
+          if (hh && hh.bm) t += '\nこの局面の最善手 ' + hh.bm + (hh.aim ? '\n狙い: ' + hh.aim : '');
+          g('evgT').textContent = t;
         };
+      }
+
+      /* ===== 最善手の狙い(読み筋と駒の損得から、確かに言えることだけを書く) ===== */
+      function aimNames(ts) {
+        return ts
+          .map(function (t) {
+            return NM[t];
+          })
+          .join('・');
+      }
+
+      /* m: 最善手 / pvu: 読み筋(USI形式の配列。なければ空) / s: 評価値(手番側から見て) */
+      function aimText(m, pvu, s) {
+        var Q = clonePos(P),
+          side = Q.side,
+          f = m & 127,
+          t = (m >> 7) & 127,
+          pr = (m >> 14) & 1,
+          drop = f === 81,
+          pt = drop ? m >> 15 : Q.b[f] & 15,
+          cap = Q.b[t] ? Q.b[t] & 15 : 0,
+          inChk = atk(Q, Q.k[side], side ^ 1),
+          direct = [],
+          pvp = [],
+          thr = [],
+          how = [],
+          i;
+        if (Math.abs(s) > 29000) return s > 0 ? '詰みを狙う(約' + (30000 - s) + '手)' : '詰まされる前に受ける(約' + (30000 + s) + '手)';
+        make(Q, m);
+        var chk = atk(Q, Q.k[Q.side], Q.side ^ 1);
+        /* この手そのものの狙い */
+        if (inChk) direct.push('王手を受ける');
+        if (chk) direct.push(cap ? NM[cap] + 'を取って王手' : '王手');
+        else if (cap) direct.push(NM[cap] + 'を取る');
+        if (pr) how.push('成って' + NM[pt + 8] + 'にする');
+        /* 動かした駒の次の狙い(もう一度指せるとしたら、何が取れるか) */
+        if (!chk) {
+          var R = clonePos(Q);
+          R.side ^= 1;
+          var th = {};
+          legal(R).forEach(function (mm) {
+            if ((mm & 127) === t && R.b[(mm >> 7) & 127]) th[(mm >> 7) & 127] = R.b[(mm >> 7) & 127] & 15;
+          });
+          var ty = Object.keys(th)
+            .map(function (k) {
+              return th[k];
+            })
+            .sort(function (a, b) {
+              return VAL[b] - VAL[a];
+            });
+          if (ty.length >= 2 && VAL[ty[1]] >= 350) thr.push('両取り(' + aimNames(ty.slice(0, 2)) + ')');
+          else if (ty.length) thr.push(NM[ty[0]] + 'を狙う');
+        }
+        /* 読み筋の先で起きること(駒の損得) */
+        if (pvu && pvu.length > 1) {
+          var Rp = clonePos(P),
+            net = 0,
+            mineAll = [],
+            theirAll = [],
+            later = [];
+          for (i = 0; i < pvu.length; i++) {
+            var mm2 = u2m(pvu[i]);
+            if (legal(Rp).indexOf(mm2) < 0) break;
+            var tg = Rp.b[(mm2 >> 7) & 127] & 15;
+            if (tg) {
+              var mine = i % 2 === 0;
+              net += mine ? VAL[tg] : -VAL[tg];
+              (mine ? mineAll : theirAll).push(tg);
+              if (mine && i > 0) later.push(tg);
+            }
+            make(Rp, mm2);
+          }
+          if (mineAll.length && theirAll.length && Math.abs(net) < 400) pvp.push('駒の交換(' + aimNames(mineAll) + 'と' + aimNames(theirAll) + ')');
+          else if (later.length && net >= 300) pvp.push('数手先で' + aimNames(later) + 'を取れる');
+          else if (net >= 300 && !cap) pvp.push('駒得を狙う');
+          else if (net <= -300 && s > -100) pvp.push('駒を捨てて攻める');
+        }
+        var parts = direct.concat(pvp, thr, how);
+        /* 何も見つからなかったとき: 駒の種類で、わかる範囲の説明 */
+        if (!parts.length) {
+          var q = drop ? NM[pt] + 'を打って利きを増やす' : pt === 8 ? '玉の位置を整える' : pt === 1 ? '歩を進める' : pt === 5 || pt === 4 ? '金銀を動かして陣形を整える' : pt === 6 || pt === 7 || pt === 14 || pt === 15 ? NM[pt] + 'の利きを変える' : '駒の働きを良くする';
+          return q + '(駒の損得・王手はなし)';
+        }
+        return parts.slice(0, 3).join('、');
       }
 
       /* --- 初期化 --- */
@@ -6580,7 +6591,7 @@
       };
       g('ed').onclick = edClick;
       setInterval(function () {
-        if (busy && !over && mode !== 'train' && lastMsg && lastMsg.id === gid && Date.now() - lastRx > 25000) {
+        if (busy && !over && lastMsg && lastMsg.id === gid && Date.now() - lastRx > 25000) {
           lastRx = Date.now();
           W.terminate();
           newWorker();
@@ -6594,24 +6605,7 @@
         var b = e.target.closest('button');
         if (!b) return;
         if (b.id === 'bNew') newGame();
-        else if (b.id === 'bTr') {
-          if (trainOn) {
-            trainOn = 0;
-            busy = 0;
-            W.postMessage({ cmd: 'stop' });
-            renderBtns();
-          } else startTrain();
-        } else if (b.id === 'bTrR') {
-          LWS = new Float64Array(16);
-          try {
-            localStorage.removeItem('shogiLW');
-          } catch (e) {}
-          if (trainOn) startTrain();
-          else {
-            trStat = '学習をリセットしました';
-            paintTrain();
-          }
-        } else if (b.id === 'bMenu') g('menu').hidden = !g('menu').hidden;
+        else if (b.id === 'bMenu') g('menu').hidden = !g('menu').hidden;
         else if (b.dataset.a === 'u') undoFor(+b.dataset.c);
         else if (b.dataset.a === 'r') resign(+b.dataset.c);
         else if (b.dataset.a === 'd') declare();
