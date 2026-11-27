@@ -5,6 +5,13 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v43 (v42からの変更点)
+      - 起動時: NN(hao.bin / やねうら王)の読込が終わるまで対局を始めない。読込が終われば自動で開始し、
+        読込に失敗(ダウンロード失敗・オフラインで未保存・WASM失敗など)したらNNなしで開始する。
+        読込中は盤を触れず、AIも考えない。40秒間なにも進まないときもNNなしで開始する
+      - 強さレベルを大幅に弱く: 最弱のLv1は、約半分の手が完全なランダム手(うっかり)で、残りも候補40手から
+        ほぼ均等に選ぶ。Lv2〜Lv6にも「うっかり率」(30%/18%/10%/5%/2%)を追加し、許す下がり幅と候補数も拡大
+
       v42 (v41からの変更点)
       - AIの強さレベルが効いていなかった問題を修正
         原因: 悪手を混ぜる幅が最大150cpで、しかも序盤だけ(30手目以降はほぼゼロ)だった。さらに水匠(NNUE)は深さ1〜4でも十分強い
@@ -3971,7 +3978,7 @@
           '<div class="grp"><h4>③ AIの強さ</h4>' +
           '<div class="row"><label>読む深さ(上限)</label><span><input type="number" id="D" value="14" min="1"></span></div>' +
           '<div class="row"><label>強さレベル</label><span><select id="lv"><option value="1">1 (最弱)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11" selected>無制限</option></select></span></div>' +
-          '<div class="hint">下げるほど、読む深さが浅くなり、評価の悪い手(Lv1は最大8コマ分ほど)も混ざります。「無制限」が最強です</div>' +
+          '<div class="hint">下げるほど、読む深さが浅くなり、評価の悪い手や、うっかりのランダム手(Lv1は約半分)が混ざります。「無制限」が最強です</div>' +
           '<div class="row"><label>手のばらつき</label><span><select id="rnd"><option value="0">なし(常に最善手)</option><option value="30">小(30cp)</option><option value="60" selected>中(60cp)</option><option value="120">大(120cp)</option><option value="250">特大(250cp)</option></select></span></div>' +
           '<div class="hint">最強の読みの中から、評価差が小さい手をランダムに選びます(序盤ほど大きい)。最強で指したいときは「なし」</div>' +
           '<label class="chk"><input type="checkbox" id="eco" checked> 早指し(最善手が変わらなければ早めに指す)</label>' +
@@ -4040,8 +4047,37 @@
         menuVis();
       }
 
+      /* --- NN読込が終わるまで対局を始めない(失敗したらNNなしで開始) --- */
+      var nnWait = 1,
+        haoFail = 0,
+        nnAct = Date.now();
+
+      function nnCheck() {
+        if (!nnWait) return;
+        var eng = YO.state === 'ok' ? YO.ready : YO.state === 'fail';
+        if (!eng) return;
+        var net = haoFail || (YO.state === 'ok' ? YO.netReady : nnOk);
+        if (net) nnStart();
+      }
+
+      function nnStart() {
+        if (!nnWait) return;
+        nnWait = 0;
+        if (haoFail && !nnOk) g('nnB').style.color = '#f88';
+        g('ov').hidden = true;
+        if (!editing) newGame();
+      }
+      setInterval(function () {
+        if (nnWait && Date.now() - nnAct > 40000) {
+          haoFail = 1;
+          setNN('NNの読込が進まないため、NNなしで開始します', 0, 0);
+          nnStart();
+        }
+      }, 1000);
+
       /* --- NN読込 --- */
       function setNN(txt, pct, ov) {
+        nnAct = Date.now();
         g('ovT').textContent = txt;
         g('ovB').style.width = pct + '%';
         g('ov').hidden = !ov;
@@ -4165,6 +4201,8 @@
           setTimeout(function () {
             g('ov').hidden = true;
           }, 5000);
+          haoFail = 1;
+          nnCheck();
           return;
         }
         loadHao();
@@ -4220,6 +4258,8 @@
         }
         setNN('取得失敗(タップで再試行) ' + err, 0, 0);
         g('nnB').textContent = '⚠取得失敗:タップで再試行';
+        haoFail = 1;
+        nnCheck();
       }
 
       /* --- Worker通信 --- */
@@ -4254,6 +4294,8 @@
           g('ov').hidden = true;
           nnOk = m.ok;
           if (m.ok) setNN('NN読込済: ' + netName, 100, 0);
+          else haoFail = 1;
+          nnCheck();
         } else if (m.t === 'ack') clearTimeout(tm);
         else if (m.id < 0) bkxOnMsg(m);
         else if (m.id !== gid) return;
@@ -4638,6 +4680,10 @@
 
       function next() {
         render();
+        if (nnWait) {
+          g('msg').textContent = 'NNを読み込んでいます…終わったら対局を開始します(失敗したらNNなしで開始)';
+          return;
+        }
         if (paused || editing) return;
         turnT0 = Date.now();
         curAn = null;
@@ -4862,7 +4908,7 @@
 
       function canPlay() {
         return (
-          !over && !paused && !editing && (mode === 'study' || (mode === 'vs' && (P.side === human || manOn())))
+          !nnWait && !over && !paused && !editing && (mode === 'study' || (mode === 'vs' && (P.side === human || manOn())))
         );
       }
 
@@ -5480,6 +5526,7 @@
             'このページが cross-origin isolated ではない(coi-serviceworker.js が読めていない/初回アクセス直後は再読込が必要/ファイルとして開いている)';
           g('nnB').title = 'WASM不可';
           ensureJsNet();
+          nnCheck();
           return;
         }
         YO.state = 'init';
@@ -5530,6 +5577,7 @@
           g('ov').hidden = true;
           g('nnB').textContent = 'WASM失敗:' + String(e.message).slice(0, 20);
           ensureJsNet();
+          nnCheck();
         }
       }
 
@@ -5690,9 +5738,11 @@
       function yoLine(l) {
         if (l === 'readyok') {
           YO.ready = true;
+          YO.netReady = !!netBuf;
           nnOk = 1;
           setNN(netBuf ? 'やねうら王 + ' + netName : 'やねうら王(内蔵:水匠5)', 100, 0);
           if (YO.pending) yoKick();
+          nnCheck();
           return;
         }
         if (l.indexOf('bestmove') === 0) return yoBest(l);
@@ -5770,19 +5820,20 @@
       /* 最善手との評価差が許容内の候補から、評価差で重み付けしてランダムに選ぶ */
       var MAXDROP = 150;
       /* d=深さ制限, k=ばらつき(序盤)の倍率, T=許す評価値の下がり幅(cp), n=候補の数。T=0 は悪手を混ぜない(最強) */
+      /* r=うっかり率(合法手からの完全なランダム手) */
       var LVS = [
         null,
-        { d: 1, k: 3, T: 800, n: 10 },
-        { d: 2, k: 2.5, T: 500, n: 10 },
-        { d: 3, k: 2, T: 350, n: 8 },
-        { d: 4, k: 1.6, T: 250, n: 8 },
-        { d: 6, k: 1.3, T: 180, n: 6 },
-        { d: 8, k: 1.1, T: 130, n: 6 },
-        { d: 10, k: 1, T: 90, n: 5 },
-        { d: 12, k: 1, T: 60, n: 5 },
-        { d: 16, k: 1, T: 35, n: 5 },
-        { d: 20, k: 1, T: 20, n: 5 },
-        { d: 0, k: 1, T: 0, n: 0 }
+        { d: 1, k: 3, T: 3000, n: 40, r: 0.5 },
+        { d: 2, k: 2.5, T: 1500, n: 30, r: 0.3 },
+        { d: 3, k: 2, T: 800, n: 20, r: 0.18 },
+        { d: 4, k: 1.6, T: 500, n: 14, r: 0.1 },
+        { d: 6, k: 1.3, T: 300, n: 10, r: 0.05 },
+        { d: 8, k: 1.1, T: 200, n: 8, r: 0.02 },
+        { d: 10, k: 1, T: 120, n: 5, r: 0 },
+        { d: 12, k: 1, T: 70, n: 5, r: 0 },
+        { d: 16, k: 1, T: 40, n: 5, r: 0 },
+        { d: 20, k: 1, T: 20, n: 5, r: 0 },
+        { d: 0, k: 1, T: 0, n: 0, r: 0 }
       ];
 
       function lvOf() {
@@ -5796,6 +5847,10 @@
           best = null,
           i,
           j;
+        if (lv.r && Math.random() < lv.r) {
+          var all = legal(P);
+          if (all.length) return all[(Math.random() * all.length) | 0];
+        }
         /* 「手のばらつき」: 序盤ほど大きく、手数が進むと小さくなる */
         if (T) T = Math.min(T * (4 / (1 + Math.exp((hist.length - 15) / 5))) * lv.k, MAXDROP);
         /* 強さレベル: 弱いレベルほど、評価の悪い手も選ぶ。ゲーム全体を通して一定 */
