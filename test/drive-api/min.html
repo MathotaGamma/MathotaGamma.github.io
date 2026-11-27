@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>DriveAPIManager 最小保存・取得サンプル</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .row { margin-bottom: 10px; display: flex; gap: 12px; align-items: center; }
+    textarea { width: 100%; max-width: 500px; height: 120px; display: block; margin-bottom: 10px; }
+    button, select { padding: 6px 10px; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <label>保存形式:
+      <select id="saveType">
+        <option value="json">JSON</option>
+        <option value="text">Text</option>
+      </select>
+    </label>
+    <label>表示形式:
+      <select id="viewAs">
+        <option value="auto">auto</option>
+        <option value="json">json</option>
+        <option value="text">text</option>
+      </select>
+    </label>
+  </div>
+
+  <textarea id="fileData" placeholder='{"theme": "dark", "score": 999}'>{"theme": "dark", "score": 999}</textarea>
+
+  <div>
+    <button id="btnSave">Driveに保存</button>
+    <button id="btnGet">Driveから取得</button>
+  </div>
+  <pre id="log"></pre>
+
+  <script type="module">
+    import DriveAPIManager from '/statics/drive-api/6-6/manager.js';
+
+    const CLIENT_ID = '673216051028-hjomu6c8livrv4ga0c0f37o3i3qt0dso.apps.googleusercontent.com';
+    const REDIRECT_URI = 'https://mathotagamma.github.io/statics/drive-api/oauth2callback';
+    const FILE_PATH = '/saves/slot1.json';
+
+    const saveTypeEl = document.getElementById('saveType');
+    const viewAsEl = document.getElementById('viewAs');
+    const textareaEl = document.getElementById('fileData');
+    const logEl = document.getElementById('log');
+
+    function writeLog(msg) {
+      const text = typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2);
+      logEl.textContent = text + '\n' + logEl.textContent;
+    }
+
+    const drive = new DriveAPIManager({
+      clientId: CLIENT_ID,
+      redirectUri: REDIRECT_URI,
+      space: 'drive'
+    });
+
+    document.getElementById('btnSave').addEventListener('click', async () => {
+      try {
+        await drive.auth(false);
+
+        const type = saveTypeEl.value;
+        const raw = textareaEl.value;
+        let data = raw;
+        let mimeType = 'text/plain;charset=utf-8';
+
+        if (type === 'json') {
+          data = JSON.parse(raw || '{}');
+          mimeType = 'application/json';
+        }
+
+        const res = await drive.saveFile({
+          path: FILE_PATH,
+          data: data,
+          mimeType: mimeType
+        });
+
+        writeLog('保存成功:');
+        writeLog(res);
+      } catch (err) {
+        writeLog('保存エラー:');
+        writeLog(err && err.message ? err.message : String(err));
+      }
+    });
+
+    document.getElementById('btnGet').addEventListener('click', async () => {
+      try {
+        await drive.auth(false);
+
+        const rawRes = await drive.getFile({ path: FILE_PATH });
+        const mode = viewAsEl.value;
+        let output = rawRes;
+
+        if (mode === 'json') {
+          output = typeof rawRes === 'string' ? JSON.parse(rawRes) : rawRes;
+          textareaEl.value = JSON.stringify(output, null, 2);
+        } else if (mode === 'text') {
+          output = typeof rawRes === 'string' ? rawRes : JSON.stringify(rawRes, null, 2);
+          textareaEl.value = output;
+        } else {
+          if (typeof rawRes === 'string') {
+            try {
+              output = JSON.parse(rawRes);
+              textareaEl.value = JSON.stringify(output, null, 2);
+            } catch (e) {
+              textareaEl.value = rawRes;
+            }
+          } else {
+            textareaEl.value = JSON.stringify(rawRes, null, 2);
+          }
+        }
+
+        writeLog('取得成功:');
+        writeLog(output);
+      } catch (err) {
+        writeLog('取得エラー:');
+        writeLog(err && err.message ? err.message : String(err));
+      }
+    });
+  </script>
+</body>
+</html>
