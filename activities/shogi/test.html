@@ -5,6 +5,14 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v45 (v44からの変更点)
+      - 「最善手の狙い」の表示と、その判定処理をすべて削除
+      - 局面編集中に、直前の手の青いハイライトが残る不具合を修正
+      - 序盤の不自然さを改善: 序盤は評価値の差がほとんど無く、許容内から無作為に選ぶと意味のない手が混ざっていた。
+        強さレベルの許容cpは序盤ほど小さく(4手目まで12%、30手目で全開)、手のばらつきも序盤は最大50cp。選ぶときは最善手に近い手ほど選ばれやすくした
+      - 対局中に強さレベル・手のばらつき・AIの考える時間を変えると、AIの手番ならすぐに反映して考え直す
+      - 設定画面の補足説明を整理(不要なものを削除)
+
       v44 (v43からの変更点)
       - 強さレベル: 不自然だった「完全ランダム手(うっかり)」をやめ、最善手との評価差の許容(cp)の範囲内から無作為に選ぶ方式に統一
         許容 Lv1=700cp / Lv2=400 / Lv3=220 / Lv4=140 / Lv5=90 / Lv6=60 / Lv7=40 / Lv8=25 / Lv9=15 / Lv10=8
@@ -3967,7 +3975,6 @@
           var show = !g('r_tm').hidden && (id === 'base' ? tmv !== 'n' : tmv === 'b');
           g('r_' + id).hidden = !show;
         });
-        g('hintTm').hidden = !g('r_tm').hidden;
         SPEC.forEach(function (sp) {
           var c = g(sp[0] + 'C');
           if (c) c.hidden = g(sp[0]).value !== 'c';
@@ -3979,7 +3986,6 @@
         h +=
           '<div class="grp"><h4>① 対局</h4>' +
           rowHtml('mode', 'モード') +
-          '<div class="hint">モードを変えると、新しい対局が始まります</div>' +
           rowHtml('side', 'あなたの手番') +
           '</div>';
         h +=
@@ -3988,17 +3994,13 @@
           rowHtml('base', '　持ち時間(分)') +
           rowHtml('by', '　秒読み(秒)') +
           rowHtml('fi', '　1手ごとの加算(秒)') +
-          '<div class="hint" id="hintTm">研究モードでは、あなたの持ち時間はありません</div>' +
           rowHtml('ai', 'AIの考える時間(秒/手)') +
-          '<div class="hint">「無制限」は、下の「読む深さ」まで読みます</div>' +
           '</div>';
         h +=
           '<div class="grp"><h4>③ AIの強さ</h4>' +
           '<div class="row"><label>読む深さ(上限)</label><span><input type="number" id="D" value="14" min="1"></span></div>' +
           '<div class="row"><label>強さレベル</label><span><select id="lv"><option value="1">1 (最弱)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11" selected>無制限</option></select></span></div>' +
-          '<div class="hint">下げるほど、読む深さが浅くなり、最善手との評価差が許容(Lv1は700cp〜Lv10は8cp)以内の手から無作為に選びます。「無制限」が最強です</div>' +
           '<div class="row"><label>手のばらつき</label><span><select id="rnd"><option value="0">なし(常に最善手)</option><option value="30">小(30cp)</option><option value="60" selected>中(60cp)</option><option value="120">大(120cp)</option><option value="250">特大(250cp)</option></select></span></div>' +
-          '<div class="hint">最強の読みの中から、評価差が小さい手をランダムに選びます(序盤ほど大きい)。最強で指したいときは「なし」</div>' +
           '<label class="chk"><input type="checkbox" id="eco" checked> 早指し(最善手が変わらなければ早めに指す)</label>' +
           '</div>';
         h +=
@@ -4018,11 +4020,10 @@
         h +=
           '<div class="grp"><h4>⑥ 囲い・戦法の表示</h4>' +
           '<label class="chk"><input type="checkbox" id="tacOn" checked> 囲い・戦法を画面に表示する</label>' +
-          '<div class="hint">成立した瞬間に画面中央へ大きく出し、盤の上に常に表示します(akicho8/bioshogi の定義を使用)</div>' +
           '</div>';
         h +=
           '<div class="grp"><h4>⑦ 評価関数(NN)</h4>' +
-          '<div class="hint">無くても指せます</div><div id="nnS">未読込</div>' +
+          '<div id="nnS">未読込</div>' +
           '<button id="bHao">hao.bin を読込</button> <input type="file" id="nnF">' +
           '</div>';
         h +=
@@ -4057,6 +4058,12 @@
         };
         ['side', 'tm', 'base', 'by', 'fi', 'ai'].forEach(function (id) {
           g(id).addEventListener('change', menuVis);
+        });
+        ['lv', 'rnd', 'ai'].forEach(function (id) {
+          g(id).addEventListener('change', function () {
+            if (nnWait || over || paused || editing || mode !== 'vs' || P.side === human) return;
+            think(1);
+          });
         });
         g('tacOn').onchange = function () {
           tacKey = '';
@@ -4458,10 +4465,9 @@
 
       function showList(m) {
         g('bar').firstChild.style.width = m.pct + '%';
-        curAn = { list: m.list, worst: m.worst, ev: m.ev != null ? m.ev : m.list.length ? m.list[0].s : null, aim: '', bm: '' };
+        curAn = { list: m.list, worst: m.worst, ev: m.ev != null ? m.ev : m.list.length ? m.list[0].s : null, bm: '' };
         if (m.list.length) {
           try {
-            curAn.aim = aimText(m.list[0].m, m.list[0].pv, m.list[0].s);
             curAn.bm = (P.side ? '△' : '▲') + mvT(m.list[0].m);
           } catch (e) {}
         }
@@ -4487,7 +4493,6 @@
             (m.info || '') +
             ' (手番側の評価値)' +
             '</div>';
-        if (curAn.aim) h += '<div style="color:#8cf">最善手の狙い: ' + curAn.aim + '</div>';
         m.list.slice(0, n).forEach(function (x, i) {
           h +=
             '<div>' +
@@ -4699,7 +4704,7 @@
       function next() {
         render();
         if (nnWait) {
-          g('msg').textContent = 'NNを読み込んでいます…終わったら対局を開始します(失敗したらNNなしで開始)';
+          g('msg').textContent = 'NN読込中…';
           return;
         }
         if (paused || editing) return;
@@ -4830,7 +4835,7 @@
           bkNote = '';
         }
         if (clk.on && pc === human) clk.left = Math.max(0, clk.left - (Date.now() - clk.t0)) + clk.fi;
-        var ent = { m: m, cap: cap, kif: kif, txt: txt, c: pc, t: el, inf: inf, ev: evb, bm: curAn ? curAn.bm : '', aim: curAn ? curAn.aim : '' };
+        var ent = { m: m, cap: cap, kif: kif, txt: txt, c: pc, t: el, inf: inf, ev: evb, bm: curAn ? curAn.bm : '' };
         hist.push(ent);
         lastInfo = txt + (inf ? ' ' + inf : '');
         hKeys.push(hashP(P));
@@ -5019,7 +5024,7 @@
             'cell' +
             (p && p >> 4 ? ' w' : '') +
             ((p & 15) > 8 ? ' pr' : '') +
-            (last && (last.t === s || last.f === s) ? ' lm' : '') +
+            (!editing && last && (last.t === s || last.f === s) ? ' lm' : '') +
             (sel && sel.f === s ? ' sl' : '') +
             (sel && sel.tg[s] ? ' tg' : '');
           el.innerHTML = p ? '<span>' + NM[p & 15] + '</span>' : '';
@@ -5866,10 +5871,13 @@
           best = null,
           i,
           j;
-        /* 「手のばらつき」: 序盤ほど大きく、手数が進むと小さくなる */
-        if (T) T = Math.min(T * (4 / (1 + Math.exp((hist.length - 15) / 5))) * lv.k, MAXDROP);
-        /* 強さレベル: 弱いレベルほど、評価の悪い手も選ぶ。ゲーム全体を通して一定 */
-        if (weak) T = Math.max(T, lv.T);
+        /* 「手のばらつき」: 序盤ほど大きく、手数が進むと小さくなる。ただし序盤は意味のない手を避けるため最大50cp */
+        if (T) {
+          T = Math.min(T * (4 / (1 + Math.exp((hist.length - 15) / 5))) * lv.k, MAXDROP);
+          if (hist.length < 12) T = Math.min(T, 50);
+        }
+        /* 強さレベル: 弱いレベルほど、評価の悪い手も選ぶ。序盤は評価値の差が小さく自然さを保つため許容を小さくし、30手目で全開 */
+        if (weak) T = Math.max(T, lv.T * Math.max(0.12, Math.min(1, (hist.length - 4) / 26)));
         if (!T || arr.length < 2 || T < 1) return bm;
         for (i = 0; i < arr.length; i++) if (arr[i].m === bm) best = arr[i];
         if (!best || Math.abs(best.s) > 29000) return bm;
@@ -5883,7 +5891,7 @@
         });
         if (c.length < 2) return bm;
         var w = c.map(function (x) {
-            return weak ? 1 : Math.exp(-(best.s - x.s) / (T / 2));
+            return Math.exp((-1.5 * (best.s - x.s)) / T);
           }),
           tot = 0,
           rv;
@@ -7620,7 +7628,7 @@
         el.innerHTML =
           '<div><b>評価値グラフ</b> <span style="font-size:12px;color:#aaa">先手から見た勝率換算</span> <button data-e="x">閉じる</button></div>' +
           '<div style="margin:6px 0">' + evSvg(w, Math.round(w * 0.55)) + '</div>' +
-          '<div id="evgT" style="font-size:13px;color:#ccc;white-space:pre-line">グラフをタップすると、その手の評価値・順位・最善手の狙いが出ます</div>';
+          '<div id="evgT" style="font-size:13px;color:#ccc;white-space:pre-line">グラフをタップすると、その手の評価値・順位が出ます</div>';
         el.hidden = false;
         el.onclick = function (e) {
           if (e.target.closest('[data-e="x"]')) {
@@ -7652,93 +7660,9 @@
           var hh = i ? hist[i - 1] : null,
             t = i + '手目' + (hh ? ' ' + hh.txt : '(開始局面)') + '\n指した後の評価値 ' + (a[i] == null ? 'なし' : fmtS(Math.round(a[i])) + '(先手から見て)');
           if (hh && hh.inf) t += '\n' + hh.inf;
-          if (hh && hh.bm) t += '\nこの局面の最善手 ' + hh.bm + (hh.aim ? '\n狙い: ' + hh.aim : '');
+          if (hh && hh.bm) t += '\nこの局面の最善手 ' + hh.bm;
           g('evgT').textContent = t;
         };
-      }
-
-      /* ===== 最善手の狙い(読み筋と駒の損得から、確かに言えることだけを書く) ===== */
-      function aimNames(ts) {
-        return ts
-          .map(function (t) {
-            return NM[t];
-          })
-          .join('・');
-      }
-
-      /* m: 最善手 / pvu: 読み筋(USI形式の配列。なければ空) / s: 評価値(手番側から見て) */
-      function aimText(m, pvu, s) {
-        var Q = clonePos(P),
-          side = Q.side,
-          f = m & 127,
-          t = (m >> 7) & 127,
-          pr = (m >> 14) & 1,
-          drop = f === 81,
-          pt = drop ? m >> 15 : Q.b[f] & 15,
-          cap = Q.b[t] ? Q.b[t] & 15 : 0,
-          inChk = atk(Q, Q.k[side], side ^ 1),
-          direct = [],
-          pvp = [],
-          thr = [],
-          how = [],
-          i;
-        if (Math.abs(s) > 29000) return s > 0 ? '詰みを狙う(約' + (30000 - s) + '手)' : '詰まされる前に受ける(約' + (30000 + s) + '手)';
-        make(Q, m);
-        var chk = atk(Q, Q.k[Q.side], Q.side ^ 1);
-        /* この手そのものの狙い */
-        if (inChk) direct.push('王手を受ける');
-        if (chk) direct.push(cap ? NM[cap] + 'を取って王手' : '王手');
-        else if (cap) direct.push(NM[cap] + 'を取る');
-        if (pr) how.push('成って' + NM[pt + 8] + 'にする');
-        /* 動かした駒の次の狙い(もう一度指せるとしたら、何が取れるか) */
-        if (!chk) {
-          var R = clonePos(Q);
-          R.side ^= 1;
-          var th = {};
-          legal(R).forEach(function (mm) {
-            if ((mm & 127) === t && R.b[(mm >> 7) & 127]) th[(mm >> 7) & 127] = R.b[(mm >> 7) & 127] & 15;
-          });
-          var ty = Object.keys(th)
-            .map(function (k) {
-              return th[k];
-            })
-            .sort(function (a, b) {
-              return VAL[b] - VAL[a];
-            });
-          if (ty.length >= 2 && VAL[ty[1]] >= 350) thr.push('両取り(' + aimNames(ty.slice(0, 2)) + ')');
-          else if (ty.length) thr.push(NM[ty[0]] + 'を狙う');
-        }
-        /* 読み筋の先で起きること(駒の損得) */
-        if (pvu && pvu.length > 1) {
-          var Rp = clonePos(P),
-            net = 0,
-            mineAll = [],
-            theirAll = [],
-            later = [];
-          for (i = 0; i < pvu.length; i++) {
-            var mm2 = u2m(pvu[i]);
-            if (legal(Rp).indexOf(mm2) < 0) break;
-            var tg = Rp.b[(mm2 >> 7) & 127] & 15;
-            if (tg) {
-              var mine = i % 2 === 0;
-              net += mine ? VAL[tg] : -VAL[tg];
-              (mine ? mineAll : theirAll).push(tg);
-              if (mine && i > 0) later.push(tg);
-            }
-            make(Rp, mm2);
-          }
-          if (mineAll.length && theirAll.length && Math.abs(net) < 400) pvp.push('駒の交換(' + aimNames(mineAll) + 'と' + aimNames(theirAll) + ')');
-          else if (later.length && net >= 300) pvp.push('数手先で' + aimNames(later) + 'を取れる');
-          else if (net >= 300 && !cap) pvp.push('駒得を狙う');
-          else if (net <= -300 && s > -100) pvp.push('駒を捨てて攻める');
-        }
-        var parts = direct.concat(pvp, thr, how);
-        /* 何も見つからなかったとき: 駒の種類で、わかる範囲の説明 */
-        if (!parts.length) {
-          var q = drop ? NM[pt] + 'を打って利きを増やす' : pt === 8 ? '玉の位置を整える' : pt === 1 ? '歩を進める' : pt === 5 || pt === 4 ? '金銀を動かして陣形を整える' : pt === 6 || pt === 7 || pt === 14 || pt === 15 ? NM[pt] + 'の利きを変える' : '駒の働きを良くする';
-          return q + '(駒の損得・王手はなし)';
-        }
-        return parts.slice(0, 3).join('、');
       }
 
       /* --- 初期化 --- */
