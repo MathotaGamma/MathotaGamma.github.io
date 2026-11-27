@@ -5,6 +5,18 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v47 (v46からの変更点)
+      - 局面編集に「盤を上下反転」(盤上の駒を180度回す。先手・後手の持ち主・持駒・手番は変えない)と
+        「先後入れ替え」(180度回し、駒の持ち主・持駒・手番も入れ替える=鏡像の局面)を追加
+      - 視点の上下反転ボタン「⇅」を追加(盤・持駒・先手後手の表示がそのまま反転する)
+      - 「⑨ 終盤から開始」: 棋譜(KIF、複数可)を読み込み、終盤の局面から、詰みが見えず(詰みの評価値が出ない)、
+        評価値が800cp以上の勝勢の局面をエンジンで探し、勝勢の側をあなたが持って VS AI を始める
+
+      v46 (v45からの変更点)
+      - 評価値グラフ: 縦軸を ±2999cp の直線目盛りに変更(従来は勝率曲線で、±1500cpあたりから張り付いていた)。詰みは±2999cp
+      - 「AIの手を自分で指せる」設定をやめ、AIの手番に出るボタン「次は自分が指す」に変更(VS AI・AI vs AI)。
+        押すとAIが考えるのをやめ、1手だけ自分で指せる。指すと元に戻る。もう一度押す(「AIに任せる」)と取り消し
+
       v45 (v44からの変更点)
       - 「最善手の狙い」の表示と、その判定処理をすべて削除
       - 局面編集中に、直前の手の青いハイライトが残る不具合を修正
@@ -4007,8 +4019,6 @@
           '<div class="grp"><h4>④ 表示・操作</h4>' +
           '<label class="chk"><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label class="chk"><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
-          '<label class="chk"><input type="checkbox" id="manAI"> AIの手を自分で指せる</label>' +
-          '<div class="hint">ONにすると、AIが考えている間に盤をタップして、AIの代わりに指せます(VS AI・AI vs AI)</div>' +
           '</div>';
         h +=
           '<div class="grp"><h4>⑤ 定跡</h4>' +
@@ -4030,6 +4040,12 @@
           '<div class="grp"><h4>⑧ その他</h4>' +
           '<button id="bEdit">局面編集</button> <button id="bKif">棋譜(.kif)出力</button> <button id="bEvg">評価値グラフ</button>' +
           '</div>';
+        h +=
+          '<div class="grp"><h4>⑨ 終盤から開始</h4>' +
+          '<div id="egS">棋譜: 未読込</div>' +
+          '<button id="bEgLoad">棋譜(KIF)を読み込む</button> <button id="bEgGo">終盤から開始</button>' +
+          '<input type="file" id="egF" multiple accept=".kif,.kifu,.txt" hidden>' +
+          '</div>';
         h += '<button id="bClose">閉じる</button>';
         g('menu').innerHTML = h;
         g('nnF').onchange = function (e) {
@@ -4047,6 +4063,11 @@
         };
         g('bKif').onclick = exportKif;
         g('bBook').onclick = openBook;
+        g('bEgLoad').onclick = function () {
+          g('egF').click();
+        };
+        g('egF').onchange = egLoad;
+        g('bEgGo').onclick = egStart;
         g('bEvg').onclick = evOpen;
         g('bClose').onclick = function () {
           g('menu').hidden = true;
@@ -4566,6 +4587,7 @@
 
       /* --- 対局進行 --- */
       function newGame(sp) {
+        manNext = 0;
         g('res').hidden = true;
         tacQuiet = 1;
         tacKey = '';
@@ -4609,7 +4631,7 @@
         renderBtns();
         g('evB').style.width = '50%';
         g('evT').textContent = '形勢';
-        g('msg').textContent = aiAI ? 'AI vs AI(AIの考慮中に駒をタッチすると、その手を指せます)' : mode === 'vs' ? 'あなたは' + (human ? '後手' : '先手') : '研究';
+        g('msg').textContent = aiAI ? 'AI vs AI' : mode === 'vs' ? 'あなたは' + (human ? '後手' : '先手') : '研究';
         next();
       }
 
@@ -4811,6 +4833,7 @@
       }
 
       function doMove(m) {
+        manNext = 0;
         var inf = rankInfo(m),
           an = curAn,
           Qb = clonePos(P),
@@ -4860,6 +4883,7 @@
       }
 
       function undoFor(c) {
+        manNext = 0;
         var i = hist.length - 1;
         while (i >= 0 && hist[i].c !== c) i--;
         if (i < 0) return;
@@ -4910,9 +4934,12 @@
         } else if (mode === 'vs' && aiAI) {
           h +=
             '<button data-a="u" data-c="' + (hist.length ? hist[hist.length - 1].c : 0) + '">待った</button>' +
+            (end ? '' : '<button data-a="m">' + (manNext ? 'AIに任せる' : '次は自分が指す') + '</button>') +
             (over ? '<button data-a="s">研究へ</button>' : paused ? '<button data-a="c">再開</button>' : '<button data-a="p">中断</button>');
         } else if (mode === 'vs') {
           h += '<button data-a="u" data-c="' + human + '">待った</button>';
+          if (!end && (P.side !== human || manNext))
+            h += '<button data-a="m">' + (manNext ? 'AIに任せる' : '次は自分が指す') + '</button>';
           if (!end) {
             h +=
               '<button data-a="r" data-c="' +
@@ -4923,12 +4950,28 @@
               (paused ? '<button data-a="c">再開</button>' : '') +
               '<button data-a="s">研究へ</button>';
         }
-        h += '<button id="bMenu">☰</button>';
+        h += '<button data-a="f">⇅</button><button id="bMenu">☰</button>';
         g('btns').innerHTML = h;
       }
 
+      /* 「次は自分が指す」: AIの手番で、1手だけ自分で指す */
+      var manNext = 0;
+
       function manOn() {
-        return mode === 'vs' && (aiAI || (g('manAI') && g('manAI').checked));
+        return mode === 'vs' && !!manNext;
+      }
+
+      function toggleMan() {
+        if (mode !== 'vs' || over || paused || editing || nnWait || P.side === human) return;
+        manNext = manNext ? 0 : 1;
+        renderBtns();
+        if (manNext) {
+          think(0);
+          g('msg').textContent = 'あなたの番です(AIの手番を指します)';
+        } else {
+          g('msg').textContent = aiAI ? 'AI vs AI' : 'あなたは' + (human ? '後手' : '先手');
+          think(1);
+        }
       }
 
       function canPlay() {
@@ -5267,6 +5310,7 @@
       }
 
       function startEdit() {
+        manNext = 0;
         yoStop();
         if (busy) {
           W.postMessage({ cmd: 'stop' });
@@ -5290,7 +5334,7 @@
           '<button data-x="s">' +
           (P.side ? '後手番' : '先手番') +
           '</button><button data-x="i">初期配置</button>' +
-          '<button data-x="z">全て持駒へ</button><button data-x="x">取消</button><button data-x="k1">完了→研究</button><button data-x="k2">完了→VS AI</button><button data-x="k3">完了→AI vs AI</button>';
+          '<button data-x="z">全て持駒へ</button><button data-x="r">盤を上下反転</button><button data-x="r2">先後入れ替え</button><button data-x="x">取消</button><button data-x="k1">完了→研究</button><button data-x="k2">完了→VS AI</button><button data-x="k3">完了→AI vs AI</button>';
       }
 
       function edClick(e) {
@@ -5321,6 +5365,8 @@
             P.h[0][i] = Math.min(18, P.h[0][i] + P.h[1][i]);
             P.h[1][i] = 0;
           }
+        } else if (x === 'r' || x === 'r2') {
+          edRotate(x === 'r2');
         } else if (x === 'x') {
           cancelEdit();
           return;
@@ -5331,6 +5377,27 @@
         paintEd();
         render();
       }
+      /* 盤を180度回す。swap=true なら、駒の持ち主・持駒・手番も入れ替える */
+      function edRotate(swap) {
+        var old = Array.prototype.slice.call(P.b),
+          i,
+          p;
+        for (i = 0; i < 81; i++) {
+          p = old[80 - i];
+          P.b[i] = swap && p ? p ^ 16 : p;
+        }
+        if (swap) {
+          var th = P.h[0];
+          P.h[0] = P.h[1];
+          P.h[1] = th;
+          P.side ^= 1;
+        }
+        for (i = 0; i < 81; i++) {
+          p = P.b[i];
+          if (p && (p & 15) === 8) P.k[p >> 4] = i;
+        }
+      }
+
       /* 成駒→元の駒(持駒にできる種類)。玉は 0 */
       function baseOf(t) {
         return t === 8 ? 0 : t > 8 ? (t === 14 ? 6 : t === 15 ? 7 : t - 8) : t;
@@ -6639,6 +6706,13 @@
 
       /* 自作エンジン(Worker)からの結果 */
       function bkxOnMsg(m) {
+        if (anaCb && m.id === anaCb.id) {
+          if (m.t === 'done') {
+            busy = 0;
+            anaCb.fn(m);
+          }
+          return;
+        }
         if (m.id !== BKX.jsId || !m.list) return;
         var dp = 0;
         m.list.forEach(function (x) {
@@ -7592,13 +7666,13 @@
           return pl + (n ? (k / n) * iw : 0);
         }
         function Y(v) {
-          v = Math.abs(v) > 29000 ? (v > 0 ? 3000 : -3000) : Math.max(-3000, Math.min(3000, v));
-          return pt + ih * (1 - 1 / (1 + Math.exp(-v / 600)));
+          v = Math.abs(v) > 29000 ? (v > 0 ? 2999 : -2999) : Math.max(-2999, Math.min(2999, v));
+          return pt + (ih * (2999 - v)) / 5998;
         }
         s = '<svg viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="background:#222;border-radius:6px"><g font-size="9" fill="#999">';
-        [0.75, 0.5, 0.25].forEach(function (q) {
-          var y = pt + ih * (1 - q);
-          s += '<line x1="' + pl + '" x2="' + (w - pr) + '" y1="' + y + '" y2="' + y + '" stroke="' + (q === 0.5 ? '#777' : '#444') + '"' + (q === 0.5 ? '' : ' stroke-dasharray="3 3"') + '/><text x="2" y="' + (y + 3) + '">' + q * 100 + '%</text>';
+        [2000, 1000, 0, -1000, -2000].forEach(function (q) {
+          var y = Y(q);
+          s += '<line x1="' + pl + '" x2="' + (w - pr) + '" y1="' + y + '" y2="' + y + '" stroke="' + (q === 0 ? '#777' : '#444') + '"' + (q === 0 ? '' : ' stroke-dasharray="3 3"') + '/><text x="2" y="' + (y + 3) + '">' + q + '</text>';
         });
         var step = n > 150 ? 50 : n > 60 ? 20 : 10;
         for (i = 0; i <= n; i += step) s += '<text x="' + X(i) + '" y="' + (h - 4) + '" text-anchor="middle">' + i + '</text>';
@@ -7665,6 +7739,200 @@
         };
       }
 
+      /* ===== 棋譜から終盤の局面を探して、勝勢の側を持って VS AI を始める ===== */
+      var egGames = [],
+        egBusy = 0,
+        egN = 0,
+        anaCb = null,
+        EG_TH = 800;
+      var KIF_ZEN = '０１２３４５６７８９',
+        KIF_KAN = '〇一二三四五六七八九',
+        KIF_PN = { 歩: 1, 香: 2, 桂: 3, 銀: 4, 金: 5, 角: 6, 飛: 7, 玉: 8, 王: 8, と: 9, 杏: 10, 圭: 11, 全: 12, 馬: 14, 龍: 15, 竜: 15 };
+
+      function kifDecode(buf) {
+        try {
+          return new TextDecoder('utf-8', { fatal: true }).decode(buf);
+        } catch (e) {
+          return new TextDecoder('shift_jis').decode(buf);
+        }
+      }
+
+      /* KIF → {moves, n}。平手以外・読めない棋譜・minN手未満は null */
+      function kifParse(txt, minN) {
+        var lines = txt.replace(/^\uFEFF/, '').split(/\r?\n/),
+          mv = [],
+          prev = -1,
+          Q = newPos(),
+          i;
+        for (i = 0; i < lines.length; i++) {
+          var l = lines[i];
+          if (/^手合割[：:]/.test(l) && !/平手/.test(l)) return null;
+          if (/^変化[：:]/.test(l)) break;
+          var m = l.match(/^\s*\d+\s+(同\s*|[１-９1-9][一二三四五六七八九1-9])(成?[歩香桂銀金角飛玉王と杏圭全馬龍竜])(成|打)?\s*(?:\((\d)(\d)\))?/);
+          if (!m) continue;
+          var t;
+          if (m[1][0] === '同') t = prev;
+          else {
+            var f = KIF_ZEN.indexOf(m[1][0]),
+              r = KIF_KAN.indexOf(m[1][1]);
+            if (f < 0) f = +m[1][0];
+            if (r < 0) r = +m[1][1];
+            t = (f - 1) * 9 + (r - 1);
+          }
+          prev = t;
+          var pc = m[2][0] === '成' ? m[2].slice(1) : m[2],
+            opt = m[3],
+            ls = legal(Q),
+            found = 0,
+            j;
+          for (j = 0; j < ls.length && !found; j++) {
+            var x = ls[j];
+            if (((x >> 7) & 127) !== t) continue;
+            if (opt === '打') {
+              if ((x & 127) === 81 && x >> 15 === KIF_PN[pc]) found = x;
+            } else if (m[4] && (x & 127) === (+m[4] - 1) * 9 + (+m[5] - 1) && ((x >> 14) & 1) === (opt === '成' ? 1 : 0)) found = x;
+          }
+          if (!found) return null;
+          make(Q, found);
+          mv.push(found);
+        }
+        return mv.length >= (minN || 60) ? { moves: mv, n: mv.length } : null;
+      }
+
+      async function egLoad(e) {
+        var fs = e.target.files,
+          i;
+        g('egS').textContent = '読込中…';
+        for (i = 0; i < fs.length; i++) {
+          try {
+            var gm = kifParse(kifDecode(await fs[i].arrayBuffer()));
+            if (gm) egGames.push(gm);
+          } catch (err) {}
+          if (i % 20 === 19) await new Promise(setTimeout);
+        }
+        g('egS').textContent = '棋譜: ' + egGames.length + '局(60手以上の平手のみ)';
+        e.target.value = '';
+      }
+
+      /* 1局面をエンジンで短時間評価する(手番側の評価値)。読めなければ null */
+      function anaOnce(Q, ms, cb) {
+        bkxStopEng();
+        if (busy) {
+          W.postMessage({ cmd: 'stop' });
+          busy = 0;
+        }
+        var fin = 0,
+          done = function (v) {
+            if (fin) return;
+            fin = 1;
+            clearTimeout(tmo);
+            anaCb = null;
+            cb(v);
+          },
+          tmo = setTimeout(function () {
+            done(null);
+          }, ms + 5000);
+        gid++;
+        if (YO.state === 'ok') {
+          YO.req = {
+            id: gid,
+            play: 0,
+            t0: Date.now(),
+            ms: ms,
+            dcap: 0,
+            mpv: 1,
+            mv: {},
+            dt: {},
+            depth: 0,
+            cdepth: 0,
+            pm: 0,
+            ui: 0,
+            guide: null,
+            Q: Q,
+            sfen: toSfen(Q),
+            ex: function (r, d) {
+              if (!d) return;
+              var best = null;
+              Object.keys(r.mv).forEach(function (k) {
+                var x = r.mv[k];
+                if (!best || x.d > best.d || (x.d === best.d && x.s > best.s)) best = x;
+              });
+              done(best ? best.s : null);
+            }
+          };
+          YO.pending = true;
+          yoKick();
+        } else {
+          var id = -(500000 + ++egN);
+          anaCb = {
+            id: id,
+            fn: function (m) {
+              done(m.list.length ? m.list[0].s : null);
+            }
+          };
+          busy = 1;
+          W.postMessage({
+            cmd: 'go',
+            id: id,
+            st: toSt(Q),
+            D: 12,
+            mpv: 1,
+            noScan: 1,
+            rk: [hashP(Q)],
+            rc: [atk(Q, Q.k[Q.side], Q.side ^ 1) ? 1 : 0],
+            lw: Array.from(new Float64Array(16)),
+            play: 0,
+            ms: ms
+          });
+        }
+      }
+
+      async function egStart() {
+        if (egBusy) return;
+        if (nnWait) {
+          g('msg').textContent = 'NN読込後に実行してください';
+          return;
+        }
+        if (!egGames.length) {
+          g('msg').textContent = '先に棋譜(KIF)を読み込んでください';
+          return;
+        }
+        egBusy = 1;
+        g('menu').hidden = true;
+        var best = null,
+          k;
+        for (k = 1; k <= 25; k++) {
+          var gm = egGames[(Math.random() * egGames.length) | 0],
+            lo = Math.max(40, gm.n - 40),
+            hi = gm.n - 6;
+          if (hi < lo) continue;
+          var ply = lo + ((Math.random() * (hi - lo + 1)) | 0),
+            Q = newPos(),
+            j;
+          for (j = 0; j < ply; j++) make(Q, gm.moves[j]);
+          if (!legal(Q).length) continue;
+          g('msg').textContent = '終盤の局面を探しています… ' + k + '/25';
+          var sc = await new Promise(function (res) {
+            anaOnce(Q, 1200, res);
+          });
+          /* 詰みが見えている局面は除く */
+          if (sc === null || Math.abs(sc) >= 29000) continue;
+          if (!best || Math.abs(sc) > best.a) best = { Q: Q, s: sc, a: Math.abs(sc) };
+          if (best.a >= EG_TH) break;
+        }
+        egBusy = 0;
+        if (!best || best.a < 400) {
+          g('msg').textContent = '勝勢の終盤が見つかりませんでした。もう一度押すと別の局面を探します';
+          if (!over && !paused && !editing) next();
+          return;
+        }
+        var win = best.s > 0 ? best.Q.side : best.Q.side ^ 1;
+        g('mode').value = 'vs';
+        g('side').value = String(win);
+        newGame(best.Q);
+        g('msg').textContent = '終盤から開始: あなたは' + (win ? '後手' : '先手') + '(勝勢 ' + best.a + 'cp)';
+      }
+
       /* --- 初期化 --- */
       buildMenu();
       bkInit();
@@ -7700,6 +7968,11 @@
         if (!b) return;
         if (b.id === 'bNew') newGame();
         else if (b.id === 'bMenu') g('menu').hidden = !g('menu').hidden;
+        else if (b.dataset.a === 'f') {
+          flip ^= 1;
+          sel = null;
+          render();
+        } else if (b.dataset.a === 'm') toggleMan();
         else if (b.dataset.a === 'u') undoFor(+b.dataset.c);
         else if (b.dataset.a === 'r') resign(+b.dataset.c);
         else if (b.dataset.a === 'd') declare();
