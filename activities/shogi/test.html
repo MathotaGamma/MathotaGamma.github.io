@@ -5,6 +5,12 @@
     <script src="coi-serviceworker.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <!--
+      v49 (v48からの変更点)
+      - 設定「盤面を反転」: 視点だけを反転する(盤面=反転 / あなたの指す側=逆さ / あなたの先手後手=そのまま)。対局画面には置かない
+      - 局面編集: 「盤面を反転」(設定と同じ)と「相手と交換」(盤面=反転 / あなたの指す側=そのまま / あなたの先手後手=反転。
+        局面は変えず、あなたが相手の側を持つ。完了→VS AI でその先手後手で始まる)
+      - v48 の「先後を入れ替える」(鏡像にする)・編集の「先後入れ替え」「盤面・持駒のみ入れ替え」は削除
+
       v48 (v47からの変更点)
       - 対局画面の「⇅」「次は自分が指す」ボタンを削除
       - AIの考慮中に盤をタッチすると、そのまま自分でその手番を指せる(VS AI・AI vs AI)。AIが先に指し終えたら、通常どおりAIの手が指される
@@ -4005,7 +4011,6 @@
           '<div class="grp"><h4>① 対局</h4>' +
           rowHtml('mode', 'モード') +
           rowHtml('side', 'あなたの手番') +
-          '<button id="bSwap">先後を入れ替える</button>' +
           '</div>';
         h +=
           '<div class="grp"><h4>② 時間</h4>' +
@@ -4026,6 +4031,7 @@
           '<div class="grp"><h4>④ 表示・操作</h4>' +
           '<label class="chk"><input type="checkbox" id="showU" checked> 自分の手番で候補手を表示</label>' +
           '<label class="chk"><input type="checkbox" id="showA" checked> AIの手番で候補手を表示</label>' +
+          '<button id="bFlip">盤面を反転</button>' +
           '</div>';
         h +=
           '<div class="grp"><h4>⑤ 定跡</h4>' +
@@ -4070,7 +4076,10 @@
         };
         g('bKif').onclick = exportKif;
         g('bBook').onclick = openBook;
-        g('bSwap').onclick = swapGame;
+        g('bFlip').onclick = function () {
+          g('menu').hidden = true;
+          viewFlip();
+        };
         g('bEgLoad').onclick = function () {
           g('egF').click();
         };
@@ -5292,7 +5301,10 @@
         return t + '+---------------------------+\n先手の持駒：' + hs(0) + '\n' + (Q.side ? '後手番\n' : '');
       }
 
+      var edSide = '0';
+
       function startEdit() {
+        edSide = g('side').value;
         yoStop();
         if (busy) {
           W.postMessage({ cmd: 'stop' });
@@ -5316,7 +5328,7 @@
           '<button data-x="s">' +
           (P.side ? '後手番' : '先手番') +
           '</button><button data-x="i">初期配置</button>' +
-          '<button data-x="z">全て持駒へ</button><button data-x="r2">先後入れ替え</button><button data-x="r3">盤面・持駒のみ入れ替え</button><button data-x="x">取消</button><button data-x="k1">完了→研究</button><button data-x="k2">完了→VS AI</button><button data-x="k3">完了→AI vs AI</button>';
+          '<button data-x="z">全て持駒へ</button><button data-x="r2">盤面を反転</button><button data-x="r3">相手と交換</button><button data-x="x">取消</button><button data-x="k1">完了→研究</button><button data-x="k2">完了→VS AI</button><button data-x="k3">完了→AI vs AI</button>';
       }
 
       function edClick(e) {
@@ -5347,8 +5359,10 @@
             P.h[0][i] = Math.min(18, P.h[0][i] + P.h[1][i]);
             P.h[1][i] = 0;
           }
-        } else if (x === 'r2' || x === 'r3') {
-          rotPos(P, x === 'r2');
+        } else if (x === 'r2') {
+          viewFlip();
+        } else if (x === 'r3') {
+          edSwapSeat();
         } else if (x === 'x') {
           cancelEdit();
           return;
@@ -5359,91 +5373,20 @@
         paintEd();
         render();
       }
-      /* 盤を180度回して、駒の持ち主と持駒を入れ替える(鏡像の局面)。flipSide=true なら手番も入れ替える */
-      function rotPos(Q, flipSide) {
-        var old = Array.prototype.slice.call(Q.b),
-          i,
-          p;
-        for (i = 0; i < 81; i++) {
-          p = old[80 - i];
-          Q.b[i] = p ? p ^ 16 : 0;
-        }
-        var th = Q.h[0];
-        Q.h[0] = Q.h[1];
-        Q.h[1] = th;
-        if (flipSide) Q.side ^= 1;
-        for (i = 0; i < 81; i++) {
-          p = Q.b[i];
-          if (p && (p & 15) === 8) Q.k[p >> 4] = i;
-        }
-        return Q;
+      /* 視点の反転: 盤・持駒・先手後手の表示が、そのまま逆さになる(局面も先手後手も変わらない) */
+      function viewFlip() {
+        flip ^= 1;
+        sel = null;
+        render();
       }
 
-      /* 対局中の先後入れ替え: 局面・履歴・手番を鏡像にして、持つ側も変える。画面は同じまま、反対の色で続く */
-      function swapGame() {
-        g('menu').hidden = true;
-        if (editing || nnWait || egBusy) return;
-        if (over) {
-          g('msg').textContent = '対局が終わっているので入れ替えできません';
-          return;
-        }
-        gid++;
-        bkxStopEng();
-        if (busy) {
-          W.postMessage({ cmd: 'stop' });
-          busy = 0;
-        }
-        var mir = function (m) {
-          var f = m & 127;
-          return (f === 81 ? 81 : 80 - f) | ((80 - ((m >> 7) & 127)) << 7) | (m & ~16383);
-        };
-        var start = rotPos(clonePos(startP), true),
-          oldH = hist.slice(),
-          save = P,
-          ents = [],
-          keys = [hashP(start)],
-          chk = [atk(start, start.k[start.side], start.side ^ 1) ? 1 : 0];
-        P = clonePos(start);
-        try {
-          oldH.forEach(function (h) {
-            var m2 = mir(h.m),
-              pc = P.side,
-              txt = (pc ? '△' : '▲') + mvT(m2),
-              kif = mvT(m2, 1),
-              cap = make(P, m2);
-            ents.push({ m: m2, cap: cap, kif: kif, txt: txt, c: pc, t: h.t, inf: h.inf, ev: h.ev == null ? null : -h.ev, bm: '' });
-            keys.push(hashP(P));
-            chk.push(atk(P, P.k[P.side], P.side ^ 1) ? 1 : 0);
-          });
-        } catch (err) {
-          P = save;
-          g('msg').textContent = '入れ替えに失敗しました';
-          return;
-        }
-        hist = ents;
-        hKeys = keys;
-        hChk = chk;
-        startP = start;
-        startSfen = toSfen(start);
-        if (human < 2) human ^= 1;
-        flip = mode === 'vs' && human === 1 ? 1 : 0;
-        var l = hist[hist.length - 1];
-        last = l ? { f: l.m & 127, t: (l.m >> 7) & 127 } : null;
+      /* 局面編集: 相手と交換。局面は変えず、あなたの先手後手だけを反対にして、あなたが下に来る向きにする */
+      function edSwapSeat() {
+        var nx = (g('side').value === '1' ? 1 : 0) ^ 1;
+        g('side').value = String(nx);
+        flip = nx;
         sel = null;
-        curAn = null;
-        lastInfo = '';
-        bkNote = '';
-        stratLine = '';
-        stratPick = '';
-        stratOff = 0;
-        stratBase = null;
-        tacQuiet = 1;
-        tacSeen = [{}, {}];
-        tacKey = '';
-        g('cand').innerHTML = '';
-        g('msg').textContent = aiAI ? 'AI vs AI' : mode === 'vs' ? 'あなたは' + (human ? '後手' : '先手') : '研究';
-        renderBtns();
-        next();
+        render();
       }
 
       /* 成駒→元の駒(持駒にできる種類)。玉は 0 */
@@ -5573,7 +5516,7 @@
         }
         var sp = P;
         md = md || g('mode').value;
-        if (edBackup && toSfen(sp) === toSfen(edBackup) && md === (aiAI ? 'aivai' : mode)) {
+        if (edBackup && toSfen(sp) === toSfen(edBackup) && md === (aiAI ? 'aivai' : mode) && g('side').value === edSide) {
           /* 変更なし: 盤面も棋譜もそのまま、編集だけ終える */
           P = edBackup;
           editing = 0;
